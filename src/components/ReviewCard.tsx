@@ -1,4 +1,4 @@
-import type { DetailStage, Investigation } from '../types'
+import type { DetailStage, Investigation } from '../features/chat/model/types'
 import { PipelineRail } from './PipelineRail'
 
 export function ReviewCard({ investigation, stage, onReview, onSelectStage }: { investigation: Investigation; stage: DetailStage; onReview: () => void; onSelectStage: (stage: DetailStage) => void }) {

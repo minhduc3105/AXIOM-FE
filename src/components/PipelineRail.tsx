@@ -1,5 +1,4 @@
-import type { PipelineStep } from '../types'
-import type { DetailStage } from '../types'
+import type { PipelineStep, DetailStage } from '../features/chat/model/types'
 
 const defaults = ['1. Intent & Spec', '2. Plan & Code', '3. Execute', '4. Result']
 

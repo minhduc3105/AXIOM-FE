@@ -1,4 +1,4 @@
-import type { DetailStage } from '../types'
+import type { DetailStage } from '../features/chat/model/types'
 
 type DetailInspectorProps = { stage: DetailStage; onClose: () => void }
 

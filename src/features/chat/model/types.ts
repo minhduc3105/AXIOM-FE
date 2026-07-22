@@ -1,7 +1,5 @@
 export type ChatStage = 'welcome' | 'pending' | 'intent' | 'planner' | 'execute' | 'result'
 export type DetailStage = Exclude<ChatStage, 'welcome' | 'pending'>
-export type IngestionStage = 'choose' | 'catalog' | 'mysql' | 'upload'
-export type IngestionStatus = 'ready' | 'running' | 'complete'
 
 export type PipelineStep = {
   label: string
@@ -14,4 +12,12 @@ export type Investigation = {
   intent: string
   scope: string
   policy: string
+}
+
+export type ChatWorkflowState = {
+  stage: ChatStage
+  detailStage: DetailStage | null
+  investigation: Investigation | null
+  loading: boolean
+  error: string | null
 }

@@ -1,4 +1,4 @@
-import type { ChatStage } from '../types'
+import type { ChatStage } from '../features/chat/model/types'
 import { Icon } from './Icon'
 import { Brand } from './Brand'
 

@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { Icon } from './Icon'
 
-export function DecisionPanel({ mode, onApprove, onSecondary, onDetail }: { mode: 'spec' | 'plan' | 'result'; onApprove: () => void; onSecondary?: () => void; onDetail?: () => void }) {
+export function DecisionPanel({ mode, onApprove, onSecondary, onDetail, onExport }: { mode: 'spec' | 'plan' | 'result'; onApprove: () => void; onSecondary?: () => void; onDetail?: () => void; onExport?: () => void }) {
   const [comment, setComment] = useState('')
   const submitComment = (event: FormEvent) => {
     event.preventDefault()
@@ -12,7 +12,7 @@ export function DecisionPanel({ mode, onApprove, onSecondary, onDetail }: { mode
   return <section className="decision-panel"><strong>{copy}</strong><p>{helper}</p><div className="decision-row">
     <button className="primary-button" onClick={mode === 'result' ? onDetail : onApprove}>{mode === 'spec' ? 'Approve' : mode === 'plan' ? 'Continue to execute' : 'View detail'}</button>
     {mode === 'plan' && <button className="secondary-button" onClick={onSecondary}>Not yet</button>}
-    {mode === 'result' && <button className="secondary-button">Export report</button>}
+    {mode === 'result' && <button className="secondary-button" onClick={onExport}>Export report</button>}
     <form className="inline-comment" onSubmit={submitComment}><input value={comment} onChange={(event) => setComment(event.target.value)} placeholder={mode === 'result' ? 'Ask about evidence or missing data...' : 'Comment to update intent & spec...'} /><button type="submit" aria-label="Send comment"><Icon name="send" size={24} /></button></form>
   </div></section>
 }

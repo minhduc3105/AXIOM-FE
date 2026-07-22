@@ -23,7 +23,7 @@ npm run preview
 - Data ingestion: Choose source → Browse connectors → chọn MySQL → điền form → Test connection → Save connection → Upload files → Start ingestion → Indexed.
 - Detail inspector của chatbot là một right-edge dock: khi mở sẽ neo vào cạnh phải viewport, đồng thời phần chat tự co lại để không tạo scroll ngang.
 - Responsive layout hỗ trợ desktop và tablet/iPad; sidebar thu gọn thành rail ở viewport hẹp, ingestion chuyển từ grid sang stack và form/catalog tự thay đổi cột.
-- Các API trong `src/api/smokeApi.ts` là mock async, có delay để mô phỏng network/pipeline. Có thể thay bằng `fetch` hoặc SDK thật mà không cần đổi UI contract.
+- Các API trong `src/features/*/api` hiện là mock async, có delay để mô phỏng network/pipeline. Có thể thay bằng `fetch` hoặc SDK thật mà không cần đổi UI contract.
 
 ## Cấu trúc thư mục
 
@@ -36,26 +36,22 @@ AXIOM-FE/
 ├─ README.md
 └─ src/
    ├─ main.tsx                 # React entry point
-   ├─ App.tsx                  # routing state giữa Chat/Ingestion
+   ├─ App.tsx                  # shell điều phối surface hiện tại
    ├─ styles.css               # design tokens và layout CSS
    ├─ assets.ts                # asset URLs lấy từ Figma context
-   ├─ types.ts                 # state/domain types
-   ├─ api/
-   │  └─ smokeApi.ts           # mock async API cho demo flow
+   ├─ features/
+   │  ├─ chat/
+   │  │  ├─ ChatPage.tsx
+   │  │  ├─ api/chatApi.ts
+   │  │  └─ model/              # types và useChatWorkflow
+   │  └─ ingestion/
+   │     ├─ IngestionPage.tsx
+   │     ├─ api/ingestionApi.ts
+   │     ├─ components/         # source, catalog, MySQL, upload
+   │     ├─ data/connectors.ts
+   │     └─ model/               # types và useIngestionWorkflow
    └─ components/
-      ├─ AppHeader.tsx
-      ├─ Brand.tsx
-      ├─ ChatComposer.tsx
-      ├─ ChatWorkspace.tsx
-      ├─ DecisionPanel.tsx
-      ├─ DetailInspector.tsx      # detail panel theo từng chat stage
-      ├─ Icon.tsx
-      ├─ IngestionProgress.tsx
-      ├─ IngestionWorkspace.tsx
-      ├─ PipelineRail.tsx
-      ├─ ReviewCard.tsx
-      ├─ Sidebar.tsx
-      └─ UserMessage.tsx
+      └─ UI components dùng chung cho các feature
 ```
 
 ## Ghi chú asset
