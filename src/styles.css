@@ -386,6 +386,16 @@ p {
   flex-direction: column;
   gap: 56px;
 }
+.chat-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  flex: 0 0 auto;
+}
+.active-turn {
+  flex: 1 0 auto;
+}
 .user-message,
 .pending-card,
 .review-card,
@@ -594,12 +604,12 @@ p {
   padding: 1px;
   flex: 0 0 27px;
 }
-.chat-flow > .chat-composer {
+.chat-turn > .chat-composer {
   width: min(700px, 100%);
   align-self: center;
   margin-top: auto;
 }
-.chat-flow > .decision-panel {
+.chat-turn > .decision-panel {
   margin-top: auto;
 }
 .loading-note {

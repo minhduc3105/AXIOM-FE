@@ -21,5 +21,5 @@ export default function App() {
     setIngestionStage('choose')
   }, [])
 
-  return <div className="app-shell">{surface === 'chat' ? <><Sidebar active={chat.stage} onNewChat={newChat} onIngestion={openIngestion} /><ChatPage stage={chat.stage} detailStage={chat.detailStage} investigation={chat.investigation} loading={chat.loading} error={chat.error} onSubmit={chat.submitQuestion} onApprove={chat.approve} onInspect={chat.openDetail} onCloseInspector={chat.closeDetail} /></> : <IngestionPage stage={ingestionStage} onBack={() => setSurface('chat')} onStageChange={setIngestionStage} />}</div>
+  return <div className="app-shell">{surface === 'chat' ? <><Sidebar active={chat.stage} onNewChat={newChat} onIngestion={openIngestion} /><ChatPage stage={chat.stage} detailStage={chat.detailStage} investigation={chat.investigation} history={chat.history} loading={chat.loading} error={chat.error} onSubmit={chat.submitQuestion} onApprove={chat.approve} onInspect={chat.openDetail} onCloseInspector={chat.closeDetail} /></> : <IngestionPage stage={ingestionStage} onBack={() => setSurface('chat')} onStageChange={setIngestionStage} />}</div>
 }

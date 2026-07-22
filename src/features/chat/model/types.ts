@@ -14,10 +14,16 @@ export type Investigation = {
   policy: string
 }
 
+export type ChatTurn = {
+  investigation: Investigation
+  stage: Exclude<ChatStage, 'welcome' | 'pending'>
+}
+
 export type ChatWorkflowState = {
   stage: ChatStage
   detailStage: DetailStage | null
   investigation: Investigation | null
+  history: ChatTurn[]
   loading: boolean
   error: string | null
 }

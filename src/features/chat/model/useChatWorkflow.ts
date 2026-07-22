@@ -6,6 +6,7 @@ const initialState: ChatWorkflowState = {
   stage: 'welcome',
   detailStage: null,
   investigation: null,
+  history: [],
   loading: false,
   error: null,
 }
@@ -25,7 +26,17 @@ type Action =
 function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
   switch (action.type) {
     case 'submit/start':
-      return { ...state, stage: 'pending', detailStage: null, investigation: action.investigation, loading: true, error: null }
+      return {
+        ...state,
+        stage: 'pending',
+        detailStage: null,
+        investigation: action.investigation,
+        history: state.investigation && state.stage !== 'welcome' && state.stage !== 'pending'
+          ? [...state.history, { investigation: state.investigation, stage: state.stage }]
+          : state.history,
+        loading: true,
+        error: null,
+      }
     case 'submit/success':
       return { ...state, stage: 'intent', investigation: action.investigation, loading: false }
     case 'approve/intent-start':
