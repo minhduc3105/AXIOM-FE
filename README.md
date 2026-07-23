@@ -182,6 +182,7 @@ Currently installed primitives:
 - `field`
 - `input`
 - `label`
+- `marker`
 - `progress`
 - `scroll-area`
 - `select`

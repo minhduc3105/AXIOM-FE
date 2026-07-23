@@ -73,6 +73,8 @@ Do not use this for backend-only AXIOM work or SDK changes without a frontend su
 
 - Match the aliases in `components.json`: `@/components`, `@/components/ui`, `@/shared/hooks`, `@/shared/lib`, and `@/shared/lib/utils`.
 - Do not edit generated shadcn primitives for feature-specific behavior. Wrap them in feature or shared components.
+- Treat files in `src/components/ui` as registry-owned primitives. Do not hand-modify them for screen-specific fixes, including `marker.tsx`.
+- When a shadcn primitive such as `Marker` is needed, add it from the registry, then customize usage from feature components with composition and `className` only.
 - Keep Tailwind, shadcn, font, and theme token imports in `src/styles/globals.css`.
 - Put presentation on components with Tailwind-style utility classes in JSX; do not reintroduce prototype layout stylesheets or component-specific CSS files.
 - Keep AXIOM tokens semantic: brand, brand-strong, line, muted, text-secondary, soft, app-bg, status colors.

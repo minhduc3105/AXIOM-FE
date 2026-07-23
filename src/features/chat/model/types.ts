@@ -36,6 +36,7 @@ export type EvidenceItem = {
 export type MockResult = {
   title: string
   summary: string
+  markdown: string
   metrics: ResultMetric[]
   flags: string[]
   evidence: EvidenceItem[]

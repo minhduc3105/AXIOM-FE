@@ -76,24 +76,49 @@ function readableIntent(intent: string) {
 }
 
 function createResult(specification: EditableSpecification): MockResult {
+  const title = 'Q3 revenue review'
+  const summary = `The approved "${readableIntent(specification.intent)}" workflow completed for ${specification.scope}. Reviewed revenue is $571K, led by Enterprise at $505K, with two data-quality issues requiring attention.`
+  const metrics = [
+    { label: 'Reviewed revenue', value: '$571K' },
+    { label: 'Top segment', value: 'Enterprise · $505K' },
+    { label: 'Evidence coverage', value: '4/4 claims' },
+  ]
+  const flags = [
+    'Two customer records are missing email addresses.',
+    'Two failed payment events require reviewer attention.',
+  ]
+  const evidence = [
+    { id: 'EV-001', source: 'customer_revenue_q3.csv', locator: 'row 14', claim: 'Enterprise generated $505K in reviewed revenue.', tone: 'success' as const },
+    { id: 'EV-002', source: 'customer_revenue_q3.csv', locator: 'rows 18, 22', claim: 'Two customer records have missing email addresses.', tone: 'warning' as const },
+    { id: 'EV-003', source: 'payment_events.json', locator: 'events 1013, 1018', claim: 'Failed payment events need reviewer attention.', tone: 'warning' as const },
+    { id: 'EV-004', source: 'renewal_risk_notes.md', locator: 'line 42', claim: 'Reviewer approval is required before external sharing.', tone: 'success' as const },
+  ]
+
   return {
-    title: 'Q3 revenue review',
-    summary: `The approved “${readableIntent(specification.intent)}” workflow completed for ${specification.scope}. Reviewed revenue is $571K, led by Enterprise at $505K, with two data-quality issues requiring attention.`,
-    metrics: [
-      { label: 'Reviewed revenue', value: '$571K' },
-      { label: 'Top segment', value: 'Enterprise · $505K' },
-      { label: 'Evidence coverage', value: '4/4 claims' },
-    ],
-    flags: [
-      'Two customer records are missing email addresses.',
-      'Two failed payment events require reviewer attention.',
-    ],
-    evidence: [
-      { id: 'EV-001', source: 'customer_revenue_q3.csv', locator: 'row 14', claim: 'Enterprise generated $505K in reviewed revenue.', tone: 'success' },
-      { id: 'EV-002', source: 'customer_revenue_q3.csv', locator: 'rows 18, 22', claim: 'Two customer records have missing email addresses.', tone: 'warning' },
-      { id: 'EV-003', source: 'payment_events.json', locator: 'events 1013, 1018', claim: 'Failed payment events need reviewer attention.', tone: 'warning' },
-      { id: 'EV-004', source: 'renewal_risk_notes.md', locator: 'line 42', claim: 'Reviewer approval is required before external sharing.', tone: 'success' },
-    ],
+    title,
+    summary,
+    markdown: [
+      `# ${title}`,
+      '',
+      summary,
+      '',
+      '## Key numbers',
+      '',
+      `- **${metrics[0].label}:** ${metrics[0].value}`,
+      `- **${metrics[1].label}:** ${metrics[1].value}`,
+      `- **${metrics[2].label}:** ${metrics[2].value}`,
+      '',
+      '## Items requiring attention',
+      '',
+      ...flags.map((flag) => `- ${flag}`),
+      '',
+      '## Evidence',
+      '',
+      ...evidence.map((item) => `- **${item.id}:** ${item.claim} (${item.source}, ${item.locator})`),
+    ].join('\n'),
+    metrics,
+    flags,
+    evidence,
     artifacts: ['report.md', 'evidence-map.json', 'validator.log'],
   }
 }

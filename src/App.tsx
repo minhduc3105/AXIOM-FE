@@ -26,7 +26,7 @@ function AppExperience() {
   return (
     <AppShell activeStage={chat.stage} surface={surface} onNewChat={newChat} onIngestion={openIngestion}>
       {surface === 'chat'
-        ? <ChatPage stage={chat.stage} evidenceOpen={chat.evidenceOpen} investigation={chat.investigation} draft={chat.draft} processEvents={chat.processEvents} result={chat.result} history={chat.history} error={chat.error} onSubmit={chat.submitQuestion} onSpecificationChange={chat.updateSpecification} onResetSpecification={chat.resetSpecification} onApproveAndRun={chat.approveAndRun} onRetryProcess={chat.retryProcess} onOpenEvidence={chat.openEvidence} onCloseEvidence={chat.closeEvidence} onIngestion={openIngestion} />
+        ? <ChatPage stage={chat.stage} evidenceOpen={chat.evidenceOpen} investigation={chat.investigation} draft={chat.draft} processEvents={chat.processEvents} result={chat.result} history={chat.history} error={chat.error} onSubmit={chat.submitQuestion} onSpecificationChange={chat.updateSpecification} onResetSpecification={chat.resetSpecification} onApproveAndRun={chat.approveAndRun} onRetryProcess={chat.retryProcess} onCloseEvidence={chat.closeEvidence} onIngestion={openIngestion} />
         : <IngestionPage onBack={() => setSurface('chat')} />}
     </AppShell>
   )

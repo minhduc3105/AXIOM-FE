@@ -149,10 +149,7 @@ export function useChatWorkflow() {
         (eventId, status) => dispatch({ type: 'process/status', eventId, status }),
         controller.signal,
       )
-      const evidenceOpen = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-        ? window.matchMedia('(min-width: 901px)').matches
-        : true
-      dispatch({ type: 'process/success', result, evidenceOpen })
+      dispatch({ type: 'process/success', result, evidenceOpen: false })
     } catch (error) {
       if (!isAbortError(error)) {
         dispatch({ type: 'request/failure', message: error instanceof Error ? error.message : 'The workflow request failed.' })
