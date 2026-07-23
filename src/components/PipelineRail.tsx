@@ -1,20 +1,25 @@
-import type { PipelineStep, DetailStage } from '../features/chat/model/types'
+import type { WorkflowStage } from '../features/chat/model/types'
 
-const defaults = ['1. Intent & Spec', '2. Plan & Code', '3. Execute', '4. Result']
+const steps: Array<{ id: WorkflowStage; label: string; detail: string }> = [
+  { id: 'intent', label: 'Intent & Spec', detail: 'Review' },
+  { id: 'process', label: 'Process', detail: 'Run workflow' },
+  { id: 'result', label: 'Final Answer', detail: 'Evidence-backed' },
+]
 
-export function PipelineRail({ activeIndex, labels = defaults, onSelect }: { activeIndex: number; labels?: string[]; onSelect?: (stage: DetailStage) => void }) {
-  const stageByIndex: DetailStage[] = ['intent', 'planner', 'execute', 'result']
+export function PipelineRail({ current }: { current: WorkflowStage }) {
+  const currentIndex = steps.findIndex((step) => step.id === current)
+
   return (
-    <div className="pipeline-rail">
-      {labels.map((label, index) => {
-        const state: PipelineStep['state'] = index < activeIndex ? 'done' : index === activeIndex ? 'active' : 'waiting'
+    <ol className="pipeline-rail" aria-label="Investigation progress">
+      {steps.map((step, index) => {
+        const state = index < currentIndex ? 'done' : index === currentIndex ? 'active' : 'waiting'
         return (
-          <button className={`pipeline-step ${state} ${onSelect ? 'is-clickable' : ''}`} key={label} onClick={() => onSelect?.(stageByIndex[index])} type="button">
-            <span>{label}</span>
-            <small>{state === 'done' ? 'Done' : state === 'active' ? 'Active' : 'Waiting'}</small>
-          </button>
+          <li className={`pipeline-step ${state}`} key={step.id} aria-current={state === 'active' ? 'step' : undefined}>
+            <span className="pipeline-number">{state === 'done' ? '✓' : index + 1}</span>
+            <span className="pipeline-copy"><strong>{step.label}</strong><small>{state === 'done' ? 'Complete' : state === 'active' ? step.detail : 'Next'}</small></span>
+          </li>
         )
       })}
-    </div>
+    </ol>
   )
 }

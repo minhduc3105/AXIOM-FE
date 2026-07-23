@@ -18,5 +18,5 @@ export default function App() {
     setSurface('ingestion')
   }, [])
 
-  return <div className="app-shell">{surface === 'chat' ? <><Sidebar active={chat.stage} onNewChat={newChat} onIngestion={openIngestion} /><ChatPage stage={chat.stage} detailStage={chat.detailStage} investigation={chat.investigation} history={chat.history} loading={chat.loading} error={chat.error} onSubmit={chat.submitQuestion} onApprove={chat.approve} onInspect={chat.openDetail} onCloseInspector={chat.closeDetail} /></> : <IngestionPage onBack={() => setSurface('chat')} />}</div>
+  return <div className="app-shell">{surface === 'chat' ? <><Sidebar active={chat.stage} onNewChat={newChat} onIngestion={openIngestion} /><ChatPage stage={chat.stage} evidenceOpen={chat.evidenceOpen} investigation={chat.investigation} draft={chat.draft} processEvents={chat.processEvents} result={chat.result} history={chat.history} error={chat.error} onSubmit={chat.submitQuestion} onSpecificationChange={chat.updateSpecification} onResetSpecification={chat.resetSpecification} onApproveAndRun={chat.approveAndRun} onRetryProcess={chat.retryProcess} onOpenEvidence={chat.openEvidence} onCloseEvidence={chat.closeEvidence} /></> : <IngestionPage onBack={() => setSurface('chat')} />}</div>
 }

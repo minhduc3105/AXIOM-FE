@@ -1,71 +1,125 @@
-import { useEffect, useRef, useState } from 'react'
-import type { ChatStage, ChatTurn, DetailStage, Investigation } from './model/types'
+import { useEffect, useMemo, useRef } from 'react'
 import { ChatComposer } from '../../components/ChatComposer'
-import { DecisionPanel } from '../../components/DecisionPanel'
-import { DetailInspector } from '../../components/DetailInspector'
+import { EvidencePanel } from '../../components/EvidencePanel'
 import { ReviewCard } from '../../components/ReviewCard'
 import { UserMessage } from '../../components/UserMessage'
+import type { ChatStage, ChatTurn, EditableSpecification, Investigation, MockResult, ProcessEvent } from './model/types'
 
 type ChatPageProps = {
   stage: ChatStage
-  detailStage: DetailStage | null
+  evidenceOpen: boolean
   investigation: Investigation | null
+  draft: EditableSpecification | null
+  processEvents: ProcessEvent[]
+  result: MockResult | null
   history: ChatTurn[]
-  loading: boolean
   error: string | null
   onSubmit: (value: string) => void
-  onApprove: () => void
-  onInspect: (stage: DetailStage) => void
-  onCloseInspector: () => void
+  onSpecificationChange: (specification: EditableSpecification) => void
+  onResetSpecification: () => void
+  onApproveAndRun: () => void
+  onRetryProcess: () => void
+  onOpenEvidence: () => void
+  onCloseEvidence: () => void
 }
 
-export function ChatPage({ stage, detailStage, investigation, history, loading, error, onSubmit, onApprove, onInspect, onCloseInspector }: ChatPageProps) {
-  const [isResultDecisionDismissed, setIsResultDecisionDismissed] = useState(false)
+export function ChatPage({
+  stage,
+  evidenceOpen,
+  investigation,
+  draft,
+  processEvents,
+  result,
+  history,
+  error,
+  onSubmit,
+  onSpecificationChange,
+  onResetSpecification,
+  onApproveAndRun,
+  onRetryProcess,
+  onOpenEvidence,
+  onCloseEvidence,
+}: ChatPageProps) {
   const chatMainRef = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    if (stage !== 'result') setIsResultDecisionDismissed(false)
-  }, [stage])
+  const processSignature = useMemo(() => processEvents.map((event) => event.status).join('-'), [processEvents])
 
   useEffect(() => {
     if (stage === 'welcome') return
     const frame = window.requestAnimationFrame(() => {
-      chatMainRef.current?.scrollTo({ top: chatMainRef.current.scrollHeight, behavior: 'smooth' })
+      const chatMain = chatMainRef.current
+      if (chatMain && typeof chatMain.scrollTo === 'function') {
+        chatMain.scrollTo({ top: chatMain.scrollHeight, behavior: 'smooth' })
+      }
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [history.length, stage, loading])
+  }, [history.length, processSignature, stage])
 
-  if (stage === 'welcome') return <main className="chat-main welcome-main"><div className="welcome-landing"><h1>What would you like to investigate?</h1><ChatComposer onSubmit={onSubmit} /></div></main>
+  if (stage === 'welcome') {
+    return (
+      <main className="chat-main welcome-main">
+        <div className="welcome-landing">
+          <span className="welcome-kicker">Evidence-first AI workspace</span>
+          <h1>What would you like to investigate?</h1>
+          <p>Review intent, observe the workflow, and receive an answer backed by traceable evidence.</p>
+          <ChatComposer onSubmit={onSubmit} />
+        </div>
+      </main>
+    )
+  }
   if (!investigation) return null
 
-  const decisionMode = stage === 'intent' ? 'spec' : stage === 'planner' ? 'plan' : stage === 'result' && !isResultDecisionDismissed ? 'result' : null
-  const openResultDetail = () => {
-    setIsResultDecisionDismissed(true)
-    onInspect('result')
-  }
-  const exportResult = () => {
-    setIsResultDecisionDismissed(true)
-  }
+  return (
+    <main ref={chatMainRef} className={`chat-main ${evidenceOpen ? 'evidence-open' : ''}`}>
+      <div className="chat-flow">
+        {history.map((turn, index) => <HistoryTurn key={`${turn.investigation.question}-${index}`} turn={turn} />)}
 
-  return <main ref={chatMainRef} className={`chat-main ${detailStage ? 'detail-open' : ''}`}>
-    <div className="chat-flow">
-      {history.map((turn, index) => <ChatTurnView key={`${turn.investigation.question}-${index}`} turn={turn} onInspect={onInspect} />)}
-      <section className="chat-turn active-turn">
-        <UserMessage question={investigation.question} />
-        {stage === 'pending' && <article className="pending-card"><strong>AXIOM is preparing the pipeline...</strong><p>Question received. Intent Router is reading the request and will create the first reviewable response block next.</p><div className="pipeline-rail"><div className="pipeline-step active"><span>1. Intent &amp; Spec</span><small>Active</small></div><div className="pipeline-step"><span>2. Plan &amp; Code</span><small>Waiting</small></div><div className="pipeline-step"><span>3. Execute</span><small>Waiting</small></div><div className="pipeline-step"><span>4. Result</span><small>Waiting</small></div></div></article>}
-        {stage !== 'pending' && <ReviewCard investigation={investigation} stage={stage} onReview={() => onInspect(stage)} onSelectStage={onInspect} />}
-        {decisionMode ? <DecisionPanel mode={decisionMode} onApprove={onApprove} onDetail={openResultDetail} onExport={exportResult} /> : <ChatComposer onSubmit={onSubmit} disabled={loading} />}
-        {loading && <span className="loading-note">AXIOM is simulating the next pipeline step...</span>}
-        {error && <span className="error-note" role="alert">{error}</span>}
-      </section>
-    </div>
-    {detailStage && <DetailInspector stage={detailStage} onClose={onCloseInspector} />}
-  </main>
+        <section className="chat-turn active-turn">
+          <UserMessage question={investigation.question} />
+
+          {stage === 'pending' && <ReviewCard stage="pending" investigation={investigation} />}
+          {stage === 'intent' && draft && (
+            <ReviewCard
+              stage="intent"
+              investigation={investigation}
+              draft={draft}
+              error={error}
+              onSpecificationChange={onSpecificationChange}
+              onReset={onResetSpecification}
+              onRun={onApproveAndRun}
+            />
+          )}
+          {stage === 'process' && (
+            <ReviewCard
+              stage="process"
+              investigation={investigation}
+              events={processEvents}
+              error={error}
+              onRetry={onRetryProcess}
+            />
+          )}
+          {stage === 'result' && result && (
+            <ReviewCard stage="result" investigation={investigation} result={result} onEvidence={onOpenEvidence} />
+          )}
+
+          {stage === 'result' && <ChatComposer onSubmit={onSubmit} placeholder="Ask a follow-up or start another investigation…" />}
+          {stage === 'pending' && error && <p className="error-note" role="alert">{error}</p>}
+        </section>
+      </div>
+
+      {evidenceOpen && result && <EvidencePanel result={result} onClose={onCloseEvidence} />}
+    </main>
+  )
 }
 
-function ChatTurnView({ turn, onInspect }: { turn: ChatTurn; onInspect: (stage: DetailStage) => void }) {
-  return <section className="chat-turn chat-turn-history">
-    <UserMessage question={turn.investigation.question} />
-    <ReviewCard investigation={turn.investigation} stage={turn.stage} onReview={() => onInspect(turn.stage)} onSelectStage={onInspect} />
-  </section>
+function HistoryTurn({ turn }: { turn: ChatTurn }) {
+  return (
+    <section className="chat-turn chat-turn-history">
+      <UserMessage question={turn.investigation.question} />
+      <article className="history-result">
+        <span className="response-label">AXIOM · FINAL ANSWER</span>
+        <h3>{turn.result.title}</h3>
+        <p>{turn.result.summary}</p>
+      </article>
+    </section>
+  )
 }
