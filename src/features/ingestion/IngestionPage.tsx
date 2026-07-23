@@ -1,7 +1,6 @@
-import { AppHeader } from '../../components/AppHeader'
-import { IngestionProgress } from '../../components/IngestionProgress'
 import { ChooseSource } from './components/ChooseSource'
 import { ConnectorCatalog } from './components/ConnectorCatalog'
+import { IngestionWorkspaceFrame } from './components/IngestionWorkspaceFrame'
 import { IndexWorkspace } from './components/IndexWorkspace'
 import { MeaningWorkspace } from './components/MeaningWorkspace'
 import { MySqlForm } from './components/MySqlForm'
@@ -45,12 +44,16 @@ export function IngestionPage({ onBack }: IngestionPageProps) {
                 ? workflow.meaningStatus === 'extracting' ? 'Extracting meaning' : 'Meaning ready'
                 : workflow.indexStatus === 'ready' ? 'Index ready' : 'Building index'
 
-  return <div className="ingestion-app">
-    <AppHeader onBack={onBack} />
-    <main className="ingestion-body">
-      <div className="page-intro"><div><span className="eyebrow blue">DATA INGESTION</span><h1>{pageTitles[workflow.stage]}</h1></div><div className="repo-state"><small>Repo · axiom-ingest/workspace-q3</small><strong>{repoMessage}</strong><span className={`status-pill ${workflow.indexStatus === 'ready' ? 'success-pill' : ''}`}>{workflow.indexStatus === 'ready' ? 'Ready' : 'Draft'}</span></div></div>
-      <IngestionProgress active={progressStageByView[workflow.stage]} furthest={workflow.furthestProgress} onNavigate={workflow.navigateProgress} />
-
+  return <IngestionWorkspaceFrame
+    title={pageTitles[workflow.stage]}
+    repoMessage={repoMessage}
+    ready={workflow.indexStatus === 'ready'}
+    active={progressStageByView[workflow.stage]}
+    furthest={workflow.furthestProgress}
+    error={workflow.error}
+    onBack={onBack}
+    onNavigate={workflow.navigateProgress}
+  >
       {workflow.stage === 'source' && <ChooseSource onUpload={workflow.addFiles} onConnect={workflow.openCatalog} />}
       {workflow.stage === 'catalog' && <ConnectorCatalog selected={workflow.selectedConnector} onSelect={workflow.selectConnector} onBack={workflow.openSource} />}
       {workflow.stage === 'mysql' && <MySqlForm connection={workflow.connection} status={workflow.connectionStatus} onChange={workflow.updateConnection} onTest={() => void workflow.testConnection()} onSave={() => void workflow.persistConnection()} onBack={workflow.openCatalog} />}
@@ -59,8 +62,5 @@ export function IngestionPage({ onBack }: IngestionPageProps) {
       {workflow.stage === 'profile' && source && <ProfileWorkspace source={source} onContinue={() => void workflow.startMeaning()} onBack={() => workflow.navigateProgress('pipeline')} />}
       {workflow.stage === 'meaning' && <MeaningWorkspace status={workflow.meaningStatus} revisionCount={workflow.revisionCount} onApprove={() => void workflow.approveMeaning()} onRevision={() => void workflow.requestRevision()} onBack={() => workflow.navigateProgress('profile')} />}
       {workflow.stage === 'index' && source && <IndexWorkspace source={source} status={workflow.indexStatus} query={workflow.searchQuery} completedQuery={workflow.completedSearchQuery} searchStatus={workflow.searchStatus} onQueryChange={workflow.setSearchQuery} onSearch={() => void workflow.search()} onBack={() => workflow.navigateProgress('meaning')} />}
-
-      {workflow.error && <p className="error-note ingestion-error" role="alert">{workflow.error}</p>}
-    </main>
-  </div>
+  </IngestionWorkspaceFrame>
 }

@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { ChatComposer } from '../../components/ChatComposer'
-import { EvidencePanel } from '../../components/EvidencePanel'
-import { ReviewCard } from '../../components/ReviewCard'
-import { UserMessage } from '../../components/UserMessage'
+import { Card } from '@/components/ui/card'
+import { ChatComposer } from './components/ChatComposer'
+import { EvidencePanel } from './components/EvidencePanel'
+import { ReviewCard } from './components/ReviewCard'
+import { UserMessage } from './components/UserMessage'
+import { WelcomeWorkspace } from './components/WelcomeWorkspace'
 import type { ChatStage, ChatTurn, EditableSpecification, Investigation, MockResult, ProcessEvent } from './model/types'
+import { cn } from '@/shared/lib/utils'
 
 type ChatPageProps = {
   stage: ChatStage
@@ -21,6 +24,7 @@ type ChatPageProps = {
   onRetryProcess: () => void
   onOpenEvidence: () => void
   onCloseEvidence: () => void
+  onIngestion: () => void
 }
 
 export function ChatPage({
@@ -39,6 +43,7 @@ export function ChatPage({
   onRetryProcess,
   onOpenEvidence,
   onCloseEvidence,
+  onIngestion,
 }: ChatPageProps) {
   const chatMainRef = useRef<HTMLElement>(null)
   const processSignature = useMemo(() => processEvents.map((event) => event.status).join('-'), [processEvents])
@@ -56,24 +61,19 @@ export function ChatPage({
 
   if (stage === 'welcome') {
     return (
-      <main className="chat-main welcome-main">
-        <div className="welcome-landing">
-          <span className="welcome-kicker">Evidence-first AI workspace</span>
-          <h1>What would you like to investigate?</h1>
-          <p>Review intent, observe the workflow, and receive an answer backed by traceable evidence.</p>
-          <ChatComposer onSubmit={onSubmit} />
-        </div>
-      </main>
+      <section className="min-h-screen w-full overflow-x-hidden" aria-label="Investigation welcome">
+        <WelcomeWorkspace onSubmit={onSubmit} onIngestion={onIngestion} />
+      </section>
     )
   }
   if (!investigation) return null
 
   return (
-    <main ref={chatMainRef} className={`chat-main ${evidenceOpen ? 'evidence-open' : ''}`}>
-      <div className="chat-flow">
+    <section ref={chatMainRef} className="min-h-screen w-full overflow-y-auto overflow-x-hidden bg-transparent" aria-label="Investigation workspace">
+      <div className={cn('mx-auto flex min-h-[calc(100vh-64px)] flex-col gap-10 py-10 transition-[width] duration-300 ease-out max-sm:w-[calc(100%_-_24px)]', evidenceOpen && stage === 'result' ? 'w-[min(1480px,calc(100%_-_56px))]' : 'w-[min(980px,calc(100%_-_56px))]')}>
         {history.map((turn, index) => <HistoryTurn key={`${turn.investigation.question}-${index}`} turn={turn} />)}
 
-        <section className="chat-turn active-turn">
+        <section className="flex min-h-[calc(100vh-120px)] flex-col gap-6">
           <UserMessage question={investigation.question} />
 
           {stage === 'pending' && <ReviewCard stage="pending" investigation={investigation} />}
@@ -98,28 +98,30 @@ export function ChatPage({
             />
           )}
           {stage === 'result' && result && (
-            <ReviewCard stage="result" investigation={investigation} result={result} onEvidence={onOpenEvidence} />
+            <div className={cn('grid items-start gap-6', evidenceOpen && 'xl:grid-cols-[minmax(0,1fr)_392px]')}>
+              <ReviewCard stage="result" investigation={investigation} result={result} onEvidence={onOpenEvidence} />
+              {evidenceOpen && <EvidencePanel result={result} onClose={onCloseEvidence} />}
+            </div>
           )}
 
           {stage === 'result' && <ChatComposer onSubmit={onSubmit} placeholder="Ask a follow-up or start another investigation…" />}
-          {stage === 'pending' && error && <p className="error-note" role="alert">{error}</p>}
+          {stage === 'pending' && error && <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700" role="alert">{error}</p>}
         </section>
       </div>
 
-      {evidenceOpen && result && <EvidencePanel result={result} onClose={onCloseEvidence} />}
-    </main>
+    </section>
   )
 }
 
 function HistoryTurn({ turn }: { turn: ChatTurn }) {
   return (
-    <section className="chat-turn chat-turn-history">
+    <section className="flex flex-col gap-5">
       <UserMessage question={turn.investigation.question} />
-      <article className="history-result">
-        <span className="response-label">AXIOM · FINAL ANSWER</span>
-        <h3>{turn.result.title}</h3>
-        <p>{turn.result.summary}</p>
-      </article>
+      <Card className="rounded-3xl border border-[#d8d0c2] bg-[#fffdf8]/90 p-6 shadow-[0_16px_44px_rgba(24,24,18,0.08)] dark:border-[#38372f] dark:bg-[#1a1a17]/90">
+        <span className="text-xs font-bold tracking-[0.14em] text-[#2456e8] dark:text-[#7895ff]">AXIOM · FINAL ANSWER</span>
+        <h3 className="mt-2 text-2xl font-semibold leading-tight">{turn.result.title}</h3>
+        <p className="mt-3 text-sm leading-relaxed text-[#6d685e] dark:text-[#aaa397]">{turn.result.summary}</p>
+      </Card>
     </section>
   )
 }

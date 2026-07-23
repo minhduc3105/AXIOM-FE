@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react'
-import type { CSSProperties } from 'react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/shared/lib/utils'
 import { connectorCategories, connectors } from '../data/connectors'
 
 type ConnectorCatalogProps = {
@@ -16,32 +20,39 @@ export function ConnectorCatalog({ selected, onSelect, onBack }: ConnectorCatalo
     return matchesCategory && connector.name.toLowerCase().includes(query.toLowerCase())
   }), [category, query])
 
-  return <div className="catalog-layout">
-    <aside className="filter-panel">
-      <div className="panel-heading"><h2>Browse connectors</h2><button className="text-button" onClick={onBack} type="button">Back</button></div>
-      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name" aria-label="Search connectors" />
-      <span className="eyebrow blue">CATEGORY</span>
-      {connectorCategories.map((item) => <button className={`filter-option ${category === item ? 'selected' : ''}`} key={item} onClick={() => setCategory(item)} type="button">{item}</button>)}
-      <small>{connectors.length} connectors in catalog</small>
-    </aside>
-    <section className="catalog-panel">
-      <div className="catalog-heading"><div><h2>All connectors</h2><p>MySQL is available in this mock. More connector workflows are coming soon.</p></div><span className="count-pill">1 available now</span></div>
-      <div className="connector-grid">
-        {filtered.map((connector) => <button
-          className={`connector-card ${connector.name === selected ? 'selected' : ''} ${!connector.available ? 'unavailable' : ''}`}
-          style={{ '--connector-color': connector.color } as CSSProperties}
+  return <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+    <Card className="rounded-[28px] border border-[#d8d0c2] bg-[#fffdf8]/90 p-5 dark:border-[#38372f] dark:bg-[#1a1a17]/90">
+      <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">Browse connectors</h2><Button variant="ghost" onClick={onBack} type="button">Back</Button></div>
+      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name" aria-label="Search connectors" />
+      <span className="mt-5 block text-xs font-semibold tracking-[0.18em] text-[#2456e8] dark:text-[#7895ff]">CATEGORY</span>
+      <div className="mt-3 grid gap-2" role="group" aria-label="Connector categories">
+        {connectorCategories.map((item) => <Button
+          className={cn('justify-start rounded-2xl border border-transparent bg-transparent text-[#6d685e] hover:bg-[#f4efe5] dark:text-[#aaa397] dark:hover:bg-[#292923]', category === item && 'border-[#2456e8]/40 bg-[#eef2ff] text-[#1018a2] dark:bg-[#202844] dark:text-[#dfe6ff]')}
+          key={item}
+          onClick={() => setCategory(item)}
+          type="button"
+          aria-pressed={category === item}
+        >{item}</Button>)}
+      </div>
+      <small className="mt-4 block text-[#6d685e] dark:text-[#aaa397]">{connectors.length} connectors in catalog</small>
+    </Card>
+    <Card className="rounded-[28px] border border-[#d8d0c2] bg-[#fffdf8]/90 p-6 dark:border-[#38372f] dark:bg-[#1a1a17]/90">
+      <div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-semibold">All connectors</h2><p className="mt-2 text-sm text-[#6d685e] dark:text-[#aaa397]">MySQL is available in this mock. More connector workflows are coming soon.</p></div><Badge className="rounded-full border border-[#d8d0c2] bg-[#f4efe5] px-3 py-1 text-[#6d685e] dark:border-[#38372f] dark:bg-[#292923] dark:text-[#aaa397]">1 available now</Badge></div>
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {filtered.map((connector) => <Button
+          className={cn('min-h-32 grid-cols-[48px_minmax(0,1fr)] grid-rows-[auto_auto] justify-start gap-x-4 gap-y-2 rounded-3xl border border-[#d8d0c2] bg-[#fffdf8] p-4 text-left hover:border-[#2456e8]/50 dark:border-[#38372f] dark:bg-[#20201c]', connector.name === selected && 'border-[#2456e8] bg-[#eef2ff] dark:bg-[#202844]', !connector.available && 'opacity-60')}
           key={connector.name}
           onClick={() => connector.available && onSelect(connector.name)}
           aria-disabled={!connector.available}
           type="button"
         >
-          <span className="connector-badge">{connector.mark}</span>
-          <div><strong>{connector.name}</strong><small>{connector.type}</small></div>
-          <small>{connector.available ? connector.name === selected ? 'Selected · Configure' : 'Click to configure' : 'Coming soon'}</small>
-        </button>)}
+          <span className="grid size-12 place-items-center rounded-full bg-[#2456e8] text-xs font-bold text-white">{connector.mark}</span>
+          <div className="grid min-w-0 gap-1"><strong className="truncate text-base">{connector.name}</strong><small className="truncate text-[#6d685e] dark:text-[#aaa397]">{connector.type}</small></div>
+          <small className="col-span-2 text-[#6d685e] dark:text-[#aaa397]">{connector.available ? connector.name === selected ? 'Selected · Configure' : 'Click to configure' : 'Coming soon'}</small>
+        </Button>)}
       </div>
-      {filtered.length === 0 && <p className="empty-state">No connectors match this search.</p>}
-    </section>
-    <div className="catalog-helper"><strong>Need a custom source?</strong><span>JDBC / ODBC support will be added in a future connector release.</span><span className="coming-label">MySQL available now</span></div>
+      {filtered.length === 0 && <p className="mt-6 text-[#6d685e] dark:text-[#aaa397]">No connectors match this search.</p>}
+    </Card>
+    <div className="rounded-3xl border border-[#d8d0c2] bg-[#f4efe5] p-5 text-sm dark:border-[#38372f] dark:bg-[#292923] lg:col-span-2"><strong>Need a custom source?</strong><span className="ml-2 text-[#6d685e] dark:text-[#aaa397]">JDBC / ODBC support will be added in a future connector release.</span><span className="ml-3 font-semibold text-[#2456e8] dark:text-[#7895ff]">MySQL available now</span></div>
   </div>
 }
