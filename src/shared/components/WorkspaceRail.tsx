@@ -24,12 +24,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { AppSurface } from "@/app/routing/types";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { cn } from "@/shared/lib/utils";
 
 type WorkspaceRailProps = {
   activeStage: ChatStage;
-  surface: "chat" | "ingestion";
+  surface: AppSurface;
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
   onNewChat: () => void;

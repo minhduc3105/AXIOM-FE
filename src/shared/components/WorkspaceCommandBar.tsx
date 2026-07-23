@@ -1,6 +1,7 @@
 import { MoonIcon, PlusIcon, SearchIcon, SunIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import type { AppSurface } from "@/app/routing/types";
 import { useTheme } from "@/app/ThemeProvider";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 
@@ -8,7 +9,7 @@ export function WorkspaceCommandBar({
   surface,
   onNewChat,
 }: {
-  surface: "chat" | "ingestion";
+  surface: AppSurface;
   onNewChat: () => void;
 }) {
   const { resolvedTheme, setTheme } = useTheme();

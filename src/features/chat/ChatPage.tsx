@@ -87,7 +87,7 @@ export function ChatPage({
     >
       <div
         className={cn(
-          "mx-auto flex min-h-[calc(100vh-64px)] flex-col gap-10 py-10 transition-[width] duration-300 ease-out max-sm:w-[calc(100%_-_24px)]",
+          "mx-auto flex min-h-[calc(100vh-64px)] flex-col gap-10 pb-10 pt-20 transition-[width] duration-300 ease-out max-sm:w-[calc(100%_-_24px)] max-sm:pt-16 md:pt-24",
           evidenceOpen && stage === "result"
             ? "w-[min(1480px,calc(100%_-_56px))]"
             : "w-[min(980px,calc(100%_-_56px))]",
