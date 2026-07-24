@@ -50,14 +50,18 @@ export function ChatPage({
   onCloseEvidence,
   onIngestion,
 }: ChatPageProps) {
-  const chatMainRef = useRef<HTMLElement>(null);
+  const chatMainRef = useRef<HTMLDivElement>(null);
   const processSignature = useMemo(
     () => processEvents.map((event) => event.status).join("-"),
     [processEvents],
   );
 
   useEffect(() => {
-    if (stage === "welcome") return;
+    if (stage === "welcome") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     const frame = window.requestAnimationFrame(() => {
       const chatMain = chatMainRef.current;
       if (chatMain && typeof chatMain.scrollTo === "function") {
@@ -81,85 +85,93 @@ export function ChatPage({
 
   return (
     <section
-      ref={chatMainRef}
-      className="min-h-screen w-full overflow-y-auto overflow-x-hidden bg-transparent"
+      className="h-[calc(100vh-72px)] w-full overflow-hidden bg-transparent"
       aria-label="Investigation workspace"
     >
       <div
         className={cn(
-          "mx-auto flex min-h-[calc(100vh-64px)] flex-col gap-10 pb-10 pt-20 transition-[width] duration-300 ease-out max-sm:w-[calc(100%_-_24px)] max-sm:pt-16 md:pt-24",
+          "mx-auto flex h-full min-h-0 flex-col gap-4 pb-4 pt-10 transition-[width] duration-300 ease-out max-sm:w-[calc(100%_-_24px)] max-sm:pt-8 md:pt-14",
           evidenceOpen && stage === "result"
             ? "w-[min(1480px,calc(100%_-_56px))]"
             : "w-[min(980px,calc(100%_-_56px))]",
         )}
       >
-        {history.map((turn, index) => (
-          <HistoryTurn
-            key={`${turn.investigation.question}-${index}`}
-            turn={turn}
-          />
-        ))}
-
-        <section className="flex min-h-[calc(100vh-120px)] flex-col gap-6">
-          <UserMessage question={investigation.question} />
-
-          {stage === "pending" && (
-            <ReviewCard stage="pending" investigation={investigation} />
-          )}
-          {stage === "intent" && draft && (
-            <ReviewCard
-              stage="intent"
-              investigation={investigation}
-              draft={draft}
-              error={error}
-              onSpecificationChange={onSpecificationChange}
-              onReset={onResetSpecification}
-              onRun={onApproveAndRun}
-            />
-          )}
-          {stage === "process" && (
-            <ReviewCard
-              stage="process"
-              investigation={investigation}
-              events={processEvents}
-              error={error}
-              onRetry={onRetryProcess}
-            />
-          )}
-          {stage === "result" && result && (
-            <div
-              className={cn(
-                "grid items-start gap-6",
-                evidenceOpen && "xl:grid-cols-[minmax(0,1fr)_392px]",
-              )}
-            >
-              <ReviewCard
-                stage="result"
-                investigation={investigation}
-                events={processEvents}
-                result={result}
+        <div
+          ref={chatMainRef}
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <div className="flex flex-col gap-10 pb-6">
+            {history.map((turn, index) => (
+              <HistoryTurn
+                key={`${turn.investigation.question}-${index}`}
+                turn={turn}
               />
-              {evidenceOpen && (
-                <EvidencePanel result={result} onClose={onCloseEvidence} />
-              )}
-            </div>
-          )}
+            ))}
 
-          {stage === "result" && (
-            <ChatComposer
-              onSubmit={onSubmit}
-              placeholder="Ask a follow-up or start another investigation…"
-            />
-          )}
-          {stage === "pending" && error && (
-            <p
-              className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700"
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
-        </section>
+            <section className="flex flex-col gap-6">
+              <UserMessage question={investigation.question} />
+
+              {stage === "pending" && (
+                <ReviewCard stage="pending" investigation={investigation} />
+              )}
+              {stage === "intent" && draft && (
+                <ReviewCard
+                  stage="intent"
+                  investigation={investigation}
+                  draft={draft}
+                  error={error}
+                  onSpecificationChange={onSpecificationChange}
+                  onReset={onResetSpecification}
+                  onRun={onApproveAndRun}
+                />
+              )}
+              {stage === "process" && (
+                <ReviewCard
+                  stage="process"
+                  investigation={investigation}
+                  events={processEvents}
+                  error={error}
+                  onRetry={onRetryProcess}
+                />
+              )}
+              {stage === "result" && result && (
+                <div
+                  className={cn(
+                    "grid items-start gap-6",
+                    evidenceOpen && "xl:grid-cols-[minmax(0,1fr)_392px]",
+                  )}
+                >
+                  <ReviewCard
+                    stage="result"
+                    investigation={investigation}
+                    events={processEvents}
+                    result={result}
+                  />
+                  {evidenceOpen && (
+                    <EvidencePanel result={result} onClose={onCloseEvidence} />
+                  )}
+                </div>
+              )}
+
+              {stage === "pending" && error && (
+                <p
+                  className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+                  role="alert"
+                >
+                  {error}
+                </p>
+              )}
+            </section>
+          </div>
+        </div>
+
+        {stage === "result" && (
+          <ChatComposer
+            className="shrink-0"
+            onSubmit={onSubmit}
+            placeholder="Ask a follow-up or start another investigation..."
+          />
+        )}
       </div>
     </section>
   );

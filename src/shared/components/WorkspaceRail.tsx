@@ -56,8 +56,8 @@ function RailContent({
       className={cn(
         "min-h-full text-[#191915] dark:text-[#eee8dc]",
         expanded
-          ? "grid grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-4 px-4 py-4"
-          : "flex flex-col items-center gap-3 px-2.5 py-4",
+          ? "grid min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-4 px-4 py-4"
+          : "flex w-full flex-col items-center gap-3 px-2.5 py-4",
       )}
     >
       <div
@@ -120,8 +120,8 @@ function RailContent({
         className={cn(
           "h-11 gap-3 rounded-xl bg-[#2456e8] text-white shadow-[0_14px_30px_rgba(36,86,232,0.18)] hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]",
           expanded
-            ? "w-full justify-start px-3"
-            : "size-11 justify-center px-0",
+            ? "w-full justify-start px-4"
+            : "size-11 justify-center pl-5 pr-0",
         )}
         onClick={onNewChat}
         aria-label="+ New chat"
@@ -141,7 +141,7 @@ function RailContent({
 
       <section
         className={cn(
-          "min-h-0 transition-opacity duration-300",
+          "min-h-0 min-w-0 overflow-hidden transition-opacity duration-300",
           expanded ? "opacity-100" : "hidden",
         )}
         aria-label="Conversation vault"
@@ -149,20 +149,17 @@ function RailContent({
         <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8377] dark:text-[#eee8dc]/55">
           Recent work
         </div>
-        <ScrollArea className="h-[min(276px,36vh)] pr-1">
+        <ScrollArea className="h-[min(276px,36vh)] w-full min-w-0 overflow-hidden pr-1">
           {conversations.map((conversation, index) => (
             <button
               type="button"
-              className="group mb-1.5 grid min-h-[58px] w-full grid-cols-[34px_minmax(0,1fr)] items-center gap-2 rounded-xl border border-transparent px-2.5 py-2 text-left text-[13px] text-[#625d53] outline-none transition-all duration-200 hover:border-[#d8d0c2] hover:bg-[#fffaf1] hover:text-[#191915] focus-visible:border-[#2456e8]/45 focus-visible:ring-3 focus-visible:ring-[#2456e8]/18 data-[active=true]:border-[#2456e8]/25 data-[active=true]:bg-[#edf2ff] data-[active=true]:text-[#111827] dark:text-[#eee8dc]/72 dark:hover:border-white/10 dark:hover:bg-white/8 dark:hover:text-white dark:focus-visible:border-[#7895ff]/45 dark:focus-visible:ring-[#7895ff]/20 dark:data-[active=true]:border-[#7895ff]/28 dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white"
+              className="group mb-1.5 flex min-h-[24px] w-full max-w-full items-center overflow-hidden rounded-xl border border-transparent px-2.5 py-2 text-left text-[13px] text-[#625d53] outline-none transition-all duration-200 hover:border-[#d8d0c2] hover:bg-[#fffaf1] hover:text-[#191915] focus-visible:border-[#2456e8]/45 focus-visible:ring-3 focus-visible:ring-[#2456e8]/18 data-[active=true]:border-[#2456e8]/25 data-[active=true]:bg-[#edf2ff] data-[active=true]:text-[#111827] dark:text-[#eee8dc]/72 dark:hover:border-white/10 dark:hover:bg-white/8 dark:hover:text-white dark:focus-visible:border-[#7895ff]/45 dark:focus-visible:ring-[#7895ff]/20 dark:data-[active=true]:border-[#7895ff]/28 dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white"
               data-active={
                 index === 0 && activeStage !== "welcome" ? "true" : "false"
               }
               key={conversation}
             >
-              <span className="self-start pt-0.5 text-xs font-black tracking-[0.08em] text-[#2456e8] dark:text-[#7895ff]">
-                0{index + 1}
-              </span>
-              <span className="min-w-0 overflow-hidden whitespace-normal leading-[1.22] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+              <span className="block w-full min-w-0 truncate leading-[1.22]">
                 {conversation}
               </span>
             </button>
@@ -178,7 +175,10 @@ function RailContent({
         )}
       >
         <nav
-          className={cn("grid", expanded ? "gap-1.5" : "w-full gap-2 pt-1")}
+          className={cn(
+            "grid",
+            expanded ? "gap-1.5" : "w-full justify-items-center gap-2 pt-1",
+          )}
           aria-label="Workspace"
         >
           <Button
@@ -236,7 +236,7 @@ function RailContent({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="mt-auto size-10 shrink-0 rounded-xl text-[#6d685e] hover:bg-[#ebe4d8] hover:text-[#191915] dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-white"
+                  className="mt-auto size-11 shrink-0 rounded-xl text-[#6d685e] hover:bg-[#ebe4d8] hover:text-[#191915] dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-white"
                   aria-label="Expand workspace navigation"
                   onClick={() => onExpandedChange(true)}
                 />
