@@ -5,6 +5,14 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    proxy: {
+      '/intelligence-service': {
+        target: 'http://localhost:8007',
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': '/src',
@@ -12,7 +20,6 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
     css: true,
   },
 })
