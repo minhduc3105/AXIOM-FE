@@ -3,6 +3,7 @@ import type { AppRoute } from "./types";
 const ROUTE_SEGMENTS = {
   chat: "chat",
   ingestion: "ingest",
+  reports: "reports",
 } as const;
 
 export function parseAppRoute(pathname: string): AppRoute {
@@ -10,6 +11,10 @@ export function parseAppRoute(pathname: string): AppRoute {
 
   if (segments[0] === ROUTE_SEGMENTS.ingestion) {
     return { surface: "ingestion", sessionId: null };
+  }
+
+  if (segments[0] === ROUTE_SEGMENTS.reports) {
+    return { surface: "reports", sessionId: null };
   }
 
   if (segments[0] === ROUTE_SEGMENTS.chat) {
@@ -21,6 +26,7 @@ export function parseAppRoute(pathname: string): AppRoute {
 
 export function getAppRoutePath(route: AppRoute) {
   if (route.surface === "ingestion") return `/${ROUTE_SEGMENTS.ingestion}`;
+  if (route.surface === "reports") return `/${ROUTE_SEGMENTS.reports}`;
   return route.sessionId
     ? `/${ROUTE_SEGMENTS.chat}/${route.sessionId}`
     : `/${ROUTE_SEGMENTS.chat}`;
@@ -32,4 +38,8 @@ export function createChatRoute(sessionId: string | null = null): AppRoute {
 
 export function createIngestionRoute(): AppRoute {
   return { surface: "ingestion", sessionId: null };
+}
+
+export function createReportsRoute(): AppRoute {
+  return { surface: "reports", sessionId: null };
 }

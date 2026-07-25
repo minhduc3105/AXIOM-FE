@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { IngestionPage } from "@/features/ingestion/IngestionPage";
+import { ReportsPage } from "@/features/reports/ReportsPage";
 import { AppShell } from "./AppShell";
 import {
   createChatRoute,
   createIngestionRoute,
+  createReportsRoute,
   parseAppRoute,
 } from "./routing/paths";
 import { useAppRoute } from "./routing/useAppRoute";
@@ -43,6 +45,10 @@ export function AppExperience() {
     navigate(createIngestionRoute());
   }, [navigate]);
 
+  const openReports = useCallback(() => {
+    navigate(createReportsRoute());
+  }, [navigate]);
+
   const submitQuestion = useCallback(
     (question: string) => {
       if (route.surface === "chat" && !route.sessionId) {
@@ -59,6 +65,7 @@ export function AppExperience() {
       surface={route.surface}
       onNewChat={newChat}
       onIngestion={openIngestion}
+      onReports={openReports}
     >
       {route.surface === "chat" ? (
         <ChatPage
@@ -78,10 +85,12 @@ export function AppExperience() {
           onCloseEvidence={chat.closeEvidence}
           onIngestion={openIngestion}
         />
-      ) : (
+      ) : route.surface === "ingestion" ? (
         <IngestionPage
           onBack={() => navigate(createChatRoute(lastChatSessionId))}
         />
+      ) : (
+        <ReportsPage onIngestion={openIngestion} />
       )}
     </AppShell>
   );
