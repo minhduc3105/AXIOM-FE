@@ -99,9 +99,9 @@ function RailContent({
   return (
     <div
       className={cn(
-        "min-h-full text-[#191915] dark:text-[#eee8dc]",
+        "h-full min-h-0 text-[#191915] dark:text-[#eee8dc]",
         expanded
-          ? "grid min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-4 px-4 py-4"
+          ? "grid min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] gap-4 px-4 py-4"
           : "flex w-full flex-col items-center gap-3 px-2.5 py-4",
       )}
     >
@@ -176,7 +176,13 @@ function RailContent({
         )}
       </div>
 
-      {!expanded && <Separator className="w-8" aria-hidden="true" />}
+      <Separator
+        className={cn(
+          "bg-[#d8d0c2]/85 dark:bg-white/10",
+          expanded ? "w-full" : "w-8",
+        )}
+        aria-hidden="true"
+      />
 
       <Button
         className={cn(
@@ -205,14 +211,14 @@ function RailContent({
       <section
         className={cn(
           "min-h-0 min-w-0 overflow-hidden transition-opacity duration-300",
-          expanded ? "opacity-100" : "hidden",
+          expanded ? "flex flex-col opacity-100" : "hidden",
         )}
         aria-label="Conversation vault"
       >
         <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8377] dark:text-[#eee8dc]/55">
           Recent work
         </div>
-        <ScrollArea className="h-[min(276px,36vh)] w-full min-w-0 overflow-hidden pr-1">
+        <ScrollArea className="min-h-0 w-full min-w-0 flex-1 overflow-hidden pr-1">
           {conversationsLoading && conversations.length === 0 ? (
             <div className="grid gap-1.5" aria-live="polite">
               {Array.from({ length: 3 }).map((_, index) => (
@@ -233,7 +239,7 @@ function RailContent({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="mb-1.5 min-h-8 w-full max-w-full justify-start overflow-hidden rounded-xl border border-transparent px-2.5 py-2 text-left text-[13px] font-medium text-[#625d53] hover:border-[#d8d0c2] hover:bg-[#fffaf1] hover:text-[#191915] focus-visible:border-[#2456e8]/45 focus-visible:ring-[#2456e8]/18 data-[active=true]:border-[#2456e8]/25 data-[active=true]:bg-[#edf2ff] data-[active=true]:text-[#111827] dark:text-[#eee8dc]/72 dark:hover:border-white/10 dark:hover:bg-white/8 dark:hover:text-white dark:focus-visible:border-[#7895ff]/45 dark:focus-visible:ring-[#7895ff]/20 dark:data-[active=true]:border-[#7895ff]/28 dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white"
+                className="mb-2 min-h-8 w-full max-w-full justify-start overflow-hidden rounded-xl border border-transparent px-2.5 py-5 text-left text-[13px] font-medium text-[#625d53] hover:border-[#d8d0c2] hover:bg-[#fffaf1] hover:text-[#191915] focus-visible:border-[#2456e8]/45 focus-visible:ring-[#2456e8]/18 data-[active=true]:border-[#2456e8]/25 data-[active=true]:bg-[#edf2ff] data-[active=true]:text-[#111827] dark:text-[#eee8dc]/72 dark:hover:border-white/10 dark:hover:bg-white/8 dark:hover:text-white dark:focus-visible:border-[#7895ff]/45 dark:focus-visible:ring-[#7895ff]/20 dark:data-[active=true]:border-[#7895ff]/28 dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white"
                 data-active={
                   conversation.conversation_id === activeConversationId &&
                   activeStage !== "welcome"
@@ -262,14 +268,14 @@ function RailContent({
         />
       )}
 
-      {expanded && (
-        <Separator
-          className="bg-[#d8d0c2]/85 dark:bg-white/10"
-          aria-hidden="true"
-        />
-      )}
-
       <div className={cn(expanded ? "grid gap-3" : "grid w-full gap-3")}>
+        {expanded && (
+          <Separator
+            className="bg-[#d8d0c2]/85 dark:bg-white/10"
+            aria-hidden="true"
+          />
+        )}
+
         <nav
           className={cn(
             "grid",
@@ -385,7 +391,7 @@ function RailContent({
           >
             <AvatarImage
               src="https://www.figma.com/api/mcp/asset/456e95e3-44c6-4626-9d3e-f10a9b6c8e2e"
-              alt="Andrew Neilson"
+              alt="Son Nguyen"
             />
             <AvatarFallback>AN</AvatarFallback>
           </Avatar>
@@ -395,10 +401,7 @@ function RailContent({
               expanded ? "grid opacity-100" : "hidden",
             )}
           >
-            <strong className="truncate text-[15px]">Andrew Neilson</strong>
-            <span className="text-xs text-[#6d685e] dark:text-[#eee8dc]/60">
-              Research lead
-            </span>
+            <strong className="truncate text-[15px]">Son Nguyen</strong>
           </div>
         </div>
       </div>

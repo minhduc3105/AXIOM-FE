@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ChatComposer } from "./components/ChatComposer";
 import { EvidencePanel } from "./components/EvidencePanel";
-import { MarkdownContent } from "./components/MarkdownContent";
 import { ReviewCard } from "./components/ReviewCard";
 import { UserMessage } from "./components/UserMessage";
 import { WelcomeWorkspace } from "./components/WelcomeWorkspace";
@@ -177,13 +176,18 @@ export function ChatPage({
           </div>
         </div>
 
-        {stage === "result" && (
-          <ChatComposer
-            className="shrink-0"
-            onSubmit={onSubmit}
-            placeholder="Ask a follow-up or start another investigation..."
-          />
-        )}
+        <ChatComposer
+          className="shrink-0"
+          sendDisabled={loading}
+          onSubmit={onSubmit}
+          placeholder={
+            loading
+              ? "AXIOM is working..."
+              : stage === "result"
+                ? "Ask a follow-up or start another investigation..."
+                : "Message AXIOM..."
+          }
+        />
       </div>
     </section>
   );
@@ -225,9 +229,12 @@ function HistoryTurn({ turn }: { turn: ChatTurn }) {
   return (
     <section className="flex flex-col gap-5">
       <UserMessage question={turn.investigation.question} />
-      <div className="rounded-3xl border border-[#d8d0c2] bg-[#fffdf8]/90 p-6 shadow-[0_16px_44px_rgba(24,24,18,0.08)] dark:border-[#38372f] dark:bg-[#1a1a17]/90">
-        <MarkdownContent markdown={turn.result.markdown} compact />
-      </div>
+      <ReviewCard
+        stage="result"
+        investigation={turn.investigation}
+        events={turn.processEvents ?? []}
+        result={turn.result}
+      />
     </section>
   );
 }

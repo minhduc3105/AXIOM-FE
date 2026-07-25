@@ -17,12 +17,7 @@ import {
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Field,
   FieldGroup,
@@ -75,30 +70,45 @@ export function ReviewCard(props: ReviewCardProps) {
   return <CompletedResponseCard {...props} />;
 }
 
-const reviewCardClass =
-  "w-full rounded-[28px] border border-[#d8d0c2] bg-[#fffdf8]/92 p-0 shadow-[0_18px_54px_rgba(24,24,18,0.10)] dark:border-[#38372f] dark:bg-[#1a1a17]/92";
-const cardCopyClass =
-  "text-sm leading-relaxed text-[#6d685e] dark:text-[#aaa397]";
+const reviewCardClass = "w-full border-0 bg-transparent p-0 shadow-none ring-0";
+const visibleSkeletonClass =
+  "h-3.5 rounded-full bg-[#d8d0c2]/85 shadow-[inset_0_0_0_1px_rgba(25,25,21,0.035)] dark:bg-[#38372f]/90";
+
+function AxiomIdentity({
+  markClassName = "size-11",
+  titleClassName = "text-2xl",
+  wrapperClassName = "",
+}: {
+  markClassName?: string;
+  titleClassName?: string;
+  wrapperClassName?: string;
+}) {
+  return (
+    <div className={cn("flex items-center gap-2.5", wrapperClassName)}>
+      <span
+        className={cn(
+          "grid shrink-0 place-items-center rounded-2xl border border-[#d8d0c2]/80 bg-[#fffdf8]/80 p-1.5 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/80",
+          markClassName,
+        )}
+        aria-hidden="true"
+      >
+        <img
+          src="/assets/logo.png"
+          alt=""
+          className="size-full object-contain"
+        />
+      </span>
+      <strong className={cn("font-semibold leading-tight", titleClassName)}>
+        AXIOM
+      </strong>
+    </div>
+  );
+}
 
 function ResponseHeading({ title, badge }: { title: string; badge?: string }) {
   return (
-    <header className="flex min-h-24 items-center justify-between gap-4 border-b border-[#d8d0c2] bg-gradient-to-r from-[#f4efe5] to-[#fffdf8] p-6 dark:border-[#38372f] dark:from-[#20201c] dark:to-[#1a1a17] max-sm:flex-col max-sm:items-start">
-      <div className="flex items-center gap-4">
-        <span
-          className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#2456e8] text-xl font-black text-white dark:bg-[#7895ff] dark:text-[#0e142c]"
-          aria-hidden="true"
-        >
-          A
-        </span>
-        <div>
-          <h2 className="text-2xl font-semibold leading-tight">{title}</h2>
-        </div>
-      </div>
-      {badge && (
-        <Badge className="rounded-full border border-[#c7d2fe] bg-[#eef2ff] px-3 py-1 text-[#1018a2] dark:border-[#7895ff]/40 dark:bg-[#202844] dark:text-[#dfe6ff]">
-          {badge}
-        </Badge>
-      )}
+    <header className="flex items-center justify-between gap-4 px-6 pb-3 pt-5 max-sm:flex-col max-sm:items-start">
+      <AxiomIdentity />
     </header>
   );
 }
@@ -107,13 +117,13 @@ function PendingCard({ investigation }: { investigation: Investigation }) {
   return (
     <Card className={reviewCardClass} aria-live="polite">
       <CardHeader className="gap-5 p-0">
-        <ResponseHeading title="Understanding your request" badge="Analyzing" />
+        <ResponseHeading title="AXIOM" badge="Analyzing" />
       </CardHeader>
-      <CardContent className="space-y-5 p-6 pt-4">
-        <div className="grid gap-3">
-          <Skeleton className="h-3 rounded-full" />
-          <Skeleton className="h-3 w-4/5 rounded-full" />
-          <Skeleton className="h-3 w-3/5 rounded-full" />
+      <CardContent className="space-y-5 px-6 pb-6 pt-1">
+        <div className="grid gap-3" aria-hidden="true">
+          <Skeleton className={cn(visibleSkeletonClass, "w-full")} />
+          <Skeleton className={cn(visibleSkeletonClass, "w-4/5")} />
+          <Skeleton className={cn(visibleSkeletonClass, "w-3/5")} />
         </div>
       </CardContent>
     </Card>
@@ -150,9 +160,9 @@ function IntentCard({
   return (
     <Card className={reviewCardClass}>
       <CardHeader className="gap-5 p-0">
-        <ResponseHeading title="Intent & Spec" badge="Review" />
+        <ResponseHeading title="AXIOM" badge="Review" />
       </CardHeader>
-      <CardContent className="space-y-5 p-6 pt-4">
+      <CardContent className="space-y-5 px-6 pb-6 pt-0">
         <form
           id="intent-specification-form"
           className="flex flex-col gap-5 rounded-3xl border border-[#d8d0c2] bg-[#fffaf0] p-5 dark:border-[#38372f] dark:bg-[#20201c]"
@@ -195,7 +205,7 @@ function IntentCard({
             </div>
           )}
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-3">
             <Button
               type="button"
               variant="outline"
@@ -206,6 +216,9 @@ function IntentCard({
             >
               <PencilLineIcon data-icon="inline-start" />
               {promptOpen ? "Close" : "Edit"}
+            </Button>
+            <Button type="submit" disabled={!valid || loading}>
+              {loading ? "Updating..." : "Approve"}
             </Button>
           </div>
 
@@ -233,7 +246,7 @@ function IntentCard({
                     onClick={handlePromptRevision}
                   >
                     <WandSparklesIcon data-icon="inline-start" />
-                    Revise spec
+                    Revise
                   </Button>
                 </div>
               </Field>
@@ -247,23 +260,6 @@ function IntentCard({
           )}
         </form>
       </CardContent>
-      <CardFooter className="flex justify-end gap-3 border-t border-[#d8d0c2] bg-[#f4efe5]/70 p-5 dark:border-[#38372f] dark:bg-[#20201c]/70 max-sm:flex-col-reverse">
-        <Button
-          variant="outline"
-          type="button"
-          onClick={onReset}
-          disabled={loading}
-        >
-          Reset
-        </Button>
-        <Button
-          type="submit"
-          form="intent-specification-form"
-          disabled={!valid || loading}
-        >
-          {loading ? "Updating..." : "Approve"}
-        </Button>
-      </CardFooter>
     </Card>
   );
 }
@@ -280,18 +276,10 @@ function ProcessCard({
   return (
     <Card className={reviewCardClass} aria-live="polite">
       <CardContent className="space-y-4 p-6 pt-4">
-        <Progress value={progress} aria-label="Workflow progress" />
-        <div className="rounded-[24px] border border-[#d8d0c2] bg-[#fffaf0]/70 p-3 dark:border-[#38372f] dark:bg-[#20201c]/72">
-          <ol className="grid gap-1.5" aria-label="Processing transcript">
-            {transcriptEvents.map((event, index) => (
-              <ProcessTranscriptStep
-                event={event}
-                index={index}
-                key={event.id}
-              />
-            ))}
-          </ol>
-        </div>
+        <ProcessTranscriptList
+          ariaLabel="Processing transcript"
+          events={transcriptEvents}
+        />
         {error && (
           <Alert>
             <AlertDescription>{error}</AlertDescription>
@@ -322,6 +310,25 @@ function getProcessPresentation(events: ProcessEvent[]) {
   return { completed, complete, progress, transcriptEvents };
 }
 
+function ProcessTranscriptList({
+  ariaLabel,
+  events,
+}: {
+  ariaLabel: string;
+  events: ProcessEvent[];
+}) {
+  return (
+    <section className="grid gap-3" aria-label={ariaLabel}>
+      <AxiomIdentity markClassName="size-10" titleClassName="text-xl" />
+      <ol className="grid gap-1.5" aria-label={ariaLabel}>
+        {events.map((event, index) => (
+          <ProcessTranscriptStep event={event} index={index} key={event.id} />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 function ProcessTranscriptStep({
   event,
   index,
@@ -342,26 +349,11 @@ function ProcessTranscriptStep({
       <Marker
         render={<li />}
         className={cn(
-          "min-h-8 px-2 text-[#475569] dark:text-[#aaa397]",
-          !visible && "opacity-45",
-        )}
-        role={event.status === "running" ? "status" : undefined}
-      >
-        <MarkerIcon className="text-[#6d685e] dark:text-[#aaa397]">
-          <BrainCircuitIcon />
-        </MarkerIcon>
-        <MarkerContent>Thinking</MarkerContent>
-      </Marker>
-      <Marker
-        render={<li />}
-        className={cn(
           event.status,
           "min-h-10 items-start rounded-xl px-2 py-2 transition-colors duration-200",
           visible
             ? "text-[#191915] dark:text-[#eee8dc]"
             : "text-[#6d685e]/65 dark:text-[#aaa397]/55",
-          event.status === "running" &&
-            "bg-[#eef2ff] text-[#1018a2] dark:bg-[#202844] dark:text-[#dfe6ff]",
         )}
       >
         <MarkerIcon className="mt-0.5 text-[#6d685e] dark:text-[#aaa397]">
@@ -370,25 +362,8 @@ function ProcessTranscriptStep({
         <MarkerContent>
           <div className="flex min-w-0 flex-wrap items-baseline gap-2">
             <strong className="font-medium">{event.label}</strong>
-            <span className="text-xs leading-relaxed text-[#6d685e] dark:text-[#aaa397]">
-              {event.detail}
-            </span>
           </div>
         </MarkerContent>
-        <span className="inline-flex items-center gap-1 text-xs text-[#6d685e] dark:text-[#aaa397]">
-          <Icon
-            className={cn(
-              "size-3.5",
-              event.status === "running" && "animate-spin",
-            )}
-            aria-hidden="true"
-          />
-          {event.status === "done"
-            ? "Done"
-            : event.status === "running"
-              ? "Running"
-              : "Waiting"}
-        </span>
       </Marker>
     </>
   );
@@ -403,23 +378,17 @@ function CompletedResponseCard({
 
   return (
     <Card className={reviewCardClass} aria-live="polite">
-      <CardContent className="space-y-8 p-6">
-        <section className="space-y-4" aria-label="Process">
-          <div className="rounded-[24px] border border-[#d8d0c2] bg-[#fffaf0]/70 p-3 dark:border-[#38372f] dark:bg-[#20201c]/72">
-            <ol
-              className="grid gap-1.5"
-              aria-label="Completed process transcript"
-            >
-              {transcriptEvents.map((event, index) => (
-                <ProcessTranscriptStep
-                  event={event}
-                  index={index}
-                  key={event.id}
-                />
-              ))}
-            </ol>
-          </div>
-        </section>
+      <CardContent className="flex flex-col gap-2">
+        {transcriptEvents.length > 0 ? (
+          <section className="space-y-4" aria-label="Process">
+            <ProcessTranscriptList
+              ariaLabel="Completed process transcript"
+              events={transcriptEvents}
+            />
+          </section>
+        ) : (
+          <AxiomIdentity />
+        )}
 
         <section className="dark:border-[#38372f]" aria-label="Final answer">
           <MarkdownContent markdown={result.markdown} />

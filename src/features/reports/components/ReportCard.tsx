@@ -6,7 +6,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ReportThumbnail } from "./ReportThumbnail";
 import type { Report } from "../model/types";
 
 type ReportCardProps = {
@@ -23,7 +22,6 @@ export function ReportCard({ report, onOpen }: ReportCardProps) {
       onClick={() => onOpen(report)}
       aria-label={`Open report: ${report.title}`}
     >
-      <ReportThumbnail report={report} />
       <div className="grid gap-4 p-5">
         <div className="grid gap-2">
           <Badge

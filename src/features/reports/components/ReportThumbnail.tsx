@@ -3,32 +3,38 @@ import { cn } from "@/shared/lib/utils";
 
 const toneClasses = {
   blue: {
-    frame: "from-[#edf2ff] via-[#fffdf8] to-[#dbe6ff] dark:from-[#172036] dark:via-[#1a1a17] dark:to-[#14224a]",
+    frame:
+      "from-[#edf2ff] via-[#fffdf8] to-[#dbe6ff] dark:from-[#172036] dark:via-[#1a1a17] dark:to-[#14224a]",
     accent: "bg-[#2456e8]",
     soft: "bg-[#dbe6ff] dark:bg-[#26345f]",
   },
   green: {
-    frame: "from-[#edf7ee] via-[#fffdf8] to-[#d7ecdd] dark:from-[#162319] dark:via-[#1a1a17] dark:to-[#173321]",
+    frame:
+      "from-[#edf7ee] via-[#fffdf8] to-[#d7ecdd] dark:from-[#162319] dark:via-[#1a1a17] dark:to-[#173321]",
     accent: "bg-[#1f8a4c]",
     soft: "bg-[#d9efdf] dark:bg-[#254c31]",
   },
   amber: {
-    frame: "from-[#fff3d7] via-[#fffdf8] to-[#f3dfb2] dark:from-[#2c2312] dark:via-[#1a1a17] dark:to-[#3a2b10]",
+    frame:
+      "from-[#fff3d7] via-[#fffdf8] to-[#f3dfb2] dark:from-[#2c2312] dark:via-[#1a1a17] dark:to-[#3a2b10]",
     accent: "bg-[#c27a12]",
     soft: "bg-[#f6e3b9] dark:bg-[#4a3718]",
   },
   slate: {
-    frame: "from-[#eceff3] via-[#fffdf8] to-[#dfe3e8] dark:from-[#1a2028] dark:via-[#1a1a17] dark:to-[#25303b]",
+    frame:
+      "from-[#eceff3] via-[#fffdf8] to-[#dfe3e8] dark:from-[#1a2028] dark:via-[#1a1a17] dark:to-[#25303b]",
     accent: "bg-[#536171]",
     soft: "bg-[#dfe5ec] dark:bg-[#34404d]",
   },
   rose: {
-    frame: "from-[#fff0f1] via-[#fffdf8] to-[#f3d2d8] dark:from-[#311a20] dark:via-[#1a1a17] dark:to-[#431e28]",
+    frame:
+      "from-[#fff0f1] via-[#fffdf8] to-[#f3d2d8] dark:from-[#311a20] dark:via-[#1a1a17] dark:to-[#431e28]",
     accent: "bg-[#cc425b]",
     soft: "bg-[#f4d8de] dark:bg-[#56303a]",
   },
   cyan: {
-    frame: "from-[#e8f7f8] via-[#fffdf8] to-[#ccecef] dark:from-[#14272b] dark:via-[#1a1a17] dark:to-[#173940]",
+    frame:
+      "from-[#e8f7f8] via-[#fffdf8] to-[#ccecef] dark:from-[#14272b] dark:via-[#1a1a17] dark:to-[#173940]",
     accent: "bg-[#178c99]",
     soft: "bg-[#d0eef1] dark:bg-[#254c52]",
   },
@@ -60,7 +66,9 @@ export function ReportThumbnail({ report }: { report: Report }) {
             <span
               key={point.label}
               className={cn("w-full rounded-t-[4px]", tone.accent)}
-              style={{ height: `${Math.max(18, (point.value / maxValue) * 100)}%` }}
+              style={{
+                height: `${Math.max(18, (point.value / maxValue) * 100)}%`,
+              }}
             />
           ))}
         </div>

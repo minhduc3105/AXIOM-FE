@@ -18,10 +18,9 @@ export function WorkspaceCommandBar({
   const mobile = useMediaQuery("(max-width: 767px)");
 
   return (
-    <header className="sticky top-4 z-30 mx-auto grid min-h-14 w-[min(1040px,calc(100%_-_48px))] translate-y-4 grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-full border border-[#d8d0c2]/70 bg-[#fffdf8]/85 px-4 py-2 shadow-[0_18px_54px_rgba(19,18,14,0.10)] backdrop-blur-xl dark:border-[#38372f]/70 dark:bg-[#1a1a17]/85 max-sm:w-[calc(100%_-_24px)] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:rounded-2xl">
-      <div className="max-sm:hidden" aria-hidden="true" />
+    <header className="sticky top-4 z-30 mx-auto grid min-h-14 w-[min(1040px,calc(100%_-_48px))] translate-y-4 grid-cols-[1fr_auto_1fr] items-center gap-2 max-sm:w-[calc(100%_-_24px)] max-sm:grid-cols-[minmax(0,1fr)_auto]">
       <nav
-        className="flex min-w-0 items-center justify-center gap-1 max-sm:justify-start max-sm:overflow-x-auto"
+        className="col-start-2 flex min-w-0 items-center justify-center gap-1 rounded-full border border-[#d8d0c2]/70 bg-[#fffdf8]/85 px-3 py-2 shadow-[0_18px_54px_rgba(19,18,14,0.10)] backdrop-blur-xl dark:border-[#38372f]/70 dark:bg-[#1a1a17]/85 max-sm:col-start-1 max-sm:justify-start max-sm:overflow-x-auto max-sm:rounded-2xl"
         aria-label="Workspace sections"
       >
         <Button variant="ghost" size="sm" onClick={onHome}>
@@ -37,7 +36,7 @@ export function WorkspaceCommandBar({
           Report
         </Button>
       </nav>
-      <div className="flex items-center justify-end gap-2">
+      <div className="col-start-3 flex shrink-0 items-center justify-self-end gap-2 rounded-full border border-[#d8d0c2]/70 bg-[#fffdf8]/85 p-2 shadow-[0_18px_54px_rgba(19,18,14,0.10)] backdrop-blur-xl dark:border-[#38372f]/70 dark:bg-[#1a1a17]/85 max-sm:col-start-2 max-sm:rounded-2xl">
         {mobile && (
           <Button
             variant="ghost"

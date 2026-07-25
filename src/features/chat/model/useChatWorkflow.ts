@@ -51,7 +51,14 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         processEvents: createProcessEvents(),
         result: null,
         history: state.investigation && state.result
-          ? [...state.history, { investigation: state.investigation, result: state.result }]
+          ? [
+              ...state.history,
+              {
+                investigation: state.investigation,
+                result: state.result,
+                processEvents: state.processEvents,
+              },
+            ]
           : state.history,
         loading: true,
         error: null,

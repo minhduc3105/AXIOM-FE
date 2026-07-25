@@ -18,24 +18,18 @@ import { createConversation } from "@/shared/lib/intelligence-api";
 export function AppExperience() {
   const { route, navigate } = useAppRoute();
   const chat = useChatWorkflow();
-  const hydratedConversationIdRef = useRef<string | null>(null);
   const skipNextHydrationRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (route.surface !== "chat" || !route.sessionId) {
-      hydratedConversationIdRef.current = null;
       return;
     }
 
     if (skipNextHydrationRef.current === route.sessionId) {
-      hydratedConversationIdRef.current = route.sessionId;
       skipNextHydrationRef.current = null;
       return;
     }
 
-    if (hydratedConversationIdRef.current === route.sessionId) return;
-
-    hydratedConversationIdRef.current = route.sessionId;
     chat.loadConversation(route.sessionId);
   }, [chat.loadConversation, route.sessionId, route.surface]);
 
@@ -76,7 +70,6 @@ export function AppExperience() {
         const conversation = await createConversation(question.slice(0, 80));
         conversationId = conversation.conversation_id;
         skipNextHydrationRef.current = conversationId;
-        hydratedConversationIdRef.current = conversationId;
         navigate(createChatRoute(conversationId));
       }
 
