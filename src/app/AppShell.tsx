@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { ChatStage } from "@/features/chat/model/types";
 import type { AppSurface } from "@/app/routing/types";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { WorkspaceCommandBar } from "@/shared/components/WorkspaceCommandBar";
 import { WorkspaceRail } from "@/shared/components/WorkspaceRail";
 import { cn } from "@/shared/lib/utils";
 
@@ -11,6 +10,7 @@ type AppShellProps = {
   surface: AppSurface;
   onNewChat: () => void;
   onIngestion: () => void;
+  onReports: () => void;
   children: React.ReactNode;
 };
 
@@ -19,6 +19,7 @@ export function AppShell({
   surface,
   onNewChat,
   onIngestion,
+  onReports,
   children,
 }: AppShellProps) {
   const [expanded, setExpanded] = useState(false);
@@ -44,6 +45,7 @@ export function AppShell({
           onExpandedChange={setExpanded}
           onNewChat={onNewChat}
           onIngestion={onIngestion}
+          onReports={onReports}
         />
         <div
           className={cn(
@@ -51,7 +53,6 @@ export function AppShell({
             expanded && "md:ml-[304px]",
           )}
         >
-          <WorkspaceCommandBar surface={surface} onNewChat={onNewChat} />
           {children}
         </div>
       </main>

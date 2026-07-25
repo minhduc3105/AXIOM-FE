@@ -1,12 +1,16 @@
 import { useState } from "react";
 import {
   DatabaseIcon,
+  FileTextIcon,
   MenuIcon,
   MessageSquarePlusIcon,
+  MoonIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   SettingsIcon,
+  SunIcon,
 } from "lucide-react";
+import { useTheme } from "@/app/ThemeProvider";
 import type { ChatStage } from "@/features/chat/model/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -35,6 +39,7 @@ type WorkspaceRailProps = {
   onExpandedChange: (expanded: boolean) => void;
   onNewChat: () => void;
   onIngestion: () => void;
+  onReports: () => void;
 };
 
 const conversations = [
@@ -43,6 +48,8 @@ const conversations = [
   "Lorem Ipsum Project",
 ];
 
+const sidebarButtonIconPadding = "has-data-[icon=inline-start]:pl-3";
+
 function RailContent({
   activeStage,
   surface,
@@ -50,7 +57,10 @@ function RailContent({
   onExpandedChange,
   onNewChat,
   onIngestion,
+  onReports,
 }: WorkspaceRailProps) {
+  const { resolvedTheme, setTheme } = useTheme();
+
   return (
     <div
       className={cn(
@@ -74,12 +84,35 @@ function RailContent({
             expanded ? "flex items-center" : "grid justify-items-center",
           )}
         >
-          <img
-            src="/assets/logo.png"
-            alt=""
-            className="size-11 shrink-0 object-contain"
-            aria-hidden="true"
-          />
+          <div className="group/logo relative size-11 shrink-0">
+            <img
+              src="/assets/logo.png"
+              alt=""
+              className={cn(
+                "size-11 object-contain transition-opacity duration-200",
+                !expanded && "group-hover/logo:opacity-0",
+              )}
+              aria-hidden="true"
+            />
+            {!expanded && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute inset-0 size-11 rounded-xl opacity-0 transition-opacity duration-200 pointer-events-none group-hover/logo:pointer-events-auto group-hover/logo:opacity-100 text-[#6d685e] hover:bg-[#ebe4d8] hover:text-[#191915] focus-visible:pointer-events-auto focus-visible:opacity-100 dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-white"
+                      aria-label="Expand workspace navigation"
+                      onClick={() => onExpandedChange(true)}
+                    />
+                  }
+                >
+                  <PanelLeftOpenIcon />
+                </TooltipTrigger>
+                <TooltipContent>Expand navigation</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
           <span
             className={cn(
               "min-w-0 text-[15px] font-bold tracking-[0.08em] transition-opacity duration-300",
@@ -119,6 +152,7 @@ function RailContent({
       <Button
         className={cn(
           "h-11 gap-3 rounded-xl bg-[#2456e8] text-white shadow-[0_14px_30px_rgba(36,86,232,0.18)] hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]",
+          sidebarButtonIconPadding,
           expanded
             ? "w-full justify-start px-4"
             : "size-11 justify-center pl-5 pr-0",
@@ -167,11 +201,20 @@ function RailContent({
         </ScrollArea>
       </section>
 
+      {!expanded && (
+        <button
+          type="button"
+          className="min-h-0 w-full flex-1 cursor-pointer rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-[#2456e8]/30 dark:focus-visible:ring-[#7895ff]/35"
+          aria-label="Expand workspace navigation"
+          onClick={() => onExpandedChange(true)}
+        />
+      )}
+
       <div
         className={cn(
           expanded
             ? "grid gap-3 border-t border-[#d8d0c2]/85 pt-3 dark:border-white/10"
-            : "contents",
+            : "grid w-full gap-3",
         )}
       >
         <nav
@@ -181,34 +224,69 @@ function RailContent({
           )}
           aria-label="Workspace"
         >
-          <Button
-            variant="ghost"
+          <div
             className={cn(
-              "h-11 gap-3 rounded-xl text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] data-[active=true]:bg-[#e9edf9] data-[active=true]:text-[#1237b4] dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white",
               expanded
-                ? "w-full justify-start px-3"
-                : "size-11 justify-center px-0",
+                ? "rounded-[8px] border border-[#d8d0c2] bg-[#f0eadf]/70 p-1 dark:border-[#38372f] dark:bg-white/5"
+                : "grid w-full justify-items-center gap-2",
             )}
-            data-active={surface === "ingestion"}
-            onClick={onIngestion}
-            aria-label="Data Ingestion"
           >
-            <DatabaseIcon data-icon="inline-start" />
-            <span
+            <Button
+              variant="ghost"
               className={cn(
-                "transition-opacity duration-300",
+                "h-11 gap-3 rounded-[6px] text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] data-[active=true]:bg-[#fffdf8] data-[active=true]:text-[#1237b4] data-[active=true]:shadow-sm dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white",
+                sidebarButtonIconPadding,
                 expanded
-                  ? "opacity-100"
-                  : "pointer-events-none w-0 overflow-hidden opacity-0",
+                  ? "w-full justify-start px-3"
+                  : "size-11 justify-center px-0",
               )}
+              data-active={surface === "ingestion"}
+              onClick={onIngestion}
+              aria-label="Data ingest setting"
             >
-              Data Ingestion
-            </span>
-          </Button>
+              <DatabaseIcon data-icon="inline-start" />
+              <span
+                className={cn(
+                  "transition-opacity duration-300",
+                  expanded
+                    ? "opacity-100"
+                    : "pointer-events-none w-0 overflow-hidden opacity-0",
+                )}
+              >
+                Data ingest setting
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              className={cn(
+                "h-11 gap-3 rounded-[6px] text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] data-[active=true]:bg-[#fffdf8] data-[active=true]:text-[#1237b4] data-[active=true]:shadow-sm dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white",
+                sidebarButtonIconPadding,
+                expanded
+                  ? "w-full justify-start px-3"
+                  : "size-11 justify-center px-0",
+              )}
+              data-active={surface === "reports"}
+              onClick={onReports}
+              aria-label="Report"
+            >
+              <FileTextIcon data-icon="inline-start" />
+              <span
+                className={cn(
+                  "transition-opacity duration-300",
+                  expanded
+                    ? "opacity-100"
+                    : "pointer-events-none w-0 overflow-hidden opacity-0",
+                )}
+              >
+                Report
+              </span>
+            </Button>
+          </div>
           <Button
             variant="ghost"
             className={cn(
               "h-11 gap-3 rounded-xl text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white",
+              sidebarButtonIconPadding,
               expanded
                 ? "w-full justify-start px-3"
                 : "size-11 justify-center px-0",
@@ -227,26 +305,39 @@ function RailContent({
               Settings
             </span>
           </Button>
-        </nav>
-
-        {!expanded && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="mt-auto size-11 shrink-0 rounded-xl text-[#6d685e] hover:bg-[#ebe4d8] hover:text-[#191915] dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-white"
-                  aria-label="Expand workspace navigation"
-                  onClick={() => onExpandedChange(true)}
-                />
-              }
+          <Button
+            variant="ghost"
+            className={cn(
+              "h-11 gap-3 rounded-xl text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white",
+              sidebarButtonIconPadding,
+              expanded
+                ? "w-full justify-start px-3"
+                : "size-11 justify-center px-0",
+            )}
+            aria-label={
+              resolvedTheme === "dark" ? "Use light theme" : "Use dark theme"
+            }
+            onClick={() =>
+              setTheme(resolvedTheme === "dark" ? "light" : "dark")
+            }
+          >
+            {resolvedTheme === "dark" ? (
+              <SunIcon data-icon="inline-start" />
+            ) : (
+              <MoonIcon data-icon="inline-start" />
+            )}
+            <span
+              className={cn(
+                "transition-opacity duration-300",
+                expanded
+                  ? "opacity-100"
+                  : "pointer-events-none w-0 overflow-hidden opacity-0",
+              )}
             >
-              <PanelLeftOpenIcon />
-            </TooltipTrigger>
-            <TooltipContent>Expand navigation</TooltipContent>
-          </Tooltip>
-        )}
+              {resolvedTheme === "dark" ? "Use light theme" : "Use dark theme"}
+            </span>
+          </Button>
+        </nav>
 
         <div
           className={cn(
@@ -317,6 +408,18 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
             {...props}
             expanded
             onExpandedChange={() => setMobileOpen(false)}
+            onNewChat={() => {
+              props.onNewChat();
+              setMobileOpen(false);
+            }}
+            onIngestion={() => {
+              props.onIngestion();
+              setMobileOpen(false);
+            }}
+            onReports={() => {
+              props.onReports();
+              setMobileOpen(false);
+            }}
           />
         </SheetContent>
       </Sheet>
