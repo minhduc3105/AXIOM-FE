@@ -242,7 +242,7 @@ function RailContent({
               )}
               data-active={surface === "ingestion"}
               onClick={onIngestion}
-              aria-label="Data ingest setting"
+              aria-label="Data Ingest Setting"
             >
               <DatabaseIcon data-icon="inline-start" />
               <span
@@ -253,7 +253,7 @@ function RailContent({
                     : "pointer-events-none w-0 overflow-hidden opacity-0",
                 )}
               >
-                Data ingest setting
+                Data Ingest Setting
               </span>
             </Button>
             <Button
@@ -401,7 +401,7 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
           <SheetHeader className="sr-only">
             <SheetTitle>Workspace navigation</SheetTitle>
             <SheetDescription>
-              Open conversations, ingestion, settings, and account controls.
+              Open conversations, Data Ingest Setting, Report, and account controls.
             </SheetDescription>
           </SheetHeader>
           <RailContent

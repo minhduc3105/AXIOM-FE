@@ -1,0 +1,4 @@
+interface:
+  display_name: "AXIOM-FE Design"
+  short_description: "AXIOM frontend UI workflow guidance"
+  default_prompt: "Use $axiom-fe-design to design, review, or implement an AXIOM-FE interface change."

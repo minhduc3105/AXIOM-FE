@@ -1,12 +1,6 @@
-import { useEffect, useState } from "react";
-import {
-  CalendarDaysIcon,
-  CheckIcon,
-  DownloadIcon,
-  FileTextIcon,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { DownloadIcon, FileTextIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -22,219 +16,176 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { Report, ReportMetric } from "../model/types";
 import { cn } from "@/shared/lib/utils";
-import { downloadReport } from "../lib/downloadReport";
-import type { Report } from "../model/types";
 
 type ReportDetailDialogProps = {
   report: Report | null;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDownload: (report: Report) => void;
 };
 
-const statusClasses = {
-  "On track":
-    "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300",
-  Watch:
-    "bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300",
-  "Action needed":
-    "bg-rose-50 text-rose-700 dark:bg-rose-400/10 dark:text-rose-300",
-} as const;
+const metricToneClasses: Record<ReportMetric["tone"], string> = {
+  positive:
+    "border-[#bddcc8] bg-[#eff8f1] text-[#17643a] dark:border-[#315a3e] dark:bg-[#142419] dark:text-[#91d6a7]",
+  warning:
+    "border-[#e9d39c] bg-[#fff8e8] text-[#87560e] dark:border-[#5b4620] dark:bg-[#2c2415] dark:text-[#f1c56d]",
+  neutral:
+    "border-[#d8d0c2] bg-[#f4efe5] text-[#4f4a42] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1]",
+};
 
 export function ReportDetailDialog({
   report,
+  open,
   onOpenChange,
+  onDownload,
 }: ReportDetailDialogProps) {
-  const [downloaded, setDownloaded] = useState(false);
-
-  useEffect(() => {
-    setDownloaded(false);
-  }, [report?.id]);
-
-  if (!report) return null;
-
-  const handleDownload = () => {
-    downloadReport(report);
-    setDownloaded(true);
-  };
+  const maxValue = report
+    ? Math.max(...report.detail.chart.map((point) => point.value), 1)
+    : 1;
 
   return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-h-[calc(100dvh-20px)] w-[min(1120px,calc(100vw-20px))] max-w-none gap-0 overflow-hidden rounded-[8px] border border-[#cfc6b7] bg-[#fffdf8] p-0 shadow-[0_28px_90px_rgba(25,25,21,0.28)] ring-0 dark:border-[#403f36] dark:bg-[#161613] sm:max-w-none"
-        showCloseButton
-      >
-        <div className="max-h-[calc(100dvh-20px)] overflow-y-auto">
-          <DialogHeader className="border-b border-[#d8d0c2] px-5 py-5 pr-16 dark:border-[#38372f] sm:px-8 sm:py-7">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className="h-6 rounded-full bg-[#2456e8] px-3 text-[10px] uppercase text-white dark:bg-[#7895ff] dark:text-[#10162c]">
-                {report.category}
-              </Badge>
-              {report.tags.map((tag) => (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[min(860px,calc(100vh-32px))] overflow-hidden rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8] p-0 text-[#191915] sm:max-w-[min(980px,calc(100vw-32px))] dark:border-[#38372f] dark:bg-[#1a1a17] dark:text-[#eee8dc]">
+        {report && (
+          <div className="flex max-h-[min(860px,calc(100vh-32px))] min-h-0 flex-col">
+            <DialogHeader className="border-b border-[#d8d0c2] px-5 py-4 pr-14 dark:border-[#38372f]">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Badge
-                  key={tag}
                   variant="outline"
-                  className="h-6 rounded-full px-2.5 text-[10px]"
+                  className="h-6 rounded-[7px] border-[#2456e8]/30 bg-[#edf2ff] text-[#1237b4] dark:border-[#7895ff]/30 dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]"
                 >
-                  {tag}
+                  {report.category}
                 </Badge>
-              ))}
-            </div>
-            <DialogTitle className="mt-4 max-w-4xl text-[34px] font-semibold leading-[0.98] tracking-normal sm:text-[48px] lg:text-[60px]">
-              {report.title}
-            </DialogTitle>
-            <DialogDescription className="mt-4 max-w-3xl text-base leading-7 text-[#615b51] dark:text-[#b6afa2]">
-              {report.excerpt}
-            </DialogDescription>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#6d685e] dark:text-[#aaa397]">
-                <span className="font-semibold text-[#191915] dark:text-[#eee8dc]">
-                  {report.author} · {report.source}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <CalendarDaysIcon className="size-3.5" />
-                  {report.createdAt}
+                <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
+                  {new Intl.DateTimeFormat("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  }).format(new Date(report.createdAt))}
+                  {" / "}
+                  {report.author}
                 </span>
               </div>
-              <Button
-                className="h-10 rounded-md bg-[#2456e8] px-4 text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
-                type="button"
-                onClick={handleDownload}
-              >
-                {downloaded ? (
-                  <CheckIcon data-icon="inline-start" />
-                ) : (
-                  <DownloadIcon data-icon="inline-start" />
-                )}
-                {downloaded ? "Downloaded" : "Download report"}
-              </Button>
-            </div>
-          </DialogHeader>
-
-          <div className="grid gap-10 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(0,1.25fr)_320px] lg:gap-14 lg:py-12">
-            <article className="min-w-0">
-              <img
-                src={report.image}
-                alt={report.imageAlt}
-                className="aspect-[16/8] w-full rounded-[6px] object-cover"
-              />
-              <p className="mt-8 border-l-2 border-[#2456e8] pl-5 text-xl font-medium leading-8 text-[#282721] dark:border-[#7895ff] dark:text-[#e8e1d5]">
-                {report.lead}
-              </p>
-
-              {report.sections.map((section) => (
-                <section className="mt-9" key={section.heading}>
-                  <h3 className="text-xl font-semibold">{section.heading}</h3>
-                  <p className="mt-3 text-[15px] leading-7 text-[#615b51] dark:text-[#b6afa2]">
-                    {section.body}
-                  </p>
-                </section>
-              ))}
-
-              <section className="mt-10">
-                <div className="mb-4 flex items-end justify-between gap-4">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase text-[#2456e8] dark:text-[#8da5ff]">
-                      Comparative view
-                    </span>
-                    <h3 className="mt-1 text-xl font-semibold">
-                      Performance by dimension
-                    </h3>
-                  </div>
-                  <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
-                    Current vs previous
-                  </span>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <DialogTitle className="text-2xl font-semibold leading-tight">
+                    {report.title}
+                  </DialogTitle>
+                  <DialogDescription className="mt-2 max-w-3xl text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
+                    {report.detail.headline}
+                  </DialogDescription>
                 </div>
-                <div className="overflow-hidden rounded-[6px] border border-[#d8d0c2] dark:border-[#38372f]">
-                  <Table>
-                    <TableHeader className="bg-[#f0eadf] dark:bg-[#24241f]">
-                      <TableRow>
-                        <TableHead className="px-4">Dimension</TableHead>
-                        <TableHead>Current</TableHead>
-                        <TableHead>Previous</TableHead>
-                        <TableHead className="px-4 text-right">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {report.table.map((row) => (
-                        <TableRow key={row.dimension}>
-                          <TableCell className="px-4 font-medium">
-                            {row.dimension}
-                          </TableCell>
-                          <TableCell>{row.current}</TableCell>
-                          <TableCell className="text-[#6d685e] dark:text-[#aaa397]">
-                            {row.previous}
-                          </TableCell>
-                          <TableCell className="px-4 text-right">
-                            <span
-                              className={cn(
-                                "inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold",
-                                statusClasses[row.status],
-                              )}
-                            >
-                              {row.status}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </section>
-            </article>
-
-            <aside className="min-w-0 lg:sticky lg:top-8 lg:self-start">
-              <div className="border-t-2 border-[#191915] pt-4 dark:border-[#eee8dc]">
-                <div className="flex items-center gap-2">
-                  <FileTextIcon className="size-4 text-[#2456e8] dark:text-[#8da5ff]" />
-                  <h3 className="text-sm font-semibold uppercase">
-                    Key indicators
-                  </h3>
-                </div>
-                <div className="mt-5 grid gap-6">
-                  {report.metrics.map((metric) => (
-                    <div key={metric.label}>
-                      <div className="flex items-end justify-between gap-3">
-                        <div>
-                          <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
-                            {metric.label}
-                          </span>
-                          <div className="mt-1 text-3xl font-semibold">
-                            {metric.displayValue}
-                          </div>
-                        </div>
-                        <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                          {metric.change}
-                        </span>
-                      </div>
-                      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#e4ddd1] dark:bg-[#303029]">
-                        <div
-                          className="h-full rounded-full bg-[#2456e8] dark:bg-[#7895ff]"
-                          style={{ width: `${metric.value}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-8 border-t border-[#d8d0c2] pt-5 dark:border-[#38372f]">
-                <p className="text-xs leading-5 text-[#6d685e] dark:text-[#aaa397]">
-                  Generated from validated AXIOM evidence. Export includes the
-                  executive summary, indicators, and comparison table.
-                </p>
                 <Button
-                  variant="outline"
-                  className="mt-4 h-10 w-full rounded-md border-[#bdb4a6] bg-transparent"
-                  type="button"
-                  onClick={handleDownload}
+                  className="h-9 rounded-[7px] bg-[#2456e8] px-3 text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
+                  onClick={() => onDownload(report)}
                 >
                   <DownloadIcon data-icon="inline-start" />
-                  Download CSV
+                  Tải xuống Report
                 </Button>
               </div>
-            </aside>
+            </DialogHeader>
+
+            <div className="min-h-0 overflow-y-auto px-5 py-5">
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <article className="grid gap-5">
+                  <section className="grid gap-3 rounded-[8px] border border-[#d8d0c2] bg-[#fffaf1]/72 p-4 dark:border-[#38372f] dark:bg-white/5">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <FileTextIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
+                      Nội dung phân tích
+                    </div>
+                    <div className="grid gap-3 text-sm leading-7 text-[#4f4a42] dark:text-[#d5cec1]">
+                      {report.detail.body.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8] p-4 dark:border-[#38372f] dark:bg-[#1a1a17]">
+                    <h3 className="text-sm font-semibold">Bảng phát hiện chính</h3>
+                    <div className="mt-3 overflow-hidden rounded-[8px] border border-[#d8d0c2] dark:border-[#38372f]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-[#f4efe5] hover:bg-[#f4efe5] dark:bg-white/5 dark:hover:bg-white/5">
+                            <TableHead className="text-xs">Dimension</TableHead>
+                            <TableHead className="text-xs">Finding</TableHead>
+                            <TableHead className="text-xs">Owner</TableHead>
+                            <TableHead className="text-xs">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {report.detail.table.map((row) => (
+                            <TableRow key={`${row.dimension}-${row.owner}`}>
+                              <TableCell className="font-medium text-[#25241f] dark:text-[#eee8dc]">
+                                {row.dimension}
+                              </TableCell>
+                              <TableCell className="min-w-[220px] whitespace-normal text-[#625d53] dark:text-[#c5bcaf]">
+                                {row.finding}
+                              </TableCell>
+                              <TableCell className="text-[#625d53] dark:text-[#c5bcaf]">
+                                {row.owner}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="rounded-[7px]">
+                                  {row.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </section>
+                </article>
+
+                <aside className="grid gap-4 self-start">
+                  <section className="grid gap-3 rounded-[8px] border border-[#d8d0c2] bg-[#fffaf1]/72 p-4 dark:border-[#38372f] dark:bg-white/5">
+                    <h3 className="text-sm font-semibold">Chỉ số nổi bật</h3>
+                    <div className="grid gap-2">
+                      {report.detail.metrics.map((metric) => (
+                        <div
+                          key={metric.label}
+                          className={cn(
+                            "rounded-[8px] border p-3",
+                            metricToneClasses[metric.tone],
+                          )}
+                        >
+                          <div className="text-xs opacity-78">{metric.label}</div>
+                          <div className="mt-1 flex items-end justify-between gap-3">
+                            <strong className="text-xl leading-none">
+                              {metric.value}
+                            </strong>
+                            <span className="text-xs font-semibold">
+                              {metric.change}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8] p-4 dark:border-[#38372f] dark:bg-[#1a1a17]">
+                    <h3 className="text-sm font-semibold">Biểu đồ mẫu</h3>
+                    <div className="mt-4 flex h-48 items-end gap-3 border-b border-l border-[#d8d0c2] px-3 pb-3 dark:border-[#38372f]">
+                      {report.detail.chart.map((point) => (
+                        <div key={point.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2">
+                          <span
+                            className="w-full rounded-t-[5px] bg-[#2456e8] dark:bg-[#7895ff]"
+                            style={{ height: `${Math.max(12, (point.value / maxValue) * 100)}%` }}
+                          />
+                          <span className="w-full truncate text-center text-[11px] text-[#6d685e] dark:text-[#aaa397]">
+                            {point.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </aside>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
