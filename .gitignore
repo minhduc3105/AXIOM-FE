@@ -4,3 +4,5 @@ dist/
 .DS_Store
 .superpowers/
 docs/superpowers/
+.agents
+docs
