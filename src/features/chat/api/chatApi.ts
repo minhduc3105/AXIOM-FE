@@ -1,452 +1,863 @@
-import type { EditableSpecification, EvidenceItem, Investigation, MockResult, ProcessEvent, ProcessStatus, ResultMetric } from '../model/types'
-
-type ProcessDefinition = Omit<ProcessEvent, 'status'>
+import type {
+  EditableSpecification,
+  EvidenceItem,
+  ChatTurn,
+  Investigation,
+  MockResult,
+  ProcessEvent,
+  ProcessStatus,
+  ResultMetric,
+} from "../model/types";
+import {
+  intelligenceApiUrl,
+  listConversationMessages,
+} from "@/shared/lib/intelligence-api";
+import type { IntelligenceMessage } from "@/shared/types/intelligence";
 
 type SseEvent = {
-  type: string
-  response_id?: string
-  [key: string]: unknown
-}
+  type: string;
+  response_id?: string;
+  [key: string]: unknown;
+};
 
 type CapabilityRequirement = {
-  name: string
-  description?: string | null
-  input_schema: Record<string, unknown>
-  output_schema: Record<string, unknown>
-  constraints: Record<string, unknown>
-  metadata: Record<string, unknown>
-}
+  name: string;
+  description?: string | null;
+  input_schema: Record<string, unknown>;
+  output_schema: Record<string, unknown>;
+  constraints: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+};
 
 type EditableExecutionSpec = {
-  intent?: string
-  objective?: string
-  data_requirements?: string[]
-  capability_requirements?: CapabilityRequirement[]
-  constraints?: Record<string, unknown>
-  confirmed?: boolean
-  engine_hint?: string | null
-}
+  intent?: string;
+  objective?: string;
+  data_requirements?: string[];
+  capability_requirements?: CapabilityRequirement[];
+  constraints?: Record<string, unknown>;
+  confirmed?: boolean;
+  engine_hint?: string | null;
+};
 
 type PendingConfirmation = {
-  responseId: string
-  token: string
-  revision: number
-  intent: string
-  confidence: number
-  spec: EditableExecutionSpec
-}
+  responseId: string;
+  token: string;
+  revision: number;
+  intent: string;
+  confidence: number;
+  spec: EditableExecutionSpec;
+};
 
 type CompletedResponse = {
-  responseId: string
-  outputText: string
-  evidence: unknown
-  metadata: Record<string, unknown>
-}
+  responseId: string;
+  outputText: string;
+  evidence: unknown;
+  metadata: Record<string, unknown>;
+  processEvents: ProcessEvent[];
+};
 
 type StreamOutcome = {
-  confirmation?: PendingConfirmation
-  completed?: CompletedResponse
-}
+  confirmation?: PendingConfirmation;
+  completed?: CompletedResponse;
+  processEvents: ProcessEvent[];
+};
 
-const API_BASE_URL = (import.meta.env.VITE_AXIOM_GATEWAY_API_URL || '/intelligence-service').replace(/\/$/, '')
+export type ConversationHistorySnapshot = {
+  turns: ChatTurn[];
+  pendingInvestigation: Investigation | null;
+  pendingQuestion: string | null;
+};
 
-const PROCESS_DEFINITIONS: ProcessDefinition[] = [
-  {
-    id: 'retrieve',
-    label: 'Retrieve scoped sources',
-    detail: 'Loading approved records and evidence references from the selected scope.',
-  },
-  {
-    id: 'plan',
-    label: 'Build plan & workflow code',
-    detail: 'Creating a deterministic execution path from the approved intent and scope.',
-  },
-  {
-    id: 'execute',
-    label: 'Execute in sandbox',
-    detail: 'Running generated code with a blocked network and read-only data access.',
-  },
-  {
-    id: 'validate',
-    label: 'Validate claims and policy',
-    detail: 'Checking totals, evidence coverage, quality flags, and policy requirements.',
-  },
-  {
-    id: 'synthesize',
-    label: 'Synthesize final answer',
-    detail: 'Composing the reviewed answer and linking every material claim to evidence.',
-  },
-]
-
-let pendingConfirmation: PendingConfirmation | null = null
+let pendingConfirmation: PendingConfirmation | null = null;
 
 export function createProcessEvents(): ProcessEvent[] {
-  return PROCESS_DEFINITIONS.map(({ id, label, detail }) => ({ id, label, detail, status: 'waiting' }))
+  return [];
 }
 
-export async function createInvestigation(question: string, signal?: AbortSignal): Promise<Investigation> {
-  pendingConfirmation = null
-  const response = await postJson('/api/v1/responses', {
-    input: question,
-    data_corpus_package: { sources: [], schemas: {}, metadata: {} },
-    runtime_options: { engine: 'auto' },
-  }, signal)
-  const outcome = await readResponseStream(response, signal)
+export async function loadConversationHistory(
+  conversationId: string,
+  signal?: AbortSignal,
+): Promise<ConversationHistorySnapshot> {
+  const messages = await listConversationMessages(conversationId, signal);
+  return messagesToChatTurns(messages);
+}
+
+export async function createInvestigation(
+  question: string,
+  conversationId: string | null = null,
+  signal?: AbortSignal,
+): Promise<Investigation> {
+  pendingConfirmation = null;
+  const response = await postJson(
+    "/api/v1/responses",
+    {
+      input: question,
+      conversation_id: conversationId,
+      data_corpus_package: { sources: [], schemas: {}, metadata: {} },
+      runtime_options: { engine: "auto" },
+    },
+    signal,
+  );
+  const outcome = await readResponseStream(response, signal);
 
   if (!outcome.confirmation) {
-    throw new Error('The intelligence service did not return a confirmation plan.')
+    throw new Error(
+      "The intelligence service did not return a confirmation plan.",
+    );
   }
 
-  pendingConfirmation = outcome.confirmation
-  return confirmationToInvestigation(outcome.confirmation, question)
+  pendingConfirmation = outcome.confirmation;
+  return confirmationToInvestigation(outcome.confirmation, question);
 }
 
 export async function runWorkflow(
   specification: EditableSpecification,
-  onStatus: (eventId: string, status: ProcessStatus) => void,
+  onProcessEvents: (events: ProcessEvent[]) => void,
   signal?: AbortSignal,
 ): Promise<MockResult> {
   if (!pendingConfirmation) {
-    throw new Error('No pending AXIOM response is ready to run.')
+    throw new Error("No pending AXIOM response is ready to run.");
   }
 
-  let confirmation = pendingConfirmation
+  let confirmation = pendingConfirmation;
   if (specificationChanged(specification, confirmation)) {
     const reviseResponse = await postDecision(
       confirmation,
       {
-        action: 'revise',
+        action: "revise",
         revision: confirmation.revision,
-        feedback: specification.intent !== confirmation.intent ? `Use intent: ${specification.intent}` : undefined,
+        feedback:
+          specification.intent !== confirmation.intent
+            ? `Use intent: ${specification.intent}`
+            : undefined,
         edited_spec: editableSpecRequest(confirmation.spec, specification),
       },
       signal,
-    )
-    const reviseOutcome = await readResponseStream(reviseResponse, signal, onStatus)
+    );
+    const reviseOutcome = await readResponseStream(
+      reviseResponse,
+      signal,
+      onProcessEvents,
+    );
     if (reviseOutcome.completed) {
-      pendingConfirmation = null
-      markAllDone(onStatus)
-      return completedToResult(reviseOutcome.completed)
+      pendingConfirmation = null;
+      markAllDone(reviseOutcome.processEvents, onProcessEvents);
+      return completedToResult(reviseOutcome.completed);
     }
     if (!reviseOutcome.confirmation) {
-      throw new Error('The intelligence service did not return a revised confirmation plan.')
+      throw new Error(
+        "The intelligence service did not return a revised confirmation plan.",
+      );
     }
-    confirmation = reviseOutcome.confirmation
-    pendingConfirmation = confirmation
+    confirmation = reviseOutcome.confirmation;
+    pendingConfirmation = confirmation;
   }
 
   const confirmResponse = await postDecision(
     confirmation,
-    { action: 'confirm', revision: confirmation.revision },
+    { action: "confirm", revision: confirmation.revision },
     signal,
-  )
-  const outcome = await readResponseStream(confirmResponse, signal, onStatus)
+  );
+  const outcome = await readResponseStream(
+    confirmResponse,
+    signal,
+    onProcessEvents,
+  );
 
   if (!outcome.completed) {
-    throw new Error('The intelligence service did not complete the response.')
+    throw new Error("The intelligence service did not complete the response.");
   }
 
-  pendingConfirmation = null
-  markAllDone(onStatus)
-  return completedToResult(outcome.completed)
+  pendingConfirmation = null;
+  markAllDone(outcome.processEvents, onProcessEvents);
+  return completedToResult(outcome.completed);
+}
+
+export async function reviseInvestigation(
+  specification: EditableSpecification,
+  feedback: string,
+  question: string,
+  signal?: AbortSignal,
+): Promise<Investigation> {
+  if (!pendingConfirmation) {
+    throw new Error("No pending AXIOM response is ready to revise.");
+  }
+
+  const response = await postDecision(
+    pendingConfirmation,
+    {
+      action: "revise",
+      revision: pendingConfirmation.revision,
+      feedback,
+      edited_spec: editableSpecRequest(pendingConfirmation.spec, specification),
+    },
+    signal,
+  );
+  const outcome = await readResponseStream(response, signal);
+
+  if (!outcome.confirmation) {
+    throw new Error(
+      "The intelligence service did not return a revised confirmation plan.",
+    );
+  }
+
+  pendingConfirmation = outcome.confirmation;
+  return confirmationToInvestigation(outcome.confirmation, question);
 }
 
 async function postJson(path: string, body: unknown, signal?: AbortSignal) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const response = await fetch(intelligenceApiUrl(path), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     signal,
-  })
-  if (!response.ok) throw new Error(await responseErrorMessage(response))
-  return response
+  });
+  if (!response.ok) throw new Error(await responseErrorMessage(response));
+  return response;
 }
 
-function postDecision(confirmation: PendingConfirmation, body: unknown, signal?: AbortSignal) {
+function postDecision(
+  confirmation: PendingConfirmation,
+  body: unknown,
+  signal?: AbortSignal,
+) {
   return postJsonWithHeaders(
     `/api/v1/responses/${encodeURIComponent(confirmation.responseId)}/decision`,
     body,
-    { 'X-Confirmation-Token': confirmation.token },
+    { "X-Confirmation-Token": confirmation.token },
     signal,
-  )
+  );
 }
 
-async function postJsonWithHeaders(path: string, body: unknown, headers: Record<string, string>, signal?: AbortSignal) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
+async function postJsonWithHeaders(
+  path: string,
+  body: unknown,
+  headers: Record<string, string>,
+  signal?: AbortSignal,
+) {
+  const response = await fetch(intelligenceApiUrl(path), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),
     signal,
-  })
-  if (!response.ok) throw new Error(await responseErrorMessage(response))
-  return response
+  });
+  if (!response.ok) throw new Error(await responseErrorMessage(response));
+  return response;
 }
 
 async function responseErrorMessage(response: Response) {
-  const fallback = `AXIOM Intelligence API returned ${response.status}.`
+  const fallback = `AXIOM Intelligence API returned ${response.status}.`;
   try {
-    const text = await response.text()
-    if (!text) return fallback
+    const text = await response.text();
+    if (!text) return fallback;
     try {
-      const payload = JSON.parse(text) as { detail?: unknown; error?: { message?: unknown } }
-      if (typeof payload.detail === 'string') return payload.detail
-      if (typeof payload.error?.message === 'string') return payload.error.message
+      const payload = JSON.parse(text) as {
+        detail?: unknown;
+        error?: { message?: unknown };
+      };
+      if (typeof payload.detail === "string") return payload.detail;
+      if (typeof payload.error?.message === "string")
+        return payload.error.message;
     } catch {
-      return text
+      return text;
     }
-    return fallback
+    return fallback;
   } catch {
-    return fallback
+    return fallback;
   }
 }
 
 async function readResponseStream(
   response: Response,
   signal?: AbortSignal,
-  onStatus?: (eventId: string, status: ProcessStatus) => void,
+  onProcessEvents?: (events: ProcessEvent[]) => void,
 ): Promise<StreamOutcome> {
-  if (!response.body) throw new Error('The intelligence service returned an empty response stream.')
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  const parser = new ResponsesSSEParser()
-  const outcome: StreamOutcome = {}
+  if (!response.body)
+    throw new Error(
+      "The intelligence service returned an empty response stream.",
+    );
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const parser = new ResponsesSSEParser();
+  const outcome: StreamOutcome = { processEvents: [] };
 
   try {
     while (true) {
-      if (signal?.aborted) throw new DOMException('The request was aborted.', 'AbortError')
-      const { done, value } = await reader.read()
-      const events = done ? parser.finish() : parser.push(decoder.decode(value, { stream: true }))
-      for (const event of events) applyStreamEvent(event, outcome, onStatus)
-      if (done) break
+      if (signal?.aborted)
+        throw new DOMException("The request was aborted.", "AbortError");
+      const { done, value } = await reader.read();
+      const events = done
+        ? parser.finish()
+        : parser.push(decoder.decode(value, { stream: true }));
+      for (const event of events)
+        applyStreamEvent(event, outcome, onProcessEvents);
+      if (done) break;
     }
   } finally {
-    reader.releaseLock()
+    reader.releaseLock();
   }
 
-  return outcome
+  return outcome;
 }
 
 function applyStreamEvent(
   event: SseEvent,
   outcome: StreamOutcome,
-  onStatus?: (eventId: string, status: ProcessStatus) => void,
+  onProcessEvents?: (events: ProcessEvent[]) => void,
 ) {
-  if (event.type.startsWith('pipeline.')) updateProcessStatus(event.type, onStatus)
-
-  if (event.type === 'response.requires_confirmation') {
-    outcome.confirmation = confirmationFromEvent(event)
-    return
+  if (event.type.startsWith("pipeline.")) {
+    outcome.processEvents = upsertProcessEvent(
+      outcome.processEvents,
+      processEventFromApiEvent(event),
+    );
+    onProcessEvents?.(outcome.processEvents);
   }
 
-  if (event.type === 'response.completed') {
-    outcome.completed = completedFromEvent(event)
-    return
+  if (event.type === "response.requires_confirmation") {
+    outcome.confirmation = confirmationFromEvent(event);
+    return;
   }
 
-  if (event.type === 'response.failed') {
-    const error = asRecord(event.error)
-    throw new Error(typeof error.message === 'string' ? error.message : 'The intelligence response failed.')
+  if (event.type === "response.completed") {
+    outcome.completed = completedFromEvent(event);
+    return;
+  }
+
+  if (event.type === "response.failed") {
+    const error = asRecord(event.error);
+    throw new Error(
+      typeof error.message === "string"
+        ? error.message
+        : "The intelligence response failed.",
+    );
   }
 }
 
 function confirmationFromEvent(event: SseEvent): PendingConfirmation {
-  const responseId = stringValue(event.response_id) || stringValue(event.responseId)
-  const token = stringValue(event.confirmation_token)
-  if (!responseId || !token) throw new Error('The confirmation event was missing required response data.')
+  const responseId =
+    stringValue(event.response_id) || stringValue(event.responseId);
+  const token = stringValue(event.confirmation_token);
+  if (!responseId || !token)
+    throw new Error(
+      "The confirmation event was missing required response data.",
+    );
 
-  const intent = asRecord(event.intent)
-  const spec = asRecord(event.spec) as EditableExecutionSpec
+  const intent = asRecord(event.intent);
+  const spec = asRecord(event.spec) as EditableExecutionSpec;
   return {
     responseId,
     token,
     revision: numberValue(event.revision) || 1,
-    intent: stringValue(intent.value) || stringValue(spec.intent) || 'unknown',
+    intent: stringValue(intent.value) || stringValue(spec.intent),
     confidence: percentValue(intent.confidence),
     spec,
-  }
+  };
 }
 
 function completedFromEvent(event: SseEvent): CompletedResponse {
-  const response = asRecord(event.response)
+  const response = asRecord(event.response);
   return {
-    responseId: stringValue(event.response_id) || stringValue(response.id) || '',
-    outputText: stringValue(response.output_text) || stringValue(event.output_text) || '',
+    responseId:
+      stringValue(event.response_id) || stringValue(response.id) || "",
+    outputText:
+      stringValue(response.output_text) || stringValue(event.output_text) || "",
     evidence: event.evidence,
     metadata: asRecord(event.metadata),
-  }
+    processEvents: [],
+  };
 }
 
-function confirmationToInvestigation(confirmation: PendingConfirmation, question: string): Investigation {
-  const constraints = asRecord(confirmation.spec.constraints)
+function confirmationToInvestigation(
+  confirmation: PendingConfirmation,
+  question: string,
+): Investigation {
+  const constraints = asRecord(confirmation.spec.constraints);
   return {
     question,
     confidence: confirmation.confidence,
     intent: confirmation.intent,
-    scope: stringValue(confirmation.spec.objective) || listSummary(confirmation.spec.data_requirements) || 'Pending approved scope',
-    policy: stringValue(constraints.policy) || stringValue(constraints.execution_policy) || `Requires confirmation · revision ${confirmation.revision}`,
-    output: 'Reviewed answer after approved execution',
-  }
+    scope: stringValue(confirmation.spec.objective),
+    policy:
+      stringValue(constraints.policy) ||
+      stringValue(constraints.execution_policy),
+    output: capabilityOutputSummary(confirmation.spec.capability_requirements),
+  };
 }
 
 function completedToResult(completed: CompletedResponse): MockResult {
-  const markdown = completed.outputText.trim() || 'No response text was returned.'
-  const metadata = completed.metadata
-  const evidence = normalizeEvidence(completed.evidence)
+  const markdown =
+    completed.outputText.trim() || "No response text was returned.";
+  const metadata = completed.metadata;
+  const evidence = normalizeEvidence(completed.evidence);
   return {
-    title: stringValue(metadata.title) || titleFromMarkdown(markdown) || 'AXIOM response',
+    title:
+      stringValue(metadata.title) ||
+      titleFromMarkdown(markdown) ||
+      "AXIOM response",
     summary: stringValue(metadata.summary) || summaryFromMarkdown(markdown),
     markdown,
     metrics: normalizeMetrics(metadata.metrics),
     flags: normalizeFlags(metadata.flags, evidence),
     evidence,
     artifacts: normalizeArtifacts(metadata),
-  }
+  };
 }
 
-function specificationChanged(specification: EditableSpecification, confirmation: PendingConfirmation) {
-  const currentScope = stringValue(confirmation.spec.objective) || ''
-  return specification.intent !== confirmation.intent || specification.scope !== currentScope
+function specificationChanged(
+  specification: EditableSpecification,
+  confirmation: PendingConfirmation,
+) {
+  const currentScope = stringValue(confirmation.spec.objective) || "";
+  return (
+    specification.intent !== confirmation.intent ||
+    specification.scope !== currentScope
+  );
 }
 
-function editableSpecRequest(spec: EditableExecutionSpec, specification: EditableSpecification) {
+function editableSpecRequest(
+  spec: EditableExecutionSpec,
+  specification: EditableSpecification,
+) {
   return {
     objective: specification.scope,
     data_requirements: spec.data_requirements || [],
     capability_requirements: spec.capability_requirements || [],
     constraints: spec.constraints || {},
     engine_hint: spec.engine_hint || null,
+  };
+}
+
+function capabilityOutputSummary(
+  requirements: CapabilityRequirement[] | undefined,
+) {
+  const outputNames = (requirements || []).flatMap((requirement) => {
+    const title = stringValue(requirement.output_schema?.title);
+    const description = stringValue(requirement.output_schema?.description);
+    const type = stringValue(requirement.output_schema?.type);
+    return title || description || type ? [title || description || type] : [];
+  });
+
+  return outputNames.join(", ");
+}
+
+function upsertProcessEvent(
+  events: ProcessEvent[],
+  nextEvent: ProcessEvent,
+): ProcessEvent[] {
+  const preparedEvents = events.map((event) =>
+    event.status === "running" ? { ...event, status: "done" as const } : event,
+  );
+  const existingIndex = preparedEvents.findIndex(
+    (event) => event.id === nextEvent.id,
+  );
+
+  if (existingIndex < 0) return [...preparedEvents, nextEvent];
+
+  return preparedEvents.map((event, index) =>
+    index === existingIndex ? { ...event, ...nextEvent } : event,
+  );
+}
+
+function processEventFromApiEvent(event: SseEvent): ProcessEvent {
+  const explicitStep = asRecord(event.step);
+  const runtime = event.type === "pipeline.runtime_event";
+  const eventId =
+    stringValue(explicitStep.id) ||
+    stringValue(event.step_id) ||
+    stringValue(event.event_id) ||
+    stringValue(event.sequence) ||
+    stringValue(event.name) ||
+    stringValue(event.event_type) ||
+    event.type;
+  const label =
+    stringValue(explicitStep.label) ||
+    stringValue(explicitStep.title) ||
+    stringValue(event.label) ||
+    stringValue(event.title) ||
+    stringValue(event.name) ||
+    stringValue(event.event_type) ||
+    event.type;
+  const detail =
+    stringValue(explicitStep.detail) ||
+    stringValue(explicitStep.description) ||
+    stringValue(event.detail) ||
+    stringValue(event.description) ||
+    processEventDetail(event);
+
+  return {
+    id: runtime ? `${event.type}:${eventId}` : eventId,
+    label: humanizeEventName(label),
+    detail,
+    status: normalizeProcessStatus(event.status, event.type),
+  };
+}
+
+function processEventDetail(event: SseEvent) {
+  const parts = [
+    stringValue(event.phase),
+    stringValue(event.engine),
+    stringValue(event.objective),
+    stringValue(event.source),
+  ];
+  return parts.filter(Boolean).join(" · ");
+}
+
+function normalizeProcessStatus(
+  rawStatus: unknown,
+  eventType: string,
+): ProcessStatus {
+  const status = String(rawStatus || "").toLowerCase();
+  if (
+    eventType === "pipeline.completed" ||
+    ["complete", "completed", "done", "success", "succeeded"].includes(status)
+  ) {
+    return "done";
+  }
+  return "running";
+}
+
+function markAllDone(
+  events: ProcessEvent[],
+  onProcessEvents: (events: ProcessEvent[]) => void,
+) {
+  if (events.length === 0) return;
+  onProcessEvents(events.map((event) => ({ ...event, status: "done" })));
+}
+
+function messagesToChatTurns(
+  messages: IntelligenceMessage[],
+): ConversationHistorySnapshot {
+  const orderedMessages = [...messages].sort(
+    (first, second) =>
+      Date.parse(first.created_at) - Date.parse(second.created_at),
+  );
+  const turns: ChatTurn[] = [];
+  let pendingQuestion: string | null = null;
+  let pendingInvestigation: Investigation | null = null;
+  let historyConfirmation: PendingConfirmation | null = null;
+
+  for (const message of orderedMessages) {
+    if (message.role === "user") {
+      pendingQuestion = userQuestionFromMessage(message) || pendingQuestion;
+      pendingInvestigation = null;
+      historyConfirmation = null;
+      continue;
+    }
+
+    if (message.role === "system") {
+      const confirmation = confirmationFromMessage(message);
+      if (confirmation) {
+        const question = pendingQuestion || "Conversation response";
+        pendingInvestigation = confirmationToInvestigation(
+          confirmation,
+          question,
+        );
+        historyConfirmation = confirmation;
+      }
+      continue;
+    }
+
+    if (message.role !== "assistant") continue;
+
+    const completed = completedResponseFromMessage(message);
+    if (!completed) continue;
+
+    const question =
+      pendingQuestion || pendingInvestigation?.question || "Conversation response";
+    turns.push({
+      investigation: pendingInvestigation || storedInvestigation(question),
+      result: completedToResult(completed),
+      processEvents: completed.processEvents,
+    });
+    pendingQuestion = null;
+    pendingInvestigation = null;
+    historyConfirmation = null;
+  }
+
+  pendingConfirmation = historyConfirmation;
+
+  return { turns, pendingInvestigation, pendingQuestion };
+}
+
+function userQuestionFromMessage(message: IntelligenceMessage) {
+  const content = message.content;
+  if (typeof content === "string") return content;
+  const record = asRecord(content);
+  return (
+    stringValue(record.input) ||
+    stringValue(record.text) ||
+    stringValue(record.question) ||
+    ""
+  );
+}
+
+function completedResponseFromMessage(
+  message: IntelligenceMessage,
+): CompletedResponse | null {
+  const content = message.content;
+  const record = asRecord(content);
+  const response = asRecord(record.response);
+  const outputText =
+    stringValue(record.output_text) ||
+    stringValue(response.output_text) ||
+    (typeof content === "string" ? content : "");
+
+  if (!outputText) return null;
+
+  return {
+    responseId: message.response_id || stringValue(response.id),
+    outputText,
+    evidence: record.evidence,
+    metadata: { ...message.metadata, ...asRecord(record.metadata) },
+    processEvents: processEventsFromMessage(message),
+  };
+}
+
+function confirmationFromMessage(
+  message: IntelligenceMessage,
+): PendingConfirmation | null {
+  const content = asRecord(message.content);
+  const eventType = stringValue(content.type) || message.status;
+  if (
+    eventType !== "response.requires_confirmation" &&
+    eventType !== "requires_confirmation"
+  ) {
+    return null;
+  }
+
+  try {
+    return confirmationFromEvent({
+      ...content,
+      response_id:
+        stringValue(content.response_id) || message.response_id || undefined,
+      type: "response.requires_confirmation",
+    });
+  } catch {
+    return null;
   }
 }
 
-function updateProcessStatus(eventType: string, onStatus?: (eventId: string, status: ProcessStatus) => void) {
-  if (!onStatus) return
-  if (eventType === 'pipeline.intent_analyzed') {
-    onStatus('retrieve', 'running')
-    onStatus('retrieve', 'done')
+function processEventsFromMessage(message: IntelligenceMessage): ProcessEvent[] {
+  const content = asRecord(message.content);
+  const metadata = { ...message.metadata, ...asRecord(content.metadata) };
+  const candidates = [
+    content.steps,
+    content.process_events,
+    content.processEvents,
+    content.pipeline_events,
+    content.pipelineEvents,
+    content.trace,
+    metadata.steps,
+    metadata.process_events,
+    metadata.processEvents,
+    metadata.pipeline_events,
+    metadata.pipelineEvents,
+    metadata.trace,
+  ];
+
+  for (const candidate of candidates) {
+    const events = normalizeStoredProcessEvents(candidate);
+    if (events.length > 0) return events;
   }
-  if (eventType === 'pipeline.spec_built' || eventType === 'pipeline.spec_revised' || eventType === 'pipeline.spec_confirmed') {
-    onStatus('plan', 'running')
-    onStatus('plan', 'done')
-  }
-  if (eventType === 'pipeline.engine_selected') onStatus('execute', 'running')
-  if (eventType === 'pipeline.engine_completed') onStatus('execute', 'done')
-  if (eventType === 'pipeline.evidence_collected') {
-    onStatus('validate', 'running')
-    onStatus('validate', 'done')
-  }
-  if (eventType === 'pipeline.completed') {
-    onStatus('synthesize', 'running')
-    onStatus('synthesize', 'done')
-  }
+  return [];
 }
 
-function markAllDone(onStatus: (eventId: string, status: ProcessStatus) => void) {
-  for (const event of PROCESS_DEFINITIONS) onStatus(event.id, 'done')
+function normalizeStoredProcessEvents(value: unknown): ProcessEvent[] {
+  const items = Array.isArray(value)
+    ? value
+    : Object.entries(asRecord(value)).map(([id, step]) => ({
+        id,
+        ...asRecord(step),
+      }));
+
+  return items.flatMap((item) => {
+    const record = asRecord(item);
+    const eventType = stringValue(record.type);
+    if (eventType.startsWith("pipeline.")) {
+      return [processEventFromApiEvent(record as SseEvent)];
+    }
+
+    const id =
+      stringValue(record.id) ||
+      stringValue(record.step_id) ||
+      stringValue(record.name) ||
+      stringValue(record.title);
+    if (!id) return [];
+
+    return [
+      {
+        id,
+        label: humanizeEventName(
+          stringValue(record.label) ||
+            stringValue(record.title) ||
+            stringValue(record.name) ||
+            id,
+        ),
+        detail:
+          stringValue(record.detail) || stringValue(record.description) || "",
+        status: normalizeStoredProcessStatus(record.status),
+      },
+    ];
+  });
+}
+
+function normalizeStoredProcessStatus(rawStatus: unknown): ProcessStatus {
+  const status = String(rawStatus || "").toLowerCase();
+  if (["pending", "waiting", "queued"].includes(status)) return "waiting";
+  if (["running", "active", "started", "in_progress"].includes(status))
+    return "running";
+  return "done";
+}
+
+function storedInvestigation(question: string): Investigation {
+  return {
+    question,
+    confidence: 0,
+    intent: "conversation_history",
+    scope: "Stored conversation",
+    policy: "Loaded from AXIOM conversation history",
+    output: "Stored answer with available evidence",
+  };
 }
 
 class ResponsesSSEParser {
-  private buffer = ''
+  private buffer = "";
 
   push(chunk: string): SseEvent[] {
-    this.buffer += chunk.replace(/\r\n/g, '\n')
-    const records = this.buffer.split('\n\n')
-    this.buffer = records.pop() || ''
-    return records.flatMap((record) => this.parseRecord(record))
+    this.buffer += chunk.replace(/\r\n/g, "\n");
+    const records = this.buffer.split("\n\n");
+    this.buffer = records.pop() || "";
+    return records.flatMap((record) => this.parseRecord(record));
   }
 
   finish(): SseEvent[] {
-    const record = this.buffer.trim()
-    this.buffer = ''
-    return record ? this.parseRecord(record) : []
+    const record = this.buffer.trim();
+    this.buffer = "";
+    return record ? this.parseRecord(record) : [];
   }
 
   private parseRecord(record: string): SseEvent[] {
-    let eventName = ''
-    const dataLines: string[] = []
-    for (const line of record.split('\n')) {
-      if (line.startsWith('event:')) eventName = line.slice(6).trim()
-      if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
+    let eventName = "";
+    const dataLines: string[] = [];
+    for (const line of record.split("\n")) {
+      if (line.startsWith("event:")) eventName = line.slice(6).trim();
+      if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
     }
-    if (!eventName || dataLines.length === 0) return []
+    if (!eventName || dataLines.length === 0) return [];
     try {
-      const payload = JSON.parse(dataLines.join('\n')) as SseEvent
-      return payload && payload.type === eventName ? [payload] : []
+      const payload = JSON.parse(dataLines.join("\n")) as SseEvent;
+      return payload && payload.type === eventName ? [payload] : [];
     } catch {
-      return []
+      return [];
     }
   }
 }
 
 function normalizeEvidence(value: unknown): EvidenceItem[] {
-  const items = Array.isArray(value) ? value : []
+  const items = Array.isArray(value) ? value : [];
   return items.map((item, index) => {
-    const record = asRecord(item)
-    const tone = stringValue(record.tone)
+    const record = asRecord(item);
+    const tone = stringValue(record.tone);
     return {
-      id: stringValue(record.id) || stringValue(record.evidence_id) || `EV-${String(index + 1).padStart(3, '0')}`,
-      source: stringValue(record.source) || stringValue(record.source_ref) || 'AXIOM evidence',
-      locator: stringValue(record.locator) || stringValue(record.location) || stringValue(record.page) || 'referenced output',
-      claim: stringValue(record.claim) || stringValue(record.text) || stringValue(record.summary) || 'Evidence item returned by AXIOM.',
-      tone: tone === 'warning' ? 'warning' : 'success',
-    }
-  })
+      id:
+        stringValue(record.id) ||
+        stringValue(record.evidence_id) ||
+        `EV-${String(index + 1).padStart(3, "0")}`,
+      source:
+        stringValue(record.source) ||
+        stringValue(record.source_ref) ||
+        "AXIOM evidence",
+      locator:
+        stringValue(record.locator) ||
+        stringValue(record.location) ||
+        stringValue(record.page) ||
+        "referenced output",
+      claim:
+        stringValue(record.claim) ||
+        stringValue(record.text) ||
+        stringValue(record.summary) ||
+        "Evidence item returned by AXIOM.",
+      tone: tone === "warning" ? "warning" : "success",
+    };
+  });
 }
 
 function normalizeMetrics(value: unknown): ResultMetric[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
-    const record = asRecord(item)
-    const label = stringValue(record.label) || stringValue(record.name)
-    const metricValue = stringValue(record.value)
-    return label && metricValue ? [{ label, value: metricValue }] : []
-  })
+    const record = asRecord(item);
+    const label = stringValue(record.label) || stringValue(record.name);
+    const metricValue = stringValue(record.value);
+    return label && metricValue ? [{ label, value: metricValue }] : [];
+  });
 }
 
 function normalizeFlags(value: unknown, evidence: EvidenceItem[]): string[] {
-  if (Array.isArray(value)) return value.map(String).filter(Boolean)
-  return evidence.filter((item) => item.tone === 'warning').map((item) => item.claim)
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  return evidence
+    .filter((item) => item.tone === "warning")
+    .map((item) => item.claim);
 }
 
 function normalizeArtifacts(metadata: Record<string, unknown>): string[] {
-  const values = [metadata.artifacts, metadata.artifact_refs, metadata.artifactRefs]
+  const values = [
+    metadata.artifacts,
+    metadata.artifact_refs,
+    metadata.artifactRefs,
+  ];
   for (const value of values) {
-    if (Array.isArray(value)) return value.map(String).filter(Boolean)
+    if (Array.isArray(value)) return value.map(String).filter(Boolean);
   }
-  const artifact = stringValue(metadata.artifact_ref)
-  return artifact ? [artifact] : []
+  const artifact = stringValue(metadata.artifact_ref);
+  return artifact ? [artifact] : [];
 }
 
 function titleFromMarkdown(markdown: string) {
-  const heading = markdown.split('\n').find((line) => line.startsWith('# '))
-  return heading?.replace(/^#\s+/, '').trim() || ''
+  const heading = markdown.split("\n").find((line) => line.startsWith("# "));
+  return heading?.replace(/^#\s+/, "").trim() || "";
 }
 
 function summaryFromMarkdown(markdown: string) {
   const firstParagraph = markdown
-    .split('\n')
+    .split("\n")
     .map((line) => line.trim())
-    .find((line) => line && !line.startsWith('#'))
-  return firstParagraph || markdown.replace(/[#*_`>\-]/g, '').trim().slice(0, 180)
+    .find((line) => line && !line.startsWith("#"));
+  return (
+    firstParagraph ||
+    markdown
+      .replace(/[#*_`>\-]/g, "")
+      .trim()
+      .slice(0, 180)
+  );
 }
 
-function listSummary(value: unknown) {
-  return Array.isArray(value) ? value.map(String).filter(Boolean).join(', ') : ''
+function humanizeEventName(value: unknown) {
+  const normalized = String(value || "")
+    .replace(/^pipeline\./, "")
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return normalized
+    ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+    : "Workflow step";
 }
 
 function stringValue(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : ''
+  return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
 function numberValue(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function percentValue(value: unknown) {
-  const numeric = numberValue(value)
-  if (!numeric) return 0
-  return numeric <= 1 ? Math.round(numeric * 100) : Math.round(numeric)
+  const numeric = numberValue(value);
+  if (!numeric) return 0;
+  return numeric <= 1 ? Math.round(numeric * 100) : Math.round(numeric);
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }

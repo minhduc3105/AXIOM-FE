@@ -46,6 +46,7 @@ export type MockResult = {
 export type ChatTurn = {
   investigation: Investigation
   result: MockResult
+  processEvents?: ProcessEvent[]
 }
 
 export type ChatWorkflowState = {

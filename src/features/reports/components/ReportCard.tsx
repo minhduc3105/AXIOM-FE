@@ -1,5 +1,7 @@
 import { CalendarDaysIcon, UserRoundIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { ReportThumbnail } from "./ReportThumbnail";
 import type { Report } from "../model/types";
 
@@ -10,9 +12,10 @@ type ReportCardProps = {
 
 export function ReportCard({ report, onOpen }: ReportCardProps) {
   return (
-    <button
+    <Button
       type="button"
-      className="mb-4 block w-full break-inside-avoid overflow-hidden rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8]/92 text-left shadow-[0_14px_36px_rgba(24,24,18,0.07)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-[#2456e8]/40 hover:shadow-[0_18px_46px_rgba(24,24,18,0.11)] focus-visible:border-[#2456e8] focus-visible:ring-3 focus-visible:ring-[#2456e8]/20 dark:border-[#38372f] dark:bg-[#1a1a17]/92 dark:hover:border-[#7895ff]/42 dark:focus-visible:border-[#7895ff] dark:focus-visible:ring-[#7895ff]/24"
+      variant="ghost"
+      className="mb-4 h-auto w-full break-inside-avoid overflow-hidden whitespace-normal rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8]/92 p-0 text-left font-normal shadow-[0_14px_36px_rgba(24,24,18,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#2456e8]/40 hover:bg-[#fffdf8]/92 hover:shadow-[0_18px_46px_rgba(24,24,18,0.11)] focus-visible:border-[#2456e8] focus-visible:ring-[#2456e8]/20 dark:border-[#38372f] dark:bg-[#1a1a17]/92 dark:hover:border-[#7895ff]/42 dark:hover:bg-[#1a1a17]/92 dark:focus-visible:border-[#7895ff] dark:focus-visible:ring-[#7895ff]/24"
       onClick={() => onOpen(report)}
       aria-label={`Open report: ${report.title}`}
     >
@@ -40,7 +43,8 @@ export function ReportCard({ report, onOpen }: ReportCardProps) {
             </Badge>
           ))}
         </div>
-        <div className="grid gap-2 border-t border-[#d8d0c2]/78 pt-3 text-xs text-[#6d685e] dark:border-white/10 dark:text-[#aaa397]">
+        <Separator className="bg-[#d8d0c2]/78 dark:bg-white/10" />
+        <div className="grid gap-2 text-xs text-[#6d685e] dark:text-[#aaa397]">
           <span className="inline-flex items-center gap-2">
             <CalendarDaysIcon className="size-3.5" />
             {new Intl.DateTimeFormat("vi-VN", {
@@ -57,6 +61,6 @@ export function ReportCard({ report, onOpen }: ReportCardProps) {
           </span>
         </div>
       </div>
-    </button>
+    </Button>
   );
 }

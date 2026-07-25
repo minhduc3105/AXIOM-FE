@@ -24,8 +24,10 @@ type ChatPageProps = {
   result: MockResult | null;
   history: ChatTurn[];
   error: string | null;
+  loading: boolean;
   onSubmit: (value: string) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
+  onSpecificationRevise: (feedback: string) => void;
   onResetSpecification: () => void;
   onApproveAndRun: () => void;
   onRetryProcess: () => void;
@@ -42,8 +44,10 @@ export function ChatPage({
   result,
   history,
   error,
+  loading,
   onSubmit,
   onSpecificationChange,
+  onSpecificationRevise,
   onResetSpecification,
   onApproveAndRun,
   onRetryProcess,
@@ -85,7 +89,7 @@ export function ChatPage({
 
   return (
     <section
-      className="h-[calc(100vh-72px)] w-full overflow-hidden bg-transparent"
+      className="h-dvh min-h-screen w-full overflow-hidden bg-transparent"
       aria-label="Investigation workspace"
     >
       <div
@@ -120,7 +124,9 @@ export function ChatPage({
                   investigation={investigation}
                   draft={draft}
                   error={error}
+                  loading={loading}
                   onSpecificationChange={onSpecificationChange}
+                  onSpecificationRevise={onSpecificationRevise}
                   onReset={onResetSpecification}
                   onRun={onApproveAndRun}
                 />

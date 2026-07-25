@@ -67,6 +67,8 @@ Do not use this for backend-only AXIOM work or SDK changes without a frontend su
 - Put layout-only shell pieces in `src/layout` when they are not feature-owned.
 - Put shared cross-feature application components in `src/shared/components`.
 - Put cross-feature helpers in `src/shared/lib`, with `cn` at `src/shared/lib/utils`.
+- Put shared API clients and gateway helpers in `src/shared/lib`; do not keep fetch functions inside shared components.
+- Put shared API/domain response types in `src/shared/types`; keep component files free of reusable backend contracts.
 - Use `src/app` for providers, routing, layouts, and root app wiring once the app grows beyond the current `src/App.tsx` shell.
 
 ## shadcn And Tailwind

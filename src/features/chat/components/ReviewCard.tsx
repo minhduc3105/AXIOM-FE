@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type {
   EditableSpecification,
   Investigation,
@@ -9,7 +10,9 @@ import {
   CheckIcon,
   Clock3Icon,
   LoaderCircleIcon,
+  PencilLineIcon,
   TerminalSquareIcon,
+  WandSparklesIcon,
 } from "lucide-react";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +25,9 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
+  FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
@@ -44,7 +47,9 @@ type ReviewCardProps =
       investigation: Investigation;
       draft: EditableSpecification;
       error: string | null;
+      loading: boolean;
       onSpecificationChange: (specification: EditableSpecification) => void;
+      onSpecificationRevise: (feedback: string) => void;
       onReset: () => void;
       onRun: () => void;
     }
@@ -103,10 +108,6 @@ function PendingCard({ investigation }: { investigation: Investigation }) {
     <Card className={reviewCardClass} aria-live="polite">
       <CardHeader className="gap-5 p-0">
         <ResponseHeading title="Understanding your request" badge="Analyzing" />
-        <p className={cn(cardCopyClass, "px-6")}>
-          AXIOM is identifying an editable intent and scope for “
-          {investigation.question}”.
-        </p>
       </CardHeader>
       <CardContent className="space-y-5 p-6 pt-4">
         <div className="grid gap-3">
@@ -123,55 +124,50 @@ function IntentCard({
   investigation,
   draft,
   error,
+  loading,
   onSpecificationChange,
+  onSpecificationRevise,
   onReset,
   onRun,
 }: Extract<ReviewCardProps, { stage: "intent" }>) {
+  const [revisionPrompt, setRevisionPrompt] = useState("");
+  const [promptOpen, setPromptOpen] = useState(false);
   const valid = Boolean(draft.intent.trim() && draft.scope.trim());
+  const canRevise = Boolean(revisionPrompt.trim()) && !loading;
+  const specDetails = [
+    { label: "Policy", value: investigation.policy },
+    { label: "Output", value: investigation.output },
+  ].filter((item) => item.value.trim());
+
+  function handlePromptRevision() {
+    const feedback = revisionPrompt.trim();
+    if (!feedback) return;
+    onSpecificationRevise(feedback);
+    setRevisionPrompt("");
+    setPromptOpen(false);
+  }
 
   return (
     <Card className={reviewCardClass}>
       <CardHeader className="gap-5 p-0">
-        <ResponseHeading title="Intent & Spec" />
-        <p className={cn(cardCopyClass, "px-6")}>
-          Review what AXIOM understood. Intent and scope remain editable until
-          you approve the workflow.
-        </p>
+        <ResponseHeading title="Intent & Spec" badge="Review" />
       </CardHeader>
       <CardContent className="space-y-5 p-6 pt-4">
         <form
           id="intent-specification-form"
-          className="space-y-5 rounded-3xl border border-[#d8d0c2] bg-[#fffaf0] p-5 dark:border-[#38372f] dark:bg-[#20201c]"
+          className="flex flex-col gap-5 rounded-3xl border border-[#d8d0c2] bg-[#fffaf0] p-5 dark:border-[#38372f] dark:bg-[#20201c]"
           onSubmit={(event) => {
             event.preventDefault();
             onRun();
           }}
         >
-          <FieldGroup className="grid gap-5 md:grid-cols-2">
-            <Field data-invalid={!draft.intent.trim()}>
-              <FieldLabel htmlFor="intent-field">Intent</FieldLabel>
-              <Input
-                id="intent-field"
-                value={draft.intent}
-                onChange={(event) =>
-                  onSpecificationChange({
-                    ...draft,
-                    intent: event.target.value,
-                  })
-                }
-                aria-label="Intent"
-                aria-invalid={!draft.intent.trim()}
-                required
-              />
-              <FieldDescription>
-                Machine-readable action for this investigation.
-              </FieldDescription>
-            </Field>
+          <FieldGroup>
             <Field data-invalid={!draft.scope.trim()}>
               <FieldLabel htmlFor="scope-field">Scope</FieldLabel>
               <Textarea
                 id="scope-field"
                 value={draft.scope}
+                disabled={loading}
                 onChange={(event) =>
                   onSpecificationChange({ ...draft, scope: event.target.value })
                 }
@@ -180,26 +176,69 @@ function IntentCard({
                 rows={2}
                 required
               />
-              <FieldDescription>
-                Data and business boundary AXIOM may use.
-              </FieldDescription>
             </Field>
           </FieldGroup>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl border border-[#d8d0c2] bg-[#fffdf8] p-4 dark:border-[#38372f] dark:bg-[#1a1a17]">
-              <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
-                Policy
-              </span>
-              <strong className="mt-1 block">{investigation.policy}</strong>
+          {specDetails.length > 0 && (
+            <div className="flex flex-col gap-3">
+              {specDetails.map((item) => (
+                <div
+                  className="rounded-2xl border border-[#d8d0c2] bg-[#fffdf8] p-4 dark:border-[#38372f] dark:bg-[#1a1a17]"
+                  key={item.label}
+                >
+                  <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
+                    {item.label}
+                  </span>
+                  <strong className="mt-1 block">{item.value}</strong>
+                </div>
+              ))}
             </div>
-            <div className="rounded-2xl border border-[#d8d0c2] bg-[#fffdf8] p-4 dark:border-[#38372f] dark:bg-[#1a1a17]">
-              <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
-                Output
-              </span>
-              <strong className="mt-1 block">{investigation.output}</strong>
-            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              aria-controls="revision-prompt-panel"
+              aria-expanded={promptOpen}
+              disabled={loading}
+              onClick={() => setPromptOpen((open) => !open)}
+            >
+              <PencilLineIcon data-icon="inline-start" />
+              {promptOpen ? "Close" : "Edit"}
+            </Button>
           </div>
+
+          {promptOpen && (
+            <div id="revision-prompt-panel" className="flex flex-col gap-5">
+              <FieldSeparator>Prompt revision</FieldSeparator>
+
+              <Field>
+                <FieldLabel htmlFor="revision-prompt-field">
+                  Revision prompt
+                </FieldLabel>
+                <Textarea
+                  id="revision-prompt-field"
+                  value={revisionPrompt}
+                  disabled={loading}
+                  onChange={(event) => setRevisionPrompt(event.target.value)}
+                  placeholder="Example: focus on churn risk for enterprise customers and keep the output as a concise executive summary."
+                  rows={3}
+                />
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!canRevise}
+                    onClick={handlePromptRevision}
+                  >
+                    <WandSparklesIcon data-icon="inline-start" />
+                    Revise spec
+                  </Button>
+                </div>
+              </Field>
+            </div>
+          )}
 
           {error && (
             <Alert>
@@ -209,15 +248,20 @@ function IntentCard({
         </form>
       </CardContent>
       <CardFooter className="flex justify-end gap-3 border-t border-[#d8d0c2] bg-[#f4efe5]/70 p-5 dark:border-[#38372f] dark:bg-[#20201c]/70 max-sm:flex-col-reverse">
-        <Button variant="outline" type="button" onClick={onReset}>
-          Reset changes
+        <Button
+          variant="outline"
+          type="button"
+          onClick={onReset}
+          disabled={loading}
+        >
+          Reset
         </Button>
         <Button
           type="submit"
           form="intent-specification-form"
-          disabled={!valid}
+          disabled={!valid || loading}
         >
-          Approve &amp; run
+          {loading ? "Updating..." : "Approve"}
         </Button>
       </CardFooter>
     </Card>
@@ -235,25 +279,6 @@ function ProcessCard({
 
   return (
     <Card className={reviewCardClass} aria-live="polite">
-      <CardHeader className="gap-5 p-0">
-        <ResponseHeading
-          title={complete ? "Process" : "Processing workflow"}
-          badge={error ? "Paused" : `${completed}/${events.length}`}
-        />
-        <p className={cn(cardCopyClass, "px-6")}>
-          <strong className="text-[#191915] dark:text-[#eee8dc]">
-            {investigation.intent}
-          </strong>{" "}
-          {complete ? "completed against" : "is running against"}{" "}
-          <strong className="text-[#191915] dark:text-[#eee8dc]">
-            {investigation.scope}
-          </strong>
-          .{" "}
-          {complete
-            ? "The completed transcript is kept with the answer for review."
-            : "This panel stays in place while information moves through the workflow."}
-        </p>
-      </CardHeader>
       <CardContent className="space-y-4 p-6 pt-4">
         <Progress value={progress} aria-label="Workflow progress" />
         <div className="rounded-[24px] border border-[#d8d0c2] bg-[#fffaf0]/70 p-3 dark:border-[#38372f] dark:bg-[#20201c]/72">
@@ -286,7 +311,7 @@ function getProcessPresentation(events: ProcessEvent[]) {
   const total = Math.max(events.length, 1);
   const completed = events.filter((event) => event.status === "done").length;
   const running = events.some((event) => event.status === "running");
-  const complete = completed === events.length;
+  const complete = events.length > 0 && completed === events.length;
   const progress = Math.round(
     ((completed + (running ? 0.5 : 0)) / total) * 100,
   );

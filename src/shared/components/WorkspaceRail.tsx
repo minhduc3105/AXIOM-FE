@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DatabaseIcon,
   FileTextIcon,
@@ -12,9 +12,12 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/app/ThemeProvider";
 import type { ChatStage } from "@/features/chat/model/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
   SheetContent,
@@ -30,36 +33,61 @@ import {
 } from "@/components/ui/tooltip";
 import type { AppSurface } from "@/app/routing/types";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { listConversations } from "@/shared/lib/intelligence-api";
 import { cn } from "@/shared/lib/utils";
+import type { ConversationSummary } from "@/shared/types/intelligence";
 
 type WorkspaceRailProps = {
   activeStage: ChatStage;
   surface: AppSurface;
   expanded: boolean;
+  activeConversationId: string | null;
   onExpandedChange: (expanded: boolean) => void;
   onNewChat: () => void;
+  onConversationOpen: (conversationId: string) => void;
   onIngestion: () => void;
   onReports: () => void;
 };
-
-const conversations = [
-  "Create a reviewed Q3 revenue report, cite evidence, and flag missing customer data.",
-  "Create html game environment for website",
-  "Lorem Ipsum Project",
-];
 
 const sidebarButtonIconPadding = "has-data-[icon=inline-start]:pl-3";
 
 function RailContent({
   activeStage,
+  activeConversationId,
   surface,
   expanded,
   onExpandedChange,
   onNewChat,
+  onConversationOpen,
   onIngestion,
   onReports,
 }: WorkspaceRailProps) {
   const { resolvedTheme, setTheme } = useTheme();
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [conversationsError, setConversationsError] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setConversationsLoading(true);
+    setConversationsError(null);
+
+    listConversations(controller.signal)
+      .then((items) => setConversations(items))
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setConversationsError(
+          error instanceof Error ? error.message : "Unable to load recent work.",
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setConversationsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [activeStage]);
 
   return (
     <div
@@ -143,8 +171,8 @@ function RailContent({
       </div>
 
       {!expanded && (
-        <div
-          className="h-px w-8 bg-[#d8d0c2]/85 dark:bg-white/10"
+        <Separator
+          className="w-8"
           aria-hidden="true"
         />
       )}
@@ -184,37 +212,68 @@ function RailContent({
           Recent work
         </div>
         <ScrollArea className="h-[min(276px,36vh)] w-full min-w-0 overflow-hidden pr-1">
-          {conversations.map((conversation, index) => (
-            <button
-              type="button"
-              className="group mb-1.5 flex min-h-[24px] w-full max-w-full items-center overflow-hidden rounded-xl border border-transparent px-2.5 py-2 text-left text-[13px] text-[#625d53] outline-none transition-all duration-200 hover:border-[#d8d0c2] hover:bg-[#fffaf1] hover:text-[#191915] focus-visible:border-[#2456e8]/45 focus-visible:ring-3 focus-visible:ring-[#2456e8]/18 data-[active=true]:border-[#2456e8]/25 data-[active=true]:bg-[#edf2ff] data-[active=true]:text-[#111827] dark:text-[#eee8dc]/72 dark:hover:border-white/10 dark:hover:bg-white/8 dark:hover:text-white dark:focus-visible:border-[#7895ff]/45 dark:focus-visible:ring-[#7895ff]/20 dark:data-[active=true]:border-[#7895ff]/28 dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white"
-              data-active={
-                index === 0 && activeStage !== "welcome" ? "true" : "false"
-              }
-              key={conversation}
-            >
-              <span className="block w-full min-w-0 truncate leading-[1.22]">
-                {conversation}
-              </span>
-            </button>
-          ))}
+          {conversationsLoading && conversations.length === 0 ? (
+            <div className="grid gap-1.5" aria-live="polite">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton
+                  className="h-9 rounded-xl"
+                  key={index}
+                />
+              ))}
+            </div>
+          ) : conversationsError ? (
+            <Alert variant="destructive">
+              <AlertDescription>Unable to load recent work</AlertDescription>
+            </Alert>
+          ) : conversations.length === 0 ? (
+            <Alert>
+              <AlertDescription>No recent work yet</AlertDescription>
+            </Alert>
+          ) : (
+            conversations.map((conversation) => (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="mb-1.5 min-h-8 w-full max-w-full justify-start overflow-hidden rounded-xl border border-transparent px-2.5 py-2 text-left text-[13px] font-medium text-[#625d53] hover:border-[#d8d0c2] hover:bg-[#fffaf1] hover:text-[#191915] focus-visible:border-[#2456e8]/45 focus-visible:ring-[#2456e8]/18 data-[active=true]:border-[#2456e8]/25 data-[active=true]:bg-[#edf2ff] data-[active=true]:text-[#111827] dark:text-[#eee8dc]/72 dark:hover:border-white/10 dark:hover:bg-white/8 dark:hover:text-white dark:focus-visible:border-[#7895ff]/45 dark:focus-visible:ring-[#7895ff]/20 dark:data-[active=true]:border-[#7895ff]/28 dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white"
+                data-active={
+                  conversation.conversation_id === activeConversationId &&
+                  activeStage !== "welcome"
+                    ? "true"
+                    : "false"
+                }
+                key={conversation.conversation_id}
+                onClick={() => onConversationOpen(conversation.conversation_id)}
+              >
+                <span className="block w-full min-w-0 truncate leading-[1.22]">
+                  {conversation.title || "Untitled conversation"}
+                </span>
+              </Button>
+            ))
+          )}
         </ScrollArea>
       </section>
 
       {!expanded && (
-        <button
+        <Button
           type="button"
-          className="min-h-0 w-full flex-1 cursor-pointer rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-[#2456e8]/30 dark:focus-visible:ring-[#7895ff]/35"
+          variant="ghost"
+          className="min-h-0 h-auto w-full flex-1 cursor-pointer rounded-lg p-0 focus-visible:ring-[#2456e8]/30 dark:focus-visible:ring-[#7895ff]/35"
           aria-label="Expand workspace navigation"
           onClick={() => onExpandedChange(true)}
         />
       )}
 
+      {expanded && (
+        <Separator
+          className="bg-[#d8d0c2]/85 dark:bg-white/10"
+          aria-hidden="true"
+        />
+      )}
+
       <div
         className={cn(
-          expanded
-            ? "grid gap-3 border-t border-[#d8d0c2]/85 pt-3 dark:border-white/10"
-            : "grid w-full gap-3",
+          expanded ? "grid gap-3" : "grid w-full gap-3",
         )}
       >
         <nav
@@ -339,12 +398,17 @@ function RailContent({
           </Button>
         </nav>
 
+        {expanded && (
+          <Separator
+            className="bg-[#d8d0c2]/85 dark:bg-white/10"
+            aria-hidden="true"
+          />
+        )}
+
         <div
           className={cn(
-            "min-w-0 border-[#d8d0c2]/85 dark:border-white/10",
-            expanded
-              ? "flex items-center gap-3 border-t pt-3"
-              : "grid w-full justify-items-center",
+            "min-w-0",
+            expanded ? "flex items-center gap-3" : "grid w-full justify-items-center",
           )}
         >
           <Avatar
@@ -410,6 +474,10 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
             onExpandedChange={() => setMobileOpen(false)}
             onNewChat={() => {
               props.onNewChat();
+              setMobileOpen(false);
+            }}
+            onConversationOpen={(conversationId) => {
+              props.onConversationOpen(conversationId);
               setMobileOpen(false);
             }}
             onIngestion={() => {

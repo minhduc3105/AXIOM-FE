@@ -8,7 +8,9 @@ import { cn } from "@/shared/lib/utils";
 type AppShellProps = {
   activeStage: ChatStage;
   surface: AppSurface;
+  activeConversationId: string | null;
   onNewChat: () => void;
+  onConversationOpen: (conversationId: string) => void;
   onIngestion: () => void;
   onReports: () => void;
   children: React.ReactNode;
@@ -17,7 +19,9 @@ type AppShellProps = {
 export function AppShell({
   activeStage,
   surface,
+  activeConversationId,
   onNewChat,
+  onConversationOpen,
   onIngestion,
   onReports,
   children,
@@ -42,8 +46,10 @@ export function AppShell({
           activeStage={activeStage}
           surface={surface}
           expanded={expanded}
+          activeConversationId={activeConversationId}
           onExpandedChange={setExpanded}
           onNewChat={onNewChat}
+          onConversationOpen={onConversationOpen}
           onIngestion={onIngestion}
           onReports={onReports}
         />

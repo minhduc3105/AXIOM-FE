@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { IngestionPage } from "@/features/ingestion/IngestionPage";
@@ -11,14 +11,7 @@ import {
   parseAppRoute,
 } from "./routing/paths";
 import { useAppRoute } from "./routing/useAppRoute";
-
-function createSessionId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
+import { createConversation } from "@/shared/lib/intelligence-api";
 
 export function AppExperience() {
   const { route, navigate } = useAppRoute();
@@ -29,12 +22,32 @@ export function AppExperience() {
     },
   );
   const chat = useChatWorkflow();
+  const hydratedConversationIdRef = useRef<string | null>(null);
+  const skipNextHydrationRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (route.surface === "chat") {
       setLastChatSessionId(route.sessionId);
     }
   }, [route]);
+
+  useEffect(() => {
+    if (route.surface !== "chat" || !route.sessionId) {
+      hydratedConversationIdRef.current = null;
+      return;
+    }
+
+    if (skipNextHydrationRef.current === route.sessionId) {
+      hydratedConversationIdRef.current = route.sessionId;
+      skipNextHydrationRef.current = null;
+      return;
+    }
+
+    if (hydratedConversationIdRef.current === route.sessionId) return;
+
+    hydratedConversationIdRef.current = route.sessionId;
+    chat.loadConversation(route.sessionId);
+  }, [chat.loadConversation, route.sessionId, route.surface]);
 
   const newChat = useCallback(() => {
     chat.newChat();
@@ -49,12 +62,26 @@ export function AppExperience() {
     navigate(createReportsRoute());
   }, [navigate]);
 
+  const openConversation = useCallback(
+    (conversationId: string) => {
+      navigate(createChatRoute(conversationId));
+    },
+    [navigate],
+  );
+
   const submitQuestion = useCallback(
-    (question: string) => {
-      if (route.surface === "chat" && !route.sessionId) {
-        navigate(createChatRoute(createSessionId()));
+    async (question: string) => {
+      let conversationId = route.surface === "chat" ? route.sessionId : null;
+
+      if (!conversationId) {
+        const conversation = await createConversation(question.slice(0, 80));
+        conversationId = conversation.conversation_id;
+        skipNextHydrationRef.current = conversationId;
+        hydratedConversationIdRef.current = conversationId;
+        navigate(createChatRoute(conversationId));
       }
-      chat.submitQuestion(question);
+
+      chat.submitQuestion(question, conversationId);
     },
     [chat.submitQuestion, navigate, route],
   );
@@ -63,7 +90,9 @@ export function AppExperience() {
     <AppShell
       activeStage={chat.stage}
       surface={route.surface}
+      activeConversationId={route.surface === "chat" ? route.sessionId : null}
       onNewChat={newChat}
+      onConversationOpen={openConversation}
       onIngestion={openIngestion}
       onReports={openReports}
     >
@@ -77,8 +106,10 @@ export function AppExperience() {
           result={chat.result}
           history={chat.history}
           error={chat.error}
+          loading={chat.loading}
           onSubmit={submitQuestion}
           onSpecificationChange={chat.updateSpecification}
+          onSpecificationRevise={chat.reviseSpecification}
           onResetSpecification={chat.resetSpecification}
           onApproveAndRun={chat.approveAndRun}
           onRetryProcess={chat.retryProcess}
