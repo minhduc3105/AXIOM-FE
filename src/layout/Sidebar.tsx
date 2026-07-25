@@ -37,7 +37,7 @@ export function Sidebar({ active, onNewChat, onIngestion }: SidebarProps) {
       </section>
 
       <div className="mt-6 grid gap-2">
-        <Button className="h-12 justify-start gap-3 rounded-2xl text-[#eee8dc]/80 hover:bg-white/10 hover:text-white" variant="ghost" onClick={onIngestion}><Icon name="import" size={32} /><span>Data Ingestion</span></Button>
+        <Button className="h-12 justify-start gap-3 rounded-2xl text-[#eee8dc]/80 hover:bg-white/10 hover:text-white" variant="ghost" onClick={onIngestion}><Icon name="import" size={32} /><span>Data</span></Button>
         <Button className="h-12 justify-start gap-3 rounded-2xl text-[#eee8dc]/80 hover:bg-white/10 hover:text-white" variant="ghost"><Icon name="settings" size={28} /><span>Settings</span></Button>
       </div>
 

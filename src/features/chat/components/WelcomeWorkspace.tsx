@@ -14,7 +14,7 @@ gsap.registerPlugin(ScrollTrigger, useGSAP)
 
 type WelcomeWorkspaceProps = {
   onSubmit: (value: string) => void
-  onIngestion: () => void
+  onData: () => void
 }
 
 const narrative = 'Every answer remains connected to intent, process, evidence, and the decision that approved it.'
@@ -50,7 +50,7 @@ const bentoCards = [
   },
 ]
 
-export function WelcomeWorkspace({ onSubmit, onIngestion }: WelcomeWorkspaceProps) {
+export function WelcomeWorkspace({ onSubmit, onData }: WelcomeWorkspaceProps) {
   const root = useRef<HTMLDivElement>(null)
 
   useGSAP(() => {
@@ -88,7 +88,7 @@ export function WelcomeWorkspace({ onSubmit, onIngestion }: WelcomeWorkspaceProp
           <p className="mt-7 max-w-3xl text-[clamp(1.08rem,1.7vw,1.35rem)] leading-relaxed text-[#6d685e] dark:text-[#aaa397]">Define the question, approve the scope, watch the workflow, and review an answer with evidence attached.</p>
           <ChatComposer className="mt-9 max-w-3xl" onSubmit={onSubmit} />
           <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-sm text-[#6d685e] dark:text-[#aaa397]">
-            <Button className="h-12 rounded-full bg-[#191915] px-5 text-[#f4efe5] hover:bg-[#2b2a25] dark:bg-[#eee8dc] dark:text-[#11110f] dark:hover:bg-white" variant="ghost" onClick={onIngestion}><DatabaseIcon data-icon="inline-start" />Bring data into AXIOM</Button>
+            <Button className="h-12 rounded-full bg-[#191915] px-5 text-[#f4efe5] hover:bg-[#2b2a25] dark:bg-[#eee8dc] dark:text-[#11110f] dark:hover:bg-white" variant="ghost" onClick={onData}><DatabaseIcon data-icon="inline-start" />Manage data</Button>
             <span>CSV, documents, MySQL, and indexed repositories</span>
           </div>
         </div>

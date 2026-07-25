@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
+import { DataPage } from "@/features/data/DataPage";
 import { IngestionPage } from "@/features/ingestion/IngestionPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { AppShell } from "./AppShell";
 import {
   createChatRoute,
-  createIngestionRoute,
+  createDataIngestionRoute,
+  createDataRoute,
   createReportsRoute,
   parseAppRoute,
 } from "./routing/paths";
@@ -41,8 +43,12 @@ export function AppExperience() {
     navigate(createChatRoute());
   }, [chat.newChat, navigate]);
 
-  const openIngestion = useCallback(() => {
-    navigate(createIngestionRoute());
+  const openData = useCallback(() => {
+    navigate(createDataRoute());
+  }, [navigate]);
+
+  const openDataIngestion = useCallback(() => {
+    navigate(createDataIngestionRoute());
   }, [navigate]);
 
   const openReports = useCallback(() => {
@@ -64,7 +70,7 @@ export function AppExperience() {
       activeStage={chat.stage}
       surface={route.surface}
       onNewChat={newChat}
-      onIngestion={openIngestion}
+      onData={openData}
       onReports={openReports}
     >
       {route.surface === "chat" ? (
@@ -83,14 +89,14 @@ export function AppExperience() {
           onApproveAndRun={chat.approveAndRun}
           onRetryProcess={chat.retryProcess}
           onCloseEvidence={chat.closeEvidence}
-          onIngestion={openIngestion}
+          onData={openData}
         />
-      ) : route.surface === "ingestion" ? (
-        <IngestionPage
-          onBack={() => navigate(createChatRoute(lastChatSessionId))}
-        />
+      ) : route.surface === "data" && route.page === "ingestion" ? (
+        <IngestionPage onBack={openData} backLabel="Back to data" />
+      ) : route.surface === "data" ? (
+        <DataPage onCreateIngestion={openDataIngestion} />
       ) : (
-        <ReportsPage onIngestion={openIngestion} />
+        <ReportsPage onData={openData} />
       )}
     </AppShell>
   );

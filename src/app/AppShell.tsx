@@ -9,7 +9,7 @@ type AppShellProps = {
   activeStage: ChatStage;
   surface: AppSurface;
   onNewChat: () => void;
-  onIngestion: () => void;
+  onData: () => void;
   onReports: () => void;
   children: React.ReactNode;
 };
@@ -18,7 +18,7 @@ export function AppShell({
   activeStage,
   surface,
   onNewChat,
-  onIngestion,
+  onData,
   onReports,
   children,
 }: AppShellProps) {
@@ -44,7 +44,7 @@ export function AppShell({
           expanded={expanded}
           onExpandedChange={setExpanded}
           onNewChat={onNewChat}
-          onIngestion={onIngestion}
+          onData={onData}
           onReports={onReports}
         />
         <div
