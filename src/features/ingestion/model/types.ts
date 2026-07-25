@@ -1,4 +1,4 @@
-export type IngestionStage = 'source' | 'catalog' | 'mysql' | 'upload' | 'pipeline' | 'profile' | 'meaning' | 'index'
+export type IngestionStage = 'source' | 'catalog' | 'mysql' | 's3' | 'snowflake' | 'upload' | 'processing' | 'pipeline' | 'profile' | 'meaning' | 'index'
 
 export type ProgressStage = 'source' | 'transfer' | 'pipeline' | 'profile' | 'meaning' | 'index'
 
@@ -25,6 +25,44 @@ export type MySqlConnection = {
   encrypted: boolean
 }
 
+export type S3Connection = {
+  accessKeyId: string
+  secretAccessKey: string
+  region: string
+  bucketName: string
+}
+
+export type SnowflakeConnection = {
+  account: string
+  user: string
+  privateKey: string
+  privateKeyPassphrase: string
+  warehouse: string
+  database: string
+  schema: string
+  role: string
+  discoverTables: boolean
+  discoverStages: boolean
+  stagePattern: string
+  tableLimit: string
+  stageLimit: string
+}
+
+export type ConnectorJobUiStatus =
+  | 'idle'
+  | 'submitting'
+  | 'polling'
+  | 'completed'
+  | 'failed'
+  | 'status_error'
+
+export type DocumentProcessingUiStatus =
+  | 'idle'
+  | 'polling'
+  | 'complete'
+  | 'completed_with_errors'
+  | 'status_error'
+
 export type IngestionFile = {
   id: string
   file: File
@@ -44,7 +82,10 @@ export const progressStageByView: Record<IngestionStage, ProgressStage> = {
   source: 'source',
   catalog: 'transfer',
   mysql: 'transfer',
+  s3: 'transfer',
+  snowflake: 'transfer',
   upload: 'transfer',
+  processing: 'pipeline',
   pipeline: 'pipeline',
   profile: 'profile',
   meaning: 'meaning',
