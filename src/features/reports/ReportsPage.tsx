@@ -1,5 +1,11 @@
 import { useMemo, useState } from "react";
-import { DatabaseIcon, DownloadIcon, FileTextIcon } from "lucide-react";
+import {
+  DatabaseIcon,
+  DownloadIcon,
+  FileTextIcon,
+  LayersIcon,
+  TagsIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,81 +73,89 @@ export function ReportsPage({ onData }: ReportsPageProps) {
 
   const handleDownload = (report: Report) => {
     createReportDownload(report);
-    toast.success("Report download mocked", {
-      description: `${report.title} exported as CSV sample.`,
+    toast.success("Report exported", {
+      description: `${report.title} was exported as a CSV sample.`,
     });
   };
 
   return (
     <section
-      className="min-h-screen w-full overflow-x-hidden px-5 pb-10 pt-8 sm:px-8 md:pt-10"
-      aria-label="Tổng hợp Report"
+      className="relative min-h-screen w-full overflow-x-hidden px-5 pb-12 pt-20 sm:px-8 md:pt-10"
+      aria-label="Reports workspace"
     >
-      <div className="mx-auto grid w-full max-w-[1320px] gap-6">
-        <header className="grid gap-5 rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8]/88 p-4 shadow-[0_18px_54px_rgba(19,18,14,0.08)] backdrop-blur-xl dark:border-[#38372f] dark:bg-[#1a1a17]/88 sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className="h-6 rounded-[7px] border-[#2456e8]/30 bg-[#edf2ff] text-[#1237b4] dark:border-[#7895ff]/30 dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]"
-                >
-                  Report workspace
-                </Badge>
-                <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
-                  {reports.length} reports / {totalTags} tags indexed
-                </span>
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_78%_8%,rgba(36,86,232,0.12),transparent_34%),radial-gradient(circle_at_10%_38%,rgba(120,75,18,0.10),transparent_36%)] dark:bg-[radial-gradient(circle_at_78%_8%,rgba(120,149,255,0.12),transparent_34%)]"
+        aria-hidden="true"
+      />
+      <div className="mx-auto grid w-full max-w-[1360px] gap-6">
+        <header className="overflow-hidden rounded-[28px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 shadow-[0_24px_70px_rgba(24,24,18,0.09)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88">
+          <div className="grid gap-6 p-5 sm:p-6 lg:p-7">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className="h-6 rounded-full border-[#2456e8]/30 bg-[#edf2ff] px-2.5 text-[#1237b4] dark:border-[#7895ff]/30 dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]"
+                  >
+                    Report workspace
+                  </Badge>
+                  <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
+                    {reports.length} reports / {totalTags} indexed tags
+                  </span>
+                </div>
+                <h1 className="text-3xl font-semibold leading-tight text-[#191915] dark:text-[#f4efe5] sm:text-4xl">
+                  Intelligence reports
+                </h1>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
+                  Review analytical, operational, system, and audit reports
+                  generated from AXIOM data workflows.
+                </p>
               </div>
-              <h1 className="text-2xl font-semibold leading-tight text-[#191915] dark:text-[#f4efe5] sm:text-3xl">
-                Tổng hợp Report
-              </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
-                Không gian theo dõi các báo cáo phân tích, vận hành, hệ thống
-                và kiểm toán đã được tổng hợp từ workflow dữ liệu của AXIOM.
-              </p>
+
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <Button
+                  variant="outline"
+                  className="h-10 justify-start rounded-full border-[#d8d0c2] bg-[#fffdf8]/72 px-4 text-[#25241f] hover:bg-[#f4efe5] dark:border-[#38372f] dark:bg-[#20201c] dark:text-[#eee8dc]"
+                  onClick={onData}
+                >
+                  <DatabaseIcon data-icon="inline-start" />
+                  Data manage
+                </Button>
+                <Button className="h-10 justify-start rounded-full bg-[#2456e8] px-4 text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]">
+                  <FileTextIcon data-icon="inline-start" />
+                  Reports
+                </Button>
+              </div>
             </div>
 
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <Button
-                variant="outline"
-                className="h-10 justify-start rounded-[7px] border-[#d8d0c2] bg-[#fffdf8] px-3 text-[#25241f] hover:bg-[#f4efe5] dark:border-[#38372f] dark:bg-[#20201c] dark:text-[#eee8dc]"
-                onClick={onData}
-              >
-                <DatabaseIcon data-icon="inline-start" />
-                Data
-              </Button>
-              <Button className="h-10 justify-start rounded-[7px] bg-[#2456e8] px-3 text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]">
-                <FileTextIcon data-icon="inline-start" />
-                Report
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[8px] border border-[#d8d0c2] bg-[#f4efe5]/72 p-3 dark:border-[#38372f] dark:bg-white/5">
-              <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
-                Latest report
-              </span>
-              <strong className="mt-1 block truncate text-sm">
-                {reports[0]?.title}
-              </strong>
-            </div>
-            <div className="rounded-[8px] border border-[#d8d0c2] bg-[#f4efe5]/72 p-3 dark:border-[#38372f] dark:bg-white/5">
-              <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
-                Download format
-              </span>
-              <strong className="mt-1 flex items-center gap-2 text-sm">
-                <DownloadIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
-                Mock CSV export
-              </strong>
-            </div>
-            <div className="rounded-[8px] border border-[#d8d0c2] bg-[#f4efe5]/72 p-3 dark:border-[#38372f] dark:bg-white/5">
-              <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
-                Detail mode
-              </span>
-              <strong className="mt-1 block text-sm">
-                Modal with charts and tables
-              </strong>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[18px] border border-[#d8d0c2]/80 bg-[#f4efe5]/72 p-4 dark:border-[#38372f] dark:bg-white/5">
+                <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
+                  Latest report
+                </span>
+                <strong className="mt-2 flex min-w-0 items-center gap-2 text-sm">
+                  <LayersIcon className="size-4 shrink-0 text-[#2456e8] dark:text-[#9aafff]" />
+                  <span className="truncate">{reports[0]?.title}</span>
+                </strong>
+              </div>
+              <div className="rounded-[18px] border border-[#d8d0c2]/80 bg-[#f4efe5]/72 p-4 dark:border-[#38372f] dark:bg-white/5">
+                <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
+                  Download format
+                </span>
+                <strong className="mt-2 flex items-center gap-2 text-sm">
+                  <DownloadIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
+                  CSV sample export
+                </strong>
+              </div>
+              <div className="rounded-[18px] border border-[#d8d0c2]/80 bg-[#f4efe5]/72 p-4 dark:border-[#38372f] dark:bg-white/5">
+                <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
+                  Indexed tags
+                </span>
+                <strong className="mt-2 flex items-center gap-2 text-sm">
+                  <TagsIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
+                  {totalTags} topics available
+                </strong>
+              </div>
             </div>
           </div>
         </header>

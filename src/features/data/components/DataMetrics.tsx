@@ -63,7 +63,7 @@ export function DataMetrics({
         return (
           <article
             key={metric.key}
-            className="grid min-h-[118px] grid-cols-[1fr_auto] gap-4 rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8]/88 p-4 shadow-[0_10px_28px_rgba(19,18,14,0.045)] dark:border-[#38372f] dark:bg-[#1a1a17]/88"
+            className="group grid min-h-[126px] grid-cols-[1fr_auto] gap-4 overflow-hidden rounded-[22px] border border-[#d8d0c2]/78 bg-[#fffdf8]/84 p-4 shadow-[0_18px_48px_rgba(24,24,18,0.07)] backdrop-blur-xl transition-transform duration-500 ease-out hover:-translate-y-0.5 dark:border-[#38372f]/82 dark:bg-[#1a1a17]/86"
           >
             <div className="min-w-0">
               <p className="text-xs font-medium text-[#6d685e] dark:text-[#aaa397]">
@@ -82,7 +82,7 @@ export function DataMetrics({
             </div>
             <span
               className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-[7px]",
+                "flex size-10 shrink-0 items-center justify-center rounded-[12px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.38)] transition-transform duration-500 ease-out group-hover:scale-105",
                 metric.tone,
               )}
               aria-hidden="true"

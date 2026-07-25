@@ -51,6 +51,8 @@ type WorkspaceRailProps = {
 };
 
 const sidebarButtonIconPadding = "has-data-[icon=inline-start]:pl-3";
+const workspaceNavButtonClass =
+  "h-11 gap-3 text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] data-[active=true]:border-[#d8d0c2] data-[active=true]:bg-[#fffdf8] data-[active=true]:text-[#1237b4] data-[active=true]:shadow-[0_4px_12px_rgba(25,25,21,0.10)] dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white dark:data-[active=true]:border-white/10 dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white";
 
 function RailContent({
   activeStage,
@@ -278,18 +280,19 @@ function RailContent({
           <div
             className={cn(
               expanded
-                ? "rounded-[8px] border border-[#d8d0c2] bg-[#f0eadf]/70 p-1 dark:border-[#38372f] dark:bg-white/5"
+                ? "grid gap-1.5"
                 : "grid w-full justify-items-center gap-2",
             )}
           >
             <Button
               variant="ghost"
               className={cn(
-                "h-11 gap-3 rounded-[6px] text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] data-[active=true]:bg-[#fffdf8] data-[active=true]:text-[#1237b4] data-[active=true]:shadow-sm dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white",
+                workspaceNavButtonClass,
                 sidebarButtonIconPadding,
                 expanded
                   ? "w-full justify-start px-3"
                   : "size-11 justify-center px-0",
+                "rounded-xl",
               )}
               data-active={surface === "data"}
               onClick={onData}
@@ -310,11 +313,12 @@ function RailContent({
             <Button
               variant="ghost"
               className={cn(
-                "h-11 gap-3 rounded-[6px] text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] data-[active=true]:bg-[#fffdf8] data-[active=true]:text-[#1237b4] data-[active=true]:shadow-sm dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white",
+                workspaceNavButtonClass,
                 sidebarButtonIconPadding,
                 expanded
                   ? "w-full justify-start px-3"
                   : "size-11 justify-center px-0",
+                "rounded-xl",
               )}
               data-active={surface === "reports"}
               onClick={onReports}
@@ -336,12 +340,14 @@ function RailContent({
           <Button
             variant="ghost"
             className={cn(
-              "h-11 gap-3 rounded-xl text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white",
+              workspaceNavButtonClass,
               sidebarButtonIconPadding,
               expanded
                 ? "w-full justify-start px-3"
                 : "size-11 justify-center px-0",
+              "rounded-xl",
             )}
+            data-active="false"
             aria-label="Settings"
           >
             <SettingsIcon data-icon="inline-start" />
@@ -354,38 +360,6 @@ function RailContent({
               )}
             >
               Settings
-            </span>
-          </Button>
-          <Button
-            variant="ghost"
-            className={cn(
-              "h-11 gap-3 rounded-xl text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white",
-              sidebarButtonIconPadding,
-              expanded
-                ? "w-full justify-start px-3"
-                : "size-11 justify-center px-0",
-            )}
-            aria-label={
-              resolvedTheme === "dark" ? "Use light theme" : "Use dark theme"
-            }
-            onClick={() =>
-              setTheme(resolvedTheme === "dark" ? "light" : "dark")
-            }
-          >
-            {resolvedTheme === "dark" ? (
-              <SunIcon data-icon="inline-start" />
-            ) : (
-              <MoonIcon data-icon="inline-start" />
-            )}
-            <span
-              className={cn(
-                "transition-opacity duration-300",
-                expanded
-                  ? "opacity-100"
-                  : "pointer-events-none w-0 overflow-hidden opacity-0",
-              )}
-            >
-              {resolvedTheme === "dark" ? "Use light theme" : "Use dark theme"}
             </span>
           </Button>
         </nav>

@@ -41,7 +41,7 @@ function formatSourceType(value: string) {
 function IngestionJobsSkeleton() {
   return (
     <Table className="min-w-[840px]">
-      <TableHeader className="bg-[#f4efe5]/75 dark:bg-white/4">
+      <TableHeader className="bg-[#f4efe5]/70 dark:bg-white/4">
         <TableRow className="hover:bg-transparent">
           {["Source", "Status", "Records pulled", "Objects written", "Updated"].map(
             (heading) => (
@@ -92,7 +92,7 @@ export function IngestionJobsTable({
 
   return (
     <Table className="min-w-[840px]">
-      <TableHeader className="bg-[#f4efe5]/75 dark:bg-white/4">
+      <TableHeader className="bg-[#f4efe5]/70 dark:bg-white/4">
         <TableRow className="hover:bg-transparent">
           <TableHead className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
             Source
@@ -115,11 +115,11 @@ export function IngestionJobsTable({
         {jobs.map((job) => (
           <TableRow
             key={job.job_id}
-            className="hover:bg-[#f4efe5]/55 dark:hover:bg-white/4"
+            className="group hover:bg-[#f4efe5]/52 dark:hover:bg-white/4"
           >
             <TableCell className="px-4 py-3.5">
               <div className="flex items-center gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-[7px] border border-[#d8d0c2] bg-[#f4efe5] text-[#2456e8] dark:border-[#38372f] dark:bg-[#292923] dark:text-[#9aafff]">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-[12px] border border-[#d8d0c2]/84 bg-[#f4efe5]/86 text-[#2456e8] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.36)] transition-transform duration-500 ease-out group-hover:scale-105 dark:border-[#38372f] dark:bg-[#292923] dark:text-[#9aafff]">
                   <Layers3Icon className="size-4" />
                 </span>
                 <div className="grid gap-0.5">

@@ -157,8 +157,8 @@ export function UploadWorkspace({
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-      <Card className="rounded-3xl bg-card/90">
+    <div className="grid min-h-[calc(100vh-360px)] items-stretch gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+      <Card className="h-full rounded-3xl bg-card/90">
         <CardHeader>
           <CardTitle className="text-2xl">Upload queue</CardTitle>
           <CardDescription>
@@ -205,15 +205,7 @@ export function UploadWorkspace({
             <QueueMetric value={files.length.toString()} label="Files" />
             <QueueMetric value={typeCount.toString()} label="Types" />
             <QueueMetric value={totalSize} label="Size" />
-            <QueueMetric value="2" label="PII" />
           </div>
-
-          <Progress value={uploadProgress}>
-            <ProgressLabel>Transfer readiness</ProgressLabel>
-            <span className="ml-auto text-sm text-muted-foreground tabular-nums">
-              {uploadProgress}%
-            </span>
-          </Progress>
 
           <Separator />
 
@@ -286,7 +278,7 @@ export function UploadWorkspace({
         </CardFooter>
       </Card>
 
-      <Card className="min-h-[720px] rounded-3xl bg-card/90">
+      <Card className="h-full min-h-[720px] rounded-3xl bg-card/90">
         <CardHeader>
           <CardTitle className="truncate text-2xl">
             {selected?.name ?? "Select a file"}
@@ -297,7 +289,7 @@ export function UploadWorkspace({
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-5">
           {selectedIsPdf ? (
             <PdfPreview
               fileName={selected?.name}
@@ -342,11 +334,11 @@ function PdfPreview({
   pdfPreviewUrl: string | null;
 }) {
   return (
-    <div className="flex min-h-0 flex-col gap-3">
-      <div className="overflow-hidden rounded-xl border bg-muted/30">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border bg-muted/30">
         {pdfPreviewUrl ? (
           <object
-            className="h-[72vh] min-h-[560px] w-full"
+            className="h-full min-h-[560px] w-full"
             data={`${pdfPreviewUrl}#view=FitH`}
             type="application/pdf"
             aria-label={
@@ -354,13 +346,13 @@ function PdfPreview({
             }
           >
             <iframe
-              className="h-[72vh] min-h-[560px] w-full"
+              className="h-full min-h-[560px] w-full"
               src={pdfPreviewUrl}
               title={fileName ? `PDF preview for ${fileName}` : "PDF preview"}
             />
           </object>
         ) : (
-          <div className="grid min-h-[560px] place-items-center p-6 text-center text-muted-foreground">
+          <div className="grid min-h-[560px] flex-1 place-items-center p-6 text-center text-muted-foreground">
             Preparing PDF preview...
           </div>
         )}

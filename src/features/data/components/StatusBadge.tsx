@@ -43,7 +43,7 @@ export function StatusBadge({ status }: { status: DataHealthStatus }) {
     <Badge
       variant="outline"
       className={cn(
-        "h-6 min-w-[98px] justify-center rounded-[6px] px-2",
+        "h-6 min-w-[104px] justify-center rounded-full px-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.28)]",
         presentation.className,
       )}
     >

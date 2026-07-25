@@ -1,9 +1,7 @@
-import {
-  DatabaseIcon,
-  PlusIcon,
-  RefreshCwIcon,
-} from "lucide-react";
+import { DatabaseIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/shared/lib/utils";
 
 type DataDashboardHeaderProps = {
   organizationId: string;
@@ -18,44 +16,100 @@ export function DataDashboardHeader({
   onRefresh,
   onCreateIngestion,
 }: DataDashboardHeaderProps) {
-  return (
-    <header className="flex flex-col gap-5 border-b border-[#d8d0c2] pb-6 dark:border-[#38372f] lg:flex-row lg:items-end lg:justify-between">
-      <div className="min-w-0">
-        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-[#2456e8] dark:text-[#9aafff]">
-          <DatabaseIcon className="size-4" />
-          Data management
-        </div>
-        <h1 className="text-3xl font-semibold leading-tight text-[#191915] dark:text-[#f4efe5]">
-          Data Pipelines
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
-          File inventory and processing health for{" "}
-          <span className="font-medium text-[#191915] dark:text-[#f4efe5]">
-            {organizationId}
-          </span>
-          .
-        </p>
-      </div>
+  const insightCards = [
+    ["Files", "Inventory"],
+    ["Jobs", "Pipeline"],
+    [organizationId, "Organization"],
+  ];
 
-      <div className="flex w-full items-center gap-2 sm:w-auto">
-        <Button
-          variant="outline"
-          size="icon-lg"
-          className="shrink-0 rounded-[7px] bg-[#fffdf8]/80 dark:bg-[#1a1a17]/80"
-          onClick={onRefresh}
-          disabled={refreshing}
-          aria-label="Refresh data"
-          title="Refresh data"
-        >
-          <RefreshCwIcon className={refreshing ? "animate-spin" : undefined} />
-        </Button>
-        <Button
-          className="h-9 min-w-0 flex-1 rounded-[7px] bg-[#2456e8] px-4 text-white shadow-[0_10px_24px_rgba(36,86,232,0.18)] hover:bg-[#1d48c7] sm:flex-none dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
-          onClick={onCreateIngestion}
-        >
-          <PlusIcon data-icon="inline-start" />
-          Data Ingestion
-        </Button>
+  return (
+    <header className="relative isolate overflow-hidden rounded-[28px] border border-[#d8d0c2]/80 bg-[#fffdf8]/86 p-5 shadow-[0_24px_70px_rgba(24,24,18,0.10)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88 sm:p-7">
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_78%_18%,rgba(36,86,232,0.16),transparent_34%),linear-gradient(135deg,rgba(255,253,248,0.92),rgba(244,239,229,0.62))] dark:bg-[radial-gradient(circle_at_78%_18%,rgba(120,149,255,0.15),transparent_34%),linear-gradient(135deg,rgba(26,26,23,0.94),rgba(17,17,15,0.70))]"
+        aria-hidden="true"
+      />
+
+      <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="flex min-w-0 flex-col justify-between gap-8">
+          <div className="min-w-0">
+            <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#2456e8] dark:text-[#9aafff]">
+              <DatabaseIcon aria-hidden="true" />
+              Data management
+            </div>
+            <h1 className="max-w-5xl text-[clamp(2.6rem,5vw,5.4rem)] font-semibold leading-[0.92] tracking-normal text-[#191915] dark:text-[#f4efe5]">
+              Data
+              <span
+                className="mx-3 inline-block h-[clamp(34px,4vw,56px)] w-[clamp(76px,9vw,132px)] translate-y-1 rounded-full bg-cover bg-center align-middle shadow-[inset_0_0_0_1px_rgba(255,255,255,0.45),0_18px_42px_rgba(0,0,0,0.14)] grayscale-[22%] contrast-125 saturate-75"
+                style={{
+                  backgroundImage:
+                    "url(https://picsum.photos/seed/axiom-data-console/360/160)",
+                }}
+                aria-hidden="true"
+              />
+              pipelines
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-[#625d53] dark:text-[#c5bcaf]">
+              File inventory, ingestion jobs, and processing health for{" "}
+              <span className="font-semibold text-[#191915] dark:text-[#f4efe5]">
+                {organizationId}
+              </span>
+              .
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button
+              className="h-11 min-w-0 rounded-full px-5 shadow-[0_14px_30px_rgba(36,86,232,0.20)] sm:flex-none"
+              onClick={onCreateIngestion}
+            >
+              <PlusIcon data-icon="inline-start" />
+              Upload Data
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 rounded-full bg-[#fffdf8]/76 px-4 dark:bg-[#1a1a17]/76"
+              onClick={onRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCwIcon
+                data-icon="inline-start"
+                className={refreshing ? "animate-spin" : undefined}
+              />
+              Refresh
+            </Button>
+          </div>
+        </div>
+
+        <Card className="group overflow-hidden rounded-[22px] border-[#d8d0c2]/80 bg-[#191915] p-0 text-white shadow-[0_20px_54px_rgba(24,24,18,0.16)] dark:border-[#38372f]">
+          <CardContent className="relative flex min-h-[264px] flex-col justify-between p-0">
+            <img
+              src="https://picsum.photos/seed/axiom-data-operations/900/700"
+              alt=""
+              className="absolute inset-0 size-full object-cover opacity-82 grayscale-[18%] contrast-125 saturate-75 transition-transform duration-700 ease-out group-hover:scale-105"
+              aria-hidden="true"
+            />
+            <div
+              className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.12),rgba(0,0,0,0.74))]"
+              aria-hidden="true"
+            />
+            <div className="relative mt-auto grid grid-flow-dense grid-cols-3 gap-2 p-4">
+              {insightCards.map(([value, label], index) => (
+                <div
+                  className={cn(
+                    "min-w-0 rounded-[14px] border border-white/18 bg-white/14 p-3 backdrop-blur-xl transition-transform duration-500 ease-out group-hover:-translate-y-1",
+                    index === 2 && "col-span-3",
+                  )}
+                  key={label}
+                >
+                  <strong className="block truncate text-sm">{value}</strong>
+                  <span className="mt-1 block text-xs text-white/70">
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </header>
   );

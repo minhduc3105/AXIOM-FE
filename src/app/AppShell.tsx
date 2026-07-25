@@ -66,7 +66,12 @@ export function AppShell({
           )}
         >
           {showCommandBar && (
-            <WorkspaceCommandBar surface={surface} onNewChat={onNewChat} />
+            <WorkspaceCommandBar
+              onHome={onHome}
+              onNewChat={onNewChat}
+              onData={onData}
+              onReports={onReports}
+            />
           )}
           {children}
         </div>

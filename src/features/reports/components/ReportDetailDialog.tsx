@@ -1,4 +1,10 @@
-import { DownloadIcon, FileTextIcon } from "lucide-react";
+import {
+  BarChart3Icon,
+  DownloadIcon,
+  FileTextIcon,
+  GaugeIcon,
+  Table2Icon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -47,21 +53,21 @@ export function ReportDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[min(860px,calc(100vh-32px))] overflow-hidden rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8] p-0 text-[#191915] sm:max-w-[min(980px,calc(100vw-32px))] dark:border-[#38372f] dark:bg-[#1a1a17] dark:text-[#eee8dc]">
+      <DialogContent className="max-h-[min(900px,calc(100vh-32px))] overflow-hidden rounded-[28px] border border-[#d8d0c2]/80 bg-[#fffdf8]/96 p-0 text-[#191915] shadow-[0_28px_90px_rgba(24,24,18,0.18)] backdrop-blur-xl sm:max-w-[min(1060px,calc(100vw-32px))] dark:border-[#38372f]/80 dark:bg-[#1a1a17]/96 dark:text-[#eee8dc]">
         {report && (
-          <div className="flex max-h-[min(860px,calc(100vh-32px))] min-h-0 flex-col">
-            <DialogHeader className="border-b border-[#d8d0c2] px-5 py-4 pr-14 dark:border-[#38372f]">
+          <div className="flex max-h-[min(900px,calc(100vh-32px))] min-h-0 flex-col">
+            <DialogHeader className="border-b border-[#d8d0c2]/80 bg-[#fffaf1]/72 px-5 py-5 pr-14 dark:border-[#38372f]/80 dark:bg-white/5 sm:px-6">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Badge
                   variant="outline"
-                  className="h-6 rounded-[7px] border-[#2456e8]/30 bg-[#edf2ff] text-[#1237b4] dark:border-[#7895ff]/30 dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]"
+                  className="h-6 rounded-full border-[#2456e8]/30 bg-[#edf2ff] px-2.5 text-[#1237b4] dark:border-[#7895ff]/30 dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]"
                 >
                   {report.category}
                 </Badge>
                 <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
-                  {new Intl.DateTimeFormat("vi-VN", {
+                  {new Intl.DateTimeFormat("en", {
                     day: "2-digit",
-                    month: "2-digit",
+                    month: "short",
                     year: "numeric",
                   }).format(new Date(report.createdAt))}
                   {" / "}
@@ -78,22 +84,22 @@ export function ReportDetailDialog({
                   </DialogDescription>
                 </div>
                 <Button
-                  className="h-9 rounded-[7px] bg-[#2456e8] px-3 text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
+                  className="h-10 rounded-full bg-[#2456e8] px-4 text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
                   onClick={() => onDownload(report)}
                 >
                   <DownloadIcon data-icon="inline-start" />
-                  Tải xuống Report
+                  Download report
                 </Button>
               </div>
             </DialogHeader>
 
-            <div className="min-h-0 overflow-y-auto px-5 py-5">
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_336px]">
                 <article className="grid gap-5">
-                  <section className="grid gap-3 rounded-[8px] border border-[#d8d0c2] bg-[#fffaf1]/72 p-4 dark:border-[#38372f] dark:bg-white/5">
+                  <section className="grid gap-3 rounded-[22px] border border-[#d8d0c2]/80 bg-[#fffaf1]/72 p-5 dark:border-[#38372f]/80 dark:bg-white/5">
                     <div className="flex items-center gap-2 text-sm font-semibold">
                       <FileTextIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
-                      Nội dung phân tích
+                      Analysis narrative
                     </div>
                     <div className="grid gap-3 text-sm leading-7 text-[#4f4a42] dark:text-[#d5cec1]">
                       {report.detail.body.map((paragraph) => (
@@ -102,12 +108,15 @@ export function ReportDetailDialog({
                     </div>
                   </section>
 
-                  <section className="rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8] p-4 dark:border-[#38372f] dark:bg-[#1a1a17]">
-                    <h3 className="text-sm font-semibold">Bảng phát hiện chính</h3>
-                    <div className="mt-3 overflow-hidden rounded-[8px] border border-[#d8d0c2] dark:border-[#38372f]">
+                  <section className="rounded-[22px] border border-[#d8d0c2]/80 bg-[#fffdf8]/82 p-5 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/82">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold">
+                      <Table2Icon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
+                      Key findings
+                    </h3>
+                    <div className="mt-3 overflow-hidden rounded-[16px] border border-[#d8d0c2]/80 dark:border-[#38372f]/80">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-[#f4efe5] hover:bg-[#f4efe5] dark:bg-white/5 dark:hover:bg-white/5">
+                          <TableRow className="bg-[#f4efe5]/84 hover:bg-[#f4efe5]/84 dark:bg-white/5 dark:hover:bg-white/5">
                             <TableHead className="text-xs">Dimension</TableHead>
                             <TableHead className="text-xs">Finding</TableHead>
                             <TableHead className="text-xs">Owner</TableHead>
@@ -127,7 +136,10 @@ export function ReportDetailDialog({
                                 {row.owner}
                               </TableCell>
                               <TableCell>
-                                <Badge variant="outline" className="rounded-[7px]">
+                                <Badge
+                                  variant="outline"
+                                  className="rounded-full px-2.5"
+                                >
                                   {row.status}
                                 </Badge>
                               </TableCell>
@@ -140,18 +152,23 @@ export function ReportDetailDialog({
                 </article>
 
                 <aside className="grid gap-4 self-start">
-                  <section className="grid gap-3 rounded-[8px] border border-[#d8d0c2] bg-[#fffaf1]/72 p-4 dark:border-[#38372f] dark:bg-white/5">
-                    <h3 className="text-sm font-semibold">Chỉ số nổi bật</h3>
+                  <section className="grid gap-3 rounded-[22px] border border-[#d8d0c2]/80 bg-[#fffaf1]/72 p-5 dark:border-[#38372f]/80 dark:bg-white/5">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold">
+                      <GaugeIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
+                      Highlighted metrics
+                    </h3>
                     <div className="grid gap-2">
                       {report.detail.metrics.map((metric) => (
                         <div
                           key={metric.label}
                           className={cn(
-                            "rounded-[8px] border p-3",
+                            "rounded-[16px] border p-3.5",
                             metricToneClasses[metric.tone],
                           )}
                         >
-                          <div className="text-xs opacity-78">{metric.label}</div>
+                          <div className="text-xs opacity-78">
+                            {metric.label}
+                          </div>
                           <div className="mt-1 flex items-end justify-between gap-3">
                             <strong className="text-xl leading-none">
                               {metric.value}
@@ -165,14 +182,22 @@ export function ReportDetailDialog({
                     </div>
                   </section>
 
-                  <section className="rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8] p-4 dark:border-[#38372f] dark:bg-[#1a1a17]">
-                    <h3 className="text-sm font-semibold">Biểu đồ mẫu</h3>
-                    <div className="mt-4 flex h-48 items-end gap-3 border-b border-l border-[#d8d0c2] px-3 pb-3 dark:border-[#38372f]">
+                  <section className="rounded-[22px] border border-[#d8d0c2]/80 bg-[#fffdf8]/82 p-5 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/82">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold">
+                      <BarChart3Icon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
+                      Sample chart
+                    </h3>
+                    <div className="mt-4 flex h-48 items-end gap-3 rounded-[16px] border border-[#d8d0c2]/80 bg-[#fffaf1]/56 px-3 pb-3 pt-4 dark:border-[#38372f]/80 dark:bg-white/5">
                       {report.detail.chart.map((point) => (
-                        <div key={point.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2">
+                        <div
+                          key={point.label}
+                          className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2"
+                        >
                           <span
-                            className="w-full rounded-t-[5px] bg-[#2456e8] dark:bg-[#7895ff]"
-                            style={{ height: `${Math.max(12, (point.value / maxValue) * 100)}%` }}
+                            className="w-full rounded-t-[8px] bg-[#2456e8] dark:bg-[#7895ff]"
+                            style={{
+                              height: `${Math.max(12, (point.value / maxValue) * 100)}%`,
+                            }}
                           />
                           <span className="w-full truncate text-center text-[11px] text-[#6d685e] dark:text-[#aaa397]">
                             {point.label}

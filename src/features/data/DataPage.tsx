@@ -60,10 +60,14 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
 
   return (
     <section
-      className="min-h-screen w-full overflow-x-hidden px-5 pb-10 pt-20 sm:px-8 md:pt-10"
+      className="relative min-h-screen w-full overflow-x-hidden px-5 pb-12 pt-20 sm:px-8 md:pt-10"
       aria-label="Data management"
     >
-      <div className="mx-auto grid w-full max-w-[1320px] gap-5">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_76%_8%,rgba(36,86,232,0.12),transparent_34%),radial-gradient(circle_at_8%_42%,rgba(120,75,18,0.10),transparent_36%)] dark:bg-[radial-gradient(circle_at_76%_8%,rgba(120,149,255,0.12),transparent_34%)]"
+        aria-hidden="true"
+      />
+      <div className="mx-auto grid w-full max-w-[1360px] gap-6">
         <DataDashboardHeader
           organizationId={snapshot?.organizationId ?? defaultOrganizationId}
           refreshing={loading}
@@ -74,7 +78,7 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
         {error && (
           <Alert
             variant="destructive"
-            className="border-rose-300/70 bg-rose-50/90 pr-24 dark:border-rose-400/25 dark:bg-rose-400/10"
+            className="rounded-[18px] border-rose-300/70 bg-rose-50/90 pr-24 shadow-[0_14px_38px_rgba(136,19,55,0.08)] dark:border-rose-400/25 dark:bg-rose-400/10"
           >
             <ServerCrashIcon />
             <AlertTitle>Data services are unavailable</AlertTitle>
@@ -83,7 +87,7 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-white/70 dark:bg-[#1a1a17]"
+                className="rounded-full bg-white/70 dark:bg-[#1a1a17]"
                 onClick={refresh}
               >
                 Retry
@@ -95,7 +99,7 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
         {snapshot?.warnings.map((warning) => (
           <Alert
             key={warning}
-            className="border-amber-300/70 bg-amber-50/80 text-amber-950 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100"
+            className="rounded-[18px] border-amber-300/70 bg-amber-50/80 text-amber-950 shadow-[0_14px_38px_rgba(120,75,18,0.08)] dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100"
           >
             <AlertTriangleIcon />
             <AlertTitle>Partial service availability</AlertTitle>
@@ -116,30 +120,29 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
 
         <Tabs defaultValue="files" className="gap-0">
           <section
-            className="overflow-hidden rounded-[8px] border border-[#d8d0c2] bg-[#fffdf8]/88 shadow-[0_14px_38px_rgba(19,18,14,0.06)] dark:border-[#38372f] dark:bg-[#1a1a17]/88"
+            className="overflow-hidden rounded-[28px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 shadow-[0_24px_70px_rgba(24,24,18,0.09)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88"
             aria-label="Data inventory and ingestion activity"
           >
-            <div className="flex flex-col gap-3 border-b border-[#d8d0c2] px-4 pt-4 sm:flex-row sm:items-end sm:justify-between dark:border-[#38372f]">
-              <div className="pb-3">
-                <h2 className="text-sm font-semibold text-[#191915] dark:text-[#f4efe5]">
+            <div className="flex flex-col gap-4 border-b border-[#d8d0c2]/80 bg-[#fffdf8]/54 px-5 py-5 sm:flex-row sm:items-end sm:justify-between dark:border-[#38372f]/80 dark:bg-white/4">
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-[#191915] dark:text-[#f4efe5]">
                   Organization data
                 </h2>
-                <p className="mt-0.5 text-xs text-[#6d685e] dark:text-[#aaa397]">
+                <p className="mt-1 text-sm text-[#6d685e] dark:text-[#aaa397]">
                   Bucket: {snapshot?.bucket ?? defaultOrganizationId}
                 </p>
               </div>
               <TabsList
-                variant="line"
-                className="h-9 w-full justify-start sm:w-auto"
+                className="h-10 w-full justify-start rounded-full border border-[#d8d0c2]/70 bg-[#f4efe5]/70 p-1 sm:w-auto dark:border-[#38372f]/80 dark:bg-white/5"
                 aria-label="Data views"
               >
-                <TabsTrigger value="files" className="px-3">
+                <TabsTrigger value="files" className="rounded-full px-4">
                   Files
                   <span className="tabular-nums text-[11px] text-[#8a8377]">
                     {files.length}
                   </span>
                 </TabsTrigger>
-                <TabsTrigger value="jobs" className="px-3">
+                <TabsTrigger value="jobs" className="rounded-full px-4">
                   Ingestion jobs
                   <span className="tabular-nums text-[11px] text-[#8a8377]">
                     {ingestionJobs.length}

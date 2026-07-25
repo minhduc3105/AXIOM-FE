@@ -5,6 +5,14 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -64,7 +72,7 @@ function formatStatusDetail(value: string) {
 function DataTableSkeleton() {
   return (
     <Table className="min-w-[920px]">
-      <TableHeader className="bg-[#f4efe5]/75 dark:bg-white/4">
+      <TableHeader className="bg-[#f4efe5]/70 dark:bg-white/4">
         <TableRow className="hover:bg-transparent">
           {["File", "Status", "Last modified", "Size", ""].map(
             (heading, index) => (
@@ -146,33 +154,37 @@ export function DataTable({
 
   return (
     <>
-      <div className="flex flex-col gap-3 border-b border-[#d8d0c2] bg-[#fffdf8]/60 px-4 py-3 sm:flex-row sm:items-center dark:border-[#38372f] dark:bg-[#1a1a17]/60">
-        <label className="relative min-w-0 flex-1 sm:max-w-sm">
+      <div className="flex flex-col gap-3 border-b border-[#d8d0c2]/78 bg-[#fffdf8]/48 px-5 py-4 sm:flex-row sm:items-center dark:border-[#38372f]/82 dark:bg-white/4">
+        <label className="relative min-w-0 flex-1 sm:max-w-md">
           <span className="sr-only">Search files</span>
           <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8377]" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search files"
-            className="h-9 rounded-[7px] bg-[#fffdf8] pl-9 dark:bg-[#20201c]"
+            className="h-10 rounded-full border-[#d8d0c2]/80 bg-[#fffdf8]/84 pl-9 shadow-[0_10px_24px_rgba(24,24,18,0.04)] dark:border-[#403f36] dark:bg-[#20201c]/86"
           />
         </label>
-        <label className="flex items-center gap-2 text-xs font-medium text-[#6d685e] dark:text-[#aaa397]">
+        <div className="flex items-center gap-2 text-xs font-medium text-[#6d685e] dark:text-[#aaa397]">
           <span>Status</span>
-          <select
+          <Select
             value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value as StatusFilter)
-            }
-            className="h-9 min-w-[132px] rounded-[7px] border border-[#d8d0c2] bg-[#fffdf8] px-3 text-sm text-[#191915] outline-none focus:border-[#2456e8] focus:ring-3 focus:ring-[#2456e8]/15 dark:border-[#403f36] dark:bg-[#20201c] dark:text-[#f4efe5]"
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
           >
-            <option value="all">All statuses</option>
-            <option value="success">Success</option>
-            <option value="processing">Processing</option>
-            <option value="failed">Failed</option>
-          </select>
-        </label>
-        <span className="text-xs tabular-nums text-[#6d685e] dark:text-[#aaa397]">
+            <SelectTrigger className="h-10 min-w-[148px] rounded-full bg-[#fffdf8]/84 shadow-[0_10px_24px_rgba(24,24,18,0.04)] dark:bg-[#20201c]/86">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+        <span className="rounded-full border border-[#d8d0c2]/70 bg-[#f4efe5]/64 px-3 py-2 text-xs tabular-nums text-[#6d685e] dark:border-[#38372f] dark:bg-white/5 dark:text-[#aaa397]">
           {filteredFiles.length} of {files.length}
         </span>
       </div>
@@ -184,7 +196,7 @@ export function DataTable({
         />
       ) : (
         <Table className="min-w-[920px]">
-          <TableHeader className="bg-[#f4efe5]/75 dark:bg-white/4">
+          <TableHeader className="bg-[#f4efe5]/70 dark:bg-white/4">
             <TableRow className="hover:bg-transparent">
               <TableHead className="h-11 w-[42%] px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
                 File
@@ -207,11 +219,11 @@ export function DataTable({
             {filteredFiles.map((file) => (
               <TableRow
                 key={file.key}
-                className="group hover:bg-[#f4efe5]/55 dark:hover:bg-white/4"
+                className="group hover:bg-[#f4efe5]/52 dark:hover:bg-white/4"
               >
                 <TableCell className="max-w-0 px-4 py-3.5">
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-[7px] border border-[#d8d0c2] bg-[#f4efe5] text-[#2456e8] dark:border-[#38372f] dark:bg-[#292923] dark:text-[#9aafff]">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-[12px] border border-[#d8d0c2]/84 bg-[#f4efe5]/86 text-[#2456e8] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.36)] dark:border-[#38372f] dark:bg-[#292923] dark:text-[#9aafff]">
                       <FileIcon className="size-4" />
                     </span>
                     <div className="min-w-0">
