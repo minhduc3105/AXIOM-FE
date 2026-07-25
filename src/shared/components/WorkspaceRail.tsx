@@ -114,9 +114,10 @@ function RailContent({
         )}
       >
         {expanded ? (
-          <button
+          <Button
             type="button"
-            className="flex min-w-0 items-center gap-3 rounded-xl text-left outline-none transition-opacity hover:opacity-80 focus-visible:ring-3 focus-visible:ring-[#2456e8]/30 dark:focus-visible:ring-[#7895ff]/35"
+            variant="ghost"
+            className="h-12 min-w-0 justify-start gap-3 rounded-xl px-0 text-left hover:bg-transparent hover:text-inherit hover:opacity-80"
             onClick={onHome}
             aria-label="Go to AXIOM home"
           >
@@ -129,7 +130,7 @@ function RailContent({
             <span className="min-w-0 text-[15px] font-bold tracking-[0.08em]">
               AXIOM
             </span>
-          </button>
+          </Button>
         ) : (
           <div className="group/logo relative size-11 shrink-0">
             <img
