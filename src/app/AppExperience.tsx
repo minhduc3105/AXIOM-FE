@@ -6,6 +6,7 @@ import { IngestionPage } from "@/features/ingestion/IngestionPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { AppShell } from "./AppShell";
 import {
+  createChatHomeRoute,
   createChatRoute,
   createDataIngestionRoute,
   createDataRoute,
@@ -41,6 +42,11 @@ export function AppExperience() {
   const newChat = useCallback(() => {
     chat.newChat();
     navigate(createChatRoute());
+  }, [chat.newChat, navigate]);
+
+  const openHome = useCallback(() => {
+    chat.newChat();
+    navigate(createChatHomeRoute());
   }, [chat.newChat, navigate]);
 
   const openData = useCallback(() => {
@@ -84,6 +90,8 @@ export function AppExperience() {
       activeStage={chat.stage}
       surface={route.surface}
       activeConversationId={route.surface === "chat" ? route.sessionId : null}
+      showCommandBar={route.surface === "chat" && route.page === "home"}
+      onHome={openHome}
       onNewChat={newChat}
       onConversationOpen={openConversation}
       onData={openData}
@@ -100,6 +108,7 @@ export function AppExperience() {
           history={chat.history}
           error={chat.error}
           loading={chat.loading}
+          mode={route.page === "home" ? "home" : "chat"}
           onSubmit={submitQuestion}
           onSpecificationChange={chat.updateSpecification}
           onSpecificationRevise={chat.reviseSpecification}

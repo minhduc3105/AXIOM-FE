@@ -22,7 +22,11 @@ export function WorkspaceCommandBar({
           AXIOM workspace
         </span>
         <strong>
-          {surface === "chat" ? "Investigation" : surface === "data" ? "Data" : "Reports"}
+          {surface === "chat"
+            ? "Investigation"
+            : surface === "data"
+              ? "Data"
+              : "Reports"}
         </strong>
       </div>
       <div className="flex items-center gap-2">

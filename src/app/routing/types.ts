@@ -1,7 +1,8 @@
 export type AppSurface = "chat" | "data" | "reports";
 
 export type AppRoute =
-  | { surface: "chat"; sessionId: string | null }
+  | { surface: "chat"; page: "home" | "compose"; sessionId: null }
+  | { surface: "chat"; page: "conversation"; sessionId: string }
   | {
       surface: "data";
       page: "dashboard" | "ingestion";

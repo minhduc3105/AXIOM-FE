@@ -25,6 +25,7 @@ type ChatPageProps = {
   history: ChatTurn[];
   error: string | null;
   loading: boolean;
+  mode: "home" | "chat";
   onSubmit: (value: string) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
   onSpecificationRevise: (feedback: string) => void;
@@ -45,6 +46,7 @@ export function ChatPage({
   history,
   error,
   loading,
+  mode,
   onSubmit,
   onSpecificationChange,
   onSpecificationRevise,
@@ -76,6 +78,10 @@ export function ChatPage({
   }, [history.length, processSignature, stage]);
 
   if (stage === "welcome") {
+    if (mode === "chat") {
+      return <EmptyChatWorkspace onSubmit={onSubmit} loading={loading} />;
+    }
+
     return (
       <section
         className="min-h-screen w-full overflow-x-hidden"
@@ -178,6 +184,38 @@ export function ChatPage({
             placeholder="Ask a follow-up or start another investigation..."
           />
         )}
+      </div>
+    </section>
+  );
+}
+
+function EmptyChatWorkspace({
+  onSubmit,
+  loading,
+}: {
+  onSubmit: (value: string) => void;
+  loading: boolean;
+}) {
+  return (
+    <section
+      className="grid min-h-screen w-full place-items-center overflow-hidden px-5 py-10"
+      aria-label="New chat"
+    >
+      <div className="flex w-full max-w-3xl flex-col items-center gap-8">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <h1 className="text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
+            What can I help with?
+          </h1>
+          <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+            Start a new AXIOM investigation, ask for analysis, or request a
+            report draft.
+          </p>
+        </div>
+        <ChatComposer
+          onSubmit={onSubmit}
+          disabled={loading}
+          placeholder="Message AXIOM..."
+        />
       </div>
     </section>
   );

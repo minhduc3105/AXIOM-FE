@@ -43,6 +43,7 @@ type WorkspaceRailProps = {
   expanded: boolean;
   activeConversationId: string | null;
   onExpandedChange: (expanded: boolean) => void;
+  onHome: () => void;
   onNewChat: () => void;
   onConversationOpen: (conversationId: string) => void;
   onData: () => void;
@@ -57,6 +58,7 @@ function RailContent({
   surface,
   expanded,
   onExpandedChange,
+  onHome,
   onNewChat,
   onConversationOpen,
   onData,
@@ -77,9 +79,12 @@ function RailContent({
     listConversations(controller.signal)
       .then((items) => setConversations(items))
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
         setConversationsError(
-          error instanceof Error ? error.message : "Unable to load recent work.",
+          error instanceof Error
+            ? error.message
+            : "Unable to load recent work.",
         );
       })
       .finally(() => {
@@ -106,50 +111,49 @@ function RailContent({
             : "grid justify-items-center",
         )}
       >
-        <div
-          className={cn(
-            "min-w-0 gap-3",
-            expanded ? "flex items-center" : "grid justify-items-center",
-          )}
-        >
+        {expanded ? (
+          <button
+            type="button"
+            className="flex min-w-0 items-center gap-3 rounded-xl text-left outline-none transition-opacity hover:opacity-80 focus-visible:ring-3 focus-visible:ring-[#2456e8]/30 dark:focus-visible:ring-[#7895ff]/35"
+            onClick={onHome}
+            aria-label="Go to AXIOM home"
+          >
+            <img
+              src="/assets/logo.png"
+              alt=""
+              className="size-11 shrink-0 object-contain"
+              aria-hidden="true"
+            />
+            <span className="min-w-0 text-[15px] font-bold tracking-[0.08em]">
+              AXIOM
+            </span>
+          </button>
+        ) : (
           <div className="group/logo relative size-11 shrink-0">
             <img
               src="/assets/logo.png"
               alt=""
-              className={cn(
-                "size-11 object-contain transition-opacity duration-200",
-                !expanded && "group-hover/logo:opacity-0",
-              )}
+              className="size-11 object-contain transition-opacity duration-200 group-hover/logo:opacity-0"
               aria-hidden="true"
             />
-            {!expanded && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute inset-0 size-11 rounded-xl opacity-0 transition-opacity duration-200 pointer-events-none group-hover/logo:pointer-events-auto group-hover/logo:opacity-100 text-[#6d685e] hover:bg-[#ebe4d8] hover:text-[#191915] focus-visible:pointer-events-auto focus-visible:opacity-100 dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-white"
-                      aria-label="Expand workspace navigation"
-                      onClick={() => onExpandedChange(true)}
-                    />
-                  }
-                >
-                  <PanelLeftOpenIcon />
-                </TooltipTrigger>
-                <TooltipContent>Expand navigation</TooltipContent>
-              </Tooltip>
-            )}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute inset-0 size-11 rounded-xl opacity-0 transition-opacity duration-200 pointer-events-none group-hover/logo:pointer-events-auto group-hover/logo:opacity-100 text-[#6d685e] hover:bg-[#ebe4d8] hover:text-[#191915] focus-visible:pointer-events-auto focus-visible:opacity-100 dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-white"
+                    aria-label="Expand workspace navigation"
+                    onClick={() => onExpandedChange(true)}
+                  />
+                }
+              >
+                <PanelLeftOpenIcon />
+              </TooltipTrigger>
+              <TooltipContent>Expand navigation</TooltipContent>
+            </Tooltip>
           </div>
-          <span
-            className={cn(
-              "min-w-0 text-[15px] font-bold tracking-[0.08em] transition-opacity duration-300",
-              expanded ? "opacity-100" : "hidden",
-            )}
-          >
-            AXIOM
-          </span>
-        </div>
+        )}
         {expanded && (
           <Tooltip>
             <TooltipTrigger
@@ -170,12 +174,7 @@ function RailContent({
         )}
       </div>
 
-      {!expanded && (
-        <Separator
-          className="w-8"
-          aria-hidden="true"
-        />
-      )}
+      {!expanded && <Separator className="w-8" aria-hidden="true" />}
 
       <Button
         className={cn(
@@ -215,10 +214,7 @@ function RailContent({
           {conversationsLoading && conversations.length === 0 ? (
             <div className="grid gap-1.5" aria-live="polite">
               {Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton
-                  className="h-9 rounded-xl"
-                  key={index}
-                />
+                <Skeleton className="h-9 rounded-xl" key={index} />
               ))}
             </div>
           ) : conversationsError ? (
@@ -271,11 +267,7 @@ function RailContent({
         />
       )}
 
-      <div
-        className={cn(
-          expanded ? "grid gap-3" : "grid w-full gap-3",
-        )}
-      >
+      <div className={cn(expanded ? "grid gap-3" : "grid w-full gap-3")}>
         <nav
           className={cn(
             "grid",
@@ -408,7 +400,9 @@ function RailContent({
         <div
           className={cn(
             "min-w-0",
-            expanded ? "flex items-center gap-3" : "grid w-full justify-items-center",
+            expanded
+              ? "flex items-center gap-3"
+              : "grid w-full justify-items-center",
           )}
         >
           <Avatar
@@ -472,6 +466,10 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
             {...props}
             expanded
             onExpandedChange={() => setMobileOpen(false)}
+            onHome={() => {
+              props.onHome();
+              setMobileOpen(false);
+            }}
             onNewChat={() => {
               props.onNewChat();
               setMobileOpen(false);
