@@ -32,7 +32,7 @@ type ChatPageProps = {
   onApproveAndRun: () => void;
   onRetryProcess: () => void;
   onCloseEvidence: () => void;
-  onIngestion: () => void;
+  onData: () => void;
 };
 
 export function ChatPage({
@@ -52,7 +52,7 @@ export function ChatPage({
   onApproveAndRun,
   onRetryProcess,
   onCloseEvidence,
-  onIngestion,
+  onData,
 }: ChatPageProps) {
   const chatMainRef = useRef<HTMLDivElement>(null);
   const processSignature = useMemo(
@@ -81,7 +81,7 @@ export function ChatPage({
         className="min-h-screen w-full overflow-x-hidden"
         aria-label="Investigation welcome"
       >
-        <WelcomeWorkspace onSubmit={onSubmit} onIngestion={onIngestion} />
+        <WelcomeWorkspace onSubmit={onSubmit} onData={onData} />
       </section>
     );
   }

@@ -15,6 +15,7 @@ import { useIngestionWorkflow } from './model/useIngestionWorkflow'
 
 type IngestionPageProps = {
   onBack: () => void
+  backLabel?: string
 }
 
 const pageTitles = {
@@ -31,7 +32,7 @@ const pageTitles = {
   index: 'Index ready with searchable evidence',
 } as const
 
-export function IngestionPage({ onBack }: IngestionPageProps) {
+export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
   const workflow = useIngestionWorkflow()
   const source = workflow.source
   const repoMessage = workflow.stage === 'source'
@@ -78,6 +79,7 @@ export function IngestionPage({ onBack }: IngestionPageProps) {
     furthest={workflow.furthestProgress}
     error={workflow.error}
     onBack={onBack}
+    backLabel={backLabel}
     onNavigate={workflow.navigateProgress}
   >
       {workflow.stage === 'source' && <ChooseSource onUpload={workflow.addFiles} onConnect={workflow.openCatalog} />}

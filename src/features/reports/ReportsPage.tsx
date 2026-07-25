@@ -9,7 +9,7 @@ import { mockReports } from "./model/mockReports";
 import type { Report } from "./model/types";
 
 type ReportsPageProps = {
-  onIngestion: () => void;
+  onData: () => void;
 };
 
 function createReportDownload(report: Report) {
@@ -56,7 +56,7 @@ function createReportDownload(report: Report) {
   URL.revokeObjectURL(url);
 }
 
-export function ReportsPage({ onIngestion }: ReportsPageProps) {
+export function ReportsPage({ onData }: ReportsPageProps) {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const reports = useMemo(() => mockReports, []);
 
@@ -105,10 +105,10 @@ export function ReportsPage({ onIngestion }: ReportsPageProps) {
               <Button
                 variant="outline"
                 className="h-10 justify-start rounded-[7px] border-[#d8d0c2] bg-[#fffdf8] px-3 text-[#25241f] hover:bg-[#f4efe5] dark:border-[#38372f] dark:bg-[#20201c] dark:text-[#eee8dc]"
-                onClick={onIngestion}
+                onClick={onData}
               >
                 <DatabaseIcon data-icon="inline-start" />
-                Data Ingest Setting
+                Data
               </Button>
               <Button className="h-10 justify-start rounded-[7px] bg-[#2456e8] px-3 text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]">
                 <FileTextIcon data-icon="inline-start" />

@@ -2,15 +2,23 @@ import type { AppRoute } from "./types";
 
 const ROUTE_SEGMENTS = {
   chat: "chat",
-  ingestion: "ingest",
+  data: "data",
   reports: "reports",
 } as const;
 
 export function parseAppRoute(pathname: string): AppRoute {
   const segments = pathname.split("/").filter(Boolean);
 
-  if (segments[0] === ROUTE_SEGMENTS.ingestion) {
-    return { surface: "ingestion", sessionId: null };
+  if (segments[0] === ROUTE_SEGMENTS.data) {
+    return {
+      surface: "data",
+      page: segments[1] === "ingestion" ? "ingestion" : "dashboard",
+      sessionId: null,
+    };
+  }
+
+  if (segments[0] === "ingest") {
+    return { surface: "data", page: "ingestion", sessionId: null };
   }
 
   if (segments[0] === ROUTE_SEGMENTS.reports) {
@@ -25,7 +33,11 @@ export function parseAppRoute(pathname: string): AppRoute {
 }
 
 export function getAppRoutePath(route: AppRoute) {
-  if (route.surface === "ingestion") return `/${ROUTE_SEGMENTS.ingestion}`;
+  if (route.surface === "data") {
+    return route.page === "ingestion"
+      ? `/${ROUTE_SEGMENTS.data}/ingestion`
+      : `/${ROUTE_SEGMENTS.data}`;
+  }
   if (route.surface === "reports") return `/${ROUTE_SEGMENTS.reports}`;
   return route.sessionId
     ? `/${ROUTE_SEGMENTS.chat}/${route.sessionId}`
@@ -36,8 +48,12 @@ export function createChatRoute(sessionId: string | null = null): AppRoute {
   return { surface: "chat", sessionId };
 }
 
-export function createIngestionRoute(): AppRoute {
-  return { surface: "ingestion", sessionId: null };
+export function createDataRoute(): AppRoute {
+  return { surface: "data", page: "dashboard", sessionId: null };
+}
+
+export function createDataIngestionRoute(): AppRoute {
+  return { surface: "data", page: "ingestion", sessionId: null };
 }
 
 export function createReportsRoute(): AppRoute {

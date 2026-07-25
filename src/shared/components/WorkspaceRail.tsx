@@ -45,7 +45,7 @@ type WorkspaceRailProps = {
   onExpandedChange: (expanded: boolean) => void;
   onNewChat: () => void;
   onConversationOpen: (conversationId: string) => void;
-  onIngestion: () => void;
+  onData: () => void;
   onReports: () => void;
 };
 
@@ -59,7 +59,7 @@ function RailContent({
   onExpandedChange,
   onNewChat,
   onConversationOpen,
-  onIngestion,
+  onData,
   onReports,
 }: WorkspaceRailProps) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -299,9 +299,9 @@ function RailContent({
                   ? "w-full justify-start px-3"
                   : "size-11 justify-center px-0",
               )}
-              data-active={surface === "ingestion"}
-              onClick={onIngestion}
-              aria-label="Data Ingest Setting"
+              data-active={surface === "data"}
+              onClick={onData}
+              aria-label="Data"
             >
               <DatabaseIcon data-icon="inline-start" />
               <span
@@ -312,7 +312,7 @@ function RailContent({
                     : "pointer-events-none w-0 overflow-hidden opacity-0",
                 )}
               >
-                Data Ingest Setting
+                Data
               </span>
             </Button>
             <Button
@@ -465,7 +465,7 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
           <SheetHeader className="sr-only">
             <SheetTitle>Workspace navigation</SheetTitle>
             <SheetDescription>
-              Open conversations, Data Ingest Setting, Report, and account controls.
+              Open conversations, Data, Report, and account controls.
             </SheetDescription>
           </SheetHeader>
           <RailContent
@@ -480,8 +480,8 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
               props.onConversationOpen(conversationId);
               setMobileOpen(false);
             }}
-            onIngestion={() => {
-              props.onIngestion();
+            onData={() => {
+              props.onData();
               setMobileOpen(false);
             }}
             onReports={() => {

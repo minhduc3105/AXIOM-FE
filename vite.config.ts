@@ -11,15 +11,24 @@ export default defineConfig({
         target: 'http://localhost:8007',
         changeOrigin: true,
       },
-    },
-  },
-  resolve: {
-    alias: {
-      '@': '/src',
-    },
-  },
-  server: {
-    proxy: {
+      '/document-api': {
+        target: 'http://localhost:38001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/document-api/, ''),
+      },
+      '/corpus-api': {
+        target: 'http://localhost:38002',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/corpus-api/, ''),
+      },
+      '/storage': {
+        target: 'http://localhost:30443',
+        changeOrigin: false,
+        headers: {
+          host: 'minio:9000',
+        },
+        rewrite: (path) => path.replace(/^\/storage/, ''),
+      },
       '/api/document': {
         target: 'http://localhost:38001',
         changeOrigin: true,
@@ -30,6 +39,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/corpus/, '/api/v1'),
       },
+    },
+  },
+  resolve: {
+    alias: {
+      '@': '/src',
     },
   },
   test: {

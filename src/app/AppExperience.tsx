@@ -1,35 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
+import { DataPage } from "@/features/data/DataPage";
 import { IngestionPage } from "@/features/ingestion/IngestionPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { AppShell } from "./AppShell";
 import {
   createChatRoute,
-  createIngestionRoute,
+  createDataIngestionRoute,
+  createDataRoute,
   createReportsRoute,
-  parseAppRoute,
 } from "./routing/paths";
 import { useAppRoute } from "./routing/useAppRoute";
 import { createConversation } from "@/shared/lib/intelligence-api";
 
 export function AppExperience() {
   const { route, navigate } = useAppRoute();
-  const [lastChatSessionId, setLastChatSessionId] = useState<string | null>(
-    () => {
-      const initialRoute = parseAppRoute(window.location.pathname);
-      return initialRoute.surface === "chat" ? initialRoute.sessionId : null;
-    },
-  );
   const chat = useChatWorkflow();
   const hydratedConversationIdRef = useRef<string | null>(null);
   const skipNextHydrationRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (route.surface === "chat") {
-      setLastChatSessionId(route.sessionId);
-    }
-  }, [route]);
 
   useEffect(() => {
     if (route.surface !== "chat" || !route.sessionId) {
@@ -54,8 +43,12 @@ export function AppExperience() {
     navigate(createChatRoute());
   }, [chat.newChat, navigate]);
 
-  const openIngestion = useCallback(() => {
-    navigate(createIngestionRoute());
+  const openData = useCallback(() => {
+    navigate(createDataRoute());
+  }, [navigate]);
+
+  const openDataIngestion = useCallback(() => {
+    navigate(createDataIngestionRoute());
   }, [navigate]);
 
   const openReports = useCallback(() => {
@@ -93,7 +86,7 @@ export function AppExperience() {
       activeConversationId={route.surface === "chat" ? route.sessionId : null}
       onNewChat={newChat}
       onConversationOpen={openConversation}
-      onIngestion={openIngestion}
+      onData={openData}
       onReports={openReports}
     >
       {route.surface === "chat" ? (
@@ -114,14 +107,14 @@ export function AppExperience() {
           onApproveAndRun={chat.approveAndRun}
           onRetryProcess={chat.retryProcess}
           onCloseEvidence={chat.closeEvidence}
-          onIngestion={openIngestion}
+          onData={openData}
         />
-      ) : route.surface === "ingestion" ? (
-        <IngestionPage
-          onBack={() => navigate(createChatRoute(lastChatSessionId))}
-        />
+      ) : route.surface === "data" && route.page === "ingestion" ? (
+        <IngestionPage onBack={openData} backLabel="Back to data" />
+      ) : route.surface === "data" ? (
+        <DataPage onCreateIngestion={openDataIngestion} />
       ) : (
-        <ReportsPage onIngestion={openIngestion} />
+        <ReportsPage onData={openData} />
       )}
     </AppShell>
   );

@@ -11,7 +11,7 @@ type AppShellProps = {
   activeConversationId: string | null;
   onNewChat: () => void;
   onConversationOpen: (conversationId: string) => void;
-  onIngestion: () => void;
+  onData: () => void;
   onReports: () => void;
   children: React.ReactNode;
 };
@@ -22,7 +22,7 @@ export function AppShell({
   activeConversationId,
   onNewChat,
   onConversationOpen,
-  onIngestion,
+  onData,
   onReports,
   children,
 }: AppShellProps) {
@@ -50,7 +50,7 @@ export function AppShell({
           onExpandedChange={setExpanded}
           onNewChat={onNewChat}
           onConversationOpen={onConversationOpen}
-          onIngestion={onIngestion}
+          onData={onData}
           onReports={onReports}
         />
         <div
