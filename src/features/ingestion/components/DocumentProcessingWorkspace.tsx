@@ -1,15 +1,16 @@
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/shared/lib/utils";
+import type { DocumentProcessingStatus } from "../api/ingestionApi";
 import type {
-  DocumentProcessingStatus,
-  UploadFilesResponse,
-} from "../api/ingestionApi";
-import type { DocumentProcessingUiStatus } from "../model/types";
+  DocumentProcessingBatch,
+  DocumentProcessingUiStatus,
+} from "../model/types";
 
 type DocumentProcessingWorkspaceProps = {
-  uploadResult: UploadFilesResponse;
+  batch: DocumentProcessingBatch;
   status: DocumentProcessingUiStatus;
   results: DocumentProcessingStatus[];
   error: string | null;
@@ -35,39 +36,69 @@ const fileStateLabel: Record<FileProcessingState, string> = {
   failed: "Failed",
 };
 
+const sourceMeta = {
+  upload: {
+    label: "File upload",
+    backLabel: "Back to upload",
+  },
+  s3: {
+    label: "Amazon S3",
+    backLabel: "Back to Amazon S3",
+  },
+  snowflake: {
+    label: "Snowflake",
+    backLabel: "Back to Snowflake",
+  },
+} as const;
+
+const FILES_PER_PAGE = 50;
+
 function getDisplayName(filename: string | null, key: string) {
   if (filename) return filename;
   return key.split("/").filter(Boolean).pop() ?? key;
 }
 
 export function DocumentProcessingWorkspace({
-  uploadResult,
+  batch,
   status,
   results,
   error,
   onRetry,
   onBack,
 }: DocumentProcessingWorkspaceProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  useEffect(() => setCurrentPage(1), [batch.job_id]);
+
   const resultsByKey = new Map(
     results.map((result) => [result.object_key, result]),
   );
-  const fileStates = uploadResult.files.map((file) =>
+  const fileStates = batch.files.map((file) =>
     getFileProcessingState(resultsByKey.get(file.key)),
   );
   const indexedCount = fileStates.filter((state) => state === "indexed").length;
   const failedCount = fileStates.filter((state) => state === "failed").length;
-  const waitingCount = uploadResult.count - indexedCount - failedCount;
+  const waitingCount = batch.count - indexedCount - failedCount;
   const active = status === "polling";
+  const empty = status === "empty";
   const complete = status === "complete";
   const completedWithErrors = status === "completed_with_errors";
   const statusUnavailable = status === "status_error";
   const heading = statusUnavailable
     ? "Status unavailable"
-    : completedWithErrors
-      ? "Completed with errors"
-      : complete
-        ? "All files indexed"
-        : "Document processing";
+    : empty
+      ? "No objects to index"
+      : completedWithErrors
+        ? "Completed with errors"
+        : complete
+          ? "All files indexed"
+          : "Document processing";
+  const totalPages = Math.max(1, Math.ceil(batch.files.length / FILES_PER_PAGE));
+  const firstVisibleIndex = (currentPage - 1) * FILES_PER_PAGE;
+  const visibleFiles = batch.files.slice(
+    firstVisibleIndex,
+    firstVisibleIndex + FILES_PER_PAGE,
+  );
+  const source = sourceMeta[batch.source_kind];
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
@@ -76,7 +107,9 @@ export function DocumentProcessingWorkspace({
           <div>
             <h2 className="text-2xl font-semibold">{heading}</h2>
             <p className="mt-1 text-sm text-[#6d685e] dark:text-[#aaa397]">
-              {indexedCount} of {uploadResult.count} indexed in AXIOM Corpus
+              {empty
+                ? `${source.label} completed without creating indexable objects`
+                : `${indexedCount} of ${batch.count} indexed in AXIOM Corpus`}
             </p>
           </div>
           <Badge
@@ -88,6 +121,8 @@ export function DocumentProcessingWorkspace({
                 "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200",
               completedWithErrors &&
                 "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200",
+              empty &&
+                "border-[#d8d0c2] bg-[#f4efe5] text-[#6d685e] dark:border-[#38372f] dark:bg-[#292923] dark:text-[#aaa397]",
               statusUnavailable &&
                 "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200",
             )}
@@ -98,7 +133,9 @@ export function DocumentProcessingWorkspace({
                 ? "Indexed"
                 : completedWithErrors
                   ? "Needs attention"
-                  : "Unavailable"}
+                  : empty
+                    ? "No objects"
+                    : "Unavailable"}
           </Badge>
         </div>
 
@@ -107,9 +144,10 @@ export function DocumentProcessingWorkspace({
           role="list"
           aria-label="Document processing results"
         >
-          {uploadResult.files.map((file, index) => {
+          {visibleFiles.map((file, index) => {
+            const absoluteIndex = firstVisibleIndex + index;
             const result = resultsByKey.get(file.key);
-            const fileState = fileStates[index];
+            const fileState = fileStates[absoluteIndex];
             return (
               <article
                 className={cn(
@@ -139,7 +177,7 @@ export function DocumentProcessingWorkspace({
                     ? "✓"
                     : fileState === "failed"
                       ? "!"
-                      : index + 1}
+                      : absoluteIndex + 1}
                 </span>
                 <div className="min-w-0">
                   <strong className="block truncate">
@@ -172,7 +210,42 @@ export function DocumentProcessingWorkspace({
               </article>
             );
           })}
+          {empty && (
+            <div className="rounded-2xl border border-dashed border-[#d8d0c2] bg-[#f4efe5]/70 p-8 text-center text-sm text-[#6d685e] dark:border-[#38372f] dark:bg-[#292923]/70 dark:text-[#aaa397]">
+              The connector job completed successfully, but it did not write any
+              objects that need document indexing.
+            </div>
+          )}
         </div>
+
+        {totalPages > 1 && (
+          <nav
+            className="mt-5 flex items-center justify-between gap-3"
+            aria-label="Processing files pagination"
+          >
+            <Button
+              variant="outline"
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-[#6d685e] dark:text-[#aaa397]">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              type="button"
+              disabled={currentPage === totalPages}
+              onClick={() =>
+                setCurrentPage((page) => Math.min(totalPages, page + 1))
+              }
+            >
+              Next
+            </Button>
+          </nav>
+        )}
       </Card>
 
       <Card className="rounded-[32px] border border-[#d8d0c2] bg-[#fffdf8]/90 p-6 dark:border-[#38372f] dark:bg-[#1a1a17]/90">
@@ -183,7 +256,7 @@ export function DocumentProcessingWorkspace({
           aria-live="polite"
         >
           <div className="rounded-2xl bg-[#f4efe5] p-4 dark:bg-[#292923]">
-            <strong className="block text-2xl">{uploadResult.count}</strong>
+            <strong className="block text-2xl">{batch.count}</strong>
             <span className="text-sm text-[#6d685e] dark:text-[#aaa397]">
               Stored
             </span>
@@ -230,15 +303,21 @@ export function DocumentProcessingWorkspace({
         <dl className="mt-5 grid gap-3 rounded-2xl border border-[#d8d0c2] p-4 text-sm dark:border-[#38372f]">
           <div>
             <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6d685e] dark:text-[#aaa397]">
+              Source
+            </dt>
+            <dd className="mt-1">{source.label}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6d685e] dark:text-[#aaa397]">
               Bucket
             </dt>
-            <dd className="mt-1 break-all font-mono">{uploadResult.bucket}</dd>
+            <dd className="mt-1 break-all font-mono">{batch.bucket}</dd>
           </div>
           <div>
             <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6d685e] dark:text-[#aaa397]">
               Transfer job
             </dt>
-            <dd className="mt-1 break-all font-mono">{uploadResult.job_id}</dd>
+            <dd className="mt-1 break-all font-mono">{batch.job_id}</dd>
           </div>
         </dl>
 
@@ -258,7 +337,7 @@ export function DocumentProcessingWorkspace({
             type="button"
             onClick={onBack}
           >
-            Back to upload
+            {source.backLabel}
           </Button>
         </div>
       </Card>

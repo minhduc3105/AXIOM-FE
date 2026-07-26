@@ -14,6 +14,7 @@ type IngestionJobStatusProps = {
   error: string | null
   idleNotes: string[]
   onRetryStatus: () => void
+  onRetryFiles: () => void
   onNewImport: () => void
 }
 
@@ -39,21 +40,28 @@ export function IngestionJobStatus({
   error,
   idleNotes,
   onRetryStatus,
+  onRetryFiles,
   onNewImport,
 }: IngestionJobStatusProps) {
   const visibleStatus = status === 'submitting'
     ? 'Creating import job…'
-    : status === 'status_error'
-      ? 'Status unavailable'
-      : job
-        ? backendStatusLabel[job.status]
-        : status === 'failed'
-          ? 'Import could not start'
-          : 'Ready to import'
-  const successful = job?.status === 'completed'
-  const failed = status === 'failed' || job?.status === 'failed'
-  const active = status === 'submitting' || status === 'polling'
-  const currentStep = successful ? 2 : job?.status === 'pulling' || (job?.status === 'failed' && job.started_at) ? 1 : 0
+    : status === 'discovering_files'
+      ? 'Preparing indexing'
+      : status === 'files_error'
+        ? 'Indexing handoff failed'
+        : status === 'status_error'
+          ? 'Status unavailable'
+          : job
+            ? backendStatusLabel[job.status]
+            : status === 'failed'
+              ? 'Import could not start'
+              : 'Ready to import'
+  const sourceStored = job?.status === 'completed'
+  const successful = sourceStored && status === 'completed'
+  const jobFailed = status === 'failed' || job?.status === 'failed'
+  const failed = jobFailed || status === 'files_error'
+  const active = status === 'submitting' || status === 'polling' || status === 'discovering_files'
+  const currentStep = sourceStored ? 2 : job?.status === 'pulling' || (job?.status === 'failed' && job.started_at) ? 1 : 0
   const transferSteps = ['Job queued', 'Copying objects', 'Stored']
 
   return <Card className="rounded-[32px] border border-[#d8d0c2] bg-[#fffdf8]/90 p-6 dark:border-[#38372f] dark:bg-[#1a1a17]/90">
@@ -77,8 +85,8 @@ export function IngestionJobStatus({
 
     {(job || status === 'submitting') && <ol className="mt-5 grid grid-cols-3 gap-2" aria-label="Import progress">
       {transferSteps.map((step, index) => {
-        const complete = successful || index < currentStep
-        const current = !successful && index === currentStep
+        const complete = sourceStored || index < currentStep
+        const current = !sourceStored && index === currentStep
         const stepFailed = failed && current
         return <li
           className={cn(
@@ -103,7 +111,15 @@ export function IngestionJobStatus({
 
     {active && <div className="mt-4 flex items-center gap-3 rounded-2xl border border-[#c8d2ff] bg-[#f4f6ff] p-3 text-sm text-[#1018a2] dark:border-[#38488f] dark:bg-[#202844] dark:text-[#dfe6ff]" role="status">
       <span className="size-4 shrink-0 animate-spin rounded-full border-2 border-[#c8d2ff] border-t-[#2456e8]" />
-      <span>{status === 'submitting' ? 'Creating the import job…' : job?.status === 'pending' ? 'Waiting for the connector worker…' : 'Copying source objects into AXIOM storage…'}</span>
+      <span>
+        {status === 'submitting'
+          ? 'Creating the import job…'
+          : status === 'discovering_files'
+            ? 'Loading stored objects and preparing Corpus indexing status…'
+            : job?.status === 'pending'
+              ? 'Waiting for the connector worker…'
+              : 'Copying source objects into AXIOM storage…'}
+      </span>
     </div>}
 
     {!job && status === 'idle' && <ul className="mt-5 grid gap-2">
@@ -133,10 +149,11 @@ export function IngestionJobStatus({
     </div>}
 
     {successful && <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100">
-      Source data is stored in AXIOM. Document processing runs separately; indexing status is not available.
+      Source data is stored and linked to AXIOM's document processing tracker.
     </div>}
 
     {status === 'status_error' && <Button className="mt-5 w-full rounded-full" variant="outline" type="button" onClick={onRetryStatus}>Retry status check</Button>}
-    {failed && job && <Button className="mt-5 w-full rounded-full" variant="outline" type="button" onClick={onNewImport}>Start new import</Button>}
+    {status === 'files_error' && <Button className="mt-5 w-full rounded-full" variant="outline" type="button" onClick={onRetryFiles}>Retry indexing handoff</Button>}
+    {jobFailed && job && <Button className="mt-5 w-full rounded-full" variant="outline" type="button" onClick={onNewImport}>Start new import</Button>}
   </Card>
 }

@@ -52,16 +52,35 @@ export type ConnectorJobUiStatus =
   | 'idle'
   | 'submitting'
   | 'polling'
+  | 'discovering_files'
   | 'completed'
   | 'failed'
   | 'status_error'
+  | 'files_error'
 
 export type DocumentProcessingUiStatus =
   | 'idle'
   | 'polling'
+  | 'empty'
   | 'complete'
   | 'completed_with_errors'
   | 'status_error'
+
+export type ProcessingSourceKind = 'upload' | 's3' | 'snowflake'
+
+export type ProcessingFile = {
+  key: string
+  filename: string | null
+}
+
+export type DocumentProcessingBatch = {
+  job_id: string
+  organization_id: string
+  bucket: string
+  count: number
+  source_kind: ProcessingSourceKind
+  files: ProcessingFile[]
+}
 
 export type IngestionFile = {
   id: string
