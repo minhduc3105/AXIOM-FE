@@ -19,6 +19,19 @@ export type ProcessEvent = {
   label: string;
   detail: string;
   status: ProcessStatus;
+  phase?: string;
+  eventType?: string;
+  inputs?: unknown;
+  outputs?: unknown;
+  details?: Record<string, unknown>;
+  artifactRefs?: string[];
+  code?: {
+    name?: string;
+    language?: string;
+    content?: string;
+    truncated?: boolean;
+  };
+  error?: unknown;
 };
 
 export type ResultMetric = {

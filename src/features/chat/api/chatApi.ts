@@ -462,6 +462,7 @@ function upsertProcessEvent(
 
 function processEventFromApiEvent(event: SseEvent): ProcessEvent {
   const explicitStep = asRecord(event.step);
+  const runtimeFields = processRuntimeFields(event, explicitStep);
   const runtime = event.type === "pipeline.runtime_event";
   const eventId =
     stringValue(explicitStep.id) ||
@@ -491,7 +492,82 @@ function processEventFromApiEvent(event: SseEvent): ProcessEvent {
     label: humanizeEventName(label),
     detail,
     status: normalizeProcessStatus(event.status, event.type),
+    ...runtimeFields,
   };
+}
+
+function processRuntimeFields(
+  event: Record<string, unknown>,
+  explicitStep: Record<string, unknown> = {},
+): Partial<ProcessEvent> {
+  const details = asRecord(event.details);
+  const inputs = firstPresent(
+    details.inputs,
+    event.inputs,
+    explicitStep.inputs,
+    event.input,
+    explicitStep.input,
+    event.action_input,
+    event.actionInput,
+  );
+  const outputs = firstPresent(
+    details.outputs,
+    event.outputs,
+    explicitStep.outputs,
+    event.output,
+    explicitStep.output,
+    event.result,
+  );
+  const artifactRefs = stringArrayValue(
+    firstPresent(
+      event.artifact_refs,
+      event.artifactRefs,
+      details.artifact_refs,
+      details.artifactRefs,
+    ),
+  );
+  const code = normalizeProcessCode(firstPresent(event.code, details.code));
+  const error = firstPresent(event.error, details.error);
+  const fields: Partial<ProcessEvent> = {};
+  const phase = stringValue(event.phase);
+  const eventType = stringValue(event.event_type) || stringValue(event.type);
+
+  if (phase) fields.phase = phase;
+  if (eventType) fields.eventType = eventType;
+  if (hasRuntimeValue(inputs)) fields.inputs = inputs;
+  if (hasRuntimeValue(outputs)) fields.outputs = outputs;
+  if (Object.keys(details).length > 0) fields.details = details;
+  if (artifactRefs.length > 0) fields.artifactRefs = artifactRefs;
+  if (code) fields.code = code;
+  if (hasRuntimeValue(error)) fields.error = error;
+
+  return fields;
+}
+
+function firstPresent(...values: unknown[]) {
+  return values.find(hasRuntimeValue);
+}
+
+function hasRuntimeValue(value: unknown) {
+  return value !== null && value !== undefined && value !== "";
+}
+
+function normalizeProcessCode(value: unknown): ProcessEvent["code"] | undefined {
+  const record = asRecord(value);
+  const content = stringValue(record.content) || stringValue(record.code);
+  if (!content) return undefined;
+
+  return {
+    name: stringValue(record.name) || stringValue(record.filename),
+    language: stringValue(record.language) || stringValue(record.lang),
+    content,
+    truncated: Boolean(record.truncated),
+  };
+}
+
+function stringArrayValue(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map(String).filter(Boolean);
 }
 
 function processEventDetail(event: SseEvent) {
@@ -702,6 +778,7 @@ function normalizeStoredProcessEvents(value: unknown): ProcessEvent[] {
         detail:
           stringValue(record.detail) || stringValue(record.description) || "",
         status: normalizeStoredProcessStatus(record.status),
+        ...processRuntimeFields(record),
       },
     ];
   });

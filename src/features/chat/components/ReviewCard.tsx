@@ -5,17 +5,8 @@ import type {
   MockResult,
   ProcessEvent,
 } from "../model/types";
-import {
-  BrainCircuitIcon,
-  CheckIcon,
-  Clock3Icon,
-  LoaderCircleIcon,
-  PencilLineIcon,
-  TerminalSquareIcon,
-  WandSparklesIcon,
-} from "lucide-react";
+import { PencilLineIcon, WandSparklesIcon } from "lucide-react";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -24,13 +15,16 @@ import {
   FieldLabel,
   FieldSeparator,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
+import { AxiomIdentity, visibleSkeletonClass } from "./AxiomIdentity";
 import { MarkdownContent } from "./MarkdownContent";
+import {
+  getProcessPresentation,
+  ProcessWorkspace,
+  type ProcessStepSelectionHandler,
+} from "./ProcessStepPanel";
 
 type ReviewCardProps =
   | {
@@ -52,60 +46,34 @@ type ReviewCardProps =
       stage: "process";
       investigation: Investigation;
       events: ProcessEvent[];
+      activeProcessEventKey?: string | null;
+      processEventKeyPrefix?: string;
       error: string | null;
+      onProcessEventSelect?: ProcessStepSelectionHandler;
       onRetry: () => void;
     }
   | {
       stage: "result";
       investigation: Investigation;
       events: ProcessEvent[];
+      activeProcessEventKey?: string | null;
+      processEventKeyPrefix?: string;
+      onProcessEventSelect?: ProcessStepSelectionHandler;
       result: MockResult;
     };
 
 export function ReviewCard(props: ReviewCardProps) {
-  if (props.stage === "pending")
+  if (props.stage === "pending") {
     return <PendingCard investigation={props.investigation} />;
+  }
   if (props.stage === "intent") return <IntentCard {...props} />;
   if (props.stage === "process") return <ProcessCard {...props} />;
   return <CompletedResponseCard {...props} />;
 }
 
 const reviewCardClass = "w-full border-0 bg-transparent p-0 shadow-none ring-0";
-const visibleSkeletonClass =
-  "h-3.5 rounded-full bg-[#d8d0c2]/85 shadow-[inset_0_0_0_1px_rgba(25,25,21,0.035)] dark:bg-[#38372f]/90";
 
-function AxiomIdentity({
-  markClassName = "size-11",
-  titleClassName = "text-2xl",
-  wrapperClassName = "",
-}: {
-  markClassName?: string;
-  titleClassName?: string;
-  wrapperClassName?: string;
-}) {
-  return (
-    <div className={cn("flex items-center gap-2.5", wrapperClassName)}>
-      <span
-        className={cn(
-          "grid shrink-0 place-items-center rounded-2xl border border-[#d8d0c2]/80 bg-[#fffdf8]/80 p-1.5 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/80",
-          markClassName,
-        )}
-        aria-hidden="true"
-      >
-        <img
-          src="/assets/logo.png"
-          alt=""
-          className="size-full object-contain"
-        />
-      </span>
-      <strong className={cn("font-semibold leading-tight", titleClassName)}>
-        AXIOM
-      </strong>
-    </div>
-  );
-}
-
-function ResponseHeading({ title, badge }: { title: string; badge?: string }) {
+function ResponseHeading() {
   return (
     <header className="flex items-center justify-between gap-4 px-6 pb-3 pt-5 max-sm:flex-col max-sm:items-start">
       <AxiomIdentity />
@@ -117,7 +85,7 @@ function PendingCard({ investigation }: { investigation: Investigation }) {
   return (
     <Card className={reviewCardClass} aria-live="polite">
       <CardHeader className="gap-5 p-0">
-        <ResponseHeading title="AXIOM" badge="Analyzing" />
+        <ResponseHeading />
       </CardHeader>
       <CardContent className="space-y-5 px-6 pb-6 pt-1">
         <div className="grid gap-3" aria-hidden="true">
@@ -137,7 +105,6 @@ function IntentCard({
   loading,
   onSpecificationChange,
   onSpecificationRevise,
-  onReset,
   onRun,
 }: Extract<ReviewCardProps, { stage: "intent" }>) {
   const [revisionPrompt, setRevisionPrompt] = useState("");
@@ -160,7 +127,7 @@ function IntentCard({
   return (
     <Card className={reviewCardClass}>
       <CardHeader className="gap-5 p-0">
-        <ResponseHeading title="AXIOM" badge="Review" />
+        <ResponseHeading />
       </CardHeader>
       <CardContent className="space-y-5 px-6 pb-6 pt-0">
         <form
@@ -265,24 +232,33 @@ function IntentCard({
 }
 
 function ProcessCard({
-  investigation,
   events,
+  activeProcessEventKey,
+  processEventKeyPrefix,
   error,
+  onProcessEventSelect,
   onRetry,
 }: Extract<ReviewCardProps, { stage: "process" }>) {
-  const { completed, complete, progress, transcriptEvents } =
-    getProcessPresentation(events);
+  const presentation = getProcessPresentation(events);
 
   return (
     <Card className={reviewCardClass} aria-live="polite">
       <CardContent className="space-y-4 p-6 pt-4">
-        <ProcessTranscriptList
+        <ProcessWorkspace
           ariaLabel="Processing transcript"
-          events={transcriptEvents}
+          presentation={presentation}
+          activeProcessEventKey={activeProcessEventKey}
+          processEventKeyPrefix={processEventKeyPrefix}
+          onProcessEventSelect={onProcessEventSelect}
         />
         {error && (
-          <Alert>
+          <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
+            <AlertAction>
+              <Button size="xs" variant="outline" onClick={onRetry}>
+                Retry
+              </Button>
+            </AlertAction>
           </Alert>
         )}
       </CardContent>
@@ -290,97 +266,26 @@ function ProcessCard({
   );
 }
 
-function getProcessPresentation(events: ProcessEvent[]) {
-  const total = Math.max(events.length, 1);
-  const completed = events.filter((event) => event.status === "done").length;
-  const running = events.some((event) => event.status === "running");
-  const complete = events.length > 0 && completed === events.length;
-  const progress = Math.round(
-    ((completed + (running ? 0.5 : 0)) / total) * 100,
-  );
-  const visibleEvents = events.filter((event) => event.status !== "waiting");
-  const transcriptEvents =
-    visibleEvents.length > 0 ? visibleEvents : events.slice(0, 1);
-
-  return { completed, complete, progress, transcriptEvents };
-}
-
-function ProcessTranscriptList({
-  ariaLabel,
-  events,
-}: {
-  ariaLabel: string;
-  events: ProcessEvent[];
-}) {
-  return (
-    <section className="grid gap-3" aria-label={ariaLabel}>
-      <AxiomIdentity markClassName="size-10" titleClassName="text-xl" />
-      <ol className="grid gap-1.5" aria-label={ariaLabel}>
-        {events.map((event, index) => (
-          <ProcessTranscriptStep event={event} index={index} key={event.id} />
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-function ProcessTranscriptStep({
-  event,
-  index,
-}: {
-  event: ProcessEvent;
-  index: number;
-}) {
-  const visible = event.status !== "waiting" || index === 0;
-  const Icon =
-    event.status === "done"
-      ? CheckIcon
-      : event.status === "running"
-        ? LoaderCircleIcon
-        : Clock3Icon;
-
-  return (
-    <>
-      <Marker
-        render={<li />}
-        className={cn(
-          event.status,
-          "min-h-10 items-start rounded-xl px-2 py-2 transition-colors duration-200",
-          visible
-            ? "text-[#191915] dark:text-[#eee8dc]"
-            : "text-[#6d685e]/65 dark:text-[#aaa397]/55",
-        )}
-      >
-        <MarkerIcon className="mt-0.5 text-[#6d685e] dark:text-[#aaa397]">
-          <TerminalSquareIcon />
-        </MarkerIcon>
-        <MarkerContent>
-          <div className="flex min-w-0 flex-wrap items-baseline gap-2">
-            <strong className="font-medium">{event.label}</strong>
-          </div>
-        </MarkerContent>
-      </Marker>
-    </>
-  );
-}
-
 function CompletedResponseCard({
   events,
+  activeProcessEventKey,
+  processEventKeyPrefix,
+  onProcessEventSelect,
   result,
 }: Extract<ReviewCardProps, { stage: "result" }>) {
-  const { completed, progress, transcriptEvents } =
-    getProcessPresentation(events);
+  const presentation = getProcessPresentation(events);
 
   return (
     <Card className={reviewCardClass} aria-live="polite">
-      <CardContent className="flex flex-col gap-2">
-        {transcriptEvents.length > 0 ? (
-          <section className="space-y-4" aria-label="Process">
-            <ProcessTranscriptList
-              ariaLabel="Completed process transcript"
-              events={transcriptEvents}
-            />
-          </section>
+      <CardContent className="flex flex-col gap-5 px-6 pb-6 pt-4">
+        {presentation.transcriptEvents.length > 0 ? (
+          <ProcessWorkspace
+            ariaLabel="Completed process transcript"
+            presentation={presentation}
+            activeProcessEventKey={activeProcessEventKey}
+            processEventKeyPrefix={processEventKeyPrefix}
+            onProcessEventSelect={onProcessEventSelect}
+          />
         ) : (
           <AxiomIdentity />
         )}
