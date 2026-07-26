@@ -11,6 +11,7 @@ type AppShellProps = {
   onNewChat: () => void;
   onData: () => void;
   onReports: () => void;
+  onTools: () => void;
   children: React.ReactNode;
 };
 
@@ -20,6 +21,7 @@ export function AppShell({
   onNewChat,
   onData,
   onReports,
+  onTools,
   children,
 }: AppShellProps) {
   const [expanded, setExpanded] = useState(false);
@@ -46,6 +48,7 @@ export function AppShell({
           onNewChat={onNewChat}
           onData={onData}
           onReports={onReports}
+          onTools={onTools}
         />
         <div
           className={cn(
