@@ -6,6 +6,7 @@ import { UserMessage } from "./components/UserMessage";
 import { WelcomeWorkspace } from "./components/WelcomeWorkspace";
 import type {
   ChatStage,
+  ChatEngine,
   ChatTurn,
   EditableSpecification,
   Investigation,
@@ -25,7 +26,9 @@ type ChatPageProps = {
   error: string | null;
   loading: boolean;
   mode: "home" | "chat";
-  onSubmit: (value: string) => void;
+  engine: ChatEngine;
+  onSubmit: (value: string, engine: ChatEngine) => void;
+  onEngineChange: (engine: ChatEngine) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
   onSpecificationRevise: (feedback: string) => void;
   onResetSpecification: () => void;
@@ -46,7 +49,9 @@ export function ChatPage({
   error,
   loading,
   mode,
+  engine,
   onSubmit,
+  onEngineChange,
   onSpecificationChange,
   onSpecificationRevise,
   onResetSpecification,
@@ -78,7 +83,14 @@ export function ChatPage({
 
   if (stage === "welcome") {
     if (mode === "chat") {
-      return <EmptyChatWorkspace onSubmit={onSubmit} loading={loading} />;
+      return (
+        <EmptyChatWorkspace
+          engine={engine}
+          loading={loading}
+          onEngineChange={onEngineChange}
+          onSubmit={onSubmit}
+        />
+      );
     }
 
     return (
@@ -86,7 +98,12 @@ export function ChatPage({
         className="min-h-screen w-full overflow-x-hidden"
         aria-label="Investigation welcome"
       >
-        <WelcomeWorkspace onSubmit={onSubmit} onData={onData} />
+        <WelcomeWorkspace
+          engine={engine}
+          onEngineChange={onEngineChange}
+          onSubmit={onSubmit}
+          onData={onData}
+        />
       </section>
     );
   }
@@ -178,7 +195,9 @@ export function ChatPage({
 
         <ChatComposer
           className="shrink-0"
+          engine={engine}
           sendDisabled={loading}
+          onEngineChange={onEngineChange}
           onSubmit={onSubmit}
           placeholder={
             loading
@@ -194,10 +213,14 @@ export function ChatPage({
 }
 
 function EmptyChatWorkspace({
+  engine,
   onSubmit,
+  onEngineChange,
   loading,
 }: {
-  onSubmit: (value: string) => void;
+  engine: ChatEngine;
+  onSubmit: (value: string, engine: ChatEngine) => void;
+  onEngineChange: (engine: ChatEngine) => void;
   loading: boolean;
 }) {
   return (
@@ -216,7 +239,9 @@ function EmptyChatWorkspace({
           </p>
         </div>
         <ChatComposer
+          engine={engine}
           onSubmit={onSubmit}
+          onEngineChange={onEngineChange}
           disabled={loading}
           placeholder="Message AXIOM..."
         />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { DataPage } from "@/features/data/DataPage";
@@ -14,10 +14,12 @@ import {
 } from "./routing/paths";
 import { useAppRoute } from "./routing/useAppRoute";
 import { createConversation } from "@/shared/lib/intelligence-api";
+import type { ChatEngine } from "@/features/chat/model/types";
 
 export function AppExperience() {
   const { route, navigate } = useAppRoute();
   const chat = useChatWorkflow();
+  const [chatEngine, setChatEngine] = useState<ChatEngine>("auto");
   const skipNextHydrationRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export function AppExperience() {
   );
 
   const submitQuestion = useCallback(
-    async (question: string) => {
+    async (question: string, engine: ChatEngine) => {
       let conversationId = route.surface === "chat" ? route.sessionId : null;
 
       if (!conversationId) {
@@ -73,7 +75,7 @@ export function AppExperience() {
         navigate(createChatRoute(conversationId));
       }
 
-      chat.submitQuestion(question, conversationId);
+      chat.submitQuestion(question, conversationId, engine);
     },
     [chat.submitQuestion, navigate, route],
   );
@@ -102,7 +104,9 @@ export function AppExperience() {
           error={chat.error}
           loading={chat.loading}
           mode={route.page === "home" ? "home" : "chat"}
+          engine={chatEngine}
           onSubmit={submitQuestion}
+          onEngineChange={setChatEngine}
           onSpecificationChange={chat.updateSpecification}
           onSpecificationRevise={chat.reviseSpecification}
           onResetSpecification={chat.resetSpecification}

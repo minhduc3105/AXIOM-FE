@@ -1,6 +1,7 @@
 import type {
   EditableSpecification,
   EvidenceItem,
+  ChatEngine,
   ChatTurn,
   Investigation,
   MockResult,
@@ -85,6 +86,7 @@ export async function loadConversationHistory(
 export async function createInvestigation(
   question: string,
   conversationId: string | null = null,
+  engine: ChatEngine = "auto",
   signal?: AbortSignal,
 ): Promise<Investigation> {
   pendingConfirmation = null;
@@ -94,7 +96,7 @@ export async function createInvestigation(
       input: question,
       conversation_id: conversationId,
       data_corpus_package: { sources: [], schemas: {}, metadata: {} },
-      runtime_options: { engine: "auto" },
+      runtime_options: { engine },
     },
     signal,
   );
@@ -563,7 +565,9 @@ function messagesToChatTurns(
     if (!completed) continue;
 
     const question =
-      pendingQuestion || pendingInvestigation?.question || "Conversation response";
+      pendingQuestion ||
+      pendingInvestigation?.question ||
+      "Conversation response";
     turns.push({
       investigation: pendingInvestigation || storedInvestigation(question),
       result: completedToResult(completed),
@@ -637,7 +641,9 @@ function confirmationFromMessage(
   }
 }
 
-function processEventsFromMessage(message: IntelligenceMessage): ProcessEvent[] {
+function processEventsFromMessage(
+  message: IntelligenceMessage,
+): ProcessEvent[] {
   const content = asRecord(message.content);
   const metadata = { ...message.metadata, ...asRecord(content.metadata) };
   const candidates = [

@@ -22,11 +22,14 @@ import { cn } from "@/shared/lib/utils";
 import { ChatComposer } from "./ChatComposer";
 import { OutcomeCarousel } from "./OutcomeCarousel";
 import { WorkflowAccordion } from "./WorkflowAccordion";
+import type { ChatEngine } from "../model/types";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 type WelcomeWorkspaceProps = {
-  onSubmit: (value: string) => void;
+  engine: ChatEngine;
+  onSubmit: (value: string, engine: ChatEngine) => void;
+  onEngineChange: (engine: ChatEngine) => void;
   onData: () => void;
 };
 
@@ -64,7 +67,12 @@ const bentoCards = [
   },
 ];
 
-export function WelcomeWorkspace({ onSubmit, onData }: WelcomeWorkspaceProps) {
+export function WelcomeWorkspace({
+  engine,
+  onSubmit,
+  onEngineChange,
+  onData,
+}: WelcomeWorkspaceProps) {
   const root = useRef<HTMLDivElement>(null);
 
   useGSAP(
@@ -128,7 +136,12 @@ export function WelcomeWorkspace({ onSubmit, onData }: WelcomeWorkspaceProps) {
             Define the question, approve the scope, watch the workflow, and
             review an answer with evidence attached.
           </p>
-          <ChatComposer className="mt-9 max-w-3xl" onSubmit={onSubmit} />
+          <ChatComposer
+            className="mt-9 max-w-3xl"
+            engine={engine}
+            onEngineChange={onEngineChange}
+            onSubmit={onSubmit}
+          />
           <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-sm text-[#6d685e] dark:text-[#aaa397]">
             <Button
               className="h-12 min-w-[136px] justify-center gap-2 rounded-full bg-[#191915] px-5 text-[#f4efe5] hover:bg-[#2b2a25] dark:bg-[#eee8dc] dark:text-[#11110f] dark:hover:bg-white"

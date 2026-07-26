@@ -283,11 +283,6 @@ function ProcessCard({
         {error && (
           <Alert>
             <AlertDescription>{error}</AlertDescription>
-            <AlertAction>
-              <Button variant="outline" type="button" onClick={onRetry}>
-                Retry process
-              </Button>
-            </AlertAction>
           </Alert>
         )}
       </CardContent>
