@@ -45,7 +45,7 @@ describe("ToolCard", () => {
     expect(onOpen).toHaveBeenCalledWith("keyword_extract");
   });
 
-  it("toggles status without opening tool detail", async () => {
+  it("enables the tool without opening tool detail", async () => {
     const user = userEvent.setup();
     const onOpen = vi.fn();
     render(
@@ -53,13 +53,15 @@ describe("ToolCard", () => {
         <ToolCard tool={tool} onOpen={onOpen} />
       </ToolsProvider>,
     );
-    const statusSwitch = screen.getByRole("switch", {
+    const enableButton = screen.getByRole("button", {
       name: /enable keyword extract/i,
     });
 
-    await user.click(statusSwitch);
+    await user.click(enableButton);
 
-    expect(statusSwitch.getAttribute("aria-checked")).toBe("true");
+    expect(
+      screen.getByRole("button", { name: /disable keyword extract/i }),
+    ).toBeTruthy();
     expect(fetch).toHaveBeenCalledWith(
       "/methods-hub/api/v1/admin/tools/keyword_extract",
       expect.objectContaining({
