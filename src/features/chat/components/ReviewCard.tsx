@@ -15,6 +15,7 @@ import {
   FieldLabel,
   FieldSeparator,
 } from "@/components/ui/field";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
@@ -162,9 +163,14 @@ function IntentCard({
                   required
                 />
               ) : (
-                <div className="max-h-[48dvh] overflow-y-auto rounded-2xl border border-[#d8d0c2] bg-[#fffdf8] p-5 dark:border-[#38372f] dark:bg-[#1a1a17]">
-                  <MarkdownContent markdown={draft.specMarkdown} compact />
-                </div>
+                <ScrollArea
+                  id="specification-markdown-field"
+                  className="h-[min(48dvh,520px)] rounded-2xl border border-[#d8d0c2] bg-[#fffdf8] dark:border-[#38372f] dark:bg-[#1a1a17]"
+                >
+                  <div className="p-5">
+                    <MarkdownContent markdown={draft.specMarkdown} compact />
+                  </div>
+                </ScrollArea>
               )}
             </Field>
           </FieldGroup>

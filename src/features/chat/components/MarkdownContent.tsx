@@ -282,7 +282,7 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
   return (
     <p
       className={cn(
-        "max-w-[72ch] text-[#5f5a50] dark:text-[#aaa397]",
+        "w-full text-[#5f5a50] dark:text-[#aaa397]",
         compact ? "text-sm leading-relaxed" : "text-base leading-relaxed",
       )}
       key={`${block.type}-${index}`}

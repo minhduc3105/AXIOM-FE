@@ -160,7 +160,7 @@ export function ChatPage({
           "mx-auto grid h-full min-h-0 gap-5 transition-[width] duration-300 ease-out max-sm:w-[calc(100%_-_24px)]",
           processInspectorOpen
             ? processInspectorCollapsed
-              ? "w-[calc(100%_-_40px)] xl:grid-cols-[minmax(0,1fr)_64px] 2xl:w-[calc(100%_-_64px)]"
+              ? "w-[min(1010px,calc(100%_-_40px))] xl:grid-cols-[minmax(560px,900px)_64px]"
               : "w-[calc(100%_-_40px)] xl:grid-cols-[minmax(560px,760px)_minmax(620px,1fr)] 2xl:w-[calc(100%_-_64px)] 2xl:grid-cols-[minmax(620px,820px)_minmax(720px,1fr)]"
             : evidenceOpen && stage === "result"
               ? "w-[min(1480px,calc(100%_-_56px))]"
@@ -233,7 +233,10 @@ export function ChatPage({
                       result={result}
                     />
                     {evidenceOpen && !processInspectorOpen && (
-                      <EvidencePanel result={result} onClose={onCloseEvidence} />
+                      <EvidencePanel
+                        result={result}
+                        onClose={onCloseEvidence}
+                      />
                     )}
                   </div>
                 )}
@@ -313,11 +316,7 @@ function CollapsedProcessInspector({
       >
         <ChevronLeftIcon />
       </Button>
-      <div className="min-h-0 flex-1 overflow-hidden py-2">
-        <div className="origin-center rotate-90 whitespace-nowrap text-xs font-medium text-[#6d685e] dark:text-[#aaa397]">
-          {label}
-        </div>
-      </div>
+
       <Button
         type="button"
         size="icon-sm"
