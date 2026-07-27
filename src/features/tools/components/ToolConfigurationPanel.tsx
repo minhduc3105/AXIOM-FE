@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { KeyRoundIcon, SaveIcon, ServerIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  KeyRoundIcon,
+  SaveIcon,
+  ServerIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,6 +33,12 @@ function serializeDefault(value: unknown) {
   if (typeof value === "object") return JSON.stringify(value, null, 2);
   return String(value);
 }
+
+const environmentOptions = [
+  { value: "development", label: "Development" },
+  { value: "staging", label: "Staging" },
+  { value: "production", label: "Production" },
+];
 
 function ToolParameterField({
   parameter,
@@ -161,23 +179,41 @@ export function ToolConfigurationPanel({ tool }: { tool: ToolDetail }) {
         }}
       >
         <div className="grid gap-1.5">
-          <Label htmlFor="tool-environment">Environment</Label>
-          <Select
-            value={environment}
-            onValueChange={(value) => setEnvironment(String(value))}
-          >
-            <SelectTrigger
-              id="tool-environment"
-              className="h-9 w-full bg-white dark:bg-[#20201c]"
+          <Label id="tool-environment-label">Environment</Label>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 w-full justify-between rounded-lg border-[#d8d0c2] bg-white px-3 font-normal text-[#25241f] hover:bg-[#f4efe5] dark:border-[#49483f] dark:bg-[#20201c] dark:text-[#eee8dc]"
+                  aria-labelledby="tool-environment-label"
+                />
+              }
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="development">Development</SelectItem>
-              <SelectItem value="staging">Staging</SelectItem>
-              <SelectItem value="production">Production</SelectItem>
-            </SelectContent>
-          </Select>
+              <span>
+                {environmentOptions.find(
+                  (option) => option.value === environment,
+                )?.label ?? "Select environment"}
+              </span>
+              <ChevronDownIcon className="size-4 text-[#777064]" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="rounded-xl">
+              <DropdownMenuRadioGroup
+                value={environment}
+                onValueChange={(value) => setEnvironment(String(value))}
+              >
+                {environmentOptions.map((option) => (
+                  <DropdownMenuRadioItem
+                    key={option.value}
+                    value={option.value}
+                  >
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="grid gap-1.5">
