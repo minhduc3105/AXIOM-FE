@@ -46,7 +46,8 @@ type PendingConfirmation = {
   revision: number;
   intent: string;
   confidence: number;
-  spec: EditableExecutionSpec;
+  specMarkdown: string;
+  spec?: EditableExecutionSpec;
 };
 
 type CompletedResponse = {
@@ -132,7 +133,7 @@ export async function runWorkflow(
           specification.intent !== confirmation.intent
             ? `Use intent: ${specification.intent}`
             : undefined,
-        edited_spec: editableSpecRequest(confirmation.spec, specification),
+        spec_markdown: specification.specMarkdown,
       },
       signal,
     );
@@ -191,7 +192,7 @@ export async function reviseInvestigation(
       action: "revise",
       revision: pendingConfirmation.revision,
       feedback,
-      edited_spec: editableSpecRequest(pendingConfirmation.spec, specification),
+      spec_markdown: specification.specMarkdown,
     },
     signal,
   );
@@ -345,13 +346,25 @@ function confirmationFromEvent(event: SseEvent): PendingConfirmation {
     );
 
   const intent = asRecord(event.intent);
-  const spec = asRecord(event.spec) as EditableExecutionSpec;
+  const rawSpec = asRecord(event.spec);
+  const spec = Object.keys(rawSpec).length
+    ? (rawSpec as EditableExecutionSpec)
+    : undefined;
+  const specMarkdown =
+    stringValue(event.spec_markdown) ||
+    stringValue(event.specMarkdown) ||
+    legacySpecToMarkdown(spec);
   return {
     responseId,
     token,
     revision: numberValue(event.revision) || 1,
-    intent: stringValue(intent.value) || stringValue(spec.intent),
+    intent:
+      stringValue(intent.value) ||
+      stringValue(spec?.intent) ||
+      titleFromMarkdown(specMarkdown) ||
+      "workflow_specification",
     confidence: percentValue(intent.confidence),
+    specMarkdown,
     spec,
   };
 }
@@ -373,16 +386,20 @@ function confirmationToInvestigation(
   confirmation: PendingConfirmation,
   question: string,
 ): Investigation {
-  const constraints = asRecord(confirmation.spec.constraints);
+  const constraints = asRecord(confirmation.spec?.constraints);
   return {
     question,
     confidence: confirmation.confidence,
     intent: confirmation.intent,
-    scope: stringValue(confirmation.spec.objective),
+    scope:
+      stringValue(confirmation.spec?.objective) ||
+      titleFromMarkdown(confirmation.specMarkdown) ||
+      summaryFromMarkdown(confirmation.specMarkdown),
+    specMarkdown: confirmation.specMarkdown,
     policy:
       stringValue(constraints.policy) ||
       stringValue(constraints.execution_policy),
-    output: capabilityOutputSummary(confirmation.spec.capability_requirements),
+    output: capabilityOutputSummary(confirmation.spec?.capability_requirements),
   };
 }
 
@@ -409,24 +426,40 @@ function specificationChanged(
   specification: EditableSpecification,
   confirmation: PendingConfirmation,
 ) {
-  const currentScope = stringValue(confirmation.spec.objective) || "";
   return (
     specification.intent !== confirmation.intent ||
-    specification.scope !== currentScope
+    specification.specMarkdown.trim() !== confirmation.specMarkdown.trim()
   );
 }
 
-function editableSpecRequest(
-  spec: EditableExecutionSpec,
-  specification: EditableSpecification,
-) {
-  return {
-    objective: specification.scope,
-    data_requirements: spec.data_requirements || [],
-    capability_requirements: spec.capability_requirements || [],
-    constraints: spec.constraints || {},
-    engine_hint: spec.engine_hint || null,
-  };
+function legacySpecToMarkdown(spec: EditableExecutionSpec | undefined) {
+  if (!spec) return "";
+  const dataRequirements = spec.data_requirements || [];
+  const capabilityRequirements = spec.capability_requirements || [];
+  const constraints = asRecord(spec.constraints);
+  const lines = [
+    "# Workflow specification",
+    "",
+    stringValue(spec.objective) ? `## Objective\n${spec.objective}` : "",
+    dataRequirements.length
+      ? `## Data requirements\n${dataRequirements.map((item) => `- ${item}`).join("\n")}`
+      : "",
+    capabilityRequirements.length
+      ? `## Capabilities\n${capabilityRequirements
+          .map((item) => `- ${item.name || "Capability"}`)
+          .join("\n")}`
+      : "",
+    Object.keys(constraints).length
+      ? `## Constraints\n${Object.entries(constraints)
+          .map(([key, value]) => `- **${key}:** ${String(value)}`)
+          .join("\n")}`
+      : "",
+    stringValue(spec.engine_hint)
+      ? `## Engine preference\n${spec.engine_hint}`
+      : "",
+  ];
+
+  return lines.filter(Boolean).join("\n\n");
 }
 
 function capabilityOutputSummary(
@@ -798,6 +831,8 @@ function storedInvestigation(question: string): Investigation {
     confidence: 0,
     intent: "conversation_history",
     scope: "Stored conversation",
+    specMarkdown:
+      "# Stored conversation\n\nThis conversation was loaded from history without a persisted workflow specification.",
     policy: "Loaded from AXIOM conversation history",
     output: "Stored answer with available evidence",
   };

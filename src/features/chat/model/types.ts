@@ -8,11 +8,15 @@ export type Investigation = {
   confidence: number;
   intent: string;
   scope: string;
+  specMarkdown: string;
   policy: string;
   output: string;
 };
 
-export type EditableSpecification = Pick<Investigation, "intent" | "scope">;
+export type EditableSpecification = Pick<
+  Investigation,
+  "intent" | "specMarkdown"
+>;
 
 export type ProcessEvent = {
   id: string;

@@ -99,22 +99,19 @@ function PendingCard({ investigation }: { investigation: Investigation }) {
 }
 
 function IntentCard({
-  investigation,
   draft,
   error,
   loading,
   onSpecificationChange,
   onSpecificationRevise,
+  onReset,
   onRun,
 }: Extract<ReviewCardProps, { stage: "intent" }>) {
   const [revisionPrompt, setRevisionPrompt] = useState("");
   const [promptOpen, setPromptOpen] = useState(false);
-  const valid = Boolean(draft.intent.trim() && draft.scope.trim());
+  const [editingSpec, setEditingSpec] = useState(false);
+  const valid = Boolean(draft.intent.trim() && draft.specMarkdown.trim());
   const canRevise = Boolean(revisionPrompt.trim()) && !loading;
-  const specDetails = [
-    { label: "Policy", value: investigation.policy },
-    { label: "Output", value: investigation.output },
-  ].filter((item) => item.value.trim());
 
   function handlePromptRevision() {
     const feedback = revisionPrompt.trim();
@@ -122,6 +119,11 @@ function IntentCard({
     onSpecificationRevise(feedback);
     setRevisionPrompt("");
     setPromptOpen(false);
+  }
+
+  function handleReset() {
+    onReset();
+    setEditingSpec(false);
   }
 
   return (
@@ -139,40 +141,56 @@ function IntentCard({
           }}
         >
           <FieldGroup>
-            <Field data-invalid={!draft.scope.trim()}>
-              <FieldLabel htmlFor="scope-field">Scope</FieldLabel>
-              <Textarea
-                id="scope-field"
-                value={draft.scope}
-                disabled={loading}
-                onChange={(event) =>
-                  onSpecificationChange({ ...draft, scope: event.target.value })
-                }
-                aria-label="Scope"
-                aria-invalid={!draft.scope.trim()}
-                rows={2}
-                required
-              />
+            <Field data-invalid={!draft.specMarkdown.trim()}>
+              <FieldLabel htmlFor="specification-markdown-field">
+                Specification
+              </FieldLabel>
+              {editingSpec ? (
+                <Textarea
+                  id="specification-markdown-field"
+                  value={draft.specMarkdown}
+                  disabled={loading}
+                  onChange={(event) =>
+                    onSpecificationChange({
+                      ...draft,
+                      specMarkdown: event.target.value,
+                    })
+                  }
+                  aria-label="Specification markdown"
+                  aria-invalid={!draft.specMarkdown.trim()}
+                  className="min-h-80 font-mono text-sm leading-relaxed"
+                  required
+                />
+              ) : (
+                <div className="max-h-[48dvh] overflow-y-auto rounded-2xl border border-[#d8d0c2] bg-[#fffdf8] p-5 dark:border-[#38372f] dark:bg-[#1a1a17]">
+                  <MarkdownContent markdown={draft.specMarkdown} compact />
+                </div>
+              )}
             </Field>
           </FieldGroup>
 
-          {specDetails.length > 0 && (
-            <div className="flex flex-col gap-3">
-              {specDetails.map((item) => (
-                <div
-                  className="rounded-2xl border border-[#d8d0c2] bg-[#fffdf8] p-4 dark:border-[#38372f] dark:bg-[#1a1a17]"
-                  key={item.label}
-                >
-                  <span className="text-xs text-[#6d685e] dark:text-[#aaa397]">
-                    {item.label}
-                  </span>
-                  <strong className="mt-1 block">{item.value}</strong>
-                </div>
-              ))}
-            </div>
-          )}
-
           <div className="flex flex-wrap justify-end gap-3">
+            {editingSpec && (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={loading}
+                onClick={handleReset}
+              >
+                Reset
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              aria-controls="specification-markdown-field"
+              aria-expanded={editingSpec}
+              disabled={loading}
+              onClick={() => setEditingSpec((editing) => !editing)}
+            >
+              <PencilLineIcon data-icon="inline-start" />
+              {editingSpec ? "Preview" : "Edit"}
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -181,8 +199,8 @@ function IntentCard({
               disabled={loading}
               onClick={() => setPromptOpen((open) => !open)}
             >
-              <PencilLineIcon data-icon="inline-start" />
-              {promptOpen ? "Close" : "Edit"}
+              <WandSparklesIcon data-icon="inline-start" />
+              {promptOpen ? "Close" : "Request changes"}
             </Button>
             <Button type="submit" disabled={!valid || loading}>
               {loading ? "Updating..." : "Approve"}

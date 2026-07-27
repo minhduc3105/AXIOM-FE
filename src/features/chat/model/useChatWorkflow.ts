@@ -64,7 +64,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         investigation: action.investigation,
         draft: {
           intent: action.investigation.intent,
-          scope: action.investigation.scope,
+          specMarkdown: action.investigation.specMarkdown,
         },
         approvedSpecification: null,
         processEvents: createProcessEvents(),
@@ -90,7 +90,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         investigation: action.investigation,
         draft: {
           intent: action.investigation.intent,
-          scope: action.investigation.scope,
+          specMarkdown: action.investigation.specMarkdown,
         },
         loading: false,
       };
@@ -104,7 +104,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
             ...state,
             draft: {
               intent: state.investigation.intent,
-              scope: state.investigation.scope,
+              specMarkdown: state.investigation.specMarkdown,
             },
             error: null,
           }
@@ -118,7 +118,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         investigation: action.investigation,
         draft: {
           intent: action.investigation.intent,
-          scope: action.investigation.scope,
+          specMarkdown: action.investigation.specMarkdown,
         },
         loading: false,
         error: null,
@@ -191,7 +191,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           investigation: action.pendingInvestigation,
           draft: {
             intent: action.pendingInvestigation.intent,
-            scope: action.pendingInvestigation.scope,
+            specMarkdown: action.pendingInvestigation.specMarkdown,
           },
           approvedSpecification: null,
           processEvents: createProcessEvents(),
@@ -234,6 +234,8 @@ const optimisticInvestigation = (question: string): Investigation => ({
   confidence: 94,
   intent: "generate_revenue_report",
   scope: "Q3 revenue, payments",
+  specMarkdown:
+    "# Investigation plan\n\nAXIOM is preparing the workflow specification.",
   policy: "Strict · read-only sandbox · external network blocked",
   output: "Reviewed markdown answer with cited evidence",
 });
@@ -356,7 +358,7 @@ export function useChatWorkflow() {
         const investigation = await reviseInvestigation(
           {
             intent: state.draft.intent.trim(),
-            scope: state.draft.scope.trim(),
+            specMarkdown: state.draft.specMarkdown.trim(),
           },
           prompt,
           state.investigation.question,
@@ -390,12 +392,13 @@ export function useChatWorkflow() {
     if (state.loading || state.stage !== "intent" || !state.draft) return;
     const specification = {
       intent: state.draft.intent.trim(),
-      scope: state.draft.scope.trim(),
+      specMarkdown: state.draft.specMarkdown.trim(),
     };
-    if (!specification.intent || !specification.scope) {
+    if (!specification.intent || !specification.specMarkdown) {
       dispatch({
         type: "request/failure",
-        message: "Intent and scope are required before running the workflow.",
+        message:
+          "Intent and specification are required before running the workflow.",
       });
       return;
     }
