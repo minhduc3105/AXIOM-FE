@@ -16,6 +16,7 @@ type AppShellProps = {
   onData: () => void;
   onReports: () => void;
   showCommandBar?: boolean;
+  onTools: () => void;
   children: React.ReactNode;
 };
 
@@ -29,6 +30,7 @@ export function AppShell({
   onData,
   onReports,
   showCommandBar = false,
+  onTools,
   children,
 }: AppShellProps) {
   const [expanded, setExpanded] = useState(false);
@@ -58,6 +60,7 @@ export function AppShell({
           onConversationOpen={onConversationOpen}
           onData={onData}
           onReports={onReports}
+          onTools={onTools}
         />
         <div
           className={cn(

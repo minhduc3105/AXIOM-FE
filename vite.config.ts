@@ -21,6 +21,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/corpus-api/, ''),
       },
+      '/methods-hub': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/methods-hub/, ''),
+      },
       '/storage': {
         target: 'http://localhost:30443',
         changeOrigin: false,

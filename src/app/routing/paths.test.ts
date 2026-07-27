@@ -3,6 +3,8 @@ import {
   createDataIngestionRoute,
   createDataRoute,
   createReportsRoute,
+  createToolDetailRoute,
+  createToolsRoute,
   getAppRoutePath,
   parseAppRoute,
 } from "./paths";
@@ -53,5 +55,32 @@ describe("report routing", () => {
 
   it("creates a stable reports URL", () => {
     expect(getAppRoutePath(createReportsRoute())).toBe("/reports");
+  });
+});
+
+describe("tools routing", () => {
+  it("parses the tool catalog path", () => {
+    expect(parseAppRoute("/tools")).toEqual({
+      surface: "tools",
+      page: "list",
+      toolName: null,
+      sessionId: null,
+    });
+  });
+
+  it("parses and decodes a tool detail path", () => {
+    expect(parseAppRoute("/tools/document_search_text")).toEqual({
+      surface: "tools",
+      page: "detail",
+      toolName: "document_search_text",
+      sessionId: null,
+    });
+  });
+
+  it("creates stable tool URLs", () => {
+    expect(getAppRoutePath(createToolsRoute())).toBe("/tools");
+    expect(getAppRoutePath(createToolDetailRoute("text_normalize"))).toBe(
+      "/tools/text_normalize",
+    );
   });
 });

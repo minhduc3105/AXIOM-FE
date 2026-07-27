@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   DatabaseIcon,
   FileTextIcon,
+  WrenchIcon,
   MenuIcon,
   MessageSquarePlusIcon,
   MoonIcon,
@@ -48,6 +49,7 @@ type WorkspaceRailProps = {
   onConversationOpen: (conversationId: string) => void;
   onData: () => void;
   onReports: () => void;
+  onTools: () => void;
 };
 
 const sidebarButtonIconPadding = "has-data-[icon=inline-start]:pl-3";
@@ -65,6 +67,7 @@ function RailContent({
   onConversationOpen,
   onData,
   onReports,
+  onTools,
 }: WorkspaceRailProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -327,6 +330,31 @@ function RailContent({
                   : "size-11 justify-center px-0",
                 "rounded-xl",
               )}
+              data-active={surface === "tools"}
+              onClick={onTools}
+              aria-label="Tools"
+            >
+              <WrenchIcon data-icon="inline-start" />
+              <span
+                className={cn(
+                  "transition-opacity duration-300",
+                  expanded
+                    ? "opacity-100"
+                    : "pointer-events-none w-0 overflow-hidden opacity-0",
+                )}
+              >
+                Tools
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              className={cn(
+                "h-11 gap-3 rounded-[6px] text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] data-[active=true]:bg-[#fffdf8] data-[active=true]:text-[#1237b4] data-[active=true]:shadow-sm dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white",
+                sidebarButtonIconPadding,
+                expanded
+                  ? "w-full justify-start px-3"
+                  : "size-11 justify-center px-0",
+              )}
               data-active={surface === "reports"}
               onClick={onReports}
               aria-label="Report"
@@ -437,7 +465,7 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
           <SheetHeader className="sr-only">
             <SheetTitle>Workspace navigation</SheetTitle>
             <SheetDescription>
-              Open conversations, Data, Report, and account controls.
+              Open conversations, Data, Report, Tools, and account controls.
             </SheetDescription>
           </SheetHeader>
           <RailContent
@@ -462,6 +490,10 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
             }}
             onReports={() => {
               props.onReports();
+              setMobileOpen(false);
+            }}
+            onTools={() => {
+              props.onTools();
               setMobileOpen(false);
             }}
           />
