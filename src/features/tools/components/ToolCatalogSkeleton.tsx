@@ -2,11 +2,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function ToolCatalogSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+    <div
+      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+      aria-hidden="true"
+    >
       {Array.from({ length: 6 }, (_, index) => (
         <div
           key={index}
-          className="grid min-h-[228px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-xl border border-[#d8d0c2] bg-[#fffdf8]/80 p-4 dark:border-[#38372f] dark:bg-[#1a1a17]/80"
+          className="grid min-h-[248px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-[24px] border border-[#d8d0c2]/80 bg-[#fffdf8]/80 p-5 shadow-[0_18px_52px_rgba(24,24,18,0.06)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/80"
         >
           <div className="flex gap-3">
             <Skeleton className="size-10" />

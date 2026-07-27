@@ -8,7 +8,12 @@ import {
   RefreshCwIcon,
   UserRoundIcon,
 } from "lucide-react";
-import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,7 +58,7 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
 
   if (loading && !tool) {
     return (
-      <section className="min-h-screen px-5 pb-10 pt-20 sm:px-8 md:pt-10">
+      <section className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10">
         <ToolDetailSkeleton />
       </section>
     );
@@ -84,13 +89,17 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
 
   return (
     <section
-      className="min-h-screen w-full overflow-x-hidden px-5 pb-10 pt-20 sm:px-8 md:pt-10"
+      className="relative min-h-screen w-full overflow-x-hidden px-5 pb-12 pt-20 sm:px-8 md:pt-10"
       aria-label={`${displayName} details`}
     >
-      <div className="mx-auto grid w-full min-w-0 max-w-[1320px] gap-5">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_78%_8%,rgba(36,86,232,0.12),transparent_34%),radial-gradient(circle_at_10%_38%,rgba(120,75,18,0.10),transparent_36%)] dark:bg-[radial-gradient(circle_at_78%_8%,rgba(120,149,255,0.12),transparent_34%)]"
+        aria-hidden="true"
+      />
+      <div className="mx-auto grid w-full min-w-0 max-w-[1360px] gap-6">
         <Button
           variant="ghost"
-          className="h-9 w-fit rounded-lg px-2 text-[#625d53] hover:bg-[#e9e2d5] hover:text-[#191915] dark:text-[#c5bcaf] dark:hover:bg-[#292923] dark:hover:text-[#f4efe5]"
+          className="h-9 w-fit rounded-full px-3 text-[#625d53] hover:bg-[#e9e2d5] hover:text-[#191915] dark:text-[#c5bcaf] dark:hover:bg-[#292923] dark:hover:text-[#f4efe5]"
           onClick={onBack}
         >
           <ArrowLeftIcon />
@@ -98,17 +107,18 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
         </Button>
 
         {source === "sample" && error && (
-          <Alert className="min-w-0 max-w-full overflow-hidden border-amber-300/70 bg-amber-50/90 pr-3 text-amber-950 sm:pr-24 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
+          <Alert className="min-w-0 max-w-full overflow-hidden rounded-[18px] border-amber-300/70 bg-amber-50/80 pr-3 text-amber-950 shadow-[0_14px_38px_rgba(120,75,18,0.08)] sm:pr-24 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
             <CircleAlertIcon />
             <AlertTitle>Showing sample tool details</AlertTitle>
             <AlertDescription className="text-amber-800 dark:text-amber-200">
-              Methods-Hub is not responding. Configuration remains available locally.
+              Methods-Hub is not responding. Configuration remains available
+              locally.
             </AlertDescription>
             <AlertAction className="hidden sm:block">
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-white/70 dark:bg-[#1a1a17]"
+                className="rounded-full bg-white/70 dark:bg-[#1a1a17]"
                 onClick={refresh}
               >
                 <RefreshCwIcon />
@@ -118,9 +128,12 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
           </Alert>
         )}
 
-        <header className="flex min-w-0 max-w-full flex-col gap-5 overflow-hidden border-b border-[#d8d0c2] pb-6 dark:border-[#38372f] sm:flex-row sm:items-start sm:justify-between">
+        <header className="flex min-w-0 max-w-full flex-col gap-5 overflow-hidden rounded-[28px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 p-5 shadow-[0_24px_70px_rgba(24,24,18,0.09)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88 sm:flex-row sm:items-start sm:justify-between sm:p-6 lg:p-7">
           <div className="flex w-full min-w-0 max-w-full items-start gap-3 sm:gap-4">
-            <ToolKindIcon kind={tool.kind} className="size-12 rounded-xl sm:size-14 [&_svg]:size-6" />
+            <ToolKindIcon
+              kind={tool.kind}
+              className="size-12 rounded-xl sm:size-14 [&_svg]:size-6"
+            />
             <div className="min-w-0">
               <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                 <h1 className="min-w-0 max-w-full break-words text-xl font-semibold leading-tight text-[#191915] dark:text-[#f4efe5] sm:text-3xl">
@@ -128,7 +141,7 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
                 </h1>
                 <Badge
                   variant="outline"
-                  className="h-6 max-w-full rounded-md border-[#d8d0c2] bg-[#fffdf8]/75 text-[10px] text-[#625d53] dark:border-[#49483f] dark:bg-[#20201c] dark:text-[#c5bcaf]"
+                  className="h-6 max-w-full rounded-full border-[#2456e8]/30 bg-[#edf2ff] px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#1237b4] dark:border-[#7895ff]/30 dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]"
                 >
                   {formatToolKind(tool.kind)}
                 </Badge>
@@ -141,7 +154,7 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center rounded-lg border border-[#d8d0c2] bg-[#fffdf8]/88 px-3 py-1.5 dark:border-[#38372f] dark:bg-[#1a1a17]/88">
+          <div className="flex shrink-0 items-center rounded-full border border-[#d8d0c2]/80 bg-[#f4efe5]/72 px-3 py-1.5 dark:border-[#38372f] dark:bg-white/5">
             <ToolStatusSwitch
               checked={enabled}
               label={displayName}
@@ -152,19 +165,21 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
 
         <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_380px]">
           <main className="min-w-0">
-            <section className="border-b border-[#d8d0c2] pb-6 dark:border-[#38372f]">
+            <section className="overflow-hidden rounded-[24px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 p-5 shadow-[0_18px_52px_rgba(24,24,18,0.07)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88">
               <div className="mb-4 flex items-center gap-2">
                 <BoxIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
                 <h2 className="text-sm font-semibold">Overview</h2>
               </div>
-              <dl className="grid gap-px overflow-hidden rounded-lg border border-[#d8d0c2] bg-[#d8d0c2] sm:grid-cols-3 dark:border-[#38372f] dark:bg-[#38372f]">
-                <div className="bg-[#fffdf8] p-3.5 dark:bg-[#1a1a17]">
+              <dl className="grid gap-px overflow-hidden rounded-[18px] border border-[#d8d0c2]/80 bg-[#d8d0c2]/80 sm:grid-cols-3 dark:border-[#38372f] dark:bg-[#38372f]">
+                <div className="bg-[#f4efe5]/72 p-3.5 dark:bg-white/5">
                   <dt className="flex items-center gap-1.5 text-[11px] text-[#777064] dark:text-[#aaa397]">
                     <BracesIcon className="size-3.5" /> Version
                   </dt>
-                  <dd className="mt-1.5 text-sm font-semibold tabular-nums">v{presentation.version}</dd>
+                  <dd className="mt-1.5 text-sm font-semibold tabular-nums">
+                    v{presentation.version}
+                  </dd>
                 </div>
-                <div className="bg-[#fffdf8] p-3.5 dark:bg-[#1a1a17]">
+                <div className="bg-[#f4efe5]/72 p-3.5 dark:bg-white/5">
                   <dt className="flex items-center gap-1.5 text-[11px] text-[#777064] dark:text-[#aaa397]">
                     <CalendarDaysIcon className="size-3.5" /> Updated
                   </dt>
@@ -176,11 +191,13 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
                     }).format(new Date(`${presentation.updatedAt}T00:00:00`))}
                   </dd>
                 </div>
-                <div className="bg-[#fffdf8] p-3.5 dark:bg-[#1a1a17]">
+                <div className="bg-[#f4efe5]/72 p-3.5 dark:bg-white/5">
                   <dt className="flex items-center gap-1.5 text-[11px] text-[#777064] dark:text-[#aaa397]">
                     <UserRoundIcon className="size-3.5" /> Owner
                   </dt>
-                  <dd className="mt-1.5 truncate text-sm font-semibold">{presentation.author}</dd>
+                  <dd className="mt-1.5 truncate text-sm font-semibold">
+                    {presentation.author}
+                  </dd>
                 </div>
               </dl>
 
@@ -188,18 +205,27 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
                 <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
                   {implementation && (
                     <div>
-                      <span className="text-[11px] text-[#777064] dark:text-[#aaa397]">Implementation</span>
+                      <span className="text-[11px] text-[#777064] dark:text-[#aaa397]">
+                        Implementation
+                      </span>
                       <code className="mt-1 block break-all text-xs text-[#25241f] dark:text-[#eee8dc]">
-                        {implementation.module ?? "runtime"}.{implementation.class ?? "method"}
+                        {implementation.module ?? "runtime"}.
+                        {implementation.class ?? "method"}
                       </code>
                     </div>
                   )}
                   {tool.supported_dataset_types?.length ? (
                     <div>
-                      <span className="text-[11px] text-[#777064] dark:text-[#aaa397]">Supported datasets</span>
+                      <span className="text-[11px] text-[#777064] dark:text-[#aaa397]">
+                        Supported datasets
+                      </span>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {tool.supported_dataset_types.map((datasetType) => (
-                          <Badge key={datasetType} variant="outline" className="rounded-md">
+                          <Badge
+                            key={datasetType}
+                            variant="outline"
+                            className="rounded-md"
+                          >
                             {datasetType}
                           </Badge>
                         ))}
@@ -210,7 +236,7 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
               )}
             </section>
 
-            <section className="pt-6">
+            <section className="mt-6 overflow-hidden rounded-[24px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 p-5 shadow-[0_18px_52px_rgba(24,24,18,0.07)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <CodeXmlIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
@@ -221,7 +247,7 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
                 </span>
               </div>
               {tool.params.length > 0 ? (
-                <div className="overflow-hidden rounded-lg border border-[#d8d0c2] bg-[#fffdf8]/80 dark:border-[#38372f] dark:bg-[#1a1a17]/80">
+                <div className="overflow-hidden rounded-[18px] border border-[#d8d0c2]/80 bg-[#f4efe5]/55 dark:border-[#38372f] dark:bg-white/5">
                   {tool.params.map((parameter) => (
                     <div
                       key={parameter.name}
@@ -232,7 +258,10 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
                           {parameter.name}
                         </code>
                         <div className="mt-1 flex flex-wrap gap-1.5">
-                          <Badge variant="outline" className="h-5 rounded-md px-1.5 text-[9px] uppercase">
+                          <Badge
+                            variant="outline"
+                            className="h-5 rounded-md px-1.5 text-[9px] uppercase"
+                          >
                             {parameter.type}
                           </Badge>
                           {parameter.required && (
@@ -246,11 +275,13 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
                         <p className="text-xs leading-5 text-[#625d53] dark:text-[#c5bcaf]">
                           {parameter.description || "No parameter description."}
                         </p>
-                        {parameter.default !== null && parameter.default !== undefined && (
-                          <p className="mt-1 text-[11px] text-[#777064] dark:text-[#aaa397]">
-                            Default: <code>{JSON.stringify(parameter.default)}</code>
-                          </p>
-                        )}
+                        {parameter.default !== null &&
+                          parameter.default !== undefined && (
+                            <p className="mt-1 text-[11px] text-[#777064] dark:text-[#aaa397]">
+                              Default:{" "}
+                              <code>{JSON.stringify(parameter.default)}</code>
+                            </p>
+                          )}
                       </div>
                     </div>
                   ))}

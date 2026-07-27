@@ -47,8 +47,14 @@ function ToolParameterField({
       </div>
 
       {enumValues && enumValues.length > 0 ? (
-        <Select value={value} onValueChange={(nextValue) => onChange(String(nextValue))}>
-          <SelectTrigger id={id} className="h-9 w-full bg-white dark:bg-[#20201c]">
+        <Select
+          value={value}
+          onValueChange={(nextValue) => onChange(String(nextValue))}
+        >
+          <SelectTrigger
+            id={id}
+            className="h-9 w-full bg-white dark:bg-[#20201c]"
+          >
             <SelectValue placeholder="Select a value" />
           </SelectTrigger>
           <SelectContent>
@@ -60,8 +66,14 @@ function ToolParameterField({
           </SelectContent>
         </Select>
       ) : parameter.type === "bool" ? (
-        <Select value={value || "false"} onValueChange={(nextValue) => onChange(String(nextValue))}>
-          <SelectTrigger id={id} className="h-9 w-full bg-white dark:bg-[#20201c]">
+        <Select
+          value={value || "false"}
+          onValueChange={(nextValue) => onChange(String(nextValue))}
+        >
+          <SelectTrigger
+            id={id}
+            className="h-9 w-full bg-white dark:bg-[#20201c]"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -80,7 +92,11 @@ function ToolParameterField({
       ) : (
         <Input
           id={id}
-          type={parameter.type === "int" || parameter.type === "float" ? "number" : "text"}
+          type={
+            parameter.type === "int" || parameter.type === "float"
+              ? "number"
+              : "text"
+          }
           value={value}
           onChange={(event) => onChange(event.target.value)}
           min={parameter.json_schema.minimum}
@@ -123,14 +139,14 @@ export function ToolConfigurationPanel({ tool }: { tool: ToolDetail }) {
   };
 
   return (
-    <aside className="overflow-hidden rounded-xl border border-[#d8d0c2] bg-[#fffdf8]/94 shadow-[0_14px_38px_rgba(25,25,21,0.07)] dark:border-[#38372f] dark:bg-[#1a1a17]/94 lg:sticky lg:top-6">
-      <div className="border-b border-[#d8d0c2] px-4 py-4 dark:border-[#38372f]">
+    <aside className="overflow-hidden rounded-[24px] border border-[#d8d0c2]/80 bg-[#fffdf8]/90 shadow-[0_18px_52px_rgba(24,24,18,0.08)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/90 lg:sticky lg:top-6">
+      <div className="border-b border-[#d8d0c2]/80 bg-[#fffdf8]/54 px-5 py-4 dark:border-[#38372f]/80 dark:bg-white/4">
         <div className="flex items-center gap-2">
           <ServerIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
           <h2 className="text-sm font-semibold">Configuration</h2>
           <Badge
             variant="outline"
-            className="ml-auto h-5 rounded-md border-[#d8d0c2] bg-[#f4efe5] text-[9px] uppercase text-[#6d685e] dark:border-[#49483f] dark:bg-[#292923] dark:text-[#aaa397]"
+            className="ml-auto h-5 rounded-full border-[#d8d0c2]/80 bg-[#f4efe5]/72 text-[9px] uppercase text-[#6d685e] dark:border-[#49483f] dark:bg-white/5 dark:text-[#aaa397]"
           >
             Local mock
           </Badge>
@@ -138,7 +154,7 @@ export function ToolConfigurationPanel({ tool }: { tool: ToolDetail }) {
       </div>
 
       <form
-        className="grid max-h-[calc(100vh-150px)] gap-5 overflow-y-auto p-4"
+        className="grid max-h-[calc(100vh-150px)] gap-5 overflow-y-auto p-5"
         onSubmit={(event) => {
           event.preventDefault();
           saveConfiguration();
@@ -146,8 +162,14 @@ export function ToolConfigurationPanel({ tool }: { tool: ToolDetail }) {
       >
         <div className="grid gap-1.5">
           <Label htmlFor="tool-environment">Environment</Label>
-          <Select value={environment} onValueChange={(value) => setEnvironment(String(value))}>
-            <SelectTrigger id="tool-environment" className="h-9 w-full bg-white dark:bg-[#20201c]">
+          <Select
+            value={environment}
+            onValueChange={(value) => setEnvironment(String(value))}
+          >
+            <SelectTrigger
+              id="tool-environment"
+              className="h-9 w-full bg-white dark:bg-[#20201c]"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -200,7 +222,7 @@ export function ToolConfigurationPanel({ tool }: { tool: ToolDetail }) {
 
         <Button
           type="submit"
-          className="h-10 rounded-lg bg-[#2456e8] text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
+          className="h-10 rounded-full bg-[#2456e8] text-white shadow-[0_14px_30px_rgba(36,86,232,0.18)] hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
         >
           <SaveIcon />
           Save configuration

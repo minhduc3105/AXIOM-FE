@@ -349,11 +349,12 @@ function RailContent({
             <Button
               variant="ghost"
               className={cn(
-                "h-11 gap-3 rounded-[6px] text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] data-[active=true]:bg-[#fffdf8] data-[active=true]:text-[#1237b4] data-[active=true]:shadow-sm dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white",
+                workspaceNavButtonClass,
                 sidebarButtonIconPadding,
                 expanded
                   ? "w-full justify-start px-3"
                   : "size-11 justify-center px-0",
+                "rounded-xl",
               )}
               data-active={surface === "reports"}
               onClick={onReports}
@@ -371,32 +372,32 @@ function RailContent({
                 Report
               </span>
             </Button>
-          </div>
-          <Button
-            variant="ghost"
-            className={cn(
-              workspaceNavButtonClass,
-              sidebarButtonIconPadding,
-              expanded
-                ? "w-full justify-start px-3"
-                : "size-11 justify-center px-0",
-              "rounded-xl",
-            )}
-            data-active="false"
-            aria-label="Settings"
-          >
-            <SettingsIcon data-icon="inline-start" />
-            <span
+            <Button
+              variant="ghost"
               className={cn(
-                "transition-opacity duration-300",
+                workspaceNavButtonClass,
+                sidebarButtonIconPadding,
                 expanded
-                  ? "opacity-100"
-                  : "pointer-events-none w-0 overflow-hidden opacity-0",
+                  ? "w-full justify-start px-3"
+                  : "size-11 justify-center px-0",
+                "rounded-xl",
               )}
+              data-active="false"
+              aria-label="Settings"
             >
-              Settings
-            </span>
-          </Button>
+              <SettingsIcon data-icon="inline-start" />
+              <span
+                className={cn(
+                  "transition-opacity duration-300",
+                  expanded
+                    ? "opacity-100"
+                    : "pointer-events-none w-0 overflow-hidden opacity-0",
+                )}
+              >
+                Settings
+              </span>
+            </Button>
+          </div>
         </nav>
 
         {expanded && (
