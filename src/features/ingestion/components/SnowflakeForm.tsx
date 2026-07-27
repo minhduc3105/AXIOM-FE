@@ -16,6 +16,7 @@ type SnowflakeFormProps = {
   onChange: (field: keyof SnowflakeConnection, value: string | boolean) => void
   onSubmit: () => void
   onRetryStatus: () => void
+  onRetryFiles: () => void
   onNewImport: () => void
   onBack: () => void
 }
@@ -26,8 +27,8 @@ function isValidLimit(value: string) {
   return Number.isInteger(parsed) && parsed >= 1
 }
 
-export function SnowflakeForm({ connection, status, job, error, onChange, onSubmit, onRetryStatus, onNewImport, onBack }: SnowflakeFormProps) {
-  const busy = status === 'submitting' || status === 'polling'
+export function SnowflakeForm({ connection, status, job, error, onChange, onSubmit, onRetryStatus, onRetryFiles, onNewImport, onBack }: SnowflakeFormProps) {
+  const busy = status === 'submitting' || status === 'polling' || status === 'discovering_files'
   const locked = Boolean(job) || busy
   const discoveryReady = connection.discoverTables || connection.discoverStages
   const limitsReady = isValidLimit(connection.tableLimit) && isValidLimit(connection.stageLimit)
@@ -78,6 +79,7 @@ export function SnowflakeForm({ connection, status, job, error, onChange, onSubm
       error={error}
       idleNotes={['Key-pair authentication is required', 'Tables and stages are copied into AXIOM storage', 'Private key material is cleared after job creation']}
       onRetryStatus={onRetryStatus}
+      onRetryFiles={onRetryFiles}
       onNewImport={onNewImport}
     />
   </div>

@@ -45,12 +45,15 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
             ? "Connection verified"
             : "Connection not tested"
           : workflow.stage === "s3" || workflow.stage === "snowflake"
-            ? workflow.connectorJobStatus === "completed"
+            ? workflow.connectorJobStatus === "discovering_files"
+              ? "Preparing objects for indexing"
+              : workflow.connectorJobStatus === "completed"
               ? `${workflow.ingestionJob?.objects_written ?? 0} objects stored`
               : workflow.connectorJobStatus === "polling"
                 ? "Source import running"
                 : workflow.connectorJobStatus === "failed" ||
-                    workflow.connectorJobStatus === "status_error"
+                    workflow.connectorJobStatus === "status_error" ||
+                    workflow.connectorJobStatus === "files_error"
                   ? "Source import needs attention"
                   : "Source import ready"
             : workflow.stage === "upload"
@@ -60,7 +63,9 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
                   ? `${workflow.uploadResult?.count ?? workflow.files.length} file${(workflow.uploadResult?.count ?? workflow.files.length) === 1 ? "" : "s"} stored`
                   : `${workflow.files.length} file${workflow.files.length === 1 ? "" : "s"} staged`
               : workflow.stage === "processing"
-                ? workflow.documentProcessingStatus === "complete"
+                ? workflow.documentProcessingStatus === "empty"
+                  ? "No objects to index"
+                  : workflow.documentProcessingStatus === "complete"
                   ? "All files indexed"
                   : workflow.documentProcessingStatus ===
                       "completed_with_errors"
@@ -88,7 +93,10 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
     <IngestionWorkspaceFrame
       title={pageTitles[workflow.stage]}
       repoMessage={repoMessage}
-      ready={workflow.indexStatus === "ready"}
+      ready={
+        workflow.indexStatus === "ready" ||
+        workflow.documentProcessingStatus === "complete"
+      }
       active={progressStageByView[workflow.stage]}
       furthest={workflow.furthestProgress}
       error={workflow.error}
@@ -128,6 +136,7 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
           onChange={workflow.updateS3Connection}
           onSubmit={() => void workflow.submitS3Import()}
           onRetryStatus={() => void workflow.retryIngestionStatus()}
+          onRetryFiles={() => void workflow.retryConnectorFileDiscovery()}
           onNewImport={workflow.startNewConnectorImport}
           onBack={workflow.openCatalog}
         />
@@ -141,6 +150,7 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
           onChange={workflow.updateSnowflakeConnection}
           onSubmit={() => void workflow.submitSnowflakeImport()}
           onRetryStatus={() => void workflow.retryIngestionStatus()}
+          onRetryFiles={() => void workflow.retryConnectorFileDiscovery()}
           onNewImport={workflow.startNewConnectorImport}
           onBack={workflow.openCatalog}
         />
@@ -158,9 +168,9 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
           onBack={workflow.openSource}
         />
       )}
-      {workflow.stage === "processing" && workflow.uploadResult && (
+      {workflow.stage === "processing" && workflow.processingBatch && (
         <DocumentProcessingWorkspace
-          uploadResult={workflow.uploadResult}
+          batch={workflow.processingBatch}
           status={workflow.documentProcessingStatus}
           results={workflow.documentProcessingResults}
           error={workflow.documentProcessingError}

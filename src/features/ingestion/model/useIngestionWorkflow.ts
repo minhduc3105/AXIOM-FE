@@ -3,6 +3,7 @@ import {
   buildSearchIndex,
   createIngestionJob,
   extractMeaning,
+  getAllFilesForJob,
   getDocumentProcessingStatuses,
   getIngestionJob,
   reviseMeaning,
@@ -12,10 +13,11 @@ import {
   testMySqlConnection,
   uploadFiles,
 } from '../api/ingestionApi'
-import type { DocumentProcessingStatus, IngestionJobResponse, UploadFilesResponse } from '../api/ingestionApi'
+import type { DocumentProcessingStatus, IngestionJobResponse, JobFilesResult, UploadFilesResponse } from '../api/ingestionApi'
 import type {
   AsyncStatus,
   ConnectorJobUiStatus,
+  DocumentProcessingBatch,
   DocumentProcessingUiStatus,
   IndexStatus,
   IngestionFile,
@@ -88,6 +90,7 @@ type WorkflowState = {
   selectedFileId: string | null
   uploadStatus: AsyncStatus
   uploadResult: UploadFilesResponse | null
+  processingBatch: DocumentProcessingBatch | null
   documentProcessingStatus: DocumentProcessingUiStatus
   documentProcessingResults: DocumentProcessingStatus[]
   documentProcessingError: string | null
@@ -118,6 +121,7 @@ const initialState: WorkflowState = {
   selectedFileId: null,
   uploadStatus: 'idle',
   uploadResult: null,
+  processingBatch: null,
   documentProcessingStatus: 'idle',
   documentProcessingResults: [],
   documentProcessingError: null,
@@ -142,6 +146,9 @@ type Action =
   | { type: 'CONNECTOR_SUBMIT_START' }
   | { type: 'CONNECTOR_JOB_ACCEPTED'; job: IngestionJobResponse }
   | { type: 'CONNECTOR_JOB_UPDATED'; job: IngestionJobResponse }
+  | { type: 'CONNECTOR_FILES_DISCOVERY_START' }
+  | { type: 'CONNECTOR_FILES_READY'; batch: DocumentProcessingBatch }
+  | { type: 'CONNECTOR_FILES_ERROR'; message: string }
   | { type: 'CONNECTOR_SUBMIT_ERROR'; message: string }
   | { type: 'CONNECTOR_STATUS_ERROR'; message: string }
   | { type: 'CONNECTOR_RETRY_STATUS' }
@@ -193,11 +200,64 @@ function getConnectorJobUiStatus(job: IngestionJobResponse): ConnectorJobUiStatu
 }
 
 function getDocumentProcessingUiStatus(results: DocumentProcessingStatus[]): DocumentProcessingUiStatus {
+  if (results.length === 0) return 'empty'
   const allTerminal = results.length > 0 && results.every(
     (result) => result.found && (result.status === 'completed' || result.status === 'failed'),
   )
   if (!allTerminal) return 'polling'
   return results.some((result) => result.status === 'failed') ? 'completed_with_errors' : 'complete'
+}
+
+function createPendingProcessingStatus(objectKey: string): DocumentProcessingStatus {
+  return {
+    object_key: objectKey,
+    found: false,
+    run_id: null,
+    document_id: null,
+    status: null,
+    error_message: null,
+    started_at: null,
+    finished_at: null,
+    created_at: null,
+  }
+}
+
+function createUploadProcessingBatch(result: UploadFilesResponse): DocumentProcessingBatch {
+  return {
+    job_id: result.job_id,
+    organization_id: result.organization_id,
+    bucket: result.bucket,
+    count: result.count,
+    source_kind: 'upload',
+    files: result.files.map((file) => ({
+      key: file.key,
+      filename: file.filename,
+    })),
+  }
+}
+
+function createConnectorProcessingBatch(
+  job: IngestionJobResponse,
+  filesResult: JobFilesResult,
+): DocumentProcessingBatch {
+  if (job.datasource_type !== 's3' && job.datasource_type !== 'snowflake') {
+    throw new Error(`Unsupported connector indexing source: ${job.datasource_type}.`)
+  }
+  return {
+    job_id: job.job_id,
+    organization_id: filesResult.organization_id,
+    bucket: filesResult.bucket,
+    count: filesResult.count,
+    source_kind: job.datasource_type,
+    files: filesResult.files.map((file) => ({
+      key: file.key,
+      filename: null,
+    })),
+  }
+}
+
+function isTerminalProcessingStatus(result: DocumentProcessingStatus | undefined) {
+  return Boolean(result?.found && (result.status === 'completed' || result.status === 'failed'))
 }
 
 function getConnectorStage(connector: string, fallback: IngestionStage): IngestionStage {
@@ -221,6 +281,10 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
         connectorJobStatus: 'idle',
         ingestionJob: null,
         connectorError: null,
+        processingBatch: null,
+        documentProcessingStatus: 'idle',
+        documentProcessingResults: [],
+        documentProcessingError: null,
         error: null,
       }
     case 'UPDATE_CONNECTION':
@@ -248,7 +312,17 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
         connectorError: state.ingestionJob ? state.connectorError : null,
       }
     case 'CONNECTOR_SUBMIT_START':
-      return { ...state, connectorJobStatus: 'submitting', ingestionJob: null, connectorError: null, error: null }
+      return {
+        ...state,
+        connectorJobStatus: 'submitting',
+        ingestionJob: null,
+        connectorError: null,
+        processingBatch: null,
+        documentProcessingStatus: 'idle',
+        documentProcessingResults: [],
+        documentProcessingError: null,
+        error: null,
+      }
     case 'CONNECTOR_JOB_ACCEPTED':
       return {
         ...state,
@@ -269,6 +343,31 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
         ingestionJob: action.job,
         connectorError: null,
       }
+    case 'CONNECTOR_FILES_DISCOVERY_START':
+      return {
+        ...state,
+        connectorJobStatus: 'discovering_files',
+        connectorError: null,
+      }
+    case 'CONNECTOR_FILES_READY':
+      return {
+        ...state,
+        stage: 'processing',
+        furthestProgress: Math.max(state.furthestProgress, 2),
+        connectorJobStatus: 'completed',
+        processingBatch: action.batch,
+        documentProcessingStatus: action.batch.count === 0 ? 'empty' : 'polling',
+        documentProcessingResults: action.batch.files.map((file) => createPendingProcessingStatus(file.key)),
+        documentProcessingError: null,
+        connectorError: null,
+        error: null,
+      }
+    case 'CONNECTOR_FILES_ERROR':
+      return {
+        ...state,
+        connectorJobStatus: 'files_error',
+        connectorError: action.message,
+      }
     case 'CONNECTOR_SUBMIT_ERROR':
       return { ...state, connectorJobStatus: 'failed', ingestionJob: null, connectorError: action.message }
     case 'CONNECTOR_STATUS_ERROR':
@@ -276,7 +375,16 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
     case 'CONNECTOR_RETRY_STATUS':
       return { ...state, connectorJobStatus: 'polling', connectorError: null }
     case 'CONNECTOR_NEW_IMPORT':
-      return { ...state, connectorJobStatus: 'idle', ingestionJob: null, connectorError: null }
+      return {
+        ...state,
+        connectorJobStatus: 'idle',
+        ingestionJob: null,
+        connectorError: null,
+        processingBatch: null,
+        documentProcessingStatus: 'idle',
+        documentProcessingResults: [],
+        documentProcessingError: null,
+      }
     case 'TEST_START':
       return { ...state, connectionStatus: 'loading', error: null }
     case 'TEST_SUCCESS':
@@ -311,6 +419,7 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
         furthestProgress: 1,
         uploadStatus: 'idle',
         uploadResult: null,
+        processingBatch: null,
         documentProcessingStatus: 'idle',
         documentProcessingResults: [],
         documentProcessingError: null,
@@ -321,29 +430,29 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
     case 'SELECT_FILE':
       return { ...state, selectedFileId: action.id }
     case 'UPLOAD_START':
-      return { ...state, stage: 'upload', uploadStatus: 'loading', uploadResult: null, error: null }
-    case 'UPLOAD_SUCCESS':
+      return {
+        ...state,
+        stage: 'upload',
+        uploadStatus: 'loading',
+        uploadResult: null,
+        processingBatch: null,
+        error: null,
+      }
+    case 'UPLOAD_SUCCESS': {
+      const processingBatch = createUploadProcessingBatch(action.result)
       return {
         ...state,
         stage: 'processing',
         furthestProgress: Math.max(state.furthestProgress, 2),
         uploadStatus: 'success',
         uploadResult: action.result,
-        documentProcessingStatus: 'polling',
-        documentProcessingResults: action.result.files.map((file) => ({
-          object_key: file.key,
-          found: false,
-          run_id: null,
-          document_id: null,
-          status: null,
-          error_message: null,
-          started_at: null,
-          finished_at: null,
-          created_at: null,
-        })),
+        processingBatch,
+        documentProcessingStatus: processingBatch.count === 0 ? 'empty' : 'polling',
+        documentProcessingResults: processingBatch.files.map((file) => createPendingProcessingStatus(file.key)),
         documentProcessingError: null,
         error: null,
       }
+    }
     case 'UPLOAD_ERROR':
       return { ...state, stage: 'upload', uploadStatus: 'error', uploadResult: null, error: action.message }
     case 'DOCUMENT_PROCESSING_UPDATED':
@@ -506,31 +615,28 @@ export function useIngestionWorkflow() {
   }, [])
   const selectFile = useCallback((id: string) => dispatch({ type: 'SELECT_FILE', id }), [])
 
-  const monitorIngestionJob = useCallback(async (jobId: string, signal: AbortSignal, immediately = false) => {
-    try {
-      if (!immediately) await waitForNextStatusCheck(signal)
-      while (!signal.aborted) {
-        const job = await getIngestionJob(jobId, signal)
-        dispatch({ type: 'CONNECTOR_JOB_UPDATED', job })
-        if (job.status === 'completed' || job.status === 'failed') return
-        await waitForNextStatusCheck(signal)
-      }
-    } catch (error) {
-      if (!isAbortError(error)) dispatch({ type: 'CONNECTOR_STATUS_ERROR', message: getErrorMessage(error, 'Unable to refresh the import status.') })
-    }
-  }, [])
-
   const monitorDocumentProcessing = useCallback(async (
-    uploadResult: UploadFilesResponse,
+    batch: DocumentProcessingBatch,
     signal: AbortSignal,
+    initialResults: DocumentProcessingStatus[] = [],
   ) => {
+    const resultsByKey = new Map(initialResults.map((result) => [result.object_key, result]))
     try {
       while (!signal.aborted) {
-        const results = await getDocumentProcessingStatuses(
-          uploadResult.organization_id,
-          uploadResult.bucket,
-          uploadResult.files.map((file) => file.key),
+        const objectKeys = batch.files
+          .map((file) => file.key)
+          .filter((key) => !isTerminalProcessingStatus(resultsByKey.get(key)))
+        if (objectKeys.length === 0) return
+
+        const refreshedResults = await getDocumentProcessingStatuses(
+          batch.organization_id,
+          batch.bucket,
+          objectKeys,
           signal,
+        )
+        refreshedResults.forEach((result) => resultsByKey.set(result.object_key, result))
+        const results = batch.files.map(
+          (file) => resultsByKey.get(file.key) ?? createPendingProcessingStatus(file.key),
         )
         dispatch({ type: 'DOCUMENT_PROCESSING_UPDATED', results })
         if (getDocumentProcessingUiStatus(results) !== 'polling') return
@@ -545,6 +651,49 @@ export function useIngestionWorkflow() {
       }
     }
   }, [])
+
+  const prepareConnectorProcessing = useCallback(async (
+    job: IngestionJobResponse,
+    signal: AbortSignal,
+  ) => {
+    dispatch({ type: 'CONNECTOR_FILES_DISCOVERY_START' })
+    try {
+      const filesResult = await getAllFilesForJob(job.job_id, signal)
+      if (filesResult.count !== job.objects_written) {
+        throw new Error(
+          `The ingestion job stored ${job.objects_written} objects, but ${filesResult.count} files were available for indexing.`,
+        )
+      }
+      const batch = createConnectorProcessingBatch(job, filesResult)
+      dispatch({ type: 'CONNECTOR_FILES_READY', batch })
+      if (batch.count > 0) void monitorDocumentProcessing(batch, signal)
+    } catch (error) {
+      if (!isAbortError(error)) {
+        dispatch({
+          type: 'CONNECTOR_FILES_ERROR',
+          message: getErrorMessage(error, 'Unable to prepare imported objects for indexing.'),
+        })
+      }
+    }
+  }, [monitorDocumentProcessing])
+
+  const monitorIngestionJob = useCallback(async (jobId: string, signal: AbortSignal, immediately = false) => {
+    try {
+      if (!immediately) await waitForNextStatusCheck(signal)
+      while (!signal.aborted) {
+        const job = await getIngestionJob(jobId, signal)
+        dispatch({ type: 'CONNECTOR_JOB_UPDATED', job })
+        if (job.status === 'completed') {
+          await prepareConnectorProcessing(job, signal)
+          return
+        }
+        if (job.status === 'failed') return
+        await waitForNextStatusCheck(signal)
+      }
+    } catch (error) {
+      if (!isAbortError(error)) dispatch({ type: 'CONNECTOR_STATUS_ERROR', message: getErrorMessage(error, 'Unable to refresh the import status.') })
+    }
+  }, [prepareConnectorProcessing])
 
   const submitS3Import = useCallback(async () => {
     if (state.connectorJobStatus === 'submitting' || state.connectorJobStatus === 'polling' || state.ingestionJob) return
@@ -562,11 +711,15 @@ export function useIngestionWorkflow() {
         },
       }, signal)
       dispatch({ type: 'CONNECTOR_JOB_ACCEPTED', job })
-      if (job.status !== 'completed' && job.status !== 'failed') void monitorIngestionJob(job.job_id, signal)
+      if (job.status === 'completed') {
+        await prepareConnectorProcessing(job, signal)
+      } else if (job.status !== 'failed') {
+        void monitorIngestionJob(job.job_id, signal)
+      }
     } catch (error) {
       if (!isAbortError(error)) dispatch({ type: 'CONNECTOR_SUBMIT_ERROR', message: getErrorMessage(error, 'Unable to create the S3 import job.') })
     }
-  }, [beginRequest, monitorIngestionJob, state.connectorJobStatus, state.ingestionJob, state.s3Connection])
+  }, [beginRequest, monitorIngestionJob, prepareConnectorProcessing, state.connectorJobStatus, state.ingestionJob, state.s3Connection])
 
   const submitSnowflakeImport = useCallback(async () => {
     if (state.connectorJobStatus === 'submitting' || state.connectorJobStatus === 'polling' || state.ingestionJob) return
@@ -593,11 +746,15 @@ export function useIngestionWorkflow() {
         stage_limit: optionalPositiveInteger(state.snowflakeConnection.stageLimit),
       }, signal)
       dispatch({ type: 'CONNECTOR_JOB_ACCEPTED', job })
-      if (job.status !== 'completed' && job.status !== 'failed') void monitorIngestionJob(job.job_id, signal)
+      if (job.status === 'completed') {
+        await prepareConnectorProcessing(job, signal)
+      } else if (job.status !== 'failed') {
+        void monitorIngestionJob(job.job_id, signal)
+      }
     } catch (error) {
       if (!isAbortError(error)) dispatch({ type: 'CONNECTOR_SUBMIT_ERROR', message: getErrorMessage(error, 'Unable to create the Snowflake import job.') })
     }
-  }, [beginRequest, monitorIngestionJob, state.connectorJobStatus, state.ingestionJob, state.snowflakeConnection])
+  }, [beginRequest, monitorIngestionJob, prepareConnectorProcessing, state.connectorJobStatus, state.ingestionJob, state.snowflakeConnection])
 
   const retryIngestionStatus = useCallback(async () => {
     if (!state.ingestionJob) return
@@ -605,6 +762,12 @@ export function useIngestionWorkflow() {
     dispatch({ type: 'CONNECTOR_RETRY_STATUS' })
     await monitorIngestionJob(state.ingestionJob.job_id, signal, true)
   }, [beginRequest, monitorIngestionJob, state.ingestionJob])
+
+  const retryConnectorFileDiscovery = useCallback(async () => {
+    if (!state.ingestionJob || state.ingestionJob.status !== 'completed') return
+    const signal = beginRequest()
+    await prepareConnectorProcessing(state.ingestionJob, signal)
+  }, [beginRequest, prepareConnectorProcessing, state.ingestionJob])
 
   const startNewConnectorImport = useCallback(() => {
     requestRef.current?.abort()
@@ -622,18 +785,19 @@ export function useIngestionWorkflow() {
         signal,
       )
       dispatch({ type: 'UPLOAD_SUCCESS', result })
-      void monitorDocumentProcessing(result, signal)
+      const batch = createUploadProcessingBatch(result)
+      if (batch.count > 0) void monitorDocumentProcessing(batch, signal)
     } catch (error) {
       if (!isAbortError(error)) dispatch({ type: 'UPLOAD_ERROR', message: getErrorMessage(error, 'Unable to upload the selected files.') })
     }
   }, [beginRequest, monitorDocumentProcessing, state.files, state.uploadStatus])
 
   const retryDocumentProcessingStatus = useCallback(async () => {
-    if (!state.uploadResult || state.documentProcessingStatus === 'polling') return
+    if (!state.processingBatch || state.documentProcessingStatus === 'polling' || state.documentProcessingStatus === 'empty') return
     const signal = beginRequest()
     dispatch({ type: 'DOCUMENT_PROCESSING_RETRY' })
-    await monitorDocumentProcessing(state.uploadResult, signal)
-  }, [beginRequest, monitorDocumentProcessing, state.documentProcessingStatus, state.uploadResult])
+    await monitorDocumentProcessing(state.processingBatch, signal, state.documentProcessingResults)
+  }, [beginRequest, monitorDocumentProcessing, state.documentProcessingResults, state.documentProcessingStatus, state.processingBatch])
 
   const testConnection = useCallback(async () => {
     const signal = beginRequest()
@@ -725,23 +889,37 @@ export function useIngestionWorkflow() {
   }, [beginRequest, state.searchQuery])
 
   const navigateProgress = useCallback((progress: ProgressStage) => {
-    const busy = state.uploadStatus === 'loading' || state.connectorJobStatus === 'submitting' || state.connectorJobStatus === 'polling' || state.pipelineStatus === 'loading' || state.meaningStatus === 'extracting' || state.meaningStatus === 'revising' || state.indexStatus === 'building' || state.connectionStatus === 'loading' || state.connectionStatus === 'saving' || state.searchStatus === 'loading'
+    const busy = state.uploadStatus === 'loading'
+      || state.connectorJobStatus === 'submitting'
+      || state.connectorJobStatus === 'polling'
+      || state.connectorJobStatus === 'discovering_files'
+      || state.pipelineStatus === 'loading'
+      || state.meaningStatus === 'extracting'
+      || state.meaningStatus === 'revising'
+      || state.indexStatus === 'building'
+      || state.connectionStatus === 'loading'
+      || state.connectionStatus === 'saving'
+      || state.searchStatus === 'loading'
     if (busy) return
     const targetIndex = ['source', 'transfer', 'pipeline', 'profile', 'meaning', 'index'].indexOf(progress)
     if (targetIndex > state.furthestProgress) return
     const stage: IngestionStage = progress === 'transfer'
       ? ['upload', 'mysql', 's3', 'snowflake'].includes(state.stage)
         ? state.stage
+        : state.processingBatch?.source_kind === 's3'
+          ? 's3'
+          : state.processingBatch?.source_kind === 'snowflake'
+            ? 'snowflake'
         : state.source?.kind === 'files'
           ? 'upload'
           : state.source?.kind === 'mysql'
             ? 'mysql'
             : 'catalog'
-      : progress === 'pipeline' && state.source?.kind === 'files' && state.uploadResult
+      : progress === 'pipeline' && state.processingBatch
         ? 'processing'
         : progress
     dispatch({ type: 'NAVIGATE', stage })
-  }, [state.connectionStatus, state.connectorJobStatus, state.furthestProgress, state.indexStatus, state.meaningStatus, state.pipelineStatus, state.searchStatus, state.source, state.stage, state.uploadResult, state.uploadStatus])
+  }, [state.connectionStatus, state.connectorJobStatus, state.furthestProgress, state.indexStatus, state.meaningStatus, state.pipelineStatus, state.processingBatch, state.searchStatus, state.source, state.stage, state.uploadStatus])
 
   return {
     ...state,
@@ -754,6 +932,7 @@ export function useIngestionWorkflow() {
     submitS3Import,
     submitSnowflakeImport,
     retryIngestionStatus,
+    retryConnectorFileDiscovery,
     startNewConnectorImport,
     addFiles,
     selectFile,

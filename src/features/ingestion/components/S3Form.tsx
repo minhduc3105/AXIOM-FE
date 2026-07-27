@@ -15,12 +15,13 @@ type S3FormProps = {
   onChange: (field: keyof S3Connection, value: string) => void
   onSubmit: () => void
   onRetryStatus: () => void
+  onRetryFiles: () => void
   onNewImport: () => void
   onBack: () => void
 }
 
-export function S3Form({ connection, status, job, error, onChange, onSubmit, onRetryStatus, onNewImport, onBack }: S3FormProps) {
-  const busy = status === 'submitting' || status === 'polling'
+export function S3Form({ connection, status, job, error, onChange, onSubmit, onRetryStatus, onRetryFiles, onNewImport, onBack }: S3FormProps) {
+  const busy = status === 'submitting' || status === 'polling' || status === 'discovering_files'
   const locked = Boolean(job) || busy
   const requiredReady = Boolean(
     connection.accessKeyId.trim()
@@ -59,6 +60,7 @@ export function S3Form({ connection, status, job, error, onChange, onSubmit, onR
       error={error}
       idleNotes={['Read access to the source bucket', 'Every source object will be copied', 'Credentials are cleared after job creation']}
       onRetryStatus={onRetryStatus}
+      onRetryFiles={onRetryFiles}
       onNewImport={onNewImport}
     />
   </div>
