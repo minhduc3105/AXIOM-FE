@@ -1,3 +1,12 @@
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/shared/lib/utils";
 
 type MarkdownContentProps = {
@@ -8,7 +17,9 @@ type MarkdownContentProps = {
 type MarkdownBlock =
   | { type: "heading"; depth: 1 | 2 | 3; text: string }
   | { type: "paragraph"; text: string }
-  | { type: "list"; items: string[] };
+  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "rule" }
+  | { type: "table"; headers: string[]; rows: string[][] };
 
 export function MarkdownContent({ markdown, compact }: MarkdownContentProps) {
   const blocks = parseMarkdown(markdown);
@@ -16,8 +27,8 @@ export function MarkdownContent({ markdown, compact }: MarkdownContentProps) {
   return (
     <article
       className={cn(
-        "min-w-0 text-[#191915] dark:text-[#eee8dc]",
-        compact ? "space-y-3" : "space-y-5",
+        "flex min-w-0 flex-col text-[#191915] dark:text-[#eee8dc]",
+        compact ? "gap-3" : "gap-5",
       )}
     >
       {blocks.map((block, index) => renderBlock(block, index, compact))}
@@ -26,29 +37,39 @@ export function MarkdownContent({ markdown, compact }: MarkdownContentProps) {
 }
 
 function parseMarkdown(markdown: string): MarkdownBlock[] {
-  const lines = markdown.trim().split("\n");
+  const lines = markdown.trim().split(/\r?\n/);
   const blocks: MarkdownBlock[] = [];
   let paragraph: string[] = [];
   let list: string[] = [];
+  let orderedList = false;
 
   const flushParagraph = () => {
     if (!paragraph.length) return;
-    blocks.push({ type: "paragraph", text: paragraph.join(" ") });
+    blocks.push({ type: "paragraph", text: normalizeParagraphText(paragraph) });
     paragraph = [];
   };
 
   const flushList = () => {
     if (!list.length) return;
-    blocks.push({ type: "list", items: list });
+    blocks.push({ type: "list", ordered: orderedList, items: list });
     list = [];
+    orderedList = false;
   };
 
-  for (const rawLine of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const rawLine = lines[index];
     const line = rawLine.trim();
 
     if (!line) {
       flushParagraph();
       flushList();
+      continue;
+    }
+
+    if (/^([-*_])\1\1+$/.test(line)) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: "rule" });
       continue;
     }
 
@@ -64,10 +85,30 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
       continue;
     }
 
+    const table = parseTableAt(lines, index);
+    if (table) {
+      flushParagraph();
+      flushList();
+      blocks.push(table.block);
+      index = table.endIndex;
+      continue;
+    }
+
     const listItem = /^[-*]\s+(.+)$/.exec(line);
     if (listItem) {
       flushParagraph();
+      if (list.length && orderedList) flushList();
+      orderedList = false;
       list.push(listItem[1]);
+      continue;
+    }
+
+    const orderedListItem = /^\d+[.)]\s+(.+)$/.exec(line);
+    if (orderedListItem) {
+      flushParagraph();
+      if (list.length && !orderedList) flushList();
+      orderedList = true;
+      list.push(orderedListItem[1]);
       continue;
     }
 
@@ -79,6 +120,60 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
   flushList();
 
   return blocks;
+}
+
+function normalizeParagraphText(lines: string[]) {
+  return lines
+    .join("\n")
+    .replace(
+      /\s+(→\s+(?:\*\*)?[A-Z][A-Za-z\s]{1,40}:)/g,
+      "\n$1",
+    )
+    .trim();
+}
+
+function parseTableAt(lines: string[], startIndex: number) {
+  const header = splitTableRow(lines[startIndex]);
+  const separator = splitTableRow(lines[startIndex + 1] ?? "");
+  if (!header || !separator || !isTableSeparator(separator)) return null;
+
+  const rows: string[][] = [];
+  let endIndex = startIndex + 1;
+
+  for (let index = startIndex + 2; index < lines.length; index += 1) {
+    const row = splitTableRow(lines[index]);
+    if (!row) break;
+    rows.push(normalizeTableRow(row, header.length));
+    endIndex = index;
+  }
+
+  return {
+    block: {
+      type: "table" as const,
+      headers: header,
+      rows,
+    },
+    endIndex,
+  };
+}
+
+function splitTableRow(line: string) {
+  const trimmed = line.trim();
+  if (!trimmed.includes("|")) return null;
+  const cells = trimmed
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+  return cells.length >= 2 ? cells : null;
+}
+
+function isTableSeparator(cells: string[]) {
+  return cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+}
+
+function normalizeTableRow(cells: string[], length: number) {
+  return Array.from({ length }, (_, index) => cells[index] ?? "");
 }
 
 function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
@@ -119,10 +214,12 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
   }
 
   if (block.type === "list") {
+    const ListTag = block.ordered ? "ol" : "ul";
     return (
-      <ul
+      <ListTag
         className={cn(
-          "grid list-disc gap-2 pl-5 text-[#5f5a50] dark:text-[#aaa397]",
+          "grid gap-2 pl-5 text-[#5f5a50] dark:text-[#aaa397]",
+          block.ordered ? "list-decimal" : "list-disc",
           compact ? "text-sm leading-relaxed" : "text-base leading-relaxed",
         )}
         key={`${block.type}-${index}`}
@@ -130,7 +227,55 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
         {block.items.map((item) => (
           <li key={item}>{renderInline(item)}</li>
         ))}
-      </ul>
+      </ListTag>
+    );
+  }
+
+  if (block.type === "rule") {
+    return (
+      <Separator
+        className="my-7 bg-[#d8d0c2] dark:bg-[#38372f]"
+        key={`${block.type}-${index}`}
+      />
+    );
+  }
+
+  if (block.type === "table") {
+    return (
+      <div
+        className="max-w-full overflow-hidden rounded-[18px] border border-[#d8d0c2]/80 bg-[#fffdf8]/80 dark:border-[#38372f] dark:bg-white/[0.03]"
+        key={`${block.type}-${index}`}
+      >
+        <Table className="min-w-[560px]">
+          <TableHeader className="bg-[#f4efe5]/80 text-[#25241f] dark:bg-[#292923] dark:text-[#eee8dc]">
+            <TableRow className="hover:bg-transparent">
+              {block.headers.map((header, cellIndex) => (
+                <TableHead
+                  className="h-auto border-[#d8d0c2]/80 px-4 py-3 font-semibold whitespace-normal dark:border-[#38372f]"
+                  key={`${header}-${cellIndex}`}
+                  scope="col"
+                >
+                  {renderInline(header)}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody className="text-[#5f5a50] dark:text-[#aaa397]">
+            {block.rows.map((row, rowIndex) => (
+              <TableRow key={`${row.join("-")}-${rowIndex}`}>
+                {row.map((cell, cellIndex) => (
+                  <TableCell
+                    className="align-top px-4 py-3 leading-relaxed whitespace-normal"
+                    key={`${cell}-${cellIndex}`}
+                  >
+                    {renderInline(cell)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     );
   }
 
@@ -142,28 +287,45 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
       )}
       key={`${block.type}-${index}`}
     >
-      {renderInline(block.text)}
+      {renderInlineWithBreaks(block.text)}
     </p>
   );
 }
 
-function renderInline(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+function renderInlineWithBreaks(text: string) {
+  return text.split("\n").flatMap((line, index) => {
+    const nodes = renderInline(line, `line-${index}`);
+    return index === 0
+      ? nodes
+      : [<br key={`line-break-${index}`} />, ...nodes];
+  });
+}
+
+function renderInline(text: string, keyPrefix = "inline") {
+  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|(?<!\*)\*[^*\n]+\*(?!\*))/g);
 
   return parts.map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={`${part}-${index}`}>{part.slice(2, -2)}</strong>;
-    }
+    if (!part) return null;
+
+    const key = `${keyPrefix}-${index}`;
 
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
         <code
           className="rounded-md bg-[#f4efe5] px-1.5 py-0.5 text-[0.92em] text-[#191915] dark:bg-[#292923] dark:text-[#eee8dc]"
-          key={`${part}-${index}`}
+          key={key}
         >
           {part.slice(1, -1)}
         </code>
       );
+    }
+
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
+    }
+
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <em key={key}>{part.slice(1, -1)}</em>;
     }
 
     return part;

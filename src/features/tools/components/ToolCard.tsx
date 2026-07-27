@@ -12,8 +12,12 @@ type ToolCardProps = {
 };
 
 export function ToolCard({ tool, onOpen }: ToolCardProps) {
-  const { isToolEnabled, setToolEnabled } = useToolsState();
-  const enabled = isToolEnabled(tool.name, tool.kind);
+  const { getToolRevision, isToolEnabled, isToolUpdating, setToolEnabled } =
+    useToolsState();
+  const enabled = isToolEnabled(tool.name, tool.kind, tool.enabled);
+  const revision = getToolRevision(tool.name, tool.revision);
+  const updating = isToolUpdating(tool.name);
+  const canUpdate = typeof revision === "number";
   const displayName = formatToolName(tool.name);
 
   return (
@@ -71,8 +75,10 @@ export function ToolCard({ tool, onOpen }: ToolCardProps) {
         </span>
         <ToolStatusSwitch
           checked={enabled}
+          disabled={updating || !canUpdate}
+          disabledLabel={updating ? "Updating" : "Sample"}
           label={displayName}
-          onCheckedChange={(checked) => setToolEnabled(tool.name, checked)}
+          onCheckedChange={(checked) => setToolEnabled(tool.name, checked, revision)}
         />
       </footer>
     </article>

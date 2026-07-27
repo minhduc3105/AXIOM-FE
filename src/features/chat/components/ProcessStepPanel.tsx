@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { ProcessEvent } from "../model/types";
 import {
   CheckIcon,
+  ChevronDownIcon,
   ChevronRightIcon,
+  ChevronUpIcon,
   Clock3Icon,
   Code2Icon,
   InfoIcon,
@@ -11,7 +14,6 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,18 +28,11 @@ export type ProcessStepSelectionHandler = (
 type ProcessPresentation = ReturnType<typeof getProcessPresentation>;
 
 export function getProcessPresentation(events: ProcessEvent[]) {
-  const total = Math.max(events.length, 1);
-  const completed = events.filter((event) => event.status === "done").length;
-  const running = events.some((event) => event.status === "running");
-  const complete = events.length > 0 && completed === events.length;
-  const progress = Math.round(
-    ((completed + (running ? 0.5 : 0)) / total) * 100,
-  );
   const visibleEvents = events.filter((event) => event.status !== "waiting");
   const transcriptEvents =
     visibleEvents.length > 0 ? visibleEvents : events.slice(0, 1);
 
-  return { completed, complete, progress, transcriptEvents };
+  return { transcriptEvents };
 }
 
 export function ProcessWorkspace({
@@ -53,7 +48,9 @@ export function ProcessWorkspace({
   processEventKeyPrefix?: string;
   onProcessEventSelect?: ProcessStepSelectionHandler;
 }) {
-  const { completed, complete, progress, transcriptEvents } = presentation;
+  const { transcriptEvents } = presentation;
+  const [expanded, setExpanded] = useState(true);
+  const hasScrollableTranscript = transcriptEvents.length > 5;
 
   if (transcriptEvents.length === 0) {
     return (
@@ -70,26 +67,55 @@ export function ProcessWorkspace({
 
   return (
     <section className="grid gap-4" aria-label={ariaLabel}>
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <AxiomIdentity markClassName="size-10" titleClassName="text-xl" />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-expanded={expanded}
+          aria-controls={`${processEventKeyPrefix}-process-steps`}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {expanded ? (
+            <ChevronUpIcon data-icon="inline-start" />
+          ) : (
+            <ChevronDownIcon data-icon="inline-start" />
+          )}
+          {expanded ? "Collapse" : "Expand"}
+        </Button>
       </div>
 
-      <div className="rounded-2xl border border-[#d8d0c2]/80 bg-[#fffdf8]/60 p-2 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/55">
-        <ol className="grid gap-1.5" aria-label={ariaLabel}>
-          {transcriptEvents.map((event, index) => {
-            const eventKey = `${processEventKeyPrefix}:${event.id}`;
-            return (
-              <ProcessStepButton
-                event={event}
-                index={index}
-                selected={eventKey === activeProcessEventKey}
-                onSelect={() => onProcessEventSelect?.(event, eventKey)}
-                key={eventKey}
-              />
-            );
-          })}
-        </ol>
-      </div>
+      {expanded && (
+        <div
+          className="overflow-hidden rounded-2xl border border-[#d8d0c2]/80 bg-[#fffdf8]/60 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/55"
+          id={`${processEventKeyPrefix}-process-steps`}
+        >
+          <ScrollArea
+            className={cn(
+              "transition-[height] duration-200",
+              hasScrollableTranscript
+                ? "h-[min(420px,calc(100dvh-360px))] min-h-[240px]"
+                : "max-h-[420px]",
+            )}
+          >
+            <ol className="grid gap-1.5 p-2 pr-3" aria-label={ariaLabel}>
+              {transcriptEvents.map((event, index) => {
+                const eventKey = `${processEventKeyPrefix}:${event.id}`;
+                return (
+                  <ProcessStepButton
+                    event={event}
+                    index={index}
+                    selected={eventKey === activeProcessEventKey}
+                    onSelect={() => onProcessEventSelect?.(event, eventKey)}
+                    key={eventKey}
+                  />
+                );
+              })}
+            </ol>
+          </ScrollArea>
+        </div>
+      )}
     </section>
   );
 }

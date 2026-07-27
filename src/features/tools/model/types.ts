@@ -13,12 +13,19 @@ export type ToolSummary = {
   description: string;
   required_params: string[];
   param_count: number;
+  registered?: boolean;
+  enabled?: boolean;
+  status?: string;
+  source?: string;
+  version?: string;
+  revision?: number | null;
 };
 
 export type ToolCatalogResponse = {
   tools: ToolSummary[];
   count: number;
   counts_by_kind: Record<ToolKind, number>;
+  revision?: number;
 };
 
 export type ToolJsonSchema = {
@@ -57,6 +64,12 @@ export type ToolDetail = {
   name: string;
   kind: ToolKind;
   description: string;
+  registered?: boolean;
+  enabled?: boolean;
+  status?: string;
+  source?: string;
+  version?: string;
+  revision?: number | null;
   params: ToolParameter[];
   input_schema: ToolJsonSchema;
   implementation?: ToolImplementation;
@@ -66,6 +79,12 @@ export type ToolDetail = {
 
 export type ToolDetailResponse = {
   tool: ToolDetail;
+};
+
+export type ToolEnabledResponse = {
+  name?: string;
+  enabled?: boolean;
+  tool?: Pick<ToolDetail, "name" | "enabled" | "revision" | "status">;
 };
 
 export type ToolCatalogFilters = {

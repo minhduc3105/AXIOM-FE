@@ -11,11 +11,25 @@ const tool: ToolSummary = {
   description: "Extract relevant keywords from text.",
   required_params: ["text"],
   param_count: 2,
+  enabled: false,
+  revision: 3,
 };
 
 describe("ToolCard", () => {
-  beforeEach(() => window.localStorage.clear());
-  afterEach(cleanup);
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ tool: { name: tool.name, enabled: true, revision: 4 } }),
+      ),
+    );
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   it("opens tool detail when the card is selected", async () => {
     const user = userEvent.setup();
@@ -46,6 +60,13 @@ describe("ToolCard", () => {
     await user.click(statusSwitch);
 
     expect(statusSwitch.getAttribute("aria-checked")).toBe("true");
+    expect(fetch).toHaveBeenCalledWith(
+      "/methods-hub/api/v1/admin/tools/keyword_extract",
+      expect.objectContaining({
+        body: JSON.stringify({ enabled: true, expected_revision: 3 }),
+        method: "PATCH",
+      }),
+    );
     expect(onOpen).not.toHaveBeenCalled();
   });
 });

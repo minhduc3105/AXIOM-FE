@@ -4,6 +4,8 @@ type ToolStatusSwitchProps = {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   label: string;
+  disabled?: boolean;
+  disabledLabel?: string;
   showLabel?: boolean;
 };
 
@@ -11,6 +13,8 @@ export function ToolStatusSwitch({
   checked,
   onCheckedChange,
   label,
+  disabled = false,
+  disabledLabel = "Updating",
   showLabel = true,
 }: ToolStatusSwitchProps) {
   return (
@@ -18,10 +22,13 @@ export function ToolStatusSwitch({
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-busy={disabled || undefined}
       aria-label={`${checked ? "Disable" : "Enable"} ${label}`}
-      className="group/switch inline-flex h-8 shrink-0 items-center gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-[#2456e8]/30 dark:focus-visible:ring-[#7895ff]/35"
+      disabled={disabled}
+      className="group/switch inline-flex h-8 shrink-0 items-center gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-[#2456e8]/30 disabled:cursor-wait disabled:opacity-65 dark:focus-visible:ring-[#7895ff]/35"
       onClick={(event) => {
         event.stopPropagation();
+        if (disabled) return;
         onCheckedChange(!checked);
       }}
       onKeyDown={(event) => event.stopPropagation()}
@@ -35,7 +42,7 @@ export function ToolStatusSwitch({
               : "text-[#777064] dark:text-[#aaa397]",
           )}
         >
-          {checked ? "Active" : "Inactive"}
+          {disabled ? disabledLabel : checked ? "Active" : "Inactive"}
         </span>
       )}
       <span

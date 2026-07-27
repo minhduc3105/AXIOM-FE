@@ -54,7 +54,8 @@ function ToolDetailSkeleton() {
 
 export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
   const { tool, source, loading, error, refresh } = useToolDetail(toolName);
-  const { isToolEnabled, setToolEnabled } = useToolsState();
+  const { getToolRevision, isToolEnabled, isToolUpdating, setToolEnabled } =
+    useToolsState();
 
   if (loading && !tool) {
     return (
@@ -84,7 +85,10 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
 
   const presentation = getToolPresentation(tool.name, tool.kind);
   const displayName = formatToolName(tool.name);
-  const enabled = isToolEnabled(tool.name, tool.kind);
+  const enabled = isToolEnabled(tool.name, tool.kind, tool.enabled);
+  const revision = getToolRevision(tool.name, tool.revision);
+  const updating = isToolUpdating(tool.name);
+  const canUpdate = typeof revision === "number";
   const implementation = tool.implementation ?? tool.implementations?.[0];
 
   return (
@@ -157,8 +161,10 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
           <div className="flex shrink-0 items-center rounded-full border border-[#d8d0c2]/80 bg-[#f4efe5]/72 px-3 py-1.5 dark:border-[#38372f] dark:bg-white/5">
             <ToolStatusSwitch
               checked={enabled}
+              disabled={updating || !canUpdate}
+              disabledLabel={updating ? "Updating" : "Sample"}
               label={displayName}
-              onCheckedChange={(checked) => setToolEnabled(tool.name, checked)}
+              onCheckedChange={(checked) => setToolEnabled(tool.name, checked, revision)}
             />
           </div>
         </header>
