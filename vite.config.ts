@@ -17,6 +17,7 @@ const storageTarget =
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    allowedHosts: ['axiom.iselab.site'],
     proxy: {
       "/intelligence-service": {
         target: gatewayApiTarget,
