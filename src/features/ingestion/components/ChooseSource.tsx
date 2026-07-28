@@ -101,7 +101,7 @@ export function ChooseSource({ onUpload, onConnect }: ChooseSourceProps) {
         className="sr-only"
         type="file"
         multiple
-        accept=".csv,.json,.pdf,.md,.markdown,.parquet"
+        accept=".csv,.json,.pdf,.md,.markdown,.parquet,.xlsx"
         onChange={(event: ChangeEvent<HTMLInputElement>) =>
           event.target.files && onUpload(event.target.files)
         }
