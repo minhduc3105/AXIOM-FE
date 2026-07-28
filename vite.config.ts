@@ -5,6 +5,8 @@ import tailwindcss from "@tailwindcss/vite";
 
 const gatewayApiTarget =
   process.env.VITE_GATEWAY_API_PROXY_TARGET ?? "http://localhost:8007";
+const intelligenceApiTarget =
+  process.env.VITE_INTELLIGENCE_API_PROXY_TARGET ?? "http://localhost:8006";
 const documentApiTarget =
   process.env.VITE_DOCUMENT_API_PROXY_TARGET ?? "http://localhost:38001";
 const corpusApiTarget =
@@ -20,8 +22,9 @@ export default defineConfig({
     allowedHosts: ['axiom.iselab.site'],
     proxy: {
       "/intelligence-service": {
-        target: gatewayApiTarget,
+        target: intelligenceApiTarget,
         changeOrigin: true,
+        rewrite: (path) => path.slice("/intelligence-service".length),
       },
       "/document-api": {
         target: documentApiTarget,

@@ -7,6 +7,7 @@ services:
       - .env
     environment:
       VITE_GATEWAY_API_PROXY_TARGET: http://host.docker.internal:8007
+      VITE_INTELLIGENCE_API_PROXY_TARGET: http://host.docker.internal:8006
       VITE_DOCUMENT_API_PROXY_TARGET: http://host.docker.internal:38001
       VITE_CORPUS_API_PROXY_TARGET: http://host.docker.internal:38002
       VITE_METHODS_HUB_PROXY_TARGET: http://host.docker.internal:8000
