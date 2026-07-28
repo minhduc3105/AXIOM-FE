@@ -45,6 +45,21 @@ describe("ToolCard", () => {
     expect(onOpen).toHaveBeenCalledWith("keyword_extract");
   });
 
+  it("shows disabled tools as compact cards", () => {
+    render(
+      <ToolsProvider>
+        <ToolCard tool={tool} onOpen={vi.fn()} />
+      </ToolsProvider>,
+    );
+
+    expect(screen.getByText("Keyword Extract")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /enable keyword extract/i }),
+    ).toBeTruthy();
+    expect(screen.queryByText(tool.description)).toBeNull();
+    expect(screen.queryByText(/parameters/i)).toBeNull();
+  });
+
   it("enables the tool without opening tool detail", async () => {
     const user = userEvent.setup();
     const onOpen = vi.fn();

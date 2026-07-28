@@ -31,6 +31,47 @@ export function ToolCard({ tool, enabled: enabledProp, onOpen }: ToolCardProps) 
   const displayName = formatToolName(tool.name);
   const transitionName = `tool-${tool.name.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
+  if (!enabled) {
+    return (
+      <article
+        role="link"
+        tabIndex={0}
+        aria-label={`Open ${displayName}`}
+        data-status="disabled"
+        style={{ viewTransitionName: transitionName } as CSSProperties}
+        className="group flex min-h-14 cursor-pointer items-center justify-between gap-3 rounded-[16px] border border-[#d8d0c2]/80 bg-[#fffdf8]/78 px-3.5 py-2.5 outline-none transition-[border-color,box-shadow,background-color] duration-200 animate-in fade-in slide-in-from-bottom-1 hover:border-[#b9b0a3] hover:bg-[#fffdf8] hover:shadow-[0_8px_24px_rgba(24,24,18,0.06)] focus-visible:ring-3 focus-visible:ring-[#2456e8]/20 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/72 dark:hover:border-[#565449] dark:hover:bg-[#20201c] dark:focus-visible:ring-[#7895ff]/24"
+        onClick={() => onOpen(tool.name)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onOpen(tool.name);
+          }
+        }}
+      >
+        <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-[#25241f] dark:text-[#eee8dc]">
+          {displayName}
+        </h3>
+        <Button
+          type="button"
+          size="sm"
+          aria-label={`Enable ${displayName}`}
+          aria-busy={updating || undefined}
+          disabled={updating || !canUpdate}
+          className="h-7 min-w-[72px] rounded-full bg-[#2456e8] px-3 text-white shadow-[0_6px_16px_rgba(36,86,232,0.16)] hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
+          onClick={(event) => {
+            event.stopPropagation();
+            if (updating || !canUpdate) return;
+            setToolEnabled(tool.name, true, revision);
+          }}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          {updating && <LoaderCircleIcon className="animate-spin" />}
+          {updating ? "Updating" : "Enable"}
+        </Button>
+      </article>
+    );
+  }
+
   return (
     <article
       role="link"
