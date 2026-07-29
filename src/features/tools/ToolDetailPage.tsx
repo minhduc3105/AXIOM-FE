@@ -5,6 +5,10 @@ import {
   CalendarDaysIcon,
   CircleAlertIcon,
   CodeXmlIcon,
+  LoaderCircleIcon,
+  LockKeyholeIcon,
+  PowerIcon,
+  PowerOffIcon,
   RefreshCwIcon,
   UserRoundIcon,
 } from "lucide-react";
@@ -17,9 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToolConfigurationPanel } from "./components/ToolConfigurationPanel";
 import { ToolKindIcon } from "./components/ToolKindIcon";
-import { ToolStatusSwitch } from "./components/ToolStatusSwitch";
 import { useToolsState } from "./model/ToolsProvider";
 import {
   formatToolKind,
@@ -44,10 +46,7 @@ function ToolDetailSkeleton() {
           <Skeleton className="h-4 w-[520px] max-w-full" />
         </div>
       </div>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <Skeleton className="h-96" />
-        <Skeleton className="h-[520px]" />
-      </div>
+      <Skeleton className="h-[520px]" />
     </div>
   );
 }
@@ -115,8 +114,8 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
             <CircleAlertIcon />
             <AlertTitle>Showing sample tool details</AlertTitle>
             <AlertDescription className="text-amber-800 dark:text-amber-200">
-              Methods-Hub is not responding. Configuration remains available
-              locally.
+              Methods-Hub is not responding. Read-only metadata remains
+              available from the sample catalog.
             </AlertDescription>
             <AlertAction className="hidden sm:block">
               <Button
@@ -158,18 +157,57 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center rounded-full border border-[#d8d0c2]/80 bg-[#f4efe5]/72 px-3 py-1.5 dark:border-[#38372f] dark:bg-white/5">
-            <ToolStatusSwitch
-              checked={enabled}
+          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className="h-7 rounded-full border-[#d8d0c2] bg-[#f4efe5]/72 px-3 text-[10px] font-medium text-[#625d53] dark:border-[#49483f] dark:bg-white/5 dark:text-[#c5bcaf]"
+              >
+                <LockKeyholeIcon className="mr-1.5 size-3" />
+                Read-only details
+              </Badge>
+              <Badge
+                className={
+                  enabled
+                    ? "h-7 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-[10px] font-semibold text-emerald-700 shadow-none dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300"
+                    : "h-7 rounded-full border border-[#d8d0c2] bg-[#ece6da] px-3 text-[10px] font-semibold text-[#625d53] shadow-none dark:border-[#49483f] dark:bg-white/5 dark:text-[#aaa397]"
+                }
+              >
+                <span
+                  className={
+                    enabled
+                      ? "mr-1.5 size-1.5 rounded-full bg-emerald-500"
+                      : "mr-1.5 size-1.5 rounded-full bg-[#9b9488]"
+                  }
+                />
+                {enabled ? "Active" : "Disabled"}
+              </Badge>
+            </div>
+            <Button
+              type="button"
+              variant={enabled ? "destructive" : "default"}
+              className={
+                enabled
+                  ? "h-9 w-full rounded-full px-4 sm:w-auto"
+                  : "h-9 w-full rounded-full bg-[#2456e8] px-4 text-white hover:bg-[#1d48c7] sm:w-auto dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
+              }
               disabled={updating || !canUpdate}
-              disabledLabel={updating ? "Updating" : "Sample"}
-              label={displayName}
-              onCheckedChange={(checked) => setToolEnabled(tool.name, checked, revision)}
-            />
+              aria-busy={updating || undefined}
+              onClick={() => setToolEnabled(tool.name, !enabled, revision)}
+            >
+              {updating ? (
+                <LoaderCircleIcon className="animate-spin" />
+              ) : enabled ? (
+                <PowerOffIcon />
+              ) : (
+                <PowerIcon />
+              )}
+              {updating ? "Updating" : enabled ? "Disable tool" : "Enable tool"}
+            </Button>
           </div>
         </header>
 
-        <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid items-start gap-7">
           <main className="min-w-0">
             <section className="overflow-hidden rounded-[24px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 p-5 shadow-[0_18px_52px_rgba(24,24,18,0.07)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88">
               <div className="mb-4 flex items-center gap-2">
@@ -300,7 +338,6 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
             </section>
           </main>
 
-          <ToolConfigurationPanel tool={tool} />
         </div>
       </div>
     </section>
