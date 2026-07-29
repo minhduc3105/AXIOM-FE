@@ -2,10 +2,12 @@ import { useCallback, useEffect, useReducer, useRef } from 'react'
 import {
   buildSearchIndex,
   createIngestionJob,
+  createS3IngestionJob,
   extractMeaning,
   getAllFilesForJob,
   getDocumentProcessingStatuses,
   getIngestionJob,
+  listS3Files,
   reviseMeaning,
   runPipelineTask,
   saveConnection,
@@ -13,7 +15,14 @@ import {
   testMySqlConnection,
   uploadFiles,
 } from '../api/ingestionApi'
-import type { DocumentProcessingStatus, IngestionJobResponse, JobFilesResult, UploadFilesResponse } from '../api/ingestionApi'
+import type {
+  DocumentProcessingStatus,
+  IngestionJobResponse,
+  JobFilesResult,
+  S3Credentials,
+  S3File,
+  UploadFilesResponse,
+} from '../api/ingestionApi'
 import type {
   AsyncStatus,
   ConnectorJobUiStatus,
@@ -28,6 +37,7 @@ import type {
   PipelineTask,
   PipelineTaskId,
   ProgressStage,
+  S3BrowserStatus,
   S3Connection,
   SnowflakeConnection,
 } from './types'
@@ -81,6 +91,11 @@ type WorkflowState = {
   connection: MySqlConnection
   connectionStatus: AsyncStatus | 'verified' | 'saving' | 'saved'
   s3Connection: S3Connection
+  s3BrowserStatus: S3BrowserStatus
+  s3Files: S3File[]
+  s3NextToken: string | null
+  selectedS3Keys: string[]
+  s3BrowserError: string | null
   snowflakeConnection: SnowflakeConnection
   connectorJobStatus: ConnectorJobUiStatus
   ingestionJob: IngestionJobResponse | null
@@ -112,6 +127,11 @@ const initialState: WorkflowState = {
   connection: initialConnection,
   connectionStatus: 'idle',
   s3Connection: initialS3Connection,
+  s3BrowserStatus: 'idle',
+  s3Files: [],
+  s3NextToken: null,
+  selectedS3Keys: [],
+  s3BrowserError: null,
   snowflakeConnection: initialSnowflakeConnection,
   connectorJobStatus: 'idle',
   ingestionJob: null,
@@ -142,6 +162,13 @@ type Action =
   | { type: 'SELECT_CONNECTOR'; connector: string }
   | { type: 'UPDATE_CONNECTION'; field: keyof MySqlConnection; value: string | boolean }
   | { type: 'UPDATE_S3_CONNECTION'; field: keyof S3Connection; value: string }
+  | { type: 'S3_BROWSE_START'; status: Extract<S3BrowserStatus, 'loading' | 'loading_more' | 'loading_all'> }
+  | { type: 'S3_PAGE_READY'; files: S3File[]; nextToken: string | null; append: boolean; status: Extract<S3BrowserStatus, 'ready' | 'loading_all'> }
+  | { type: 'S3_BROWSE_ERROR'; message: string }
+  | { type: 'S3_EDIT_CONNECTION' }
+  | { type: 'S3_TOGGLE_KEY'; key: string }
+  | { type: 'S3_SET_SELECTION'; keys: string[] }
+  | { type: 'S3_CLEAR_SELECTION' }
   | { type: 'UPDATE_SNOWFLAKE_CONNECTION'; field: keyof SnowflakeConnection; value: string | boolean }
   | { type: 'CONNECTOR_SUBMIT_START' }
   | { type: 'CONNECTOR_JOB_ACCEPTED'; job: IngestionJobResponse }
@@ -187,6 +214,23 @@ type Action =
 
 function resetRunState(state: WorkflowState): Pick<WorkflowState, 'pipelineStatus' | 'tasks' | 'meaningStatus' | 'indexStatus' | 'completedSearchQuery'> {
   return { pipelineStatus: 'idle', tasks: initialTasks, meaningStatus: 'idle', indexStatus: 'idle', completedSearchQuery: '' }
+}
+
+function resetS3BrowserState(): Pick<
+  WorkflowState,
+  's3BrowserStatus' | 's3Files' | 's3NextToken' | 'selectedS3Keys' | 's3BrowserError'
+> {
+  return {
+    s3BrowserStatus: 'idle',
+    s3Files: [],
+    s3NextToken: null,
+    selectedS3Keys: [],
+    s3BrowserError: null,
+  }
+}
+
+function clearS3Secrets(connection: S3Connection): S3Connection {
+  return { ...connection, accessKeyId: '', secretAccessKey: '' }
 }
 
 function updateTask(tasks: PipelineTask[], id: PipelineTaskId, status: PipelineTask['status']) {
@@ -270,9 +314,22 @@ function getConnectorStage(connector: string, fallback: IngestionStage): Ingesti
 function reducer(state: WorkflowState, action: Action): WorkflowState {
   switch (action.type) {
     case 'OPEN_SOURCE':
-      return { ...state, stage: 'source', error: null }
+      return {
+        ...state,
+        stage: 'source',
+        s3Connection: state.stage === 's3' ? clearS3Secrets(state.s3Connection) : state.s3Connection,
+        ...(state.stage === 's3' ? resetS3BrowserState() : {}),
+        error: null,
+      }
     case 'OPEN_CATALOG':
-      return { ...state, stage: 'catalog', furthestProgress: Math.max(state.furthestProgress, 1), error: null }
+      return {
+        ...state,
+        stage: 'catalog',
+        furthestProgress: Math.max(state.furthestProgress, 1),
+        s3Connection: state.stage === 's3' ? clearS3Secrets(state.s3Connection) : state.s3Connection,
+        ...(state.stage === 's3' ? resetS3BrowserState() : {}),
+        error: null,
+      }
     case 'SELECT_CONNECTOR':
       return {
         ...state,
@@ -285,6 +342,10 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
         documentProcessingStatus: 'idle',
         documentProcessingResults: [],
         documentProcessingError: null,
+        s3Connection: action.connector === 'Amazon S3'
+          ? state.s3Connection
+          : clearS3Secrets(state.s3Connection),
+        ...resetS3BrowserState(),
         error: null,
       }
     case 'UPDATE_CONNECTION':
@@ -303,6 +364,51 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
         s3Connection: { ...state.s3Connection, [action.field]: action.value },
         connectorJobStatus: state.ingestionJob ? state.connectorJobStatus : 'idle',
         connectorError: state.ingestionJob ? state.connectorError : null,
+        ...(state.ingestionJob ? {} : resetS3BrowserState()),
+      }
+    case 'S3_BROWSE_START':
+      return {
+        ...state,
+        s3BrowserStatus: action.status,
+        s3BrowserError: null,
+      }
+    case 'S3_PAGE_READY':
+      return {
+        ...state,
+        s3BrowserStatus: action.status,
+        s3Files: action.append ? [...state.s3Files, ...action.files] : action.files,
+        s3NextToken: action.nextToken,
+        selectedS3Keys: action.append ? state.selectedS3Keys : [],
+        s3BrowserError: null,
+      }
+    case 'S3_BROWSE_ERROR':
+      return {
+        ...state,
+        s3BrowserStatus: 'error',
+        s3BrowserError: action.message,
+      }
+    case 'S3_EDIT_CONNECTION':
+      return {
+        ...state,
+        ...resetS3BrowserState(),
+        connectorError: null,
+      }
+    case 'S3_TOGGLE_KEY':
+      return {
+        ...state,
+        selectedS3Keys: state.selectedS3Keys.includes(action.key)
+          ? state.selectedS3Keys.filter((key) => key !== action.key)
+          : [...state.selectedS3Keys, action.key],
+      }
+    case 'S3_SET_SELECTION':
+      return {
+        ...state,
+        selectedS3Keys: Array.from(new Set(action.keys)),
+      }
+    case 'S3_CLEAR_SELECTION':
+      return {
+        ...state,
+        selectedS3Keys: [],
       }
     case 'UPDATE_SNOWFLAKE_CONNECTION':
       return {
@@ -330,7 +436,7 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
         ingestionJob: action.job,
         connectorError: null,
         s3Connection: action.job.datasource_type === 's3'
-          ? { ...state.s3Connection, accessKeyId: '', secretAccessKey: '' }
+          ? clearS3Secrets(state.s3Connection)
           : state.s3Connection,
         snowflakeConnection: action.job.datasource_type === 'snowflake'
           ? { ...state.snowflakeConnection, privateKey: '', privateKeyPassphrase: '' }
@@ -384,6 +490,7 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
         documentProcessingStatus: 'idle',
         documentProcessingResults: [],
         documentProcessingError: null,
+        ...resetS3BrowserState(),
       }
     case 'TEST_START':
       return { ...state, connectionStatus: 'loading', error: null }
@@ -515,7 +622,17 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
     case 'SEARCH_ERROR':
       return { ...state, searchStatus: 'error', error: action.message }
     case 'NAVIGATE':
-      return { ...state, stage: action.stage, error: null }
+      return {
+        ...state,
+        stage: action.stage,
+        ...(state.stage === 's3' && action.stage !== 's3'
+          ? {
+              s3Connection: clearS3Secrets(state.s3Connection),
+              ...resetS3BrowserState(),
+            }
+          : {}),
+        error: null,
+      }
     default:
       return state
   }
@@ -578,6 +695,25 @@ function optionalPositiveInteger(value: string) {
   return normalized ? Number(normalized) : null
 }
 
+function getS3Credentials(connection: S3Connection): S3Credentials {
+  return {
+    aws_access_key_id: connection.accessKeyId.trim(),
+    aws_secret_access_key: connection.secretAccessKey,
+    aws_region: connection.region.trim(),
+    aws_bucket_name: connection.bucketName.trim(),
+  }
+}
+
+function assertUniqueS3Files(existingFiles: S3File[], incomingFiles: S3File[]) {
+  const keys = new Set(existingFiles.map((file) => file.key))
+  for (const file of incomingFiles) {
+    if (keys.has(file.key)) {
+      throw new Error(`S3 file discovery returned a duplicate object key: ${file.key}`)
+    }
+    keys.add(file.key)
+  }
+}
+
 export function useIngestionWorkflow() {
   const [state, dispatch] = useReducer(reducer, initialState)
   const requestRef = useRef<AbortController | null>(null)
@@ -606,6 +742,142 @@ export function useIngestionWorkflow() {
   const updateConnection = useCallback((field: keyof MySqlConnection, value: string | boolean) => dispatch({ type: 'UPDATE_CONNECTION', field, value }), [])
   const updateS3Connection = useCallback((field: keyof S3Connection, value: string) => dispatch({ type: 'UPDATE_S3_CONNECTION', field, value }), [])
   const updateSnowflakeConnection = useCallback((field: keyof SnowflakeConnection, value: string | boolean) => dispatch({ type: 'UPDATE_SNOWFLAKE_CONNECTION', field, value }), [])
+  const browseS3Files = useCallback(async () => {
+    if (state.s3BrowserStatus === 'loading'
+      || state.s3BrowserStatus === 'loading_more'
+      || state.s3BrowserStatus === 'loading_all'
+      || state.ingestionJob) return
+
+    const signal = beginRequest()
+    dispatch({ type: 'S3_BROWSE_START', status: 'loading' })
+    try {
+      const result = await listS3Files(getS3Credentials(state.s3Connection), 1000, null, signal)
+      assertUniqueS3Files([], result.files)
+      dispatch({
+        type: 'S3_PAGE_READY',
+        files: result.files,
+        nextToken: result.nextToken?.trim() || null,
+        append: false,
+        status: 'ready',
+      })
+    } catch (error) {
+      if (!isAbortError(error)) {
+        dispatch({
+          type: 'S3_BROWSE_ERROR',
+          message: getErrorMessage(error, 'Unable to list files in this S3 bucket.'),
+        })
+      }
+    }
+  }, [beginRequest, state.ingestionJob, state.s3BrowserStatus, state.s3Connection])
+
+  const loadMoreS3Files = useCallback(async () => {
+    if (!state.s3NextToken
+      || state.s3BrowserStatus === 'loading'
+      || state.s3BrowserStatus === 'loading_more'
+      || state.s3BrowserStatus === 'loading_all') return
+
+    const signal = beginRequest()
+    const requestedToken = state.s3NextToken
+    dispatch({ type: 'S3_BROWSE_START', status: 'loading_more' })
+    try {
+      const result = await listS3Files(
+        getS3Credentials(state.s3Connection),
+        1000,
+        requestedToken,
+        signal,
+      )
+      assertUniqueS3Files(state.s3Files, result.files)
+      const nextToken = result.nextToken?.trim() || null
+      if (nextToken === requestedToken) {
+        throw new Error('S3 file discovery returned the same continuation token twice.')
+      }
+      dispatch({
+        type: 'S3_PAGE_READY',
+        files: result.files,
+        nextToken,
+        append: true,
+        status: 'ready',
+      })
+    } catch (error) {
+      if (!isAbortError(error)) {
+        dispatch({
+          type: 'S3_BROWSE_ERROR',
+          message: getErrorMessage(error, 'Unable to load more S3 files.'),
+        })
+      }
+    }
+  }, [beginRequest, state.s3BrowserStatus, state.s3Connection, state.s3Files, state.s3NextToken])
+
+  const loadAllS3Files = useCallback(async () => {
+    if (!state.s3NextToken
+      || state.s3BrowserStatus === 'loading'
+      || state.s3BrowserStatus === 'loading_more'
+      || state.s3BrowserStatus === 'loading_all') return
+
+    const signal = beginRequest()
+    const loadedFiles = [...state.s3Files]
+    const seenTokens = new Set<string>()
+    let nextToken: string | null = state.s3NextToken
+    dispatch({ type: 'S3_BROWSE_START', status: 'loading_all' })
+    try {
+      while (nextToken && !signal.aborted) {
+        if (seenTokens.has(nextToken)) {
+          throw new Error('S3 file discovery returned a repeated continuation token.')
+        }
+        seenTokens.add(nextToken)
+        const result = await listS3Files(
+          getS3Credentials(state.s3Connection),
+          1000,
+          nextToken,
+          signal,
+        )
+        assertUniqueS3Files(loadedFiles, result.files)
+        loadedFiles.push(...result.files)
+        const followingToken = result.nextToken?.trim() || null
+        if (followingToken && seenTokens.has(followingToken)) {
+          throw new Error('S3 file discovery returned a repeated continuation token.')
+        }
+        dispatch({
+          type: 'S3_PAGE_READY',
+          files: result.files,
+          nextToken: followingToken,
+          append: true,
+          status: followingToken ? 'loading_all' : 'ready',
+        })
+        nextToken = followingToken
+      }
+    } catch (error) {
+      if (!isAbortError(error)) {
+        dispatch({
+          type: 'S3_BROWSE_ERROR',
+          message: getErrorMessage(error, 'Unable to load every S3 file.'),
+        })
+      }
+    }
+  }, [beginRequest, state.s3BrowserStatus, state.s3Connection, state.s3Files, state.s3NextToken])
+
+  const retryS3Browser = useCallback(() => {
+    if (state.s3Files.length > 0 && state.s3NextToken) {
+      void loadMoreS3Files()
+      return
+    }
+    void browseS3Files()
+  }, [browseS3Files, loadMoreS3Files, state.s3Files.length, state.s3NextToken])
+
+  const editS3Connection = useCallback(() => {
+    requestRef.current?.abort()
+    dispatch({ type: 'S3_EDIT_CONNECTION' })
+  }, [])
+
+  const toggleS3Key = useCallback((key: string) => {
+    dispatch({ type: 'S3_TOGGLE_KEY', key })
+  }, [])
+  const setSelectedS3Keys = useCallback((keys: string[]) => {
+    dispatch({ type: 'S3_SET_SELECTION', keys })
+  }, [])
+  const clearSelectedS3Keys = useCallback(() => {
+    dispatch({ type: 'S3_CLEAR_SELECTION' })
+  }, [])
   const addFiles = useCallback((files: FileList | File[]) => {
     const mapped = mapFiles(files)
     if (mapped.length) {
@@ -696,19 +968,17 @@ export function useIngestionWorkflow() {
   }, [prepareConnectorProcessing])
 
   const submitS3Import = useCallback(async () => {
-    if (state.connectorJobStatus === 'submitting' || state.connectorJobStatus === 'polling' || state.ingestionJob) return
+    if (!state.selectedS3Keys.length
+      || state.connectorJobStatus === 'submitting'
+      || state.connectorJobStatus === 'polling'
+      || state.ingestionJob) return
     const signal = beginRequest()
     dispatch({ type: 'CONNECTOR_SUBMIT_START' })
     try {
-      const job = await createIngestionJob({
+      const job = await createS3IngestionJob({
         organization_id: import.meta.env.VITE_AXIOM_ORGANIZATION_ID ?? '',
-        datasource_type: 's3',
-        credentials: {
-          aws_access_key_id: state.s3Connection.accessKeyId.trim(),
-          aws_secret_access_key: state.s3Connection.secretAccessKey,
-          aws_region: state.s3Connection.region.trim(),
-          aws_bucket_name: state.s3Connection.bucketName.trim(),
-        },
+        credentials: getS3Credentials(state.s3Connection),
+        keys: state.selectedS3Keys,
       }, signal)
       dispatch({ type: 'CONNECTOR_JOB_ACCEPTED', job })
       if (job.status === 'completed') {
@@ -719,7 +989,7 @@ export function useIngestionWorkflow() {
     } catch (error) {
       if (!isAbortError(error)) dispatch({ type: 'CONNECTOR_SUBMIT_ERROR', message: getErrorMessage(error, 'Unable to create the S3 import job.') })
     }
-  }, [beginRequest, monitorIngestionJob, prepareConnectorProcessing, state.connectorJobStatus, state.ingestionJob, state.s3Connection])
+  }, [beginRequest, monitorIngestionJob, prepareConnectorProcessing, state.connectorJobStatus, state.ingestionJob, state.s3Connection, state.selectedS3Keys])
 
   const submitSnowflakeImport = useCallback(async () => {
     if (state.connectorJobStatus === 'submitting' || state.connectorJobStatus === 'polling' || state.ingestionJob) return
@@ -890,6 +1160,9 @@ export function useIngestionWorkflow() {
 
   const navigateProgress = useCallback((progress: ProgressStage) => {
     const busy = state.uploadStatus === 'loading'
+      || state.s3BrowserStatus === 'loading'
+      || state.s3BrowserStatus === 'loading_more'
+      || state.s3BrowserStatus === 'loading_all'
       || state.connectorJobStatus === 'submitting'
       || state.connectorJobStatus === 'polling'
       || state.connectorJobStatus === 'discovering_files'
@@ -919,7 +1192,7 @@ export function useIngestionWorkflow() {
         ? 'processing'
         : progress
     dispatch({ type: 'NAVIGATE', stage })
-  }, [state.connectionStatus, state.connectorJobStatus, state.furthestProgress, state.indexStatus, state.meaningStatus, state.pipelineStatus, state.processingBatch, state.searchStatus, state.source, state.stage, state.uploadStatus])
+  }, [state.connectionStatus, state.connectorJobStatus, state.furthestProgress, state.indexStatus, state.meaningStatus, state.pipelineStatus, state.processingBatch, state.s3BrowserStatus, state.searchStatus, state.source, state.stage, state.uploadStatus])
 
   return {
     ...state,
@@ -928,6 +1201,14 @@ export function useIngestionWorkflow() {
     selectConnector,
     updateConnection,
     updateS3Connection,
+    browseS3Files,
+    loadMoreS3Files,
+    loadAllS3Files,
+    retryS3Browser,
+    editS3Connection,
+    toggleS3Key,
+    setSelectedS3Keys,
+    clearSelectedS3Keys,
     updateSnowflakeConnection,
     submitS3Import,
     submitSnowflakeImport,

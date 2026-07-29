@@ -1,67 +1,160 @@
-import type { FormEvent } from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import type { IngestionJobResponse } from '../api/ingestionApi'
-import type { ConnectorJobUiStatus, S3Connection } from '../model/types'
-import { IngestionJobStatus } from './IngestionJobStatus'
+import type { FormEvent } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import type { S3BrowserStatus, S3Connection } from "../model/types";
 
 type S3FormProps = {
-  connection: S3Connection
-  status: ConnectorJobUiStatus
-  job: IngestionJobResponse | null
-  error: string | null
-  onChange: (field: keyof S3Connection, value: string) => void
-  onSubmit: () => void
-  onRetryStatus: () => void
-  onRetryFiles: () => void
-  onNewImport: () => void
-  onBack: () => void
-}
+  connection: S3Connection;
+  browserStatus: S3BrowserStatus;
+  error: string | null;
+  onChange: (field: keyof S3Connection, value: string) => void;
+  onBrowse: () => void;
+  onBack: () => void;
+};
 
-export function S3Form({ connection, status, job, error, onChange, onSubmit, onRetryStatus, onRetryFiles, onNewImport, onBack }: S3FormProps) {
-  const busy = status === 'submitting' || status === 'polling' || status === 'discovering_files'
-  const locked = Boolean(job) || busy
+export function S3Form({
+  connection,
+  browserStatus,
+  error,
+  onChange,
+  onBrowse,
+  onBack,
+}: S3FormProps) {
+  const busy = browserStatus === "loading";
   const requiredReady = Boolean(
-    connection.accessKeyId.trim()
-    && connection.secretAccessKey.trim()
-    && connection.region.trim()
-    && connection.bucketName.trim(),
-  )
+    connection.accessKeyId.trim() &&
+      connection.secretAccessKey.trim() &&
+      connection.region.trim() &&
+      connection.bucketName.trim(),
+  );
   const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (requiredReady && !locked) onSubmit()
-  }
+    event.preventDefault();
+    if (requiredReady && !busy) onBrowse();
+  };
 
-  return <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-    <Card className="rounded-[32px] border border-[#d8d0c2] bg-[#fffdf8]/90 p-6 dark:border-[#38372f] dark:bg-[#1a1a17]/90">
-      <div className="mb-4 flex items-center justify-between gap-4"><h2 className="text-2xl font-semibold">Amazon S3 import</h2><Badge className="rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">Live API</Badge></div>
-      <p className="text-sm text-[#6d685e] dark:text-[#aaa397]">Copy source objects into AXIOM-managed storage.</p>
-      <form className="mt-6 grid gap-4" onSubmit={submit}>
-        <label className="grid gap-2">AWS access key ID<Input autoComplete="off" value={connection.accessKeyId} onChange={(event) => onChange('accessKeyId', event.target.value)} disabled={locked} required /></label>
-        <label className="grid gap-2">AWS secret access key<Input autoComplete="new-password" type="password" value={connection.secretAccessKey} onChange={(event) => onChange('secretAccessKey', event.target.value)} disabled={locked} required /></label>
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="grid gap-2">AWS region<Input placeholder="ap-southeast-1" value={connection.region} onChange={(event) => onChange('region', event.target.value)} disabled={locked} required /></label>
-          <label className="grid gap-2">Source bucket<Input placeholder="company-documents" value={connection.bucketName} onChange={(event) => onChange('bucketName', event.target.value)} disabled={locked} required /></label>
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <Card className="rounded-3xl bg-card/90 p-6">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="text-2xl font-semibold">Amazon S3 connection</h2>
+          <Badge variant="secondary" className="rounded-full">
+            Live API
+          </Badge>
         </div>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
-          This imports every object in the selected bucket. Prefix, folder and object filters are not available.
+        <p className="text-sm text-muted-foreground">
+          Verify bucket access, then review the exact objects AXIOM should
+          import.
+        </p>
+
+        <form className="mt-6 grid gap-4" onSubmit={submit}>
+          <label className="grid gap-2">
+            AWS access key ID
+            <Input
+              autoComplete="off"
+              value={connection.accessKeyId}
+              onChange={(event) =>
+                onChange("accessKeyId", event.target.value)
+              }
+              disabled={busy}
+              required
+            />
+          </label>
+          <label className="grid gap-2">
+            AWS secret access key
+            <Input
+              autoComplete="new-password"
+              type="password"
+              value={connection.secretAccessKey}
+              onChange={(event) =>
+                onChange("secretAccessKey", event.target.value)
+              }
+              disabled={busy}
+              required
+            />
+          </label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="grid gap-2">
+              AWS region
+              <Input
+                placeholder="ap-southeast-1"
+                value={connection.region}
+                onChange={(event) => onChange("region", event.target.value)}
+                disabled={busy}
+                required
+              />
+            </label>
+            <label className="grid gap-2">
+              Source bucket
+              <Input
+                placeholder="company-documents"
+                value={connection.bucketName}
+                onChange={(event) =>
+                  onChange("bucketName", event.target.value)
+                }
+                disabled={busy}
+                required
+              />
+            </label>
+          </div>
+
+          {error && (
+            <Alert variant="destructive" role="alert">
+              <AlertTitle>Unable to browse this bucket</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="mt-2 flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={onBack}
+              disabled={busy}
+              type="button"
+            >
+              Back
+            </Button>
+            <Button disabled={!requiredReady || busy} type="submit">
+              {busy ? "Loading bucket files..." : "Browse bucket files"}
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card className="rounded-3xl bg-card/90 p-6">
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-2xl font-semibold">Selection gate</h2>
+          <Badge variant="outline">S3</Badge>
         </div>
-        <div className="mt-2 flex justify-end gap-3"><Button variant="outline" onClick={onBack} disabled={busy} type="button">Back</Button><Button className="bg-[#2456e8] text-white hover:bg-[#1d48c7]" disabled={!requiredReady || locked} type="submit">{status === 'submitting' ? 'Creating job…' : status === 'failed' && !job ? 'Retry import' : 'Start S3 import'}</Button></div>
-      </form>
-    </Card>
-    <IngestionJobStatus
-      connectorName="Amazon S3"
-      mark="S3"
-      description="External object storage · full bucket import"
-      status={status}
-      job={job}
-      error={error}
-      idleNotes={['Read access to the source bucket', 'Every source object will be copied', 'Credentials are cleared after job creation']}
-      onRetryStatus={onRetryStatus}
-      onRetryFiles={onRetryFiles}
-      onNewImport={onNewImport}
-    />
-  </div>
+        <div className="mt-5 grid gap-3">
+          {[
+            "Credentials are used only for this browser session",
+            "Bucket contents are listed before any import starts",
+            "Only explicitly selected object keys are copied",
+          ].map((note, index) => (
+            <div
+              className="flex gap-3 rounded-2xl bg-muted/60 p-4 text-sm"
+              key={note}
+            >
+              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                {index + 1}
+              </span>
+              <span>{note}</span>
+            </div>
+          ))}
+        </div>
+        {busy && (
+          <div
+            className="mt-5 flex items-center gap-3 rounded-2xl border border-primary/25 bg-primary/10 p-4 text-sm text-primary"
+            role="status"
+          >
+            <span className="size-4 shrink-0 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
+            Listing objects from {connection.bucketName.trim() || "the bucket"}.
+          </div>
+        )}
+      </Card>
+    </div>
+  );
 }
