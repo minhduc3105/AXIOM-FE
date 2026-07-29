@@ -24,12 +24,21 @@ export function S3Form({
   onBack,
 }: S3FormProps) {
   const busy = browserStatus === "loading";
+  const credentialsReady = Boolean(
+    connection.accessKeyId.trim() && connection.secretAccessKey.trim(),
+  );
   const requiredReady = Boolean(
-    connection.accessKeyId.trim() &&
-      connection.secretAccessKey.trim() &&
+    credentialsReady &&
       connection.region.trim() &&
       connection.bucketName.trim(),
   );
+  const overviewStatus = error
+    ? { label: "Access failed", variant: "destructive" as const }
+    : busy
+      ? { label: "Listing objects", variant: "default" as const }
+      : requiredReady
+        ? { label: "Ready to browse", variant: "default" as const }
+        : { label: "Details required", variant: "secondary" as const };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (requiredReady && !busy) onBrowse();
@@ -38,11 +47,8 @@ export function S3Form({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <Card className="rounded-3xl bg-card/90 p-6">
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-4">
           <h2 className="text-2xl font-semibold">Amazon S3 connection</h2>
-          <Badge variant="secondary" className="rounded-full">
-            Live API
-          </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
           Verify bucket access, then review the exact objects AXIOM should
@@ -123,37 +129,59 @@ export function S3Form({
         </form>
       </Card>
 
-      <Card className="rounded-3xl bg-card/90 p-6">
+      <Card className="self-start rounded-3xl bg-card/90 p-6">
         <div className="flex items-start justify-between gap-4">
-          <h2 className="text-2xl font-semibold">Selection gate</h2>
+          <h2 className="text-2xl font-semibold">Connection overview</h2>
           <Badge variant="outline">S3</Badge>
         </div>
-        <div className="mt-5 grid gap-3">
-          {[
-            "Credentials are used only for this browser session",
-            "Bucket contents are listed before any import starts",
-            "Only explicitly selected object keys are copied",
-          ].map((note, index) => (
-            <div
-              className="flex gap-3 rounded-2xl bg-muted/60 p-4 text-sm"
-              key={note}
-            >
-              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                {index + 1}
-              </span>
-              <span>{note}</span>
-            </div>
-          ))}
+
+        <div
+          className="mt-5 flex items-center justify-between gap-3 rounded-2xl border bg-muted/35 p-4"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="text-sm font-medium">Connection status</span>
+          <Badge variant={overviewStatus.variant}>
+            {busy && (
+              <span
+                className="size-3 animate-spin rounded-full border-2 border-current/25 border-t-current"
+                aria-hidden="true"
+              />
+            )}
+            {overviewStatus.label}
+          </Badge>
         </div>
-        {busy && (
-          <div
-            className="mt-5 flex items-center gap-3 rounded-2xl border border-primary/25 bg-primary/10 p-4 text-sm text-primary"
-            role="status"
-          >
-            <span className="size-4 shrink-0 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
-            Listing objects from {connection.bucketName.trim() || "the bucket"}.
+
+        <dl className="mt-4 grid gap-1 rounded-2xl border p-2">
+          <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-2.5">
+            <dt className="text-sm text-muted-foreground">Source bucket</dt>
+            <dd
+              className="max-w-48 truncate text-right text-sm font-medium"
+              title={connection.bucketName.trim() || "Not provided"}
+            >
+              {connection.bucketName.trim() || "Not provided"}
+            </dd>
           </div>
-        )}
+          <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/45 px-3 py-2.5">
+            <dt className="text-sm text-muted-foreground">AWS region</dt>
+            <dd
+              className="max-w-48 truncate text-right text-sm font-medium"
+              title={connection.region.trim() || "Not provided"}
+            >
+              {connection.region.trim() || "Not provided"}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-2.5">
+            <dt className="text-sm text-muted-foreground">Credentials</dt>
+            <dd className="text-right text-sm font-medium">
+              {credentialsReady ? "Added" : "Incomplete"}
+            </dd>
+          </div>
+        </dl>
+
+        <p className="mt-4 rounded-2xl bg-muted/55 p-4 text-sm leading-relaxed text-muted-foreground">
+          Browsing lists bucket objects without starting an import.
+        </p>
       </Card>
     </div>
   );
