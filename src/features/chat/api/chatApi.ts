@@ -70,6 +70,15 @@ export type ConversationHistorySnapshot = {
   pendingQuestion: string | null;
 };
 
+export type InitialChatOutcome =
+  | { kind: "confirmation"; investigation: Investigation }
+  | {
+      kind: "completed";
+      investigation: Investigation;
+      result: MockResult;
+      processEvents: ProcessEvent[];
+    };
+
 let pendingConfirmation: PendingConfirmation | null = null;
 
 export function createProcessEvents(): ProcessEvent[] {
@@ -89,7 +98,7 @@ export async function createInvestigation(
   conversationId: string | null = null,
   engine: ChatEngine = "auto",
   signal?: AbortSignal,
-): Promise<Investigation> {
+): Promise<InitialChatOutcome> {
   pendingConfirmation = null;
   const response = await postJson(
     "/api/v1/responses",
@@ -103,14 +112,23 @@ export async function createInvestigation(
   );
   const outcome = await readResponseStream(response, signal);
 
-  if (!outcome.confirmation) {
-    throw new Error(
-      "The intelligence service did not return a confirmation plan.",
-    );
+  if (outcome.completed) {
+    return {
+      kind: "completed",
+      investigation: directAnswerInvestigation(question),
+      result: completedToResult(outcome.completed),
+      processEvents: outcome.processEvents,
+    };
   }
 
+  if (!outcome.confirmation)
+    throw new Error("The intelligence service returned no usable outcome.");
+
   pendingConfirmation = outcome.confirmation;
-  return confirmationToInvestigation(outcome.confirmation, question);
+  return {
+    kind: "confirmation",
+    investigation: confirmationToInvestigation(outcome.confirmation, question),
+  };
 }
 
 export async function runWorkflow(
@@ -400,6 +418,18 @@ function confirmationToInvestigation(
       stringValue(constraints.policy) ||
       stringValue(constraints.execution_policy),
     output: capabilityOutputSummary(confirmation.spec?.capability_requirements),
+  };
+}
+
+function directAnswerInvestigation(question: string): Investigation {
+  return {
+    question,
+    confidence: 100,
+    intent: "general_direct",
+    scope: "Answered from general knowledge or conversation context.",
+    specMarkdown: "",
+    policy: "No data workflow or engine execution was required.",
+    output: "Direct answer",
   };
 }
 
