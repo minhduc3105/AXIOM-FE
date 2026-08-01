@@ -31,7 +31,13 @@ const initialState: ChatWorkflowState = {
 
 type Action =
   | { type: "submit/start"; investigation: Investigation }
-  | { type: "submit/success"; investigation: Investigation }
+  | { type: "submit/confirmation"; investigation: Investigation }
+  | {
+      type: "submit/completed";
+      investigation: Investigation;
+      result: MockResult;
+      processEvents: ProcessEvent[];
+    }
   | { type: "draft/update"; specification: EditableSpecification }
   | { type: "draft/reset" }
   | { type: "draft/revise-start" }
@@ -83,7 +89,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         loading: true,
         error: null,
       };
-    case "submit/success":
+    case "submit/confirmation":
       return {
         ...state,
         stage: "intent",
@@ -93,6 +99,19 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           specMarkdown: action.investigation.specMarkdown,
         },
         loading: false,
+      };
+    case "submit/completed":
+      return {
+        ...state,
+        stage: "result",
+        evidenceOpen: false,
+        investigation: action.investigation,
+        draft: null,
+        approvedSpecification: null,
+        processEvents: action.processEvents,
+        result: action.result,
+        loading: false,
+        error: null,
       };
     case "draft/update":
       return state.stage === "intent"
@@ -270,13 +289,25 @@ export function useChatWorkflow() {
       });
 
       try {
-        const investigation = await createInvestigation(
+        const outcome = await createInvestigation(
           question,
           conversationId,
           engine,
           controller.signal,
         );
-        dispatch({ type: "submit/success", investigation });
+        if (outcome.kind === "completed") {
+          dispatch({
+            type: "submit/completed",
+            investigation: outcome.investigation,
+            result: outcome.result,
+            processEvents: outcome.processEvents,
+          });
+        } else {
+          dispatch({
+            type: "submit/confirmation",
+            investigation: outcome.investigation,
+          });
+        }
       } catch (error) {
         if (!isAbortError(error)) {
           dispatch({
