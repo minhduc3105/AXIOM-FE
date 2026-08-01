@@ -72,15 +72,29 @@ export type DocumentProcessingStatus = {
   created_at: string | null
 }
 
-type S3IngestionRequest = {
+export type S3Credentials = {
+  aws_access_key_id: string
+  aws_secret_access_key: string
+  aws_region: string
+  aws_bucket_name: string
+}
+
+export type S3File = {
+  key: string
+  name: string
+  size: number
+  uploadedDate: string
+}
+
+export type S3FileListResponse = {
+  files: S3File[]
+  nextToken: string | null
+}
+
+export type S3IngestionRequest = {
   organization_id: string
-  datasource_type: 's3'
-  credentials: {
-    aws_access_key_id: string
-    aws_secret_access_key: string
-    aws_region: string
-    aws_bucket_name: string
-  }
+  credentials: S3Credentials
+  keys: string[]
 }
 
 type SnowflakeIngestionRequest = {
@@ -103,7 +117,7 @@ type SnowflakeIngestionRequest = {
   stage_limit: number | null
 }
 
-export type CreateIngestionRequest = S3IngestionRequest | SnowflakeIngestionRequest
+export type CreateIngestionRequest = SnowflakeIngestionRequest
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -173,6 +187,24 @@ function isJobFilesPage(value: unknown): value is JobFilesPage {
   return pagination.total_pages === 0
     ? pagination.page === 1 && pagination.total_count === 0 && value.count === 0
     : pagination.page <= pagination.total_pages
+}
+
+function isS3File(value: unknown): value is S3File {
+  return isRecord(value)
+    && typeof value.key === 'string'
+    && value.key.length > 0
+    && typeof value.name === 'string'
+    && value.name.length > 0
+    && isNonNegativeInteger(value.size)
+    && typeof value.uploadedDate === 'string'
+    && value.uploadedDate.length > 0
+}
+
+function isS3FileListResponse(value: unknown): value is S3FileListResponse {
+  return isRecord(value)
+    && Array.isArray(value.files)
+    && value.files.every(isS3File)
+    && isNullableString(value.nextToken)
 }
 
 function isNullableArrayOfRecords(value: unknown): value is Record<string, unknown>[] | null {
@@ -282,6 +314,69 @@ export async function createIngestionJob(
 
   const payload: unknown = await response.json()
   if (!isIngestionJobResponse(payload)) throw new Error('Import was accepted but the job response was invalid.')
+  return payload
+}
+
+export async function listS3Files(
+  credentials: S3Credentials,
+  maxKey = 1000,
+  nextToken: string | null = null,
+  signal?: AbortSignal,
+): Promise<S3FileListResponse> {
+  if (!isPositiveInteger(maxKey) || maxKey > 1000) {
+    throw new Error('The S3 file page size must be between 1 and 1000.')
+  }
+
+  const response = await fetch('/api/document/s3/files:list', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      credentials,
+      maxKey,
+      nextToken,
+    }),
+    signal,
+  })
+
+  if (!response.ok) throw new Error(await getHttpError(response, 'S3 file discovery'))
+  if (response.status !== 200) {
+    throw new Error(`S3 file discovery returned unexpected HTTP ${response.status}.`)
+  }
+
+  const payload: unknown = await response.json()
+  if (!isS3FileListResponse(payload)) {
+    throw new Error('The S3 file discovery response was invalid.')
+  }
+  return payload
+}
+
+export async function createS3IngestionJob(
+  request: S3IngestionRequest,
+  signal?: AbortSignal,
+): Promise<IngestionJobResponse> {
+  if (!request.organization_id.trim()) {
+    throw new Error('VITE_AXIOM_ORGANIZATION_ID is not configured.')
+  }
+  if (!request.keys.length || request.keys.some((key) => !key.trim() || key.endsWith('/'))) {
+    throw new Error('Choose at least one S3 file before importing.')
+  }
+
+  const response = await fetch('/api/document/s3/ingestions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+    signal,
+  })
+
+  if (!response.ok) throw new Error(await getHttpError(response, 'S3 import'))
+  if (response.status !== 202) {
+    throw new Error(`S3 import returned unexpected HTTP ${response.status}.`)
+  }
+
+  const payload: unknown = await response.json()
+  if (!isIngestionJobResponse(payload)) {
+    throw new Error('S3 import was accepted but the job response was invalid.')
+  }
   return payload
 }
 
