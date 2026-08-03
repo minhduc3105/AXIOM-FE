@@ -668,11 +668,19 @@ function normalizeProcessCode(value: unknown): ProcessEvent["code"] | undefined 
   if (!content) return undefined;
 
   return {
-    name: stringValue(record.name) || stringValue(record.filename),
+    name:
+      stringValue(record.name) ||
+      stringValue(record.filename) ||
+      artifactNameFromRef(stringValue(record.artifact_ref)),
     language: stringValue(record.language) || stringValue(record.lang),
     content,
     truncated: Boolean(record.truncated),
   };
+}
+
+function artifactNameFromRef(ref: string) {
+  if (!ref) return "";
+  return ref.replace(/^artifact:\/\//, "").split("/").filter(Boolean).pop() || "";
 }
 
 function stringArrayValue(value: unknown) {

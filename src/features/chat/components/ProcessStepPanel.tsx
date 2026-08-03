@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ProcessEvent } from "../model/types";
 import {
   CheckIcon,
@@ -28,11 +28,24 @@ export type ProcessStepSelectionHandler = (
 type ProcessPresentation = ReturnType<typeof getProcessPresentation>;
 
 export function getProcessPresentation(events: ProcessEvent[]) {
-  const visibleEvents = events.filter((event) => event.status !== "waiting");
-  const transcriptEvents =
-    visibleEvents.length > 0 ? visibleEvents : events.slice(0, 1);
+  const visibleEvents = events.filter(
+    (event) => event.status !== "waiting" && isToolProcessEvent(event),
+  );
+  const transcriptEvents = visibleEvents;
 
   return { transcriptEvents };
+}
+
+function isToolProcessEvent(event: ProcessEvent) {
+  const eventType = event.eventType?.toLowerCase() ?? "";
+  const phase = event.phase?.toLowerCase() ?? "";
+  return (
+    phase === "tool" ||
+    eventType === "tool.called" ||
+    eventType.endsWith(".tool.called") ||
+    Boolean(event.code) ||
+    Boolean(event.artifactRefs?.some((ref) => /\/executions?\//i.test(ref)))
+  );
 }
 
 export function ProcessWorkspace({
@@ -138,7 +151,7 @@ function ProcessStepButton({
       <button
         type="button"
         className={cn(
-          "group flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-all duration-200",
+          "group flex min-h-12 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-all duration-200",
           selected
             ? "border-[#191915]/20 bg-white shadow-sm dark:border-[#eee8dc]/15 dark:bg-[#20201c]"
             : "border-transparent hover:border-[#d8d0c2]/80 hover:bg-white/70 dark:hover:border-[#38372f]/80 dark:hover:bg-[#20201c]/70",
@@ -148,14 +161,14 @@ function ProcessStepButton({
       >
         <span
           className={cn(
-            "mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg border",
+            "grid size-7 shrink-0 place-items-center rounded-lg border",
             event.status === "done"
               ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/35 dark:text-emerald-300"
               : event.status === "failed"
                 ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/35 dark:text-red-300"
-              : event.status === "running"
-                ? "border-[#c7bca9] bg-[#fffaf0] text-[#5f4e2f] dark:border-[#4a4438] dark:bg-[#2b2820] dark:text-[#d8c7a6]"
-                : "border-[#d8d0c2] bg-[#f4efe5] text-[#6d685e] dark:border-[#38372f] dark:bg-[#22221e] dark:text-[#aaa397]",
+                : event.status === "running"
+                  ? "border-[#c7bca9] bg-[#fffaf0] text-[#5f4e2f] dark:border-[#4a4438] dark:bg-[#2b2820] dark:text-[#d8c7a6]"
+                  : "border-[#d8d0c2] bg-[#f4efe5] text-[#6d685e] dark:border-[#38372f] dark:bg-[#22221e] dark:text-[#aaa397]",
           )}
           aria-hidden="true"
         >
@@ -166,15 +179,13 @@ function ProcessStepButton({
             )}
           />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-[#6d685e] dark:text-[#aaa397]">
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <strong className="truncate text-sm font-medium text-[#191915] dark:text-[#eee8dc]">
-              {event.label}
-            </strong>
+        <span className="flex min-w-0 flex-1 items-center gap-2 leading-none">
+          <span className="shrink-0 font-mono text-[11px] leading-none text-[#6d685e] dark:text-[#aaa397]">
+            {String(index + 1).padStart(2, "0")}
           </span>
+          <strong className="truncate text-sm font-medium leading-none text-[#191915] dark:text-[#eee8dc]">
+            {event.label}
+          </strong>
         </span>
       </button>
     </li>
@@ -199,7 +210,7 @@ export function ProcessStepDetail({
   }
 
   return (
-    <div className="flex h-full min-h-[420px] min-w-0 flex-col rounded-2xl border border-[#d8d0c2]/80 bg-[#fffdf8]/75 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/65">
+    <div className="flex h-full min-h-[420px] w-full max-w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-[#d8d0c2]/80 bg-[#fffdf8]/75 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/65">
       <div className="flex items-start justify-between gap-3 border-b border-[#d8d0c2]/80 px-4 py-3 dark:border-[#38372f]/80">
         <div className="flex min-w-0 items-start gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#d8d0c2] bg-white text-[#6d685e] dark:border-[#38372f] dark:bg-[#20201c] dark:text-[#aaa397]">
@@ -263,42 +274,44 @@ export function ProcessStepDetail({
             <TabsTrigger value="input">Input</TabsTrigger>
             <TabsTrigger value="output">Output</TabsTrigger>
           </TabsList>
-          <div className="flex min-w-0 flex-wrap justify-end gap-1.5">
-            {event.eventType && (
-              <Badge variant="ghost" className="max-w-full truncate">
-                {formatDetailLabel(event.eventType)}
-              </Badge>
-            )}
-            {event.phase && (
-              <Badge variant="outline" className="max-w-full truncate">
-                {formatDetailLabel(event.phase)}
-              </Badge>
-            )}
-          </div>
         </div>
 
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="p-4">
-            <TabsContent value="input" className="m-0">
-              <RuntimeValuePanel
-                value={event.inputs}
-                emptyLabel="No structured input captured for this step."
-              />
-            </TabsContent>
-            <TabsContent value="output" className="m-0">
-              <RuntimeOutputPanel event={event} />
-            </TabsContent>
-          </div>
-        </ScrollArea>
+        <div className="flex min-h-0 flex-1 p-4">
+          <TabsContent value="input" className="m-0 min-h-0 flex-1">
+            <RuntimeInputPanel event={event} />
+          </TabsContent>
+          <TabsContent value="output" className="m-0 min-h-0 flex-1">
+            <RuntimeOutputPanel event={event} />
+          </TabsContent>
+        </div>
       </Tabs>
     </div>
+  );
+}
+
+function RuntimeInputPanel({ event }: { event: ProcessEvent }) {
+  const code = event.code;
+
+  if (code?.content && isExecutionCodeEvent(event)) {
+    return (
+      <div className="h-full min-h-0 w-full">
+        <TerminalBlock value={code.content} fill />
+      </div>
+    );
+  }
+
+  return (
+    <RuntimeValuePanel
+      value={removeSourceCodeInput(event.inputs)}
+      emptyLabel="No structured input captured for this step."
+    />
   );
 }
 
 function RuntimeOutputPanel({ event }: { event: ProcessEvent }) {
   const code = event.code;
 
-  if (code?.content) {
+  if (code?.content && !isExecutionCodeEvent(event)) {
     return (
       <div className="grid gap-3">
         <div className="flex items-center gap-2 text-xs font-medium text-[#6d685e] dark:text-[#aaa397]">
@@ -316,7 +329,11 @@ function RuntimeOutputPanel({ event }: { event: ProcessEvent }) {
 
   return (
     <RuntimeValuePanel
-      value={event.outputs}
+      value={
+        isExecutionCodeEvent(event)
+          ? cleanExecutionOutput(event.outputs)
+          : event.outputs
+      }
       emptyLabel="No structured output captured for this step."
     />
   );
@@ -337,6 +354,48 @@ function RuntimeValuePanel({
     return <TerminalBlock value={value} />;
   }
   return <StructuredValue value={value} />;
+}
+
+function isExecutionCodeEvent(event: ProcessEvent) {
+  return Boolean(codeArtifactRef(event));
+}
+
+function codeArtifactRef(event: ProcessEvent) {
+  const inputs = isRecord(event.inputs) ? event.inputs : null;
+  const detailsInputs =
+    isRecord(event.details) && isRecord(event.details.inputs)
+      ? event.details.inputs
+      : null;
+  const value =
+    stringFromUnknown(inputs?.code_artifact_ref) ||
+    stringFromUnknown(inputs?.codeArtifactRef) ||
+    stringFromUnknown(detailsInputs?.code_artifact_ref) ||
+    stringFromUnknown(detailsInputs?.codeArtifactRef) ||
+    event.artifactRefs?.find((ref) => /\/code\/.+\.py$/i.test(ref));
+  return value || null;
+}
+
+function removeSourceCodeInput(value: unknown) {
+  if (!isRecord(value) || !("source_code" in value || "sourceCode" in value)) {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([key]) => key !== "source_code" && key !== "sourceCode",
+    ),
+  );
+}
+
+function cleanExecutionOutput(value: unknown) {
+  if (!isRecord(value)) return value;
+  if (hasDisplayValue(value.stderr)) return { stderr: value.stderr };
+  const preferredKeys = ["result", "stdout", "stderr", "exit_code"];
+  const cleaned = Object.fromEntries(
+    preferredKeys
+      .filter((key) => hasDisplayValue(value[key]))
+      .map((key) => [key, value[key]]),
+  );
+  return Object.keys(cleaned).length > 0 ? cleaned : null;
 }
 
 function EmptyRuntimeDetail({ label }: { label: string }) {
@@ -478,11 +537,76 @@ function StructuredValue({
   );
 }
 
-function TerminalBlock({ value }: { value: string }) {
+function TerminalBlock({
+  value,
+  fill = false,
+}: {
+  value: string;
+  fill?: boolean;
+}) {
   return (
-    <pre className="max-h-[360px] overflow-auto rounded-xl border border-[#26231d] bg-[#11110f] p-4 text-xs leading-5 text-[#eee8dc] shadow-inner">
-      <code>{value}</code>
-    </pre>
+    <div
+      className={cn(
+        "w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-[#26231d] bg-[#11110f] shadow-inner",
+        fill ? "h-full min-h-0" : "max-h-[360px] min-h-[180px]",
+      )}
+    >
+      <CodeViewport value={value} />
+    </div>
+  );
+}
+
+function CodeViewport({ value }: { value: string }) {
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [maxScrollLeft, setMaxScrollLeft] = useState(0);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    function measure() {
+      if (!viewport) return;
+      setMaxScrollLeft(
+        Math.max(0, viewport.scrollWidth - viewport.clientWidth),
+      );
+      setScrollLeft(viewport.scrollLeft);
+    }
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [value]);
+
+  function handleScroll() {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    setScrollLeft(viewport.scrollLeft);
+  }
+
+  function handleHorizontalScroll(value: string) {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const nextScrollLeft = Number(value);
+    viewport.scrollLeft = nextScrollLeft;
+    setScrollLeft(nextScrollLeft);
+  }
+
+  return (
+    <div className="grid h-full min-w-0 grid-rows-[minmax(0,1fr)_auto]">
+      <div
+        ref={viewportRef}
+        className="min-w-0 overflow-auto [scrollbar-color:#6d685e_#11110f] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#11110f] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#6d685e]"
+        onScroll={handleScroll}
+      >
+        <div className="inline-block min-w-max">
+          <pre className="p-4 text-xs leading-5 text-[#eee8dc]">
+            <code>{value}</code>
+          </pre>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -527,6 +651,10 @@ function formatDetailLabel(value: string) {
 function artifactName(ref: string) {
   const path = ref.replace(/^artifact:\/\//, "");
   return path.split("/").filter(Boolean).pop() || "Artifact";
+}
+
+function stringFromUnknown(value: unknown) {
+  return typeof value === "string" && value ? value : "";
 }
 
 function formatJson(value: unknown) {

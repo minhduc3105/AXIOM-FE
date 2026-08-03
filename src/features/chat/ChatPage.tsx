@@ -165,7 +165,7 @@ export function ChatPage({
           processInspectorOpen
             ? processInspectorCollapsed
               ? "w-[min(1010px,calc(100%_-_40px))] xl:grid-cols-[minmax(560px,900px)_64px]"
-              : "w-[calc(100%_-_40px)] xl:grid-cols-[minmax(560px,760px)_minmax(620px,1fr)] 2xl:w-[calc(100%_-_64px)] 2xl:grid-cols-[minmax(620px,820px)_minmax(720px,1fr)]"
+              : "w-[calc(100%_-_40px)] xl:grid-cols-[minmax(0,760px)_minmax(0,1fr)] 2xl:w-[calc(100%_-_64px)] 2xl:grid-cols-[minmax(0,820px)_minmax(0,1fr)]"
             : evidenceOpen && stage === "result"
               ? "w-[min(1480px,calc(100%_-_56px))]"
               : "w-[min(980px,calc(100%_-_56px))]",
@@ -275,10 +275,10 @@ export function ChatPage({
 
         {inspectedProcessStep && (
           <aside
-            className="min-h-0 pb-4 pt-10 max-xl:pt-0 md:pt-14"
+            className="min-h-0 min-w-0 max-w-full pb-4 pt-10 max-xl:pt-0 md:pt-14"
             aria-label="Process details"
           >
-            <div className="sticky top-10 h-[calc(100dvh-4.5rem)] min-h-0 md:top-14">
+            <div className="sticky top-10 h-[calc(100dvh-4.5rem)] min-h-0 min-w-0 max-w-full md:top-14">
               {processInspectorCollapsed ? (
                 <CollapsedProcessInspector
                   label={inspectedProcessStep.event.label}
