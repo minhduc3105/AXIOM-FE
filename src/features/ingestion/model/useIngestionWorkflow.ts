@@ -41,6 +41,7 @@ import type {
   S3Connection,
   SnowflakeConnection,
 } from './types'
+import { SUPPORTED_UPLOAD_EXTENSIONS } from './types'
 
 const initialConnection: MySqlConnection = {
   host: 'mysql.company.internal',
@@ -187,6 +188,7 @@ type Action =
   | { type: 'SAVE_SUCCESS'; connectionId: string }
   | { type: 'SAVE_ERROR'; message: string }
   | { type: 'ADD_FILES'; files: IngestionFile[] }
+  | { type: 'FILE_SELECTION_ERROR'; message: string }
   | { type: 'SELECT_FILE'; id: string }
   | { type: 'UPLOAD_START' }
   | { type: 'UPLOAD_SUCCESS'; result: UploadFilesResponse }
@@ -276,6 +278,7 @@ function createUploadProcessingBatch(result: UploadFilesResponse): DocumentProce
     files: result.files.map((file) => ({
       key: file.key,
       filename: file.filename,
+      contentType: file.content_type,
     })),
   }
 }
@@ -296,6 +299,7 @@ function createConnectorProcessingBatch(
     files: filesResult.files.map((file) => ({
       key: file.key,
       filename: null,
+      contentType: null,
     })),
   }
 }
@@ -534,6 +538,8 @@ function reducer(state: WorkflowState, action: Action): WorkflowState {
         error: null,
       }
     }
+    case 'FILE_SELECTION_ERROR':
+      return { ...state, error: action.message }
     case 'SELECT_FILE':
       return { ...state, selectedFileId: action.id }
     case 'UPLOAD_START':
@@ -644,17 +650,25 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function mapFiles(files: FileList | File[]): IngestionFile[] {
-  return Array.from(files).map((file) => {
+function mapFiles(files: FileList | File[]) {
+  const accepted: IngestionFile[] = []
+  const rejected: string[] = []
+  Array.from(files).forEach((file) => {
+    const rawExtension = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() ?? '' : ''
+    if (!SUPPORTED_UPLOAD_EXTENSIONS.includes(rawExtension as (typeof SUPPORTED_UPLOAD_EXTENSIONS)[number])) {
+      rejected.push(file.name)
+      return
+    }
     const extension = file.name.includes('.') ? file.name.split('.').pop()?.toUpperCase() ?? 'FILE' : 'FILE'
-    return {
+    accepted.push({
       id: `${file.name}-${file.size}-${file.lastModified}`,
       file,
       name: file.name,
       extension: extension === 'MARKDOWN' ? 'MD' : extension,
       sizeLabel: formatFileSize(file.size),
-    }
+    })
   })
+  return { accepted, rejected }
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -880,9 +894,15 @@ export function useIngestionWorkflow() {
   }, [])
   const addFiles = useCallback((files: FileList | File[]) => {
     const mapped = mapFiles(files)
-    if (mapped.length) {
+    if (mapped.accepted.length) {
       requestRef.current?.abort()
-      dispatch({ type: 'ADD_FILES', files: mapped })
+      dispatch({ type: 'ADD_FILES', files: mapped.accepted })
+    }
+    if (mapped.rejected.length) {
+      dispatch({
+        type: 'FILE_SELECTION_ERROR',
+        message: `Unsupported file${mapped.rejected.length === 1 ? '' : 's'}: ${mapped.rejected.join(', ')}.`,
+      })
     }
   }, [])
   const selectFile = useCallback((id: string) => dispatch({ type: 'SELECT_FILE', id }), [])

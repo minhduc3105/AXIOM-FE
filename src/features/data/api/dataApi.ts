@@ -8,6 +8,7 @@ import type {
   IngestionJobDto,
   OrganizationFilesResponseDto,
 } from "../model/types";
+import { getBrowserStorageUrl } from "@/shared/lib/storage-url";
 
 const documentApiBaseUrl =
   import.meta.env.VITE_DOCUMENT_API_BASE_URL ?? "/document-api";
@@ -89,19 +90,6 @@ function getFileType(name: string) {
   return extension ? `${extension.toUpperCase()} file` : "File";
 }
 
-function getBrowserDownloadUrl(presignedUrl: string) {
-  try {
-    const url = new URL(presignedUrl);
-    if (url.hostname === "minio" && url.port === "9000") {
-      return `/storage${url.pathname}${url.search}`;
-    }
-  } catch {
-    return presignedUrl;
-  }
-
-  return presignedUrl;
-}
-
 function getStatusDetail(
   processingStatus: DocumentProcessingStatusDto | undefined,
 ) {
@@ -125,7 +113,7 @@ function normalizeFile(
     size: file.size,
     lastModified: file.last_modified,
     etag: file.etag,
-    downloadUrl: getBrowserDownloadUrl(file.presigned_url),
+    downloadUrl: getBrowserStorageUrl(file.presigned_url),
     status: resolveHealthStatus(
       processingStatus?.status ?? null,
       processingStatus?.error_message,

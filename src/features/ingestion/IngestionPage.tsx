@@ -25,7 +25,7 @@ const pageTitles = {
   s3: "Import objects from Amazon S3",
   snowflake: "Import data from Snowflake",
   upload: "Upload files and preview selected data",
-  processing: "Track document processing in AXIOM",
+  processing: "Review indexed files and parsed layout",
   pipeline: "Run repository ingestion pipeline",
   profile: "Review aggregate profile across every source",
   meaning: "Extract meaning and confirm semantic hints",
@@ -144,7 +144,8 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
       repoMessage={repoMessage}
       ready={
         workflow.indexStatus === "ready" ||
-        workflow.documentProcessingStatus === "complete"
+        workflow.documentProcessingStatus === "complete" ||
+        workflow.documentProcessingStatus === "completed_with_errors"
       }
       active={progressStageByView[workflow.stage]}
       furthest={workflow.furthestProgress}
