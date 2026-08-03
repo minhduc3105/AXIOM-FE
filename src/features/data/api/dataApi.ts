@@ -8,6 +8,8 @@ import type {
   IngestionJobDto,
   OrganizationFilesResponseDto,
 } from "../model/types";
+import { getBrowserStorageUrl } from "@/shared/lib/storage-url";
+import { getAllFilesForJob } from "@/shared/lib/document-api";
 
 const documentApiBaseUrl =
   import.meta.env.VITE_DOCUMENT_API_BASE_URL ?? "/document-api";
@@ -89,19 +91,6 @@ function getFileType(name: string) {
   return extension ? `${extension.toUpperCase()} file` : "File";
 }
 
-function getBrowserDownloadUrl(presignedUrl: string) {
-  try {
-    const url = new URL(presignedUrl);
-    if (url.hostname === "minio" && url.port === "9000") {
-      return `/storage${url.pathname}${url.search}`;
-    }
-  } catch {
-    return presignedUrl;
-  }
-
-  return presignedUrl;
-}
-
 function getStatusDetail(
   processingStatus: DocumentProcessingStatusDto | undefined,
 ) {
@@ -113,7 +102,7 @@ function getStatusDetail(
   return status.split("_").join(" ");
 }
 
-function normalizeFile(
+export function normalizeFile(
   file: OrganizationFilesResponseDto["files"][number],
   processingStatus: DocumentProcessingStatusDto | undefined,
 ): DataFile {
@@ -125,7 +114,7 @@ function normalizeFile(
     size: file.size,
     lastModified: file.last_modified,
     etag: file.etag,
-    downloadUrl: getBrowserDownloadUrl(file.presigned_url),
+    downloadUrl: getBrowserStorageUrl(file.presigned_url),
     status: resolveHealthStatus(
       processingStatus?.status ?? null,
       processingStatus?.error_message,
@@ -170,7 +159,7 @@ async function listIngestionJobs(
   );
 }
 
-async function getProcessingStatuses(
+export async function getProcessingStatuses(
   organizationId: string,
   bucket: string,
   objectKeys: string[],
@@ -196,6 +185,31 @@ async function getProcessingStatuses(
   );
 
   return responses.flatMap((response) => response.results);
+}
+
+export async function getDataFilesForJob(
+  jobId: string,
+  signal: AbortSignal,
+): Promise<DataFile[]> {
+  const result = await getAllFilesForJob(jobId, signal);
+  let statuses: DocumentProcessingStatusDto[] = [];
+  if (result.files.length > 0) {
+    try {
+      statuses = await getProcessingStatuses(
+        result.organization_id,
+        result.bucket,
+        result.files.map((file) => file.key),
+        signal,
+      );
+    } catch (error) {
+      if (signal.aborted) throw error;
+      statuses = [];
+    }
+  }
+  const statusByKey = new Map(statuses.map((status) => [status.object_key, status]));
+  return result.files.map((file) =>
+    normalizeFile(file, statusByKey.get(file.key)),
+  );
 }
 
 export async function getDataDashboard(

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/shared/lib/utils";
+import { UPLOAD_FILE_ACCEPT } from "../model/types";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -26,7 +27,7 @@ const cards = [
     badge: "UP",
     title: "Upload files",
     kicker: "Batch intake",
-    copy: "Bring CSV, JSON, PDF, Markdown, or Parquet files into the workspace.",
+    copy: "Bring documents, datasets, and PNG or JPEG images into the workspace.",
     items: [
       "Multi-file drag and drop",
       "Schema preview before indexing",
@@ -101,7 +102,7 @@ export function ChooseSource({ onUpload, onConnect }: ChooseSourceProps) {
         className="sr-only"
         type="file"
         multiple
-        accept=".csv,.json,.pdf,.md,.markdown,.parquet,.xlsx"
+        accept={UPLOAD_FILE_ACCEPT}
         onChange={(event: ChangeEvent<HTMLInputElement>) =>
           event.target.files && onUpload(event.target.files)
         }

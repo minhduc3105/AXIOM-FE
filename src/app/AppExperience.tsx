@@ -55,8 +55,11 @@ export function AppExperience() {
     navigate(createDataRoute());
   }, [navigate]);
 
-  const openDataIngestion = useCallback(() => {
-    navigate(createDataIngestionRoute());
+  const openDataIngestion = useCallback((context?: {
+    connector?: "s3" | "snowflake";
+    profileId?: string;
+  }) => {
+    navigate(createDataIngestionRoute(context));
   }, [navigate]);
 
   const openReports = useCallback(() => {
@@ -139,7 +142,14 @@ export function AppExperience() {
           onData={openData}
         />
       ) : route.surface === "data" && route.page === "ingestion" ? (
-        <IngestionPage onBack={openData} backLabel="Back to data" />
+        <IngestionPage
+          onBack={openData}
+          backLabel="Back to data"
+          launchContext={{
+            connector: route.connector,
+            profileId: route.profileId,
+          }}
+        />
       ) : route.surface === "data" ? (
         <DataPage onCreateIngestion={openDataIngestion} />
       ) : route.surface === "reports" ? (

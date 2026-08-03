@@ -1,4 +1,5 @@
-import { Layers3Icon } from "lucide-react";
+import { FilesIcon, Layers3Icon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -16,6 +17,7 @@ type IngestionJobsTableProps = {
   jobs: IngestionJob[];
   loading: boolean;
   onCreateIngestion: () => void;
+  onViewFiles: (jobId: string) => void;
 };
 
 function formatDate(value: string) {
@@ -43,7 +45,7 @@ function IngestionJobsSkeleton() {
     <Table className="min-w-[840px]">
       <TableHeader className="bg-[#f4efe5]/70 dark:bg-white/4">
         <TableRow className="hover:bg-transparent">
-          {["Source", "Status", "Records pulled", "Objects written", "Updated"].map(
+          {["Source", "Status", "Records pulled", "Objects written", "Updated", ""].map(
             (heading) => (
               <TableHead
                 key={heading}
@@ -58,7 +60,7 @@ function IngestionJobsSkeleton() {
       <TableBody>
         {Array.from({ length: 4 }, (_, index) => (
           <TableRow key={index} className="hover:bg-transparent">
-            {Array.from({ length: 5 }, (__, cellIndex) => (
+            {Array.from({ length: 6 }, (__, cellIndex) => (
               <TableCell key={cellIndex} className="px-4 py-4">
                 <Skeleton
                   className={cellIndex === 0 ? "h-5 w-44" : "h-5 w-24"}
@@ -76,6 +78,7 @@ export function IngestionJobsTable({
   jobs,
   loading,
   onCreateIngestion,
+  onViewFiles,
 }: IngestionJobsTableProps) {
   if (loading && jobs.length === 0) return <IngestionJobsSkeleton />;
 
@@ -109,6 +112,7 @@ export function IngestionJobsTable({
           <TableHead className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
             Updated
           </TableHead>
+          <TableHead className="h-11 w-14 px-4"><span className="sr-only">Actions</span></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -154,6 +158,11 @@ export function IngestionJobsTable({
             </TableCell>
             <TableCell className="px-4 py-3.5 text-sm text-[#625d53] dark:text-[#c5bcaf]">
               {formatDate(job.updated_at)}
+            </TableCell>
+            <TableCell className="px-4 py-3.5 text-right">
+              <Button variant="ghost" size="icon-sm" onClick={() => onViewFiles(job.job_id)} aria-label={`View files for job ${job.job_id}`} disabled={job.objects_written === 0}>
+                <FilesIcon />
+              </Button>
             </TableCell>
           </TableRow>
         ))}

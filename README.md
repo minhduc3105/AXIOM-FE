@@ -9,6 +9,7 @@ The current app is an interaction-rich prototype with mocked async APIs. The tar
 - Vite 8
 - React 19
 - TypeScript 7
+- react-pdf + PDF.js for indexed document source review
 - Vitest + Testing Library
 - Tailwind CSS 4 via `@tailwindcss/vite`
 - shadcn/ui Base UI with the Nova preset
@@ -56,6 +57,7 @@ When linting or formatting scripts are added, keep the README and `package.json`
 - Chat evidence inspector: click `View evidence` to compare the final answer with claim-level source cards in a master-detail review layout. On mobile, evidence opens in a sheet.
 - Data ingestion: Choose source -> Browse connectors -> select MySQL -> fill form -> Test connection -> Save connection -> Upload files -> Start ingestion -> Indexed.
 - Ingestion review: Pipeline -> Profile -> Meaning -> Index, with mocked delays and review gates.
+- Indexed document review: select a completed PDF/PNG/JPEG result to compare the signed source preview, layout boxes, and Corpus reading-order blocks in one master-detail workspace.
 - Responsive behavior: desktop and tablet layouts are supported; the sidebar collapses into a rail, ingestion grids stack, and inspectors stay connected to the work area without horizontal page scroll.
 
 ## Project Structure

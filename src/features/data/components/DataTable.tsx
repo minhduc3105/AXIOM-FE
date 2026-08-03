@@ -1,9 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowDownIcon,
+  ArrowUpDownIcon,
+  ArrowUpIcon,
   DownloadIcon,
   FileIcon,
   SearchIcon,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -26,35 +30,48 @@ import type { DataFile, DataHealthStatus } from "../model/types";
 import { DataEmptyState } from "./DataEmptyState";
 import { StatusBadge } from "./StatusBadge";
 
+export type DataFileSortField = "file" | "status" | "lastModified" | "size";
+export type DataFileSortDirection = "ascending" | "descending";
+export type DataFileStatusFilter = "all" | DataHealthStatus;
+
+export type DataFileTransformOptions = {
+  query: string;
+  statusFilter: DataFileStatusFilter;
+  sortField: DataFileSortField;
+  sortDirection: DataFileSortDirection;
+};
+
 type DataTableProps = {
   files: DataFile[];
   loading: boolean;
-  onCreateIngestion: () => void;
+  onCreateIngestion?: () => void;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  searchLabel?: string;
 };
 
-type StatusFilter = "all" | DataHealthStatus;
+const statusRank: Record<DataHealthStatus, number> = {
+  success: 0,
+  processing: 1,
+  failed: 2,
+};
 
-const byteFormatter = new Intl.NumberFormat("en", {
-  maximumFractionDigits: 1,
-});
+const byteFormatter = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
 
 function formatFileSize(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-
   const units = ["B", "KB", "MB", "GB", "TB"];
   const unitIndex = Math.min(
     Math.floor(Math.log(bytes) / Math.log(1024)),
     units.length - 1,
   );
-  const value = bytes / 1024 ** unitIndex;
-  return `${byteFormatter.format(value)} ${units[unitIndex]}`;
+  return `${byteFormatter.format(bytes / 1024 ** unitIndex)} ${units[unitIndex]}`;
 }
 
 function formatDate(value: string | null) {
   if (!value) return "Not available";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
+  if (Number.isNaN(date.getTime())) return "Not available";
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
@@ -65,54 +82,61 @@ function formatDate(value: string | null) {
   }).format(date);
 }
 
-function formatStatusDetail(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+function validTimestamp(value: string | null) {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function compareText(left: string, right: string) {
+  return left.localeCompare(right, undefined, { sensitivity: "base" });
+}
+
+export function transformDataFiles(
+  files: DataFile[],
+  options: DataFileTransformOptions,
+) {
+  const normalizedQuery = options.query.trim().toLowerCase();
+  const filtered = files.filter((file) => {
+    const matchesQuery =
+      !normalizedQuery ||
+      file.name.toLowerCase().includes(normalizedQuery) ||
+      file.key.toLowerCase().includes(normalizedQuery) ||
+      file.type.toLowerCase().includes(normalizedQuery);
+    return matchesQuery &&
+      (options.statusFilter === "all" || file.status === options.statusFilter);
+  });
+
+  return [...filtered].sort((left, right) => {
+    let comparison = 0;
+    if (options.sortField === "lastModified") {
+      const leftDate = validTimestamp(left.lastModified);
+      const rightDate = validTimestamp(right.lastModified);
+      if (leftDate === null || rightDate === null) {
+        if (leftDate === null && rightDate !== null) return 1;
+        if (leftDate !== null && rightDate === null) return -1;
+      } else {
+        comparison = leftDate - rightDate;
+      }
+    } else if (options.sortField === "file") {
+      comparison = compareText(left.name, right.name);
+    } else if (options.sortField === "status") {
+      comparison = statusRank[left.status] - statusRank[right.status];
+    } else {
+      comparison = left.size - right.size;
+    }
+    if (comparison !== 0) {
+      return options.sortDirection === "ascending" ? comparison : -comparison;
+    }
+    return compareText(left.key, right.key);
+  });
 }
 
 function DataTableSkeleton() {
   return (
     <Table className="min-w-[920px]">
-      <TableHeader className="bg-[#f4efe5]/70 dark:bg-white/4">
-        <TableRow className="hover:bg-transparent">
-          {["File", "Status", "Last modified", "Size", ""].map(
-            (heading, index) => (
-              <TableHead
-                key={`${heading}-${index}`}
-                className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]"
-              >
-                {heading}
-              </TableHead>
-            ),
-          )}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {Array.from({ length: 5 }, (_, index) => (
-          <TableRow key={index} className="hover:bg-transparent">
-            <TableCell className="px-4 py-4">
-              <div className="flex items-center gap-3">
-                <Skeleton className="size-9 shrink-0 rounded-[7px]" />
-                <div className="grid gap-2">
-                  <Skeleton className="h-4 w-44" />
-                  <Skeleton className="h-3 w-64" />
-                </div>
-              </div>
-            </TableCell>
-            <TableCell className="px-4 py-4">
-              <Skeleton className="h-6 w-24" />
-            </TableCell>
-            <TableCell className="px-4 py-4">
-              <Skeleton className="h-4 w-36" />
-            </TableCell>
-            <TableCell className="px-4 py-4">
-              <Skeleton className="ml-auto h-4 w-16" />
-            </TableCell>
-            <TableCell className="px-4 py-4">
-              <Skeleton className="ml-auto size-8" />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
+      <TableHeader><TableRow>{["File", "Status", "Last modified", "Size", ""].map((heading, index) => <TableHead key={`${heading}-${index}`} className="h-11 px-4">{heading}</TableHead>)}</TableRow></TableHeader>
+      <TableBody>{Array.from({ length: 5 }, (_, index) => <TableRow key={index}>{Array.from({ length: 5 }, (__, cellIndex) => <TableCell key={cellIndex} className="px-4 py-4"><Skeleton className={cellIndex === 0 ? "h-8 w-64" : "h-5 w-24"} /></TableCell>)}</TableRow>)}</TableBody>
     </Table>
   );
 }
@@ -121,156 +145,105 @@ export function DataTable({
   files,
   loading,
   onCreateIngestion,
+  emptyTitle = "No files in this source",
+  emptyDescription = "Start an ingestion to add source files and make them available to AXIOM.",
+  searchLabel = "Search files",
 }: DataTableProps) {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<DataFileStatusFilter>("all");
+  const [sortField, setSortField] = useState<DataFileSortField>("lastModified");
+  const [sortDirection, setSortDirection] = useState<DataFileSortDirection>("descending");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const filteredFiles = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return files.filter((file) => {
-      const matchesQuery =
-        !normalizedQuery ||
-        file.name.toLowerCase().includes(normalizedQuery) ||
-        file.key.toLowerCase().includes(normalizedQuery) ||
-        file.type.toLowerCase().includes(normalizedQuery);
-      const matchesStatus =
-        statusFilter === "all" || file.status === statusFilter;
-      return matchesQuery && matchesStatus;
-    });
-  }, [files, query, statusFilter]);
+  const transformedFiles = useMemo(
+    () => transformDataFiles(files, { query, statusFilter, sortField, sortDirection }),
+    [files, query, sortDirection, sortField, statusFilter],
+  );
+  const totalPages = Math.max(1, Math.ceil(transformedFiles.length / pageSize));
+  const visibleFiles = transformedFiles.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => setPage((current) => Math.min(current, totalPages)), [totalPages]);
+
+  const resetPage = () => setPage(1);
+  const changeSort = (field: DataFileSortField) => {
+    setSortDirection((current) =>
+      sortField === field && current === "ascending" ? "descending" : "ascending",
+    );
+    setSortField(field);
+    resetPage();
+  };
+  const sortIcon = (field: DataFileSortField) => {
+    if (sortField !== field) return <ArrowUpDownIcon className="size-3.5" />;
+    return sortDirection === "ascending"
+      ? <ArrowUpIcon className="size-3.5" />
+      : <ArrowDownIcon className="size-3.5" />;
+  };
+  const ariaSort = (field: DataFileSortField) =>
+    sortField === field ? sortDirection : "none";
 
   if (loading && files.length === 0) return <DataTableSkeleton />;
-
   if (files.length === 0) {
-    return (
-      <DataEmptyState
-        title="No files in this organization"
-        description="Start an ingestion to add source files and make them available to AXIOM."
-        actionLabel="Data Ingestion"
-        onAction={onCreateIngestion}
-      />
-    );
+    return <DataEmptyState title={emptyTitle} description={emptyDescription} actionLabel={onCreateIngestion ? "Data Ingestion" : undefined} onAction={onCreateIngestion} />;
   }
 
   return (
-    <>
-      <div className="flex flex-col gap-3 border-b border-[#d8d0c2]/78 bg-[#fffdf8]/48 px-5 py-4 sm:flex-row sm:items-center dark:border-[#38372f]/82 dark:bg-white/4">
-        <label className="relative min-w-0 flex-1 sm:max-w-md">
-          <span className="sr-only">Search files</span>
-          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8377]" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search files"
-            className="h-10 rounded-full border-[#d8d0c2]/80 bg-[#fffdf8]/84 pl-9 shadow-[0_10px_24px_rgba(24,24,18,0.04)] dark:border-[#403f36] dark:bg-[#20201c]/86"
-          />
+    <div className="min-w-0">
+      <div className="flex flex-col gap-3 border-b px-5 py-4 lg:flex-row lg:items-center">
+        <label className="relative min-w-0 flex-1 lg:max-w-md">
+          <span className="sr-only">{searchLabel}</span>
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(event) => { setQuery(event.target.value); resetPage(); }} placeholder={searchLabel} className="pl-9" />
         </label>
-        <div className="flex items-center gap-2 text-xs font-medium text-[#6d685e] dark:text-[#aaa397]">
-          <span>Status</span>
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-          >
-            <SelectTrigger className="h-10 min-w-[148px] rounded-full bg-[#fffdf8]/84 shadow-[0_10px_24px_rgba(24,24,18,0.04)] dark:bg-[#20201c]/86">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="success">Success</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <span className="rounded-full border border-[#d8d0c2]/70 bg-[#f4efe5]/64 px-3 py-2 text-xs tabular-nums text-[#6d685e] dark:border-[#38372f] dark:bg-white/5 dark:text-[#aaa397]">
-          {filteredFiles.length} of {files.length}
-        </span>
+        <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as DataFileStatusFilter); resetPage(); }}>
+          <SelectTrigger className="w-full lg:w-[170px]" aria-label="Filter files by status"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectGroup><SelectItem value="all">All statuses</SelectItem><SelectItem value="success">Success</SelectItem><SelectItem value="processing">Processing</SelectItem><SelectItem value="failed">Failed</SelectItem></SelectGroup></SelectContent>
+        </Select>
+        <span className="text-sm tabular-nums text-muted-foreground">{transformedFiles.length} of {files.length}</span>
       </div>
 
-      {filteredFiles.length === 0 ? (
-        <DataEmptyState
-          title="No matching files"
-          description="Adjust the search or status filter to see more results."
-        />
+      {transformedFiles.length === 0 ? (
+        <DataEmptyState title="No matching files" description="Adjust the search or status filter to see more results." />
       ) : (
-        <Table className="min-w-[920px]">
-          <TableHeader className="bg-[#f4efe5]/70 dark:bg-white/4">
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="h-11 w-[42%] px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
-                File
-              </TableHead>
-              <TableHead className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
-                Status
-              </TableHead>
-              <TableHead className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
-                Last modified
-              </TableHead>
-              <TableHead className="h-11 px-4 text-right text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
-                Size
-              </TableHead>
-              <TableHead className="h-11 w-14 px-4">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredFiles.map((file) => (
-              <TableRow
-                key={file.key}
-                className="group hover:bg-[#f4efe5]/52 dark:hover:bg-white/4"
-              >
-                <TableCell className="max-w-0 px-4 py-3.5">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-[12px] border border-[#d8d0c2]/84 bg-[#f4efe5]/86 text-[#2456e8] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.36)] dark:border-[#38372f] dark:bg-[#292923] dark:text-[#9aafff]">
-                      <FileIcon className="size-4" />
-                    </span>
-                    <div className="min-w-0">
-                      <strong className="block truncate text-sm font-medium text-[#191915] dark:text-[#f4efe5]">
-                        {file.name}
-                      </strong>
-                      <span
-                        className="block truncate text-xs text-[#6d685e] dark:text-[#aaa397]"
-                        title={file.key}
-                      >
-                        {file.key}
-                      </span>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="px-4 py-3.5">
-                  <div className="grid justify-items-start gap-1">
-                    <StatusBadge status={file.status} />
-                    <span
-                      className="max-w-[190px] truncate text-xs text-[#6d685e] dark:text-[#aaa397]"
-                      title={file.errorMessage ?? file.statusDetail}
-                    >
-                      {formatStatusDetail(file.statusDetail)}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="px-4 py-3.5 text-sm text-[#625d53] dark:text-[#c5bcaf]">
-                  {formatDate(file.lastModified)}
-                </TableCell>
-                <TableCell className="px-4 py-3.5 text-right text-sm font-medium tabular-nums text-[#191915] dark:text-[#f4efe5]">
-                  {formatFileSize(file.size)}
-                </TableCell>
-                <TableCell className="px-4 py-3.5 text-right">
-                  <a
-                    href={file.downloadUrl}
-                    className="inline-flex size-8 items-center justify-center rounded-[7px] text-[#6d685e] outline-none transition-colors hover:bg-[#e9e2d5] hover:text-[#191915] focus-visible:ring-3 focus-visible:ring-[#2456e8]/25 dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-white"
-                    aria-label={`Download ${file.name}`}
-                    title={`Download ${file.name}`}
-                  >
-                    <DownloadIcon className="size-4" />
-                  </a>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <>
+          <div className="max-w-full overflow-x-auto">
+            <Table className="min-w-[920px]">
+              <TableHeader className="bg-muted/45">
+                <TableRow className="hover:bg-transparent">
+                  {([
+                    ["file", "File", "w-[42%]"],
+                    ["status", "Status", ""],
+                    ["lastModified", "Last modified", ""],
+                    ["size", "Size", "text-right"],
+                  ] as const).map(([field, label, className]) => (
+                    <TableHead key={field} aria-sort={ariaSort(field)} className={`h-11 px-4 text-xs font-semibold ${className}`}>
+                      <button type="button" onClick={() => changeSort(field)} className={`inline-flex items-center gap-1.5 rounded-md py-1 outline-none focus-visible:ring-3 focus-visible:ring-primary/25 ${field === "size" ? "float-right" : ""}`}>
+                        {label}{sortIcon(field)}
+                      </button>
+                    </TableHead>
+                  ))}
+                  <TableHead className="h-11 w-14 px-4"><span className="sr-only">Actions</span></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleFiles.map((file) => (
+                  <TableRow key={file.key} className="group">
+                    <TableCell className="max-w-0 px-4 py-3.5"><div className="flex min-w-0 items-center gap-3"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-muted text-primary"><FileIcon className="size-4" /></span><div className="min-w-0"><strong className="block truncate text-sm font-medium">{file.name}</strong><span className="block truncate text-xs text-muted-foreground" title={file.key}>{file.key}</span></div></div></TableCell>
+                    <TableCell className="px-4 py-3.5"><div className="grid justify-items-start gap-1"><StatusBadge status={file.status} /><span className="max-w-[190px] truncate text-xs capitalize text-muted-foreground" title={file.errorMessage ?? file.statusDetail}>{file.statusDetail}</span></div></TableCell>
+                    <TableCell className="px-4 py-3.5 text-sm text-muted-foreground">{formatDate(file.lastModified)}</TableCell>
+                    <TableCell className="px-4 py-3.5 text-right text-sm font-medium tabular-nums">{formatFileSize(file.size)}</TableCell>
+                    <TableCell className="px-4 py-3.5 text-right"><a href={file.downloadUrl} className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-primary/25" aria-label={`Download ${file.name}`} title={`Download ${file.name}`}><DownloadIcon className="size-4" /></a></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex flex-col gap-3 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><span>Rows per page</span><Select value={String(pageSize)} onValueChange={(value) => { setPageSize(Number(value)); resetPage(); }}><SelectTrigger className="w-20" aria-label="Rows per page"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="20">20</SelectItem><SelectItem value="50">50</SelectItem></SelectContent></Select></div>
+            <div className="flex items-center justify-between gap-3 sm:justify-end"><span className="text-sm tabular-nums text-muted-foreground">Page {page} of {totalPages}</span><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((current) => current - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((current) => current + 1)}>Next</Button></div>
+          </div>
+        </>
       )}
-    </>
+    </div>
   );
 }

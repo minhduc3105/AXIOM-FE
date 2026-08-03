@@ -12,10 +12,12 @@ import { SnowflakeForm } from "./components/SnowflakeForm";
 import { UploadWorkspace } from "./components/UploadWorkspace";
 import { progressStageByView } from "./model/types";
 import { useIngestionWorkflow } from "./model/useIngestionWorkflow";
+import type { IngestionLaunchContext } from "./model/useIngestionWorkflow";
 
 type IngestionPageProps = {
   onBack: () => void;
   backLabel?: string;
+  launchContext?: IngestionLaunchContext;
 };
 
 const pageTitles = {
@@ -25,15 +27,15 @@ const pageTitles = {
   s3: "Import objects from Amazon S3",
   snowflake: "Import data from Snowflake",
   upload: "Upload files and preview selected data",
-  processing: "Track document processing in AXIOM",
+  processing: "Review indexed files and parsed layout",
   pipeline: "Run repository ingestion pipeline",
   profile: "Review aggregate profile across every source",
   meaning: "Extract meaning and confirm semantic hints",
   index: "Index ready with searchable evidence",
 } as const;
 
-export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
-  const workflow = useIngestionWorkflow();
+export function IngestionPage({ onBack, backLabel, launchContext }: IngestionPageProps) {
+  const workflow = useIngestionWorkflow(launchContext);
   const source = workflow.source;
   const selectingS3Files =
     workflow.stage === "s3" &&
@@ -144,7 +146,8 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
       repoMessage={repoMessage}
       ready={
         workflow.indexStatus === "ready" ||
-        workflow.documentProcessingStatus === "complete"
+        workflow.documentProcessingStatus === "complete" ||
+        workflow.documentProcessingStatus === "completed_with_errors"
       }
       active={progressStageByView[workflow.stage]}
       furthest={workflow.furthestProgress}
@@ -201,6 +204,12 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
           onRetryFiles={() => void workflow.retryConnectorFileDiscovery()}
           onNewImport={workflow.startNewConnectorImport}
           onBack={workflow.openCatalog}
+          profileName={workflow.profileName}
+          profileSaved={Boolean(workflow.activeProfile)}
+          profileDirty={workflow.profileDirty}
+          profileError={workflow.profileError}
+          onProfileNameChange={workflow.setProfileName}
+          onSaveProfile={workflow.saveCurrentProfile}
         />
       )}
       {workflow.stage === "snowflake" && (
@@ -215,6 +224,12 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
           onRetryFiles={() => void workflow.retryConnectorFileDiscovery()}
           onNewImport={workflow.startNewConnectorImport}
           onBack={workflow.openCatalog}
+          profileName={workflow.profileName}
+          profileSaved={Boolean(workflow.activeProfile)}
+          profileDirty={workflow.profileDirty}
+          profileError={workflow.profileError}
+          onProfileNameChange={workflow.setProfileName}
+          onSaveProfile={workflow.saveCurrentProfile}
         />
       )}
       {workflow.stage === "upload" && (

@@ -27,7 +27,11 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/shared/lib/utils";
 import type { UploadFilesResponse } from "../api/ingestionApi";
-import type { AsyncStatus, IngestionFile } from "../model/types";
+import {
+  UPLOAD_FILE_ACCEPT,
+  type AsyncStatus,
+  type IngestionFile,
+} from "../model/types";
 
 type UploadWorkspaceProps = {
   files: IngestionFile[];
@@ -105,6 +109,17 @@ function isPdfFile(file: IngestionFile | undefined) {
   );
 }
 
+function isImageFile(file: IngestionFile | undefined) {
+  const extension = file?.extension.toUpperCase();
+  return (
+    extension === "PNG" ||
+    extension === "JPG" ||
+    extension === "JPEG" ||
+    file?.file.type === "image/png" ||
+    file?.file.type === "image/jpeg"
+  );
+}
+
 export function UploadWorkspace({
   files,
   selectedFileId,
@@ -117,12 +132,13 @@ export function UploadWorkspace({
   onBack,
 }: UploadWorkspaceProps) {
   const [dragging, setDragging] = useState(false);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string | null>(null);
   const inputId = "axiom-upload-more";
   const uploading = uploadStatus === "loading";
   const uploaded = uploadStatus === "success";
   const selected = files.find((file) => file.id === selectedFileId) ?? files[0];
   const selectedIsPdf = isPdfFile(selected);
+  const selectedIsImage = isImageFile(selected);
   const totalBytes = files.reduce((sum, item) => sum + item.file.size, 0);
   const totalSize =
     totalBytes < 1024 * 1024
@@ -138,15 +154,15 @@ export function UploadWorkspace({
         : 0;
 
   useEffect(() => {
-    if (!selectedIsPdf || !selected) {
-      setPdfPreviewUrl(null);
+    if ((!selectedIsPdf && !selectedIsImage) || !selected) {
+      setSourcePreviewUrl(null);
       return;
     }
 
     const objectUrl = URL.createObjectURL(selected.file);
-    setPdfPreviewUrl(objectUrl);
+    setSourcePreviewUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
-  }, [selected, selectedIsPdf]);
+  }, [selected, selectedIsImage, selectedIsPdf]);
 
   const dropFiles = (event: DragEvent<HTMLLabelElement>) => {
     event.preventDefault();
@@ -186,7 +202,7 @@ export function UploadWorkspace({
             />
             <strong>Drop or browse multiple files</strong>
             <span className="max-w-64 text-sm text-muted-foreground">
-              CSV, JSON, TXT/MD, PDF, and Parquet are supported.
+              PDF, PNG/JPEG, CSV, JSON, TXT/MD, Excel, and Parquet are supported.
             </span>
             <Input
               id={inputId}
@@ -194,7 +210,7 @@ export function UploadWorkspace({
               type="file"
               multiple
               disabled={uploading}
-              accept=".csv,.json,.pdf,.txt,.md,.markdown,.parquet"
+              accept={UPLOAD_FILE_ACCEPT}
               onChange={(event: ChangeEvent<HTMLInputElement>) =>
                 event.target.files && onFiles(event.target.files)
               }
@@ -293,13 +309,42 @@ export function UploadWorkspace({
           {selectedIsPdf ? (
             <PdfPreview
               fileName={selected?.name}
-              pdfPreviewUrl={pdfPreviewUrl}
+              pdfPreviewUrl={sourcePreviewUrl}
+            />
+          ) : selectedIsImage ? (
+            <ImagePreview
+              fileName={selected?.name}
+              imagePreviewUrl={sourcePreviewUrl}
             />
           ) : (
             <DataPreview />
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function ImagePreview({
+  fileName,
+  imagePreviewUrl,
+}: {
+  fileName: string | undefined;
+  imagePreviewUrl: string | null;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 overflow-auto rounded-xl border bg-[#25241f] p-5">
+      {imagePreviewUrl ? (
+        <img
+          className="m-auto max-h-[680px] max-w-full object-contain shadow-2xl"
+          src={imagePreviewUrl}
+          alt={fileName ? `Image preview for ${fileName}` : "Image preview"}
+        />
+      ) : (
+        <div className="grid min-h-[560px] flex-1 place-items-center text-muted-foreground">
+          Preparing image preview...
+        </div>
+      )}
     </div>
   );
 }

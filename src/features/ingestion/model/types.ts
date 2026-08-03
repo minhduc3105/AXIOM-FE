@@ -79,6 +79,7 @@ export type ProcessingSourceKind = 'upload' | 's3' | 'snowflake'
 export type ProcessingFile = {
   key: string
   filename: string | null
+  contentType: string | null
 }
 
 export type DocumentProcessingBatch = {
@@ -90,6 +91,19 @@ export type DocumentProcessingBatch = {
   files: ProcessingFile[]
 }
 
+export type SourcePreviewKind = 'pdf' | 'image' | 'unsupported'
+
+export function getSourcePreviewKind(file: ProcessingFile | null | undefined): SourcePreviewKind {
+  if (!file) return 'unsupported'
+  const contentType = file.contentType?.toLowerCase() ?? ''
+  const extension = file.key.split('.').pop()?.toLowerCase() ?? ''
+  if (contentType === 'application/pdf' || extension === 'pdf') return 'pdf'
+  if (contentType === 'image/png'
+    || contentType === 'image/jpeg'
+    || ['png', 'jpg', 'jpeg'].includes(extension)) return 'image'
+  return 'unsupported'
+}
+
 export type IngestionFile = {
   id: string
   file: File
@@ -97,6 +111,24 @@ export type IngestionFile = {
   extension: string
   sizeLabel: string
 }
+
+export const SUPPORTED_UPLOAD_EXTENSIONS = [
+  'csv',
+  'json',
+  'pdf',
+  'txt',
+  'md',
+  'markdown',
+  'parquet',
+  'xlsx',
+  'png',
+  'jpg',
+  'jpeg',
+] as const
+
+export const UPLOAD_FILE_ACCEPT = SUPPORTED_UPLOAD_EXTENSIONS
+  .map((extension) => `.${extension}`)
+  .join(',')
 
 export type IngestionSource =
   | { kind: 'files'; files: IngestionFile[] }

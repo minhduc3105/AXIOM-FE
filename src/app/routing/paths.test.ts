@@ -24,6 +24,23 @@ describe("data routing", () => {
       surface: "data",
       page: "ingestion",
       sessionId: null,
+      connector: null,
+      profileId: null,
+    });
+  });
+
+  it("parses a safe saved-source launch context", () => {
+    expect(
+      parseAppRoute(
+        "/data/ingestion",
+        "?connector=s3&profile=source-123&aws_secret_access_key=ignored",
+      ),
+    ).toEqual({
+      surface: "data",
+      page: "ingestion",
+      sessionId: null,
+      connector: "s3",
+      profileId: "source-123",
     });
   });
 
@@ -32,6 +49,8 @@ describe("data routing", () => {
       surface: "data",
       page: "ingestion",
       sessionId: null,
+      connector: null,
+      profileId: null,
     });
   });
 
@@ -43,6 +62,14 @@ describe("data routing", () => {
     expect(getAppRoutePath(createDataIngestionRoute())).toBe(
       "/data/ingestion",
     );
+  });
+
+  it("creates an ingestion URL with connector and profile identifiers only", () => {
+    expect(
+      getAppRoutePath(
+        createDataIngestionRoute({ connector: "snowflake", profileId: "finance" }),
+      ),
+    ).toBe("/data/ingestion?connector=snowflake&profile=finance");
   });
 });
 
