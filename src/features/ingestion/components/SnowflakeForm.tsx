@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import type { IngestionJobResponse } from '../api/ingestionApi'
 import type { ConnectorJobUiStatus, SnowflakeConnection } from '../model/types'
 import { IngestionJobStatus } from './IngestionJobStatus'
+import { SavedProfileControls } from './SavedProfileControls'
 
 type SnowflakeFormProps = {
   connection: SnowflakeConnection
@@ -19,6 +20,12 @@ type SnowflakeFormProps = {
   onRetryFiles: () => void
   onNewImport: () => void
   onBack: () => void
+  profileName: string
+  profileSaved: boolean
+  profileDirty: boolean
+  profileError: string | null
+  onProfileNameChange: (name: string) => void
+  onSaveProfile: () => void
 }
 
 function isValidLimit(value: string) {
@@ -27,7 +34,7 @@ function isValidLimit(value: string) {
   return Number.isInteger(parsed) && parsed >= 1
 }
 
-export function SnowflakeForm({ connection, status, job, error, onChange, onSubmit, onRetryStatus, onRetryFiles, onNewImport, onBack }: SnowflakeFormProps) {
+export function SnowflakeForm({ connection, status, job, error, onChange, onSubmit, onRetryStatus, onRetryFiles, onNewImport, onBack, profileName, profileSaved, profileDirty, profileError, onProfileNameChange, onSaveProfile }: SnowflakeFormProps) {
   const busy = status === 'submitting' || status === 'polling' || status === 'discovering_files'
   const locked = Boolean(job) || busy
   const discoveryReady = connection.discoverTables || connection.discoverStages
@@ -66,6 +73,16 @@ export function SnowflakeForm({ connection, status, job, error, onChange, onSubm
           {!discoveryReady && <p className="mt-3 text-sm text-red-700 dark:text-red-300" role="alert">Enable table or stage discovery.</p>}
           {!limitsReady && <p className="mt-3 text-sm text-red-700 dark:text-red-300" role="alert">Discovery limits must be whole numbers greater than zero.</p>}
         </details>
+
+        <SavedProfileControls
+          name={profileName}
+          saved={profileSaved}
+          dirty={profileDirty}
+          error={profileError}
+          disabled={locked}
+          onNameChange={onProfileNameChange}
+          onSave={onSaveProfile}
+        />
 
         <div className="mt-2 flex justify-end gap-3"><Button variant="outline" onClick={onBack} disabled={busy} type="button">Back</Button><Button className="bg-[#2456e8] text-white hover:bg-[#1d48c7]" disabled={!requiredReady || locked} type="submit">{status === 'submitting' ? 'Creating job…' : status === 'failed' && !job ? 'Retry import' : 'Start Snowflake import'}</Button></div>
       </form>

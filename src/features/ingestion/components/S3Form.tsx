@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { S3BrowserStatus, S3Connection } from "../model/types";
+import { SavedProfileControls } from "./SavedProfileControls";
 
 type S3FormProps = {
   connection: S3Connection;
@@ -13,6 +14,12 @@ type S3FormProps = {
   onChange: (field: keyof S3Connection, value: string) => void;
   onBrowse: () => void;
   onBack: () => void;
+  profileName: string;
+  profileSaved: boolean;
+  profileDirty: boolean;
+  profileError: string | null;
+  onProfileNameChange: (name: string) => void;
+  onSaveProfile: () => void;
 };
 
 export function S3Form({
@@ -22,6 +29,12 @@ export function S3Form({
   onChange,
   onBrowse,
   onBack,
+  profileName,
+  profileSaved,
+  profileDirty,
+  profileError,
+  onProfileNameChange,
+  onSaveProfile,
 }: S3FormProps) {
   const busy = browserStatus === "loading";
   const credentialsReady = Boolean(
@@ -105,6 +118,16 @@ export function S3Form({
               />
             </label>
           </div>
+
+          <SavedProfileControls
+            name={profileName}
+            saved={profileSaved}
+            dirty={profileDirty}
+            error={profileError}
+            disabled={busy}
+            onNameChange={onProfileNameChange}
+            onSave={onSaveProfile}
+          />
 
           {error && (
             <Alert variant="destructive" role="alert">

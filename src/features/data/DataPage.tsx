@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangleIcon, ServerCrashIcon } from "lucide-react";
 import {
   Alert,
@@ -16,12 +16,17 @@ import {
 import { defaultOrganizationId } from "./api/dataApi";
 import { DataDashboardHeader } from "./components/DataDashboardHeader";
 import { DataMetrics } from "./components/DataMetrics";
-import { DataTable } from "./components/DataTable";
+import { DataSourcesWorkspace } from "./components/DataSourcesWorkspace";
 import { IngestionJobsTable } from "./components/IngestionJobsTable";
+import { JobFilesPanel } from "./components/JobFilesPanel";
 import { useDataDashboard } from "./model/useDataDashboard";
+import { useDataSourceProfiles } from "@/shared/hooks/use-data-source-profiles";
 
 type DataPageProps = {
-  onCreateIngestion: () => void;
+  onCreateIngestion: (context?: {
+    connector?: "s3" | "snowflake";
+    profileId?: string;
+  }) => void;
 };
 
 function formatAggregateSize(bytes: number) {
@@ -43,6 +48,12 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
     useDataDashboard(defaultOrganizationId);
   const files = snapshot?.files ?? [];
   const ingestionJobs = snapshot?.ingestionJobs ?? [];
+  const organizationId = snapshot?.organizationId ?? defaultOrganizationId;
+  const { profiles, error: profileError, remove: removeProfile } =
+    useDataSourceProfiles(organizationId);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [activeDataView, setActiveDataView] = useState("sources");
+  const selectedJob = ingestionJobs.find((job) => job.job_id === selectedJobId) ?? null;
 
   const summary = useMemo(() => {
     return {
@@ -118,7 +129,7 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
           totalSize={summary.totalSize}
         />
 
-        <Tabs defaultValue="files" className="gap-0">
+        <Tabs value={activeDataView} onValueChange={(value) => setActiveDataView(value)} className="gap-0">
           <section
             className="overflow-hidden rounded-[28px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 shadow-[0_24px_70px_rgba(24,24,18,0.09)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88"
             aria-label="Data inventory and ingestion activity"
@@ -136,10 +147,10 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
                 className="h-10 w-full justify-start rounded-full border border-[#d8d0c2]/70 bg-[#f4efe5]/70 p-1 sm:w-auto dark:border-[#38372f]/80 dark:bg-white/5"
                 aria-label="Data views"
               >
-                <TabsTrigger value="files" className="rounded-full px-4">
-                  Files
+                <TabsTrigger value="sources" className="rounded-full px-4">
+                  Data sources
                   <span className="tabular-nums text-[11px] text-[#8a8377]">
-                    {files.length}
+                    {profiles.length + 1}
                   </span>
                 </TabsTrigger>
                 <TabsTrigger value="jobs" className="rounded-full px-4">
@@ -151,11 +162,19 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
               </TabsList>
             </div>
 
-            <TabsContent value="files">
-              <DataTable
+            <TabsContent value="sources">
+              <DataSourcesWorkspace
                 files={files}
+                jobs={ingestionJobs}
+                profiles={profiles}
                 loading={initialLoading}
+                profileError={profileError}
                 onCreateIngestion={onCreateIngestion}
+                onDeleteProfile={removeProfile}
+                onViewJobs={(jobId) => {
+                  setSelectedJobId(jobId ?? null);
+                  setActiveDataView("jobs");
+                }}
               />
             </TabsContent>
             <TabsContent value="jobs">
@@ -163,7 +182,11 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
                 jobs={ingestionJobs}
                 loading={initialLoading}
                 onCreateIngestion={onCreateIngestion}
+                onViewFiles={(jobId) => setSelectedJobId(jobId)}
               />
+              <div className="px-4 pb-4">
+                <JobFilesPanel job={selectedJob} />
+              </div>
             </TabsContent>
           </section>
         </Tabs>

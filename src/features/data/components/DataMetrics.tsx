@@ -19,7 +19,7 @@ type DataMetricsProps = {
 const metrics = [
   {
     key: "total",
-    label: "Total files",
+    label: "All stored objects",
     icon: DatabaseIcon,
     tone: "text-[#2456e8] bg-[#edf2ff] dark:bg-[#7895ff]/12 dark:text-[#9aafff]",
   },
@@ -77,7 +77,7 @@ export function DataMetrics({
                 </strong>
               )}
               <p className="mt-1 truncate text-xs text-[#8a8377] dark:text-[#898378]">
-                {metric.key === "total" ? totalSize : "Current inventory"}
+                {metric.key === "total" ? totalSize : "All data sources"}
               </p>
             </div>
             <span

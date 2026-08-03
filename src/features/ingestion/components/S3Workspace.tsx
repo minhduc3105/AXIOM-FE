@@ -34,6 +34,12 @@ type S3WorkspaceProps = {
   onRetryFiles: () => void;
   onNewImport: () => void;
   onBack: () => void;
+  profileName: string;
+  profileSaved: boolean;
+  profileDirty: boolean;
+  profileError: string | null;
+  onProfileNameChange: (name: string) => void;
+  onSaveProfile: () => void;
 };
 
 export function S3Workspace({
@@ -60,6 +66,12 @@ export function S3Workspace({
   onRetryFiles,
   onNewImport,
   onBack,
+  profileName,
+  profileSaved,
+  profileDirty,
+  profileError,
+  onProfileNameChange,
+  onSaveProfile,
 }: S3WorkspaceProps) {
   const showingJob =
     Boolean(job) ||
@@ -165,6 +177,12 @@ export function S3Workspace({
       onChange={onChange}
       onBrowse={onBrowse}
       onBack={onBack}
+      profileName={profileName}
+      profileSaved={profileSaved}
+      profileDirty={profileDirty}
+      profileError={profileError}
+      onProfileNameChange={onProfileNameChange}
+      onSaveProfile={onSaveProfile}
     />
   );
 }

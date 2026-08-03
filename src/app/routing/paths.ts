@@ -1,4 +1,4 @@
-import type { AppRoute } from "./types";
+import type { AppRoute, DataIngestionLaunchContext } from "./types";
 
 const ROUTE_SEGMENTS = {
   chat: "chat",
@@ -7,19 +7,41 @@ const ROUTE_SEGMENTS = {
   tools: "tools",
 } as const;
 
-export function parseAppRoute(pathname: string): AppRoute {
+export function parseAppRoute(pathname: string, search = ""): AppRoute {
   const segments = pathname.split("/").filter(Boolean);
 
   if (segments[0] === ROUTE_SEGMENTS.data) {
+    if (segments[1] === "ingestion") {
+      const params = new URLSearchParams(search);
+      const requestedConnector = params.get("connector");
+      const connector =
+        requestedConnector === "s3" || requestedConnector === "snowflake"
+          ? requestedConnector
+          : null;
+      const profileId = params.get("profile")?.trim() || null;
+      return {
+        surface: "data",
+        page: "ingestion",
+        sessionId: null,
+        connector,
+        profileId,
+      };
+    }
     return {
       surface: "data",
-      page: segments[1] === "ingestion" ? "ingestion" : "dashboard",
+      page: "dashboard",
       sessionId: null,
     };
   }
 
   if (segments[0] === "ingest") {
-    return { surface: "data", page: "ingestion", sessionId: null };
+    return {
+      surface: "data",
+      page: "ingestion",
+      sessionId: null,
+      connector: null,
+      profileId: null,
+    };
   }
 
   if (segments[0] === ROUTE_SEGMENTS.reports) {
@@ -47,9 +69,12 @@ export function parseAppRoute(pathname: string): AppRoute {
 
 export function getAppRoutePath(route: AppRoute) {
   if (route.surface === "data") {
-    return route.page === "ingestion"
-      ? `/${ROUTE_SEGMENTS.data}/ingestion`
-      : `/${ROUTE_SEGMENTS.data}`;
+    if (route.page === "dashboard") return `/${ROUTE_SEGMENTS.data}`;
+    const params = new URLSearchParams();
+    if (route.connector) params.set("connector", route.connector);
+    if (route.profileId) params.set("profile", route.profileId);
+    const search = params.toString();
+    return `/${ROUTE_SEGMENTS.data}/ingestion${search ? `?${search}` : ""}`;
   }
   if (route.surface === "reports") return `/${ROUTE_SEGMENTS.reports}`;
   if (route.surface === "tools") {
@@ -77,8 +102,16 @@ export function createDataRoute(): AppRoute {
   return { surface: "data", page: "dashboard", sessionId: null };
 }
 
-export function createDataIngestionRoute(): AppRoute {
-  return { surface: "data", page: "ingestion", sessionId: null };
+export function createDataIngestionRoute(
+  context: Partial<DataIngestionLaunchContext> = {},
+): AppRoute {
+  return {
+    surface: "data",
+    page: "ingestion",
+    sessionId: null,
+    connector: context.connector ?? null,
+    profileId: context.profileId ?? null,
+  };
 }
 
 export function createReportsRoute(): AppRoute {

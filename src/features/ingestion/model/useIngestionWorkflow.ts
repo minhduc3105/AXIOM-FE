@@ -1,4 +1,15 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import {
+  linkJobToDataSourceProfile,
+  readDataSourceProfiles,
+  saveDataSourceProfile,
+} from '@/shared/lib/data-source-profile-storage'
+import type {
+  DataSourceProfileType,
+  SavedDataSourceProfile,
+  SavedS3Config,
+  SavedSnowflakeConfig,
+} from '@/shared/types/data-source-profile'
 import {
   buildSearchIndex,
   createIngestionJob,
@@ -155,6 +166,110 @@ const initialState: WorkflowState = {
   completedSearchQuery: '',
   revisionCount: 0,
   error: null,
+}
+
+export type IngestionLaunchContext = {
+  connector: DataSourceProfileType | null;
+  profileId: string | null;
+};
+
+const defaultLaunchContext: IngestionLaunchContext = {
+  connector: null,
+  profileId: null,
+};
+
+function getOrganizationId() {
+  return import.meta.env.VITE_AXIOM_ORGANIZATION_ID
+    ?? import.meta.env.VITE_ORGANIZATION_ID
+    ?? 'test-org'
+}
+
+function getS3SavedConfig(connection: S3Connection): SavedS3Config {
+  return {
+    region: connection.region.trim(),
+    bucketName: connection.bucketName.trim(),
+  }
+}
+
+function getSnowflakeSavedConfig(connection: SnowflakeConnection): SavedSnowflakeConfig {
+  return {
+    account: connection.account.trim(),
+    user: connection.user.trim(),
+    warehouse: connection.warehouse.trim(),
+    database: connection.database.trim(),
+    schema: connection.schema.trim(),
+    role: connection.role.trim(),
+    discoverTables: connection.discoverTables,
+    discoverStages: connection.discoverStages,
+    stagePattern: connection.stagePattern.trim(),
+    tableLimit: optionalPositiveInteger(connection.tableLimit),
+    stageLimit: optionalPositiveInteger(connection.stageLimit),
+  }
+}
+
+function applyProfileToState(profile: SavedDataSourceProfile | null): WorkflowState {
+  if (!profile) return initialState;
+  if (profile.type === 's3') {
+    const config = profile.config as SavedS3Config;
+    return {
+      ...initialState,
+      stage: 's3',
+      furthestProgress: 1,
+      selectedConnector: 'Amazon S3',
+      s3Connection: {
+        accessKeyId: '',
+        secretAccessKey: '',
+        region: config.region,
+        bucketName: config.bucketName,
+      },
+    };
+  }
+  const config = profile.config as SavedSnowflakeConfig;
+  return {
+    ...initialState,
+    stage: 'snowflake',
+    furthestProgress: 1,
+    selectedConnector: 'Snowflake',
+    snowflakeConnection: {
+      account: config.account,
+      user: config.user,
+      privateKey: '',
+      privateKeyPassphrase: '',
+      warehouse: config.warehouse,
+      database: config.database,
+      schema: config.schema,
+      role: config.role,
+      discoverTables: config.discoverTables,
+      discoverStages: config.discoverStages,
+      stagePattern: config.stagePattern,
+      tableLimit: config.tableLimit?.toString() ?? '',
+      stageLimit: config.stageLimit?.toString() ?? '',
+    },
+  };
+}
+
+function createLaunchedState(
+  profile: SavedDataSourceProfile | null,
+  connector: DataSourceProfileType | null,
+) {
+  if (profile) return applyProfileToState(profile);
+  if (connector === 's3') {
+    return {
+      ...initialState,
+      stage: 's3' as const,
+      furthestProgress: 1,
+      selectedConnector: 'Amazon S3',
+    };
+  }
+  if (connector === 'snowflake') {
+    return {
+      ...initialState,
+      stage: 'snowflake' as const,
+      furthestProgress: 1,
+      selectedConnector: 'Snowflake',
+    };
+  }
+  return initialState;
 }
 
 type Action =
@@ -728,9 +843,82 @@ function assertUniqueS3Files(existingFiles: S3File[], incomingFiles: S3File[]) {
   }
 }
 
-export function useIngestionWorkflow() {
-  const [state, dispatch] = useReducer(reducer, initialState)
+export function useIngestionWorkflow(
+  launchContext: IngestionLaunchContext = defaultLaunchContext,
+) {
+  const organizationId = getOrganizationId()
+  const initialProfile = useMemo(() => {
+    if (!launchContext.profileId) return null
+    const profile = readDataSourceProfiles(organizationId).find(
+      (item) => item.id === launchContext.profileId,
+    ) ?? null
+    return profile && (!launchContext.connector || profile.type === launchContext.connector)
+      ? profile
+      : null
+  }, [launchContext.connector, launchContext.profileId, organizationId])
+  const [state, dispatch] = useReducer(
+    reducer,
+    createLaunchedState(initialProfile, launchContext.connector),
+  )
+  const [activeProfile, setActiveProfile] = useState(initialProfile)
+  const [profileName, setProfileName] = useState(initialProfile?.name ?? '')
+  const [profileError, setProfileError] = useState<string | null>(
+    launchContext.profileId && !initialProfile
+      ? 'The requested saved source is unavailable. Enter connection details or save a new source.'
+      : null,
+  )
   const requestRef = useRef<AbortController | null>(null)
+
+  const currentProfileType: DataSourceProfileType | null = state.stage === 's3'
+    ? 's3'
+    : state.stage === 'snowflake'
+      ? 'snowflake'
+      : activeProfile?.type ?? null
+  const currentSavedConfig = currentProfileType === 's3'
+    ? getS3SavedConfig(state.s3Connection)
+    : currentProfileType === 'snowflake'
+      ? getSnowflakeSavedConfig(state.snowflakeConnection)
+      : null
+  const profileDirty = Boolean(
+    activeProfile
+      && currentSavedConfig
+      && (
+        activeProfile.name !== profileName.trim()
+        || JSON.stringify(activeProfile.config) !== JSON.stringify(currentSavedConfig)
+      ),
+  )
+
+  const saveCurrentProfile = useCallback(() => {
+    if (!currentProfileType || !currentSavedConfig) return
+    try {
+      const profile = saveDataSourceProfile({
+        organizationId,
+        type: currentProfileType,
+        name: profileName,
+        config: currentSavedConfig,
+      }, activeProfile?.id)
+      setActiveProfile(profile)
+      setProfileName(profile.name)
+      setProfileError(null)
+    } catch (error) {
+      setProfileError(getErrorMessage(error, 'Unable to save this source.'))
+    }
+  }, [activeProfile?.id, currentProfileType, currentSavedConfig, organizationId, profileName])
+
+  const linkAcceptedJob = useCallback((job: IngestionJobResponse) => {
+    if (!activeProfile || profileDirty || activeProfile.type !== job.datasource_type) return
+    try {
+      const profile = linkJobToDataSourceProfile(
+        organizationId,
+        activeProfile.id,
+        job.job_id,
+      )
+      setActiveProfile(profile)
+      setProfileError(null)
+    } catch (error) {
+      setProfileError(getErrorMessage(error, 'The import started, but its saved source link could not be updated.'))
+    }
+  }, [activeProfile, organizationId, profileDirty])
 
   const beginRequest = useCallback(() => {
     requestRef.current?.abort()
@@ -751,8 +939,18 @@ export function useIngestionWorkflow() {
   }, [])
   const selectConnector = useCallback((connector: string) => {
     requestRef.current?.abort()
+    const nextType = connector === 'Amazon S3'
+      ? 's3'
+      : connector === 'Snowflake'
+        ? 'snowflake'
+        : null
+    if (activeProfile && nextType !== activeProfile.type) {
+      setActiveProfile(null)
+      setProfileName('')
+      setProfileError(null)
+    }
     dispatch({ type: 'SELECT_CONNECTOR', connector })
-  }, [])
+  }, [activeProfile])
   const updateConnection = useCallback((field: keyof MySqlConnection, value: string | boolean) => dispatch({ type: 'UPDATE_CONNECTION', field, value }), [])
   const updateS3Connection = useCallback((field: keyof S3Connection, value: string) => dispatch({ type: 'UPDATE_S3_CONNECTION', field, value }), [])
   const updateSnowflakeConnection = useCallback((field: keyof SnowflakeConnection, value: string | boolean) => dispatch({ type: 'UPDATE_SNOWFLAKE_CONNECTION', field, value }), [])
@@ -996,11 +1194,12 @@ export function useIngestionWorkflow() {
     dispatch({ type: 'CONNECTOR_SUBMIT_START' })
     try {
       const job = await createS3IngestionJob({
-        organization_id: import.meta.env.VITE_AXIOM_ORGANIZATION_ID ?? '',
+        organization_id: organizationId,
         credentials: getS3Credentials(state.s3Connection),
         keys: state.selectedS3Keys,
       }, signal)
       dispatch({ type: 'CONNECTOR_JOB_ACCEPTED', job })
+      linkAcceptedJob(job)
       if (job.status === 'completed') {
         await prepareConnectorProcessing(job, signal)
       } else if (job.status !== 'failed') {
@@ -1009,7 +1208,7 @@ export function useIngestionWorkflow() {
     } catch (error) {
       if (!isAbortError(error)) dispatch({ type: 'CONNECTOR_SUBMIT_ERROR', message: getErrorMessage(error, 'Unable to create the S3 import job.') })
     }
-  }, [beginRequest, monitorIngestionJob, prepareConnectorProcessing, state.connectorJobStatus, state.ingestionJob, state.s3Connection, state.selectedS3Keys])
+  }, [beginRequest, linkAcceptedJob, monitorIngestionJob, organizationId, prepareConnectorProcessing, state.connectorJobStatus, state.ingestionJob, state.s3Connection, state.selectedS3Keys])
 
   const submitSnowflakeImport = useCallback(async () => {
     if (state.connectorJobStatus === 'submitting' || state.connectorJobStatus === 'polling' || state.ingestionJob) return
@@ -1017,7 +1216,7 @@ export function useIngestionWorkflow() {
     dispatch({ type: 'CONNECTOR_SUBMIT_START' })
     try {
       const job = await createIngestionJob({
-        organization_id: import.meta.env.VITE_AXIOM_ORGANIZATION_ID ?? '',
+        organization_id: organizationId,
         datasource_type: 'snowflake',
         credentials: {
           account: state.snowflakeConnection.account.trim(),
@@ -1036,6 +1235,7 @@ export function useIngestionWorkflow() {
         stage_limit: optionalPositiveInteger(state.snowflakeConnection.stageLimit),
       }, signal)
       dispatch({ type: 'CONNECTOR_JOB_ACCEPTED', job })
+      linkAcceptedJob(job)
       if (job.status === 'completed') {
         await prepareConnectorProcessing(job, signal)
       } else if (job.status !== 'failed') {
@@ -1044,7 +1244,7 @@ export function useIngestionWorkflow() {
     } catch (error) {
       if (!isAbortError(error)) dispatch({ type: 'CONNECTOR_SUBMIT_ERROR', message: getErrorMessage(error, 'Unable to create the Snowflake import job.') })
     }
-  }, [beginRequest, monitorIngestionJob, prepareConnectorProcessing, state.connectorJobStatus, state.ingestionJob, state.snowflakeConnection])
+  }, [beginRequest, linkAcceptedJob, monitorIngestionJob, organizationId, prepareConnectorProcessing, state.connectorJobStatus, state.ingestionJob, state.snowflakeConnection])
 
   const retryIngestionStatus = useCallback(async () => {
     if (!state.ingestionJob) return
@@ -1070,7 +1270,7 @@ export function useIngestionWorkflow() {
     dispatch({ type: 'UPLOAD_START' })
     try {
       const result = await uploadFiles(
-        import.meta.env.VITE_AXIOM_ORGANIZATION_ID ?? '',
+        organizationId,
         state.files.map((file) => file.file),
         signal,
       )
@@ -1080,7 +1280,7 @@ export function useIngestionWorkflow() {
     } catch (error) {
       if (!isAbortError(error)) dispatch({ type: 'UPLOAD_ERROR', message: getErrorMessage(error, 'Unable to upload the selected files.') })
     }
-  }, [beginRequest, monitorDocumentProcessing, state.files, state.uploadStatus])
+  }, [beginRequest, monitorDocumentProcessing, organizationId, state.files, state.uploadStatus])
 
   const retryDocumentProcessingStatus = useCallback(async () => {
     if (!state.processingBatch || state.documentProcessingStatus === 'polling' || state.documentProcessingStatus === 'empty') return
@@ -1216,6 +1416,13 @@ export function useIngestionWorkflow() {
 
   return {
     ...state,
+    organizationId,
+    activeProfile,
+    profileName,
+    profileDirty,
+    profileError,
+    setProfileName,
+    saveCurrentProfile,
     openSource,
     openCatalog,
     selectConnector,

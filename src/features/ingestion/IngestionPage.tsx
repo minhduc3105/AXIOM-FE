@@ -12,10 +12,12 @@ import { SnowflakeForm } from "./components/SnowflakeForm";
 import { UploadWorkspace } from "./components/UploadWorkspace";
 import { progressStageByView } from "./model/types";
 import { useIngestionWorkflow } from "./model/useIngestionWorkflow";
+import type { IngestionLaunchContext } from "./model/useIngestionWorkflow";
 
 type IngestionPageProps = {
   onBack: () => void;
   backLabel?: string;
+  launchContext?: IngestionLaunchContext;
 };
 
 const pageTitles = {
@@ -32,8 +34,8 @@ const pageTitles = {
   index: "Index ready with searchable evidence",
 } as const;
 
-export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
-  const workflow = useIngestionWorkflow();
+export function IngestionPage({ onBack, backLabel, launchContext }: IngestionPageProps) {
+  const workflow = useIngestionWorkflow(launchContext);
   const source = workflow.source;
   const selectingS3Files =
     workflow.stage === "s3" &&
@@ -202,6 +204,12 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
           onRetryFiles={() => void workflow.retryConnectorFileDiscovery()}
           onNewImport={workflow.startNewConnectorImport}
           onBack={workflow.openCatalog}
+          profileName={workflow.profileName}
+          profileSaved={Boolean(workflow.activeProfile)}
+          profileDirty={workflow.profileDirty}
+          profileError={workflow.profileError}
+          onProfileNameChange={workflow.setProfileName}
+          onSaveProfile={workflow.saveCurrentProfile}
         />
       )}
       {workflow.stage === "snowflake" && (
@@ -216,6 +224,12 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
           onRetryFiles={() => void workflow.retryConnectorFileDiscovery()}
           onNewImport={workflow.startNewConnectorImport}
           onBack={workflow.openCatalog}
+          profileName={workflow.profileName}
+          profileSaved={Boolean(workflow.activeProfile)}
+          profileDirty={workflow.profileDirty}
+          profileError={workflow.profileError}
+          onProfileNameChange={workflow.setProfileName}
+          onSaveProfile={workflow.saveCurrentProfile}
         />
       )}
       {workflow.stage === "upload" && (
