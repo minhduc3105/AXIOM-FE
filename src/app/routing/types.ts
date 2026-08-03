@@ -1,4 +1,10 @@
-export type AppSurface = "chat" | "data" | "reports" | "tools" | "settings";
+export type AppSurface =
+  | "chat"
+  | "data"
+  | "reports"
+  | "tools"
+  | "models"
+  | "settings";
 
 export type DataIngestionLaunchContext = {
   connector: "s3" | "snowflake" | null;
@@ -18,4 +24,5 @@ export type AppRoute =
       toolName: string | null;
       sessionId: null;
     }
-  | { surface: "settings"; page: "models"; sessionId: null };
+  | { surface: "models"; sessionId: null }
+  | { surface: "settings"; page: "models" | "memory"; sessionId: null };

@@ -9,6 +9,8 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   SettingsIcon,
+  CpuIcon,
+  BrainCircuitIcon,
   SunIcon,
 } from "lucide-react";
 import { useTheme } from "@/app/ThemeProvider";
@@ -49,6 +51,8 @@ type WorkspaceRailProps = {
   onConversationOpen: (conversationId: string) => void;
   onData: () => void;
   onReports: () => void;
+  onModels: () => void;
+  onMemory: () => void;
   onTools: () => void;
   onSettings: () => void;
 };
@@ -68,6 +72,8 @@ function RailContent({
   onConversationOpen,
   onData,
   onReports,
+  onModels,
+  onMemory,
   onTools,
   onSettings,
 }: WorkspaceRailProps) {
@@ -327,6 +333,49 @@ function RailContent({
               className={cn(
                 workspaceNavButtonClass,
                 sidebarButtonIconPadding,
+                expanded ? "w-full justify-start px-3" : "size-11 justify-center px-0",
+                "rounded-xl",
+              )}
+              data-active={surface === "settings"}
+              onClick={onMemory}
+              aria-label="Memory settings"
+            >
+              <BrainCircuitIcon data-icon="inline-start" />
+              <span className={cn("transition-opacity duration-300", expanded ? "opacity-100" : "pointer-events-none w-0 overflow-hidden opacity-0")}>
+                Memory
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              className={cn(
+                workspaceNavButtonClass,
+                sidebarButtonIconPadding,
+                expanded
+                  ? "w-full justify-start px-3"
+                  : "size-11 justify-center px-0",
+                "rounded-xl",
+              )}
+              data-active={surface === "models"}
+              onClick={onModels}
+              aria-label="Models"
+            >
+              <CpuIcon data-icon="inline-start" />
+              <span
+                className={cn(
+                  "transition-opacity duration-300",
+                  expanded
+                    ? "opacity-100"
+                    : "pointer-events-none w-0 overflow-hidden opacity-0",
+                )}
+              >
+                Models
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              className={cn(
+                workspaceNavButtonClass,
+                sidebarButtonIconPadding,
                 expanded
                   ? "w-full justify-start px-3"
                   : "size-11 justify-center px-0",
@@ -494,6 +543,14 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
             }}
             onReports={() => {
               props.onReports();
+              setMobileOpen(false);
+            }}
+            onModels={() => {
+              props.onModels();
+              setMobileOpen(false);
+            }}
+            onMemory={() => {
+              props.onMemory();
               setMobileOpen(false);
             }}
             onTools={() => {
