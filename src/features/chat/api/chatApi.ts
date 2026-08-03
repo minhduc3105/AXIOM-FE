@@ -701,6 +701,12 @@ function normalizeProcessStatus(
   ) {
     return "done";
   }
+  if (
+    eventType === "pipeline.failed" ||
+    ["failed", "failure", "error", "errored"].includes(status)
+  ) {
+    return "failed";
+  }
   return "running";
 }
 
@@ -899,6 +905,8 @@ function normalizeStoredProcessStatus(rawStatus: unknown): ProcessStatus {
   if (["pending", "waiting", "queued"].includes(status)) return "waiting";
   if (["running", "active", "started", "in_progress"].includes(status))
     return "running";
+  if (["failed", "failure", "error", "errored"].includes(status))
+    return "failed";
   return "done";
 }
 

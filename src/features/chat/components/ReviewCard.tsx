@@ -278,7 +278,7 @@ function ProcessCard({
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
-            <AlertAction>
+            <AlertAction className="top-1/2 flex -translate-y-1/2 items-center">
               <Button size="xs" variant="outline" onClick={onRetry}>
                 Retry
               </Button>

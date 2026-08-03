@@ -188,7 +188,15 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         loading: false,
       };
     case "request/failure":
-      return { ...state, loading: false, error: action.message };
+      return {
+        ...state,
+        processEvents:
+          state.stage === "process"
+            ? markActiveProcessEventFailed(state.processEvents)
+            : state.processEvents,
+        loading: false,
+        error: action.message,
+      };
     case "conversation/load-start":
       return {
         ...state,
@@ -288,6 +296,23 @@ const streamingDirectAnswerInvestigation = (question: string): Investigation => 
 
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
+}
+
+function markActiveProcessEventFailed(events: ProcessEvent[]): ProcessEvent[] {
+  if (events.length === 0) return events;
+
+  let runningIndex = -1;
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    if (events[index]?.status === "running") {
+      runningIndex = index;
+      break;
+    }
+  }
+  const failedIndex = runningIndex >= 0 ? runningIndex : events.length - 1;
+
+  return events.map((event, index) =>
+    index === failedIndex ? { ...event, status: "failed" } : event,
+  );
 }
 
 export function useChatWorkflow() {

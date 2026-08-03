@@ -151,6 +151,8 @@ function ProcessStepButton({
             "mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg border",
             event.status === "done"
               ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/35 dark:text-emerald-300"
+              : event.status === "failed"
+                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/35 dark:text-red-300"
               : event.status === "running"
                 ? "border-[#c7bca9] bg-[#fffaf0] text-[#5f4e2f] dark:border-[#4a4438] dark:bg-[#2b2820] dark:text-[#d8c7a6]"
                 : "border-[#d8d0c2] bg-[#f4efe5] text-[#6d685e] dark:border-[#38372f] dark:bg-[#22221e] dark:text-[#aaa397]",
@@ -210,6 +212,10 @@ export function ProcessStepDetail({
               </h3>
               <Badge
                 variant={event.status === "done" ? "secondary" : "outline"}
+                className={cn(
+                  event.status === "failed" &&
+                    "border-red-200 text-red-700 dark:border-red-900/70 dark:text-red-300",
+                )}
               >
                 {processStatusLabel(event.status)}
               </Badge>
@@ -499,12 +505,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function processStatusIcon(status: ProcessEvent["status"]) {
   if (status === "done") return CheckIcon;
+  if (status === "failed") return XIcon;
   if (status === "running") return LoaderCircleIcon;
   return Clock3Icon;
 }
 
 function processStatusLabel(status: ProcessEvent["status"]) {
   if (status === "done") return "Done";
+  if (status === "failed") return "Failed";
   if (status === "running") return "Running";
   return "Waiting";
 }
