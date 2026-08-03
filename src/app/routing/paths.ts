@@ -4,6 +4,7 @@ const ROUTE_SEGMENTS = {
   chat: "chat",
   data: "data",
   reports: "reports",
+  settings: "settings",
   tools: "tools",
 } as const;
 
@@ -36,6 +37,10 @@ export function parseAppRoute(pathname: string): AppRoute {
     };
   }
 
+  if (segments[0] === ROUTE_SEGMENTS.settings) {
+    return { surface: "settings", page: "models", sessionId: null };
+  }
+
   if (segments[0] === ROUTE_SEGMENTS.chat) {
     return segments[1]
       ? { surface: "chat", page: "conversation", sessionId: segments[1] }
@@ -57,6 +62,7 @@ export function getAppRoutePath(route: AppRoute) {
       ? `/${ROUTE_SEGMENTS.tools}/${encodeURIComponent(route.toolName)}`
       : `/${ROUTE_SEGMENTS.tools}`;
   }
+  if (route.surface === "settings") return `/${ROUTE_SEGMENTS.settings}/models`;
   if (route.page === "home") return "/";
   return route.sessionId
     ? `/${ROUTE_SEGMENTS.chat}/${route.sessionId}`
@@ -96,4 +102,8 @@ export function createToolDetailRoute(toolName: string): AppRoute {
     toolName,
     sessionId: null,
   };
+}
+
+export function createModelSettingsRoute(): AppRoute {
+  return { surface: "settings", page: "models", sessionId: null };
 }

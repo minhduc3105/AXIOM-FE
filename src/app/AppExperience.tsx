@@ -4,6 +4,7 @@ import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { DataPage } from "@/features/data/DataPage";
 import { IngestionPage } from "@/features/ingestion/IngestionPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
+import { ModelSettingsPage } from "@/features/settings/ModelSettingsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
 import { AppShell } from "./AppShell";
@@ -12,6 +13,7 @@ import {
   createChatRoute,
   createDataIngestionRoute,
   createDataRoute,
+  createModelSettingsRoute,
   createReportsRoute,
   createToolDetailRoute,
   createToolsRoute,
@@ -65,6 +67,10 @@ export function AppExperience() {
     navigate(createToolsRoute());
   }, [navigate]);
 
+  const openSettings = useCallback(() => {
+    navigate(createModelSettingsRoute());
+  }, [navigate]);
+
   const openToolDetail = useCallback(
     (toolName: string) => {
       navigate(createToolDetailRoute(toolName));
@@ -107,6 +113,7 @@ export function AppExperience() {
       onData={openData}
       onReports={openReports}
       onTools={openTools}
+      onSettings={openSettings}
     >
       {route.surface === "chat" ? (
         <ChatPage
@@ -137,6 +144,8 @@ export function AppExperience() {
         <DataPage onCreateIngestion={openDataIngestion} />
       ) : route.surface === "reports" ? (
         <ReportsPage onData={openData} />
+      ) : route.surface === "settings" ? (
+        <ModelSettingsPage />
       ) : route.page === "detail" && route.toolName ? (
         <ToolDetailPage toolName={route.toolName} onBack={openTools} />
       ) : (

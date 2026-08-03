@@ -8,6 +8,7 @@ interface ImportMetaEnv {
   readonly VITE_CORPUS_API_BASE_URL?: string
   readonly VITE_METHODS_HUB_API_BASE_URL?: string
   readonly VITE_METHODS_HUB_ADMIN_TOKEN?: string
+  readonly VITE_MODEL_SERVICE_API_BASE_URL?: string
 }
 
 interface ImportMeta {

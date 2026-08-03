@@ -13,6 +13,8 @@ const corpusApiTarget =
   process.env.VITE_CORPUS_API_PROXY_TARGET ?? "http://localhost:38002";
 const methodsHubTarget =
   process.env.VITE_METHODS_HUB_PROXY_TARGET ?? "http://localhost:8000";
+const modelServiceTarget =
+  process.env.VITE_MODEL_SERVICE_PROXY_TARGET ?? "http://localhost:38006";
 const storageTarget =
   process.env.VITE_STORAGE_PROXY_TARGET ?? "http://localhost:30443";
 
@@ -40,6 +42,11 @@ export default defineConfig({
         target: methodsHubTarget,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/methods-hub/, ""),
+      },
+      "/model-service": {
+        target: modelServiceTarget,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/model-service/, ""),
       },
       "/storage": {
         target: storageTarget,

@@ -3,6 +3,7 @@ import {
   createDataIngestionRoute,
   createDataRoute,
   createReportsRoute,
+  createModelSettingsRoute,
   createToolDetailRoute,
   createToolsRoute,
   getAppRoutePath,
@@ -81,6 +82,22 @@ describe("tools routing", () => {
     expect(getAppRoutePath(createToolsRoute())).toBe("/tools");
     expect(getAppRoutePath(createToolDetailRoute("text_normalize"))).toBe(
       "/tools/text_normalize",
+    );
+  });
+});
+
+describe("settings routing", () => {
+  it("parses the model settings path", () => {
+    expect(parseAppRoute("/settings/models")).toEqual({
+      surface: "settings",
+      page: "models",
+      sessionId: null,
+    });
+  });
+
+  it("creates a stable model settings URL", () => {
+    expect(getAppRoutePath(createModelSettingsRoute())).toBe(
+      "/settings/models",
     );
   });
 });
