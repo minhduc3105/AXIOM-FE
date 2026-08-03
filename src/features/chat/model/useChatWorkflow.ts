@@ -31,6 +31,11 @@ const initialState: ChatWorkflowState = {
 
 type Action =
   | { type: "submit/start"; investigation: Investigation }
+  | {
+      type: "submit/stream";
+      investigation: Investigation;
+      result: MockResult;
+    }
   | { type: "submit/confirmation"; investigation: Investigation }
   | {
       type: "submit/completed";
@@ -86,6 +91,18 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
                 },
               ]
             : state.history,
+        loading: true,
+        error: null,
+      };
+    case "submit/stream":
+      return {
+        ...state,
+        stage: "result",
+        evidenceOpen: false,
+        investigation: action.investigation,
+        draft: null,
+        approvedSpecification: null,
+        result: action.result,
         loading: true,
         error: null,
       };
@@ -259,6 +276,16 @@ const optimisticInvestigation = (question: string): Investigation => ({
   output: "Reviewed markdown answer with cited evidence",
 });
 
+const streamingDirectAnswerInvestigation = (question: string): Investigation => ({
+  question,
+  confidence: 100,
+  intent: "general_direct",
+  scope: "Answered from general knowledge or conversation context.",
+  specMarkdown: "",
+  policy: "No data workflow or engine execution was required.",
+  output: "Direct answer",
+});
+
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
 }
@@ -294,6 +321,12 @@ export function useChatWorkflow() {
           conversationId,
           engine,
           controller.signal,
+          (result) =>
+            dispatch({
+              type: "submit/stream",
+              investigation: streamingDirectAnswerInvestigation(question),
+              result,
+            }),
         );
         if (outcome.kind === "completed") {
           dispatch({

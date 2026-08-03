@@ -22,12 +22,21 @@ describe("createInvestigation", () => {
       vi.fn(async () =>
         sseResponse([
           {
+            type: "response.output_text.delta",
+            response_id: "resp-direct",
+            delta: "PostgreSQL is an open-source ",
+          },
+          {
+            type: "response.output_text.delta",
+            response_id: "resp-direct",
+            delta: "relational database.",
+          },
+          {
             type: "response.completed",
             response_id: "resp-direct",
             response: {
               id: "resp-direct",
               status: "completed",
-              output_text: "PostgreSQL is an open-source relational database.",
             },
             evidence: null,
             metadata: { route: "general_direct" },
@@ -35,11 +44,14 @@ describe("createInvestigation", () => {
         ]),
       ),
     );
+    const onOutputText = vi.fn();
 
     const outcome = await createInvestigation(
       "What is PostgreSQL?",
       "conversation-1",
       "auto",
+      undefined,
+      onOutputText,
     );
 
     expect(outcome).toMatchObject({
@@ -49,6 +61,11 @@ describe("createInvestigation", () => {
         markdown: "PostgreSQL is an open-source relational database.",
       },
     });
+    expect(onOutputText).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        markdown: "PostgreSQL is an open-source relational database.",
+      }),
+    );
   });
 
   it("returns a confirmation outcome when the orchestrator delegates", async () => {

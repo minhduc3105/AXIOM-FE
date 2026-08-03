@@ -74,6 +74,7 @@ export function ChatPage({
     () => processEvents.map((event) => event.status).join("-"),
     [processEvents],
   );
+  const resultScrollSignature = result?.markdown.length ?? 0;
   const inspectableProcessEvents = useMemo(
     () => [
       ...history.flatMap((turn, index) =>
@@ -116,11 +117,14 @@ export function ChatPage({
     const frame = window.requestAnimationFrame(() => {
       const chatMain = chatMainRef.current;
       if (chatMain && typeof chatMain.scrollTo === "function") {
-        chatMain.scrollTo({ top: chatMain.scrollHeight, behavior: "smooth" });
+        chatMain.scrollTo({
+          top: chatMain.scrollHeight,
+          behavior: loading ? "auto" : "smooth",
+        });
       }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [history.length, processSignature, stage]);
+  }, [history.length, loading, processSignature, resultScrollSignature, stage]);
 
   if (stage === "welcome") {
     if (mode === "chat") {
