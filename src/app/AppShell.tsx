@@ -15,6 +15,8 @@ type AppShellProps = {
   onConversationOpen: (conversationId: string) => void;
   onData: () => void;
   onReports: () => void;
+  onModels: () => void;
+  onMemory: () => void;
   showCommandBar?: boolean;
   onTools: () => void;
   children: React.ReactNode;
@@ -29,6 +31,8 @@ export function AppShell({
   onConversationOpen,
   onData,
   onReports,
+  onModels,
+  onMemory,
   showCommandBar = false,
   onTools,
   children,
@@ -60,6 +64,8 @@ export function AppShell({
           onConversationOpen={onConversationOpen}
           onData={onData}
           onReports={onReports}
+          onModels={onModels}
+          onMemory={onMemory}
           onTools={onTools}
         />
         <div

@@ -6,6 +6,8 @@ import { IngestionPage } from "@/features/ingestion/IngestionPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
+import { ModelsPage } from "@/features/models/ModelsPage";
+import { MemoryPage } from "@/features/memory/MemoryPage";
 import { AppShell } from "./AppShell";
 import {
   createChatHomeRoute,
@@ -13,6 +15,8 @@ import {
   createDataIngestionRoute,
   createDataRoute,
   createReportsRoute,
+  createModelsRoute,
+  createMemoryRoute,
   createToolDetailRoute,
   createToolsRoute,
 } from "./routing/paths";
@@ -65,6 +69,14 @@ export function AppExperience() {
     navigate(createToolsRoute());
   }, [navigate]);
 
+  const openModels = useCallback(() => {
+    navigate(createModelsRoute());
+  }, [navigate]);
+
+  const openMemory = useCallback(() => {
+    navigate(createMemoryRoute());
+  }, [navigate]);
+
   const openToolDetail = useCallback(
     (toolName: string) => {
       navigate(createToolDetailRoute(toolName));
@@ -106,6 +118,8 @@ export function AppExperience() {
       onConversationOpen={openConversation}
       onData={openData}
       onReports={openReports}
+      onModels={openModels}
+      onMemory={openMemory}
       onTools={openTools}
     >
       {route.surface === "chat" ? (
@@ -137,6 +151,10 @@ export function AppExperience() {
         <DataPage onCreateIngestion={openDataIngestion} />
       ) : route.surface === "reports" ? (
         <ReportsPage onData={openData} />
+      ) : route.surface === "models" ? (
+        <ModelsPage />
+      ) : route.surface === "settings" ? (
+        <MemoryPage />
       ) : route.page === "detail" && route.toolName ? (
         <ToolDetailPage toolName={route.toolName} onBack={openTools} />
       ) : (
