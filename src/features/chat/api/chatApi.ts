@@ -62,6 +62,12 @@ type StreamOutcome = {
   confirmation?: PendingConfirmation;
   completed?: CompletedResponse;
   processEvents: ProcessEvent[];
+  outputText: string;
+};
+
+type StreamCallbacks = {
+  onProcessEvents?: (events: ProcessEvent[]) => void;
+  onOutputText?: (result: MockResult) => void;
 };
 
 export type ConversationHistorySnapshot = {
@@ -69,6 +75,15 @@ export type ConversationHistorySnapshot = {
   pendingInvestigation: Investigation | null;
   pendingQuestion: string | null;
 };
+
+export type InitialChatOutcome =
+  | { kind: "confirmation"; investigation: Investigation }
+  | {
+      kind: "completed";
+      investigation: Investigation;
+      result: MockResult;
+      processEvents: ProcessEvent[];
+    };
 
 let pendingConfirmation: PendingConfirmation | null = null;
 
@@ -89,7 +104,8 @@ export async function createInvestigation(
   conversationId: string | null = null,
   engine: ChatEngine = "auto",
   signal?: AbortSignal,
-): Promise<Investigation> {
+  onOutputText?: (result: MockResult) => void,
+): Promise<InitialChatOutcome> {
   pendingConfirmation = null;
   const response = await postJson(
     "/api/v1/responses",
@@ -101,16 +117,25 @@ export async function createInvestigation(
     },
     signal,
   );
-  const outcome = await readResponseStream(response, signal);
+  const outcome = await readResponseStream(response, signal, { onOutputText });
 
-  if (!outcome.confirmation) {
-    throw new Error(
-      "The intelligence service did not return a confirmation plan.",
-    );
+  if (outcome.completed) {
+    return {
+      kind: "completed",
+      investigation: directAnswerInvestigation(question),
+      result: completedToResult(outcome.completed),
+      processEvents: outcome.processEvents,
+    };
   }
 
+  if (!outcome.confirmation)
+    throw new Error("The intelligence service returned no usable outcome.");
+
   pendingConfirmation = outcome.confirmation;
-  return confirmationToInvestigation(outcome.confirmation, question);
+  return {
+    kind: "confirmation",
+    investigation: confirmationToInvestigation(outcome.confirmation, question),
+  };
 }
 
 export async function runWorkflow(
@@ -140,7 +165,7 @@ export async function runWorkflow(
     const reviseOutcome = await readResponseStream(
       reviseResponse,
       signal,
-      onProcessEvents,
+      { onProcessEvents },
     );
     if (reviseOutcome.completed) {
       pendingConfirmation = null;
@@ -164,7 +189,7 @@ export async function runWorkflow(
   const outcome = await readResponseStream(
     confirmResponse,
     signal,
-    onProcessEvents,
+    { onProcessEvents },
   );
 
   if (!outcome.completed) {
@@ -273,7 +298,7 @@ async function responseErrorMessage(response: Response) {
 async function readResponseStream(
   response: Response,
   signal?: AbortSignal,
-  onProcessEvents?: (events: ProcessEvent[]) => void,
+  callbacks?: StreamCallbacks,
 ): Promise<StreamOutcome> {
   if (!response.body)
     throw new Error(
@@ -282,7 +307,7 @@ async function readResponseStream(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   const parser = new ResponsesSSEParser();
-  const outcome: StreamOutcome = { processEvents: [] };
+  const outcome: StreamOutcome = { processEvents: [], outputText: "" };
 
   try {
     while (true) {
@@ -293,7 +318,7 @@ async function readResponseStream(
         ? parser.finish()
         : parser.push(decoder.decode(value, { stream: true }));
       for (const event of events)
-        applyStreamEvent(event, outcome, onProcessEvents);
+        applyStreamEvent(event, outcome, callbacks);
       if (done) break;
     }
   } finally {
@@ -306,14 +331,36 @@ async function readResponseStream(
 function applyStreamEvent(
   event: SseEvent,
   outcome: StreamOutcome,
-  onProcessEvents?: (events: ProcessEvent[]) => void,
+  callbacks?: StreamCallbacks,
 ) {
   if (event.type.startsWith("pipeline.")) {
     outcome.processEvents = upsertProcessEvent(
       outcome.processEvents,
       processEventFromApiEvent(event),
     );
-    onProcessEvents?.(outcome.processEvents);
+    callbacks?.onProcessEvents?.(outcome.processEvents);
+  }
+
+  if (event.type === "response.output_text.delta") {
+    const delta = rawStringValue(event.delta);
+    if (delta) {
+      outcome.outputText += delta;
+      callbacks?.onOutputText?.(
+        completedToResult(streamingCompletedResponse(event, outcome.outputText)),
+      );
+    }
+    return;
+  }
+
+  if (event.type === "response.output_text.done") {
+    const text = stringValue(event.text) || outcome.outputText;
+    outcome.outputText = text;
+    if (text) {
+      callbacks?.onOutputText?.(
+        completedToResult(streamingCompletedResponse(event, text)),
+      );
+    }
+    return;
   }
 
   if (event.type === "response.requires_confirmation") {
@@ -322,7 +369,7 @@ function applyStreamEvent(
   }
 
   if (event.type === "response.completed") {
-    outcome.completed = completedFromEvent(event);
+    outcome.completed = completedFromEvent(event, outcome.outputText);
     return;
   }
 
@@ -369,15 +416,33 @@ function confirmationFromEvent(event: SseEvent): PendingConfirmation {
   };
 }
 
-function completedFromEvent(event: SseEvent): CompletedResponse {
+function completedFromEvent(
+  event: SseEvent,
+  streamedOutputText = "",
+): CompletedResponse {
   const response = asRecord(event.response);
   return {
     responseId:
       stringValue(event.response_id) || stringValue(response.id) || "",
     outputText:
-      stringValue(response.output_text) || stringValue(event.output_text) || "",
+      stringValue(response.output_text) ||
+      stringValue(event.output_text) ||
+      streamedOutputText,
     evidence: event.evidence,
     metadata: asRecord(event.metadata),
+    processEvents: [],
+  };
+}
+
+function streamingCompletedResponse(
+  event: SseEvent,
+  outputText: string,
+): CompletedResponse {
+  return {
+    responseId: stringValue(event.response_id) || "",
+    outputText,
+    evidence: null,
+    metadata: { route: "general_direct" },
     processEvents: [],
   };
 }
@@ -400,6 +465,18 @@ function confirmationToInvestigation(
       stringValue(constraints.policy) ||
       stringValue(constraints.execution_policy),
     output: capabilityOutputSummary(confirmation.spec?.capability_requirements),
+  };
+}
+
+function directAnswerInvestigation(question: string): Investigation {
+  return {
+    question,
+    confidence: 100,
+    intent: "general_direct",
+    scope: "Answered from general knowledge or conversation context.",
+    specMarkdown: "",
+    policy: "No data workflow or engine execution was required.",
+    output: "Direct answer",
   };
 }
 
@@ -624,6 +701,12 @@ function normalizeProcessStatus(
   ) {
     return "done";
   }
+  if (
+    eventType === "pipeline.failed" ||
+    ["failed", "failure", "error", "errored"].includes(status)
+  ) {
+    return "failed";
+  }
   return "running";
 }
 
@@ -822,6 +905,8 @@ function normalizeStoredProcessStatus(rawStatus: unknown): ProcessStatus {
   if (["pending", "waiting", "queued"].includes(status)) return "waiting";
   if (["running", "active", "started", "in_progress"].includes(status))
     return "running";
+  if (["failed", "failure", "error", "errored"].includes(status))
+    return "failed";
   return "done";
 }
 
@@ -962,6 +1047,10 @@ function humanizeEventName(value: unknown) {
 
 function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+function rawStringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
 
 function numberValue(value: unknown) {

@@ -1,6 +1,6 @@
 export type ChatStage = "welcome" | "pending" | "intent" | "process" | "result";
 export type WorkflowStage = Exclude<ChatStage, "welcome" | "pending">;
-export type ProcessStatus = "waiting" | "running" | "done";
+export type ProcessStatus = "waiting" | "running" | "done" | "failed";
 export type ChatEngine = "auto" | "general" | "reason" | "report";
 
 export type Investigation = {

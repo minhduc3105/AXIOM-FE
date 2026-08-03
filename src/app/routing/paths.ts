@@ -4,9 +4,9 @@ const ROUTE_SEGMENTS = {
   chat: "chat",
   data: "data",
   reports: "reports",
+  settings: "settings",
   tools: "tools",
   models: "models",
-  settings: "settings",
 } as const;
 
 export function parseAppRoute(pathname: string): AppRoute {
@@ -42,8 +42,12 @@ export function parseAppRoute(pathname: string): AppRoute {
     return { surface: "models", sessionId: null };
   }
 
-  if (segments[0] === ROUTE_SEGMENTS.settings && segments[1] === "memory") {
-    return { surface: "settings", page: "memory", sessionId: null };
+  if (segments[0] === ROUTE_SEGMENTS.settings) {
+    return {
+      surface: "settings",
+      page: segments[1] === "memory" ? "memory" : "models",
+      sessionId: null,
+    };
   }
 
   if (segments[0] === ROUTE_SEGMENTS.chat) {
@@ -63,7 +67,7 @@ export function getAppRoutePath(route: AppRoute) {
   }
   if (route.surface === "reports") return `/${ROUTE_SEGMENTS.reports}`;
   if (route.surface === "models") return `/${ROUTE_SEGMENTS.models}`;
-  if (route.surface === "settings") return `/${ROUTE_SEGMENTS.settings}/memory`;
+  if (route.surface === "settings") return `/${ROUTE_SEGMENTS.settings}/${route.page}`;
   if (route.surface === "tools") {
     return route.page === "detail" && route.toolName
       ? `/${ROUTE_SEGMENTS.tools}/${encodeURIComponent(route.toolName)}`
@@ -116,4 +120,8 @@ export function createToolDetailRoute(toolName: string): AppRoute {
     toolName,
     sessionId: null,
   };
+}
+
+export function createModelSettingsRoute(): AppRoute {
+  return { surface: "settings", page: "models", sessionId: null };
 }

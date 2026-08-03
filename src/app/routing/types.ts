@@ -1,4 +1,10 @@
-export type AppSurface = "chat" | "data" | "reports" | "tools" | "models" | "settings";
+export type AppSurface =
+  | "chat"
+  | "data"
+  | "reports"
+  | "tools"
+  | "models"
+  | "settings";
 
 export type AppRoute =
   | { surface: "chat"; page: "home" | "compose"; sessionId: null }
@@ -16,4 +22,4 @@ export type AppRoute =
       sessionId: null;
     }
   | { surface: "models"; sessionId: null }
-  | { surface: "settings"; page: "memory"; sessionId: null };
+  | { surface: "settings"; page: "models" | "memory"; sessionId: null };

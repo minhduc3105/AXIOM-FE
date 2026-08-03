@@ -8,6 +8,7 @@ type SidebarProps = {
   active: ChatStage;
   onNewChat: () => void;
   onIngestion: () => void;
+  onSettings?: () => void;
 };
 
 const conversations = [
@@ -16,7 +17,12 @@ const conversations = [
   "Lorem Ipsum Project",
 ];
 
-export function Sidebar({ active, onNewChat, onIngestion }: SidebarProps) {
+export function Sidebar({
+  active,
+  onNewChat,
+  onIngestion,
+  onSettings,
+}: SidebarProps) {
   return (
     <aside className="fixed bottom-3 left-3 top-3 z-40 hidden w-80 overflow-hidden rounded-[28px] border border-[#393831]/80 bg-[#0b0b0a]/95 p-4 text-[#eee8dc] shadow-[0_24px_70px_rgba(0,0,0,0.26)] md:block">
       <div className="grid gap-4">
@@ -56,6 +62,7 @@ export function Sidebar({ active, onNewChat, onIngestion }: SidebarProps) {
         <Button
           className="h-12 justify-start gap-3 rounded-2xl text-[#eee8dc]/80 hover:bg-white/10 hover:text-white"
           variant="ghost"
+          onClick={onSettings}
         >
           <Icon name="settings" size={28} />
           <span>Settings</span>

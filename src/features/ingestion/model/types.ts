@@ -58,6 +58,14 @@ export type ConnectorJobUiStatus =
   | 'status_error'
   | 'files_error'
 
+export type S3BrowserStatus =
+  | 'idle'
+  | 'loading'
+  | 'ready'
+  | 'loading_more'
+  | 'loading_all'
+  | 'error'
+
 export type DocumentProcessingUiStatus =
   | 'idle'
   | 'polling'

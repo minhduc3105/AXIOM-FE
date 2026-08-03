@@ -31,7 +31,18 @@ const initialState: ChatWorkflowState = {
 
 type Action =
   | { type: "submit/start"; investigation: Investigation }
-  | { type: "submit/success"; investigation: Investigation }
+  | {
+      type: "submit/stream";
+      investigation: Investigation;
+      result: MockResult;
+    }
+  | { type: "submit/confirmation"; investigation: Investigation }
+  | {
+      type: "submit/completed";
+      investigation: Investigation;
+      result: MockResult;
+      processEvents: ProcessEvent[];
+    }
   | { type: "draft/update"; specification: EditableSpecification }
   | { type: "draft/reset" }
   | { type: "draft/revise-start" }
@@ -83,7 +94,19 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         loading: true,
         error: null,
       };
-    case "submit/success":
+    case "submit/stream":
+      return {
+        ...state,
+        stage: "result",
+        evidenceOpen: false,
+        investigation: action.investigation,
+        draft: null,
+        approvedSpecification: null,
+        result: action.result,
+        loading: true,
+        error: null,
+      };
+    case "submit/confirmation":
       return {
         ...state,
         stage: "intent",
@@ -93,6 +116,19 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           specMarkdown: action.investigation.specMarkdown,
         },
         loading: false,
+      };
+    case "submit/completed":
+      return {
+        ...state,
+        stage: "result",
+        evidenceOpen: false,
+        investigation: action.investigation,
+        draft: null,
+        approvedSpecification: null,
+        processEvents: action.processEvents,
+        result: action.result,
+        loading: false,
+        error: null,
       };
     case "draft/update":
       return state.stage === "intent"
@@ -152,7 +188,15 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         loading: false,
       };
     case "request/failure":
-      return { ...state, loading: false, error: action.message };
+      return {
+        ...state,
+        processEvents:
+          state.stage === "process"
+            ? markActiveProcessEventFailed(state.processEvents)
+            : state.processEvents,
+        loading: false,
+        error: action.message,
+      };
     case "conversation/load-start":
       return {
         ...state,
@@ -240,8 +284,35 @@ const optimisticInvestigation = (question: string): Investigation => ({
   output: "Reviewed markdown answer with cited evidence",
 });
 
+const streamingDirectAnswerInvestigation = (question: string): Investigation => ({
+  question,
+  confidence: 100,
+  intent: "general_direct",
+  scope: "Answered from general knowledge or conversation context.",
+  specMarkdown: "",
+  policy: "No data workflow or engine execution was required.",
+  output: "Direct answer",
+});
+
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
+}
+
+function markActiveProcessEventFailed(events: ProcessEvent[]): ProcessEvent[] {
+  if (events.length === 0) return events;
+
+  let runningIndex = -1;
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    if (events[index]?.status === "running") {
+      runningIndex = index;
+      break;
+    }
+  }
+  const failedIndex = runningIndex >= 0 ? runningIndex : events.length - 1;
+
+  return events.map((event, index) =>
+    index === failedIndex ? { ...event, status: "failed" } : event,
+  );
 }
 
 export function useChatWorkflow() {
@@ -270,13 +341,31 @@ export function useChatWorkflow() {
       });
 
       try {
-        const investigation = await createInvestigation(
+        const outcome = await createInvestigation(
           question,
           conversationId,
           engine,
           controller.signal,
+          (result) =>
+            dispatch({
+              type: "submit/stream",
+              investigation: streamingDirectAnswerInvestigation(question),
+              result,
+            }),
         );
-        dispatch({ type: "submit/success", investigation });
+        if (outcome.kind === "completed") {
+          dispatch({
+            type: "submit/completed",
+            investigation: outcome.investigation,
+            result: outcome.result,
+            processEvents: outcome.processEvents,
+          });
+        } else {
+          dispatch({
+            type: "submit/confirmation",
+            investigation: outcome.investigation,
+          });
+        }
       } catch (error) {
         if (!isAbortError(error)) {
           dispatch({

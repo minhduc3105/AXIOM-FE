@@ -54,6 +54,7 @@ type WorkspaceRailProps = {
   onModels: () => void;
   onMemory: () => void;
   onTools: () => void;
+  onSettings: () => void;
 };
 
 const sidebarButtonIconPadding = "has-data-[icon=inline-start]:pl-3";
@@ -74,6 +75,7 @@ function RailContent({
   onModels,
   onMemory,
   onTools,
+  onSettings,
 }: WorkspaceRailProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -431,7 +433,8 @@ function RailContent({
                   : "size-11 justify-center px-0",
                 "rounded-xl",
               )}
-              data-active="false"
+              data-active={surface === "settings"}
+              onClick={onSettings}
               aria-label="Settings"
             >
               <SettingsIcon data-icon="inline-start" />

@@ -4,6 +4,7 @@ import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { DataPage } from "@/features/data/DataPage";
 import { IngestionPage } from "@/features/ingestion/IngestionPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
+import { ModelSettingsPage } from "@/features/settings/ModelSettingsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
 import { ModelsPage } from "@/features/models/ModelsPage";
@@ -14,6 +15,7 @@ import {
   createChatRoute,
   createDataIngestionRoute,
   createDataRoute,
+  createModelSettingsRoute,
   createReportsRoute,
   createModelsRoute,
   createMemoryRoute,
@@ -77,6 +79,10 @@ export function AppExperience() {
     navigate(createMemoryRoute());
   }, [navigate]);
 
+  const openSettings = useCallback(() => {
+    navigate(createModelSettingsRoute());
+  }, [navigate]);
+
   const openToolDetail = useCallback(
     (toolName: string) => {
       navigate(createToolDetailRoute(toolName));
@@ -121,6 +127,7 @@ export function AppExperience() {
       onModels={openModels}
       onMemory={openMemory}
       onTools={openTools}
+      onSettings={openSettings}
     >
       {route.surface === "chat" ? (
         <ChatPage
@@ -154,7 +161,7 @@ export function AppExperience() {
       ) : route.surface === "models" ? (
         <ModelsPage />
       ) : route.surface === "settings" ? (
-        <MemoryPage />
+        route.page === "memory" ? <MemoryPage /> : <ModelSettingsPage />
       ) : route.page === "detail" && route.toolName ? (
         <ToolDetailPage toolName={route.toolName} onBack={openTools} />
       ) : (

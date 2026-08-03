@@ -7,7 +7,7 @@ import { MeaningWorkspace } from "./components/MeaningWorkspace";
 import { MySqlForm } from "./components/MySqlForm";
 import { PipelineWorkspace } from "./components/PipelineWorkspace";
 import { ProfileWorkspace } from "./components/ProfileWorkspace";
-import { S3Form } from "./components/S3Form";
+import { S3Workspace } from "./components/S3Workspace";
 import { SnowflakeForm } from "./components/SnowflakeForm";
 import { UploadWorkspace } from "./components/UploadWorkspace";
 import { progressStageByView } from "./model/types";
@@ -35,6 +35,27 @@ const pageTitles = {
 export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
   const workflow = useIngestionWorkflow();
   const source = workflow.source;
+  const selectingS3Files =
+    workflow.stage === "s3" &&
+    (workflow.s3BrowserStatus === "ready" ||
+      workflow.s3BrowserStatus === "loading_more" ||
+      workflow.s3BrowserStatus === "loading_all" ||
+      (workflow.s3BrowserStatus === "error" &&
+        workflow.s3Files.length > 0));
+  const trackingS3Import =
+    workflow.stage === "s3" &&
+    (Boolean(workflow.ingestionJob) ||
+      workflow.connectorJobStatus === "submitting" ||
+      workflow.connectorJobStatus === "polling" ||
+      workflow.connectorJobStatus === "discovering_files" ||
+      workflow.connectorJobStatus === "status_error" ||
+      workflow.connectorJobStatus === "files_error");
+  const pageTitle =
+    trackingS3Import
+      ? "Track selected Amazon S3 import"
+      : selectingS3Files
+        ? "Choose Amazon S3 objects to import"
+        : pageTitles[workflow.stage];
   const repoMessage =
     workflow.stage === "source"
       ? "New ingestion source"
@@ -44,8 +65,36 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
           ? workflow.connectionStatus === "verified"
             ? "Connection verified"
             : "Connection not tested"
-          : workflow.stage === "s3" || workflow.stage === "snowflake"
-            ? workflow.connectorJobStatus === "discovering_files"
+          : workflow.stage === "s3"
+            ? workflow.connectorJobStatus === "submitting" ||
+              workflow.connectorJobStatus === "polling" ||
+              workflow.ingestionJob ||
+              (workflow.connectorJobStatus === "failed" &&
+                workflow.selectedS3Keys.length > 0)
+              ? workflow.connectorJobStatus === "discovering_files"
+                ? "Preparing selected objects for indexing"
+                : workflow.connectorJobStatus === "completed"
+                  ? `${workflow.ingestionJob?.objects_written ?? 0} selected objects stored`
+                  : workflow.connectorJobStatus === "polling"
+                    ? "Selected object import running"
+                    : workflow.connectorJobStatus === "failed" ||
+                        workflow.connectorJobStatus === "status_error" ||
+                        workflow.connectorJobStatus === "files_error"
+                      ? "Selected object import needs attention"
+                      : "Creating selected object import"
+              : workflow.s3BrowserStatus === "loading"
+                ? "Loading bucket objects"
+                : workflow.s3BrowserStatus === "loading_more" ||
+                    workflow.s3BrowserStatus === "loading_all"
+                  ? `${workflow.s3Files.length} objects loaded so far`
+                  : workflow.s3BrowserStatus === "ready" ||
+                      workflow.s3Files.length > 0
+                    ? `${workflow.selectedS3Keys.length} of ${workflow.s3Files.length} loaded objects selected`
+                    : workflow.s3BrowserStatus === "error"
+                      ? "Bucket listing needs attention"
+                      : "S3 connection ready"
+            : workflow.stage === "snowflake"
+              ? workflow.connectorJobStatus === "discovering_files"
               ? "Preparing objects for indexing"
               : workflow.connectorJobStatus === "completed"
               ? `${workflow.ingestionJob?.objects_written ?? 0} objects stored`
@@ -91,7 +140,7 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
 
   return (
     <IngestionWorkspaceFrame
-      title={pageTitles[workflow.stage]}
+      title={pageTitle}
       repoMessage={repoMessage}
       ready={
         workflow.indexStatus === "ready" ||
@@ -128,12 +177,25 @@ export function IngestionPage({ onBack, backLabel }: IngestionPageProps) {
         />
       )}
       {workflow.stage === "s3" && (
-        <S3Form
+        <S3Workspace
           connection={workflow.s3Connection}
-          status={workflow.connectorJobStatus}
+          browserStatus={workflow.s3BrowserStatus}
+          files={workflow.s3Files}
+          nextToken={workflow.s3NextToken}
+          selectedKeys={workflow.selectedS3Keys}
+          browserError={workflow.s3BrowserError}
+          connectorStatus={workflow.connectorJobStatus}
           job={workflow.ingestionJob}
-          error={workflow.connectorError}
+          connectorError={workflow.connectorError}
           onChange={workflow.updateS3Connection}
+          onBrowse={() => void workflow.browseS3Files()}
+          onLoadMore={() => void workflow.loadMoreS3Files()}
+          onLoadAll={() => void workflow.loadAllS3Files()}
+          onRetryBrowser={workflow.retryS3Browser}
+          onEditConnection={workflow.editS3Connection}
+          onToggleKey={workflow.toggleS3Key}
+          onSetSelection={workflow.setSelectedS3Keys}
+          onClearSelection={workflow.clearSelectedS3Keys}
           onSubmit={() => void workflow.submitS3Import()}
           onRetryStatus={() => void workflow.retryIngestionStatus()}
           onRetryFiles={() => void workflow.retryConnectorFileDiscovery()}

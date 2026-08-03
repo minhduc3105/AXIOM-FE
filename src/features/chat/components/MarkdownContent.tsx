@@ -125,10 +125,7 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
 function normalizeParagraphText(lines: string[]) {
   return lines
     .join("\n")
-    .replace(
-      /\s+(→\s+(?:\*\*)?[A-Z][A-Za-z\s]{1,40}:)/g,
-      "\n$1",
-    )
+    .replace(/\s+(→\s+(?:\*\*)?[A-Z][A-Za-z\s]{1,40}:)/g, "\n$1")
     .trim();
 }
 
@@ -295,9 +292,7 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
 function renderInlineWithBreaks(text: string) {
   return text.split("\n").flatMap((line, index) => {
     const nodes = renderInline(line, `line-${index}`);
-    return index === 0
-      ? nodes
-      : [<br key={`line-break-${index}`} />, ...nodes];
+    return index === 0 ? nodes : [<br key={`line-break-${index}`} />, ...nodes];
   });
 }
 

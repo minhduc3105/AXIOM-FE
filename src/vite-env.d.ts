@@ -14,6 +14,7 @@ interface ImportMetaEnv {
   readonly VITE_MEMORY_WORKSPACE_ID?: string
   readonly VITE_MEMORY_USER_ID?: string
   readonly VITE_MEMORY_AGENT_ID?: string
+  readonly VITE_MODEL_SERVICE_API_BASE_URL?: string
 }
 
 interface ImportMeta {
