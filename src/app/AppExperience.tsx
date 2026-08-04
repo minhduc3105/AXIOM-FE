@@ -4,7 +4,6 @@ import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { DataPage } from "@/features/data/DataPage";
 import { IngestionPage } from "@/features/ingestion/IngestionPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
-import { ModelSettingsPage } from "@/features/settings/ModelSettingsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
 import { ModelsPage } from "@/features/models/ModelsPage";
@@ -15,7 +14,6 @@ import {
   createChatRoute,
   createDataIngestionRoute,
   createDataRoute,
-  createModelSettingsRoute,
   createReportsRoute,
   createModelsRoute,
   createMemoryRoute,
@@ -59,12 +57,12 @@ export function AppExperience() {
     navigate(createDataRoute());
   }, [navigate]);
 
-  const openDataIngestion = useCallback((context?: {
-    connector?: "s3" | "snowflake";
-    profileId?: string;
-  }) => {
-    navigate(createDataIngestionRoute(context));
-  }, [navigate]);
+  const openDataIngestion = useCallback(
+    (context?: { connector?: "s3" | "snowflake"; profileId?: string }) => {
+      navigate(createDataIngestionRoute(context));
+    },
+    [navigate],
+  );
 
   const openReports = useCallback(() => {
     navigate(createReportsRoute());
@@ -83,7 +81,7 @@ export function AppExperience() {
   }, [navigate]);
 
   const openSettings = useCallback(() => {
-    navigate(createModelSettingsRoute());
+    navigate(createMemoryRoute());
   }, [navigate]);
 
   const openToolDetail = useCallback(
@@ -170,8 +168,8 @@ export function AppExperience() {
         <ReportsPage onData={openData} />
       ) : route.surface === "models" ? (
         <ModelsPage />
-      ) : route.surface === "settings" ? (
-        route.page === "memory" ? <MemoryPage /> : <ModelSettingsPage />
+      ) : route.surface === "memory" ? (
+        <MemoryPage />
       ) : route.page === "detail" && route.toolName ? (
         <ToolDetailPage toolName={route.toolName} onBack={openTools} />
       ) : (

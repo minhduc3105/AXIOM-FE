@@ -4,7 +4,7 @@ export type AppSurface =
   | "reports"
   | "tools"
   | "models"
-  | "settings";
+  | "memory";
 
 export type DataIngestionLaunchContext = {
   connector: "s3" | "snowflake" | null;
@@ -15,8 +15,11 @@ export type AppRoute =
   | { surface: "chat"; page: "home" | "compose"; sessionId: null }
   | { surface: "chat"; page: "conversation"; sessionId: string }
   | { surface: "data"; page: "dashboard"; sessionId: null }
-  | ({ surface: "data"; page: "ingestion"; sessionId: null } &
-      DataIngestionLaunchContext)
+  | ({
+      surface: "data";
+      page: "ingestion";
+      sessionId: null;
+    } & DataIngestionLaunchContext)
   | { surface: "reports"; sessionId: null }
   | {
       surface: "tools";
@@ -25,4 +28,4 @@ export type AppRoute =
       sessionId: null;
     }
   | { surface: "models"; sessionId: null }
-  | { surface: "settings"; page: "models" | "memory"; sessionId: null };
+  | { surface: "memory"; sessionId: null };

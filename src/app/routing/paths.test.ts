@@ -3,7 +3,8 @@ import {
   createDataIngestionRoute,
   createDataRoute,
   createReportsRoute,
-  createModelSettingsRoute,
+  createModelsRoute,
+  createMemoryRoute,
   createToolDetailRoute,
   createToolsRoute,
   getAppRoutePath,
@@ -59,15 +60,16 @@ describe("data routing", () => {
   });
 
   it("creates a stable data ingestion URL", () => {
-    expect(getAppRoutePath(createDataIngestionRoute())).toBe(
-      "/data/ingestion",
-    );
+    expect(getAppRoutePath(createDataIngestionRoute())).toBe("/data/ingestion");
   });
 
   it("creates an ingestion URL with connector and profile identifiers only", () => {
     expect(
       getAppRoutePath(
-        createDataIngestionRoute({ connector: "snowflake", profileId: "finance" }),
+        createDataIngestionRoute({
+          connector: "snowflake",
+          profileId: "finance",
+        }),
       ),
     ).toBe("/data/ingestion?connector=snowflake&profile=finance");
   });
@@ -114,17 +116,40 @@ describe("tools routing", () => {
 });
 
 describe("settings routing", () => {
-  it("parses the model settings path", () => {
-    expect(parseAppRoute("/settings/models")).toEqual({
-      surface: "settings",
-      page: "models",
+  it("parses the models path", () => {
+    expect(parseAppRoute("/models")).toEqual({
+      surface: "models",
       sessionId: null,
     });
   });
 
-  it("creates a stable model settings URL", () => {
-    expect(getAppRoutePath(createModelSettingsRoute())).toBe(
-      "/settings/models",
-    );
+  it("creates a stable models URL", () => {
+    expect(getAppRoutePath(createModelsRoute())).toBe("/models");
+  });
+
+  it("parses the memory path", () => {
+    expect(parseAppRoute("/memory")).toEqual({
+      surface: "memory",
+      sessionId: null,
+    });
+  });
+
+  it("creates a stable memory URL", () => {
+    expect(getAppRoutePath(createMemoryRoute())).toBe("/memory");
+  });
+
+  it("keeps the former memory settings path as a legacy route", () => {
+    expect(parseAppRoute("/settings/memory")).toEqual({
+      surface: "memory",
+      sessionId: null,
+    });
+  });
+
+  it("does not keep the removed model settings route", () => {
+    expect(parseAppRoute("/settings/models")).toEqual({
+      surface: "chat",
+      page: "home",
+      sessionId: null,
+    });
   });
 });

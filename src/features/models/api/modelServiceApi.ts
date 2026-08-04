@@ -9,7 +9,7 @@ import type {
   ModelTestResult,
   ProviderView,
   RerankResponse,
-} from "../model/types";
+} from "../model/registryTypes";
 
 export const modelServiceApiBaseUrl =
   import.meta.env.VITE_MODEL_SERVICE_API_BASE_URL ?? "/model-service";
@@ -66,7 +66,11 @@ async function requestJson<T>(
 }
 
 export function listProviders(signal?: AbortSignal) {
-  return requestJson<ProviderView[]>("/api/v1/model-registry/providers", {}, signal);
+  return requestJson<ProviderView[]>(
+    "/api/v1/model-registry/providers",
+    {},
+    signal,
+  );
 }
 
 export function listModels(signal?: AbortSignal, capability?: ModelCapability) {

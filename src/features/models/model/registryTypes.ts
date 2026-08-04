@@ -1,6 +1,11 @@
 export type ModelCapability = "llm" | "embedding" | "vlm" | "reranker";
 
-export type ModelStatus = "draft" | "validated" | "active" | "inactive" | string;
+export type ModelStatus =
+  | "draft"
+  | "validated"
+  | "active"
+  | "inactive"
+  | string;
 
 export type ProviderView = {
   id: string;

@@ -336,7 +336,7 @@ function RailContent({
                 expanded ? "w-full justify-start px-3" : "size-11 justify-center px-0",
                 "rounded-xl",
               )}
-              data-active={surface === "settings"}
+              data-active={surface === "memory"}
               onClick={onMemory}
               aria-label="Memory settings"
             >
@@ -433,7 +433,7 @@ function RailContent({
                   : "size-11 justify-center px-0",
                 "rounded-xl",
               )}
-              data-active={surface === "settings"}
+              data-active="false"
               onClick={onSettings}
               aria-label="Settings"
             >
