@@ -13,14 +13,32 @@ export function intelligenceApiUrl(path: string) {
   return `${INTELLIGENCE_API_BASE_URL}${normalizedPath}`;
 }
 
-export async function listConversations(signal?: AbortSignal) {
-  const response = await fetch(intelligenceApiUrl("/api/v1/conversations"), {
-    signal,
-  });
+type ListConversationsOptions = {
+  page?: number;
+  limit?: number;
+};
+
+export async function listConversationsPage(
+  options: ListConversationsOptions = {},
+  signal?: AbortSignal,
+): Promise<ConversationListResponse> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.limit) params.set("limit", String(options.limit));
+  const query = params.toString();
+
+  const response = await fetch(
+    intelligenceApiUrl(`/api/v1/conversations${query ? `?${query}` : ""}`),
+    { signal },
+  );
   if (!response.ok) {
     throw new Error(`AXIOM returned ${response.status}.`);
   }
-  const payload = (await response.json()) as ConversationListResponse;
+  return (await response.json()) as ConversationListResponse;
+}
+
+export async function listConversations(signal?: AbortSignal) {
+  const payload = await listConversationsPage({}, signal);
   return Array.isArray(payload.items) ? payload.items : [];
 }
 

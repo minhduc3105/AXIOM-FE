@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DatabaseIcon,
   FileTextIcon,
@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { AppSurface } from "@/app/routing/types";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
-import { listConversations } from "@/shared/lib/intelligence-api";
+import { listConversationsPage } from "@/shared/lib/intelligence-api";
 import { cn } from "@/shared/lib/utils";
 import type { ConversationSummary } from "@/shared/types/intelligence";
 
@@ -60,6 +60,22 @@ type WorkspaceRailProps = {
 const sidebarButtonIconPadding = "has-data-[icon=inline-start]:pl-3";
 const workspaceNavButtonClass =
   "h-11 gap-3 text-[#615b51] hover:bg-[#ebe4d8] hover:text-[#191915] data-[active=true]:border-[#d8d0c2] data-[active=true]:bg-[#fffdf8] data-[active=true]:text-[#1237b4] data-[active=true]:shadow-[0_4px_12px_rgba(25,25,21,0.10)] dark:text-[#eee8dc]/78 dark:hover:bg-white/10 dark:hover:text-white dark:data-[active=true]:border-white/10 dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white";
+const conversationPageLimit = 20;
+
+function appendUniqueConversations(
+  current: ConversationSummary[],
+  next: ConversationSummary[],
+) {
+  const seen = new Set(current.map((item) => item.conversation_id));
+  return [
+    ...current,
+    ...next.filter((item) => {
+      if (seen.has(item.conversation_id)) return false;
+      seen.add(item.conversation_id);
+      return true;
+    }),
+  ];
+}
 
 function RailContent({
   activeStage,
@@ -78,20 +94,44 @@ function RailContent({
   onSettings,
 }: WorkspaceRailProps) {
   const { resolvedTheme, setTheme } = useTheme();
+  const conversationsScrollRef = useRef<HTMLDivElement | null>(null);
+  const loadingConversationPagesRef = useRef(new Set<number>());
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [conversationsLoadingMore, setConversationsLoadingMore] =
+    useState(false);
   const [conversationsError, setConversationsError] = useState<string | null>(
     null,
   );
+  const [conversationPage, setConversationPage] = useState(1);
+  const [hasMoreConversations, setHasMoreConversations] = useState(false);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setConversationsLoading(true);
-    setConversationsError(null);
+  const loadConversationPage = useCallback(
+    async (page: number, signal?: AbortSignal) => {
+      if (loadingConversationPagesRef.current.has(page)) return;
+      loadingConversationPagesRef.current.add(page);
+      if (page === 1) {
+        setConversationsLoading(true);
+        setConversationsError(null);
+      } else {
+        setConversationsLoadingMore(true);
+      }
 
-    listConversations(controller.signal)
-      .then((items) => setConversations(items))
-      .catch((error: unknown) => {
+      try {
+        const payload = await listConversationsPage(
+          { page, limit: conversationPageLimit },
+          signal,
+        );
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        setConversations((current) =>
+          page === 1 ? items : appendUniqueConversations(current, items),
+        );
+        setConversationPage(payload.pagination?.page ?? page);
+        setHasMoreConversations(
+          payload.pagination?.has_next ?? items.length === conversationPageLimit,
+        );
+        setConversationsError(null);
+      } catch (error: unknown) {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
         setConversationsError(
@@ -99,13 +139,60 @@ function RailContent({
             ? error.message
             : "Unable to load recent work.",
         );
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setConversationsLoading(false);
-      });
+      } finally {
+        loadingConversationPagesRef.current.delete(page);
+        if (!signal?.aborted) {
+          if (page === 1) setConversationsLoading(false);
+          else setConversationsLoadingMore(false);
+        }
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadConversationPage(1, controller.signal);
 
     return () => controller.abort();
-  }, [activeStage]);
+  }, [activeStage, loadConversationPage]);
+
+  const loadNextConversationPage = useCallback(() => {
+    if (
+      conversationsLoading ||
+      conversationsLoadingMore ||
+      conversationsError ||
+      !hasMoreConversations
+    )
+      return;
+    void loadConversationPage(conversationPage + 1);
+  }, [
+    conversationPage,
+    conversationsError,
+    conversationsLoading,
+    conversationsLoadingMore,
+    hasMoreConversations,
+    loadConversationPage,
+  ]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const viewport =
+      conversationsScrollRef.current?.querySelector<HTMLElement>(
+        "[data-slot='scroll-area-viewport']",
+      );
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      const remaining =
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      if (remaining < 96) loadNextConversationPage();
+    };
+
+    viewport.addEventListener("scroll", handleScroll);
+    handleScroll();
+    return () => viewport.removeEventListener("scroll", handleScroll);
+  }, [conversations.length, expanded, loadNextConversationPage]);
 
   return (
     <div
@@ -230,44 +317,61 @@ function RailContent({
         <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8377] dark:text-[#eee8dc]/55">
           Recent work
         </div>
-        <ScrollArea className="min-h-0 w-full min-w-0 flex-1 overflow-hidden pr-1">
-          {conversationsLoading && conversations.length === 0 ? (
-            <div className="grid gap-1.5" aria-live="polite">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton className="h-9 rounded-xl" key={index} />
-              ))}
-            </div>
-          ) : conversationsError ? (
-            <Alert variant="destructive">
-              <AlertDescription>Unable to load recent work</AlertDescription>
-            </Alert>
-          ) : conversations.length === 0 ? (
-            <Alert>
-              <AlertDescription>No recent work yet</AlertDescription>
-            </Alert>
-          ) : (
-            conversations.map((conversation) => (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mb-2 min-h-8 w-full max-w-full justify-start overflow-hidden rounded-xl border border-transparent px-2.5 py-5 text-left text-[13px] font-medium text-[#625d53] hover:border-[#d8d0c2] hover:bg-[#fffaf1] hover:text-[#191915] focus-visible:border-[#2456e8]/45 focus-visible:ring-[#2456e8]/18 data-[active=true]:border-[#2456e8]/25 data-[active=true]:bg-[#edf2ff] data-[active=true]:text-[#111827] dark:text-[#eee8dc]/72 dark:hover:border-white/10 dark:hover:bg-white/8 dark:hover:text-white dark:focus-visible:border-[#7895ff]/45 dark:focus-visible:ring-[#7895ff]/20 dark:data-[active=true]:border-[#7895ff]/28 dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white"
-                data-active={
-                  conversation.conversation_id === activeConversationId &&
-                  activeStage !== "welcome"
-                    ? "true"
-                    : "false"
-                }
-                key={conversation.conversation_id}
-                onClick={() => onConversationOpen(conversation.conversation_id)}
-              >
-                <span className="block w-full min-w-0 truncate leading-[1.22]">
-                  {conversation.title || "Untitled conversation"}
-                </span>
-              </Button>
-            ))
-          )}
-        </ScrollArea>
+        <div className="min-h-0 min-w-0 flex-1" ref={conversationsScrollRef}>
+          <ScrollArea className="h-full min-h-0 w-full min-w-0 overflow-hidden pr-1">
+            {conversationsLoading && conversations.length === 0 ? (
+              <div className="grid gap-1.5" aria-live="polite">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Skeleton className="h-9 rounded-xl" key={index} />
+                ))}
+              </div>
+            ) : conversationsError && conversations.length === 0 ? (
+              <Alert variant="destructive">
+                <AlertDescription>Unable to load recent work</AlertDescription>
+              </Alert>
+            ) : conversations.length === 0 ? (
+              <Alert>
+                <AlertDescription>No recent work yet</AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {conversations.map((conversation) => (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mb-2 min-h-8 w-full max-w-full justify-start overflow-hidden rounded-xl border border-transparent px-2.5 py-5 text-left text-[13px] font-medium text-[#625d53] hover:border-[#d8d0c2] hover:bg-[#fffaf1] hover:text-[#191915] focus-visible:border-[#2456e8]/45 focus-visible:ring-[#2456e8]/18 data-[active=true]:border-[#2456e8]/25 data-[active=true]:bg-[#edf2ff] data-[active=true]:text-[#111827] dark:text-[#eee8dc]/72 dark:hover:border-white/10 dark:hover:bg-white/8 dark:hover:text-white dark:focus-visible:border-[#7895ff]/45 dark:focus-visible:ring-[#7895ff]/20 dark:data-[active=true]:border-[#7895ff]/28 dark:data-[active=true]:bg-white/10 dark:data-[active=true]:text-white"
+                    data-active={
+                      conversation.conversation_id === activeConversationId &&
+                      activeStage !== "welcome"
+                        ? "true"
+                        : "false"
+                    }
+                    key={conversation.conversation_id}
+                    onClick={() =>
+                      onConversationOpen(conversation.conversation_id)
+                    }
+                  >
+                    <span className="block w-full min-w-0 truncate leading-[1.22]">
+                      {conversation.title || "Untitled conversation"}
+                    </span>
+                  </Button>
+                ))}
+                {conversationsLoadingMore && (
+                  <div className="grid gap-1.5 pb-2" aria-live="polite">
+                    <Skeleton className="h-9 rounded-xl" />
+                    <Skeleton className="h-9 rounded-xl" />
+                  </div>
+                )}
+                {conversationsError && (
+                  <Alert className="mb-2" variant="destructive">
+                    <AlertDescription>Unable to load more</AlertDescription>
+                  </Alert>
+                )}
+              </>
+            )}
+          </ScrollArea>
+        </div>
       </section>
 
       {!expanded && (

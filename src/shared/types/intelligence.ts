@@ -5,8 +5,18 @@ export type ConversationSummary = {
   updated_at: string;
 };
 
+export type PaginationMeta = {
+  page: number;
+  limit: number;
+  total_items: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+};
+
 export type ConversationListResponse = {
   items?: ConversationSummary[];
+  pagination?: PaginationMeta;
 };
 
 export type IntelligenceMessage = {
