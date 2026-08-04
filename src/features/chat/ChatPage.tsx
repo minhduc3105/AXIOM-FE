@@ -126,18 +126,7 @@ export function ChatPage({
     return () => window.cancelAnimationFrame(frame);
   }, [history.length, loading, processSignature, resultScrollSignature, stage]);
 
-  if (stage === "welcome") {
-    if (mode === "chat") {
-      return (
-        <EmptyChatWorkspace
-          engine={engine}
-          loading={loading}
-          onEngineChange={onEngineChange}
-          onSubmit={onSubmit}
-        />
-      );
-    }
-
+  if (mode === "home") {
     return (
       <section
         className="min-h-screen w-full overflow-x-hidden"
@@ -150,6 +139,17 @@ export function ChatPage({
           onData={onData}
         />
       </section>
+    );
+  }
+
+  if (stage === "welcome") {
+    return (
+      <EmptyChatWorkspace
+        engine={engine}
+        loading={loading}
+        onEngineChange={onEngineChange}
+        onSubmit={onSubmit}
+      />
     );
   }
   if (!investigation) return null;

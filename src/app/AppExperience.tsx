@@ -40,8 +40,21 @@ export function AppExperience() {
       return;
     }
 
+    if (
+      chat.activeConversationId === route.sessionId &&
+      chat.stage !== "welcome"
+    ) {
+      return;
+    }
+
     chat.loadConversation(route.sessionId);
-  }, [chat.loadConversation, route.sessionId, route.surface]);
+  }, [
+    chat.activeConversationId,
+    chat.loadConversation,
+    chat.stage,
+    route.sessionId,
+    route.surface,
+  ]);
 
   const newChat = useCallback(() => {
     chat.newChat();
@@ -49,9 +62,8 @@ export function AppExperience() {
   }, [chat.newChat, navigate]);
 
   const openHome = useCallback(() => {
-    chat.newChat();
     navigate(createChatHomeRoute());
-  }, [chat.newChat, navigate]);
+  }, [navigate]);
 
   const openData = useCallback(() => {
     navigate(createDataRoute());

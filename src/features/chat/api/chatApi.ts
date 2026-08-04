@@ -56,6 +56,7 @@ type CompletedResponse = {
   evidence: unknown;
   metadata: Record<string, unknown>;
   processEvents: ProcessEvent[];
+  pending?: boolean;
 };
 
 type StreamOutcome = {
@@ -74,6 +75,7 @@ export type ConversationHistorySnapshot = {
   turns: ChatTurn[];
   pendingInvestigation: Investigation | null;
   pendingQuestion: string | null;
+  pendingResponse: boolean;
 };
 
 export type InitialChatOutcome =
@@ -737,6 +739,7 @@ function messagesToChatTurns(
   let pendingQuestion: string | null = null;
   let pendingInvestigation: Investigation | null = null;
   let historyConfirmation: PendingConfirmation | null = null;
+  let pendingResponse = false;
 
   for (const message of orderedMessages) {
     if (message.role === "user") {
@@ -768,6 +771,7 @@ function messagesToChatTurns(
       pendingQuestion ||
       pendingInvestigation?.question ||
       "Conversation response";
+    pendingResponse = Boolean(completed.pending);
     turns.push({
       investigation: pendingInvestigation || storedInvestigation(question),
       result: completedToResult(completed),
@@ -780,7 +784,7 @@ function messagesToChatTurns(
 
   pendingConfirmation = historyConfirmation;
 
-  return { turns, pendingInvestigation, pendingQuestion };
+  return { turns, pendingInvestigation, pendingQuestion, pendingResponse };
 }
 
 function userQuestionFromMessage(message: IntelligenceMessage) {
@@ -801,9 +805,15 @@ function completedResponseFromMessage(
   const content = message.content;
   const record = asRecord(content);
   const response = asRecord(record.response);
+  const error = asRecord(record.error);
+  const failedMessage =
+    stringValue(error.message) ||
+    stringValue(record.message) ||
+    stringValue(response.error);
   const outputText =
     stringValue(record.output_text) ||
     stringValue(response.output_text) ||
+    (message.status === "failed" ? failedMessage : "") ||
     (typeof content === "string" ? content : "");
 
   if (!outputText) return null;
@@ -812,9 +822,26 @@ function completedResponseFromMessage(
     responseId: message.response_id || stringValue(response.id),
     outputText,
     evidence: record.evidence,
-    metadata: { ...message.metadata, ...asRecord(record.metadata) },
+    metadata: {
+      ...message.metadata,
+      ...asRecord(record.metadata),
+      ...(message.status === "failed"
+        ? {
+            title: "AXIOM response failed",
+            summary: failedMessage || outputText,
+          }
+        : {}),
+    },
     processEvents: processEventsFromMessage(message),
+    pending: !isTerminalAssistantStatus(message.status),
   };
+}
+
+function isTerminalAssistantStatus(status: string) {
+  const normalized = status.toLowerCase();
+  return ["completed", "complete", "done", "success", "failed", "error"].includes(
+    normalized,
+  );
 }
 
 function confirmationFromMessage(

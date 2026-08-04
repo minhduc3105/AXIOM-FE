@@ -17,6 +17,7 @@ import type {
 } from "./types";
 
 const initialState: ChatWorkflowState = {
+  activeConversationId: null,
   stage: "welcome",
   evidenceOpen: false,
   investigation: null,
@@ -30,7 +31,11 @@ const initialState: ChatWorkflowState = {
 };
 
 type Action =
-  | { type: "submit/start"; investigation: Investigation }
+  | {
+      type: "submit/start";
+      investigation: Investigation;
+      conversationId: string | null;
+    }
   | {
       type: "submit/stream";
       investigation: Investigation;
@@ -51,7 +56,16 @@ type Action =
   | { type: "process/events"; events: ProcessEvent[] }
   | { type: "process/success"; result: MockResult; evidenceOpen: boolean }
   | { type: "request/failure"; message: string }
-  | { type: "conversation/load-start"; investigation: Investigation }
+  | {
+      type: "conversation/load-start";
+      conversationId: string;
+      investigation: Investigation;
+    }
+  | {
+      type: "conversation/load-cached";
+      conversationId: string;
+      cached: CachedConversationState;
+    }
   | {
       type: "conversation/load-success";
       history: ChatTurn[];
@@ -60,6 +74,7 @@ type Action =
       processEvents: ProcessEvent[];
       pendingInvestigation: Investigation | null;
       pendingQuestion: string | null;
+      pendingResponse: boolean;
     }
   | { type: "evidence/open" }
   | { type: "evidence/close" }
@@ -70,6 +85,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
     case "submit/start":
       return {
         ...state,
+        activeConversationId: action.conversationId,
         stage: "pending",
         evidenceOpen: false,
         investigation: action.investigation,
@@ -200,6 +216,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
     case "conversation/load-start":
       return {
         ...state,
+        activeConversationId: action.conversationId,
         stage: "pending",
         evidenceOpen: false,
         investigation: action.investigation,
@@ -208,6 +225,14 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         processEvents: createProcessEvents(),
         result: null,
         history: [],
+        loading: true,
+        error: null,
+      };
+    case "conversation/load-cached":
+      return {
+        ...state,
+        ...action.cached,
+        activeConversationId: action.conversationId,
         loading: true,
         error: null,
       };
@@ -223,7 +248,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           processEvents: action.processEvents,
           result: action.result,
           history: action.history,
-          loading: false,
+          loading: action.pendingResponse,
           error: null,
         };
       }
@@ -256,9 +281,8 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           processEvents: createProcessEvents(),
           result: null,
           history: action.history,
-          loading: false,
-          error:
-            "This conversation does not have a completed assistant response yet.",
+          loading: true,
+          error: null,
         };
       }
       return { ...initialState, error: null };
@@ -315,9 +339,59 @@ function markActiveProcessEventFailed(events: ProcessEvent[]): ProcessEvent[] {
   );
 }
 
+type CachedConversationState = Pick<
+  ChatWorkflowState,
+  | "stage"
+  | "evidenceOpen"
+  | "investigation"
+  | "draft"
+  | "approvedSpecification"
+  | "processEvents"
+  | "result"
+  | "history"
+  | "loading"
+  | "error"
+>;
+
+const conversationStateCache = new Map<string, CachedConversationState>();
+
+function cacheConversationState(state: ChatWorkflowState) {
+  if (!state.activeConversationId || state.stage === "welcome") return;
+  conversationStateCache.set(state.activeConversationId, {
+    stage: state.stage,
+    evidenceOpen: state.evidenceOpen,
+    investigation: state.investigation,
+    draft: state.draft,
+    approvedSpecification: state.approvedSpecification,
+    processEvents: state.processEvents,
+    result: state.result,
+    history: state.history,
+    loading: state.loading,
+    error: state.error,
+  });
+}
+
+function waitForPendingConversationPoll(signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const timeoutId = window.setTimeout(resolve, 700);
+    signal.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timeoutId);
+        reject(new DOMException("The request was aborted.", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+}
+
 export function useChatWorkflow() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const requestRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    cacheConversationState(state);
+  }, [state]);
 
   const cancelCurrentRequest = useCallback(() => {
     requestRef.current?.abort();
@@ -338,6 +412,7 @@ export function useChatWorkflow() {
       dispatch({
         type: "submit/start",
         investigation: optimisticInvestigation(question),
+        conversationId,
       });
 
       try {
@@ -504,28 +579,62 @@ export function useChatWorkflow() {
       cancelCurrentRequest();
       const controller = new AbortController();
       requestRef.current = controller;
-      dispatch({
-        type: "conversation/load-start",
-        investigation: optimisticInvestigation(
-          "Loading conversation history...",
-        ),
-      });
+      const cached = conversationStateCache.get(conversationId) ?? null;
+      if (cached) {
+        dispatch({
+          type: "conversation/load-cached",
+          conversationId,
+          cached,
+        });
+      } else {
+        dispatch({
+          type: "conversation/load-start",
+          conversationId,
+          investigation: optimisticInvestigation(
+            "Loading conversation history...",
+          ),
+        });
+      }
 
       try {
-        const snapshot = await loadConversationHistory(
+        let snapshot = await loadConversationHistory(
           conversationId,
           controller.signal,
         );
-        const activeTurn = snapshot.turns[snapshot.turns.length - 1] || null;
-        dispatch({
-          type: "conversation/load-success",
-          history: activeTurn ? snapshot.turns.slice(0, -1) : snapshot.turns,
-          investigation: activeTurn?.investigation || null,
-          result: activeTurn?.result || null,
-          processEvents: activeTurn?.processEvents || createProcessEvents(),
-          pendingInvestigation: snapshot.pendingInvestigation,
-          pendingQuestion: snapshot.pendingQuestion,
-        });
+        let shouldContinuePolling = true;
+
+        while (shouldContinuePolling) {
+          const activeTurn = snapshot.turns[snapshot.turns.length - 1] || null;
+          const hasHydratedContent =
+            Boolean(activeTurn || snapshot.pendingInvestigation) || !cached;
+          if (hasHydratedContent) {
+            dispatch({
+              type: "conversation/load-success",
+              history: activeTurn ? snapshot.turns.slice(0, -1) : snapshot.turns,
+              investigation: activeTurn?.investigation || null,
+              result: activeTurn?.result || null,
+              processEvents: activeTurn?.processEvents || createProcessEvents(),
+              pendingInvestigation: snapshot.pendingInvestigation,
+              pendingQuestion: snapshot.pendingQuestion,
+              pendingResponse: snapshot.pendingResponse,
+            });
+          }
+
+          shouldContinuePolling = Boolean(
+            (snapshot.pendingResponse ||
+              (!activeTurn &&
+                !snapshot.pendingInvestigation &&
+                snapshot.pendingQuestion)) &&
+              !controller.signal.aborted,
+          );
+          if (shouldContinuePolling) {
+            await waitForPendingConversationPoll(controller.signal);
+            snapshot = await loadConversationHistory(
+              conversationId,
+              controller.signal,
+            );
+          }
+        }
       } catch (error) {
         if (!isAbortError(error)) {
           dispatch({

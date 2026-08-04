@@ -68,6 +68,7 @@ export type ChatTurn = {
 };
 
 export type ChatWorkflowState = {
+  activeConversationId: string | null;
   stage: ChatStage;
   evidenceOpen: boolean;
   investigation: Investigation | null;

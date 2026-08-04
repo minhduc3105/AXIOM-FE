@@ -14,8 +14,10 @@ type MarkdownContentProps = {
   compact?: boolean;
 };
 
+type HeadingDepth = 1 | 2 | 3 | 4 | 5 | 6;
+
 type MarkdownBlock =
-  | { type: "heading"; depth: 1 | 2 | 3; text: string }
+  | { type: "heading"; depth: HeadingDepth; text: string }
   | { type: "paragraph"; text: string }
   | { type: "list"; ordered: boolean; items: string[] }
   | { type: "rule" }
@@ -37,7 +39,7 @@ export function MarkdownContent({ markdown, compact }: MarkdownContentProps) {
 }
 
 function parseMarkdown(markdown: string): MarkdownBlock[] {
-  const lines = markdown.trim().split(/\r?\n/);
+  const lines = normalizeMarkdownSource(markdown).split(/\r?\n/);
   const blocks: MarkdownBlock[] = [];
   let paragraph: string[] = [];
   let list: string[] = [];
@@ -58,7 +60,7 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
 
   for (let index = 0; index < lines.length; index += 1) {
     const rawLine = lines[index];
-    const line = rawLine.trim();
+    const line = normalizeMarkdownLine(rawLine);
 
     if (!line) {
       flushParagraph();
@@ -73,13 +75,13 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
       continue;
     }
 
-    const heading = /^(#{1,3})\s+(.+)$/.exec(line);
+    const heading = /^(#{1,6})\s+(.+)$/.exec(line);
     if (heading) {
       flushParagraph();
       flushList();
       blocks.push({
         type: "heading",
-        depth: heading[1].length as 1 | 2 | 3,
+        depth: heading[1].length as HeadingDepth,
         text: heading[2],
       });
       continue;
@@ -120,6 +122,30 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
   flushList();
 
   return blocks;
+}
+
+function normalizeMarkdownLine(line: string) {
+  return line.trim().replace(/^`+\s*(?=#{1,6}\s)/, "");
+}
+
+function normalizeMarkdownSource(markdown: string) {
+  const normalized = markdown
+    .replace(/\r\n/g, "\n")
+    .replace(/^\uFEFF/, "")
+    .trim();
+
+  const lines = normalized.split("\n");
+  const withoutFenceNoise = lines
+    .map((line) => line.replace(/\u00a0/g, " "))
+    .filter((line) => !isLooseFenceLine(line));
+
+  return withoutFenceNoise.join("\n").trim();
+}
+
+function isLooseFenceLine(line: string) {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  return /^`{1,3}\s*(?:markdown|md|text)?\s*$/i.test(trimmed);
 }
 
 function normalizeParagraphText(lines: string[]) {
@@ -183,7 +209,7 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
           : "text-[clamp(2rem,3.4vw,3.6rem)] leading-[0.98]"),
       block.depth === 2 &&
         (compact ? "text-lg leading-snug" : "pt-2 text-2xl leading-tight"),
-      block.depth === 3 &&
+      block.depth >= 3 &&
         (compact ? "text-base leading-snug" : "pt-1 text-lg leading-snug"),
     );
 
