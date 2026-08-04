@@ -19,7 +19,7 @@ type HeadingDepth = 1 | 2 | 3 | 4 | 5 | 6;
 type MarkdownBlock =
   | { type: "heading"; depth: HeadingDepth; text: string }
   | { type: "paragraph"; text: string }
-  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "list"; ordered: boolean; items: string[]; start?: number }
   | { type: "rule" }
   | { type: "table"; headers: string[]; rows: string[][] };
 
@@ -44,6 +44,7 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
   let paragraph: string[] = [];
   let list: string[] = [];
   let orderedList = false;
+  let orderedListStart: number | undefined;
 
   const flushParagraph = () => {
     if (!paragraph.length) return;
@@ -53,9 +54,15 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
 
   const flushList = () => {
     if (!list.length) return;
-    blocks.push({ type: "list", ordered: orderedList, items: list });
+    blocks.push({
+      type: "list",
+      ordered: orderedList,
+      items: list,
+      start: orderedList ? orderedListStart : undefined,
+    });
     list = [];
     orderedList = false;
+    orderedListStart = undefined;
   };
 
   for (let index = 0; index < lines.length; index += 1) {
@@ -110,6 +117,7 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
       flushParagraph();
       if (list.length && !orderedList) flushList();
       orderedList = true;
+      if (!list.length) orderedListStart = Number.parseInt(line, 10);
       list.push(orderedListItem[1]);
       continue;
     }
@@ -240,6 +248,7 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
     const ListTag = block.ordered ? "ol" : "ul";
     return (
       <ListTag
+        start={block.ordered ? block.start : undefined}
         className={cn(
           "grid gap-2 pl-5 text-[#5f5a50] dark:text-[#aaa397]",
           block.ordered ? "list-decimal" : "list-disc",
