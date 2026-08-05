@@ -19,8 +19,9 @@ import type {
   InspectorResource,
   LayoutBlock,
   ParsedDocumentResult,
-} from "../model/documentResults";
-import { getSourcePreviewKind, type ProcessingFile } from "../model/types";
+  ProcessingFile,
+} from "@/shared/types/document-results";
+import { getSourcePreviewKind } from "@/shared/types/document-results";
 import { RenderedBlockContent } from "./RenderedBlockContent";
 import { SourceBlockOverlay } from "./SourceBlockOverlay";
 

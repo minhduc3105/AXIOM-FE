@@ -56,7 +56,7 @@ export function useJobDataFiles(jobId: string | null) {
 
 export function useUploadedDataFiles(files: DataFile[], jobs: IngestionJob[]) {
   const uploadJobIds = jobs
-    .filter((job) => job.datasource_type === "FILES" && job.objects_written > 0)
+    .filter((job) => job.datasource_type === "UPLOAD" && job.objects_written > 0)
     .map((job) => job.job_id);
   const cacheKey = uploadJobIds.join(":");
   const [keys, setKeys] = useState<string[]>([]);

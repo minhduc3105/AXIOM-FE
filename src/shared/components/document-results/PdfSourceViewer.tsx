@@ -9,7 +9,7 @@ import {
 import { Document, Page, pdfjs } from "react-pdf";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
-import type { LayoutBlock } from "../model/documentResults";
+import type { LayoutBlock } from "@/shared/types/document-results";
 import { SourceBlockOverlay } from "./SourceBlockOverlay";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(

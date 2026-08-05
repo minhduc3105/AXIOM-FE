@@ -1,3 +1,7 @@
+import type { ProcessingFile } from "@/shared/types/document-results"
+export { getSourcePreviewKind } from "@/shared/types/document-results"
+export type { ProcessingFile, SourcePreviewKind } from "@/shared/types/document-results"
+
 export type IngestionStage = 'source' | 'catalog' | 'mysql' | 's3' | 'snowflake' | 'upload' | 'processing' | 'pipeline' | 'profile' | 'meaning' | 'index'
 
 export type ProgressStage = 'source' | 'transfer' | 'pipeline' | 'profile' | 'meaning' | 'index'
@@ -76,12 +80,6 @@ export type DocumentProcessingUiStatus =
 
 export type ProcessingSourceKind = 'upload' | 's3' | 'snowflake'
 
-export type ProcessingFile = {
-  key: string
-  filename: string | null
-  contentType: string | null
-}
-
 export type DocumentProcessingBatch = {
   job_id: string
   organization_id: string
@@ -89,19 +87,6 @@ export type DocumentProcessingBatch = {
   count: number
   source_kind: ProcessingSourceKind
   files: ProcessingFile[]
-}
-
-export type SourcePreviewKind = 'pdf' | 'image' | 'unsupported'
-
-export function getSourcePreviewKind(file: ProcessingFile | null | undefined): SourcePreviewKind {
-  if (!file) return 'unsupported'
-  const contentType = file.contentType?.toLowerCase() ?? ''
-  const extension = file.key.split('.').pop()?.toLowerCase() ?? ''
-  if (contentType === 'application/pdf' || extension === 'pdf') return 'pdf'
-  if (contentType === 'image/png'
-    || contentType === 'image/jpeg'
-    || ['png', 'jpg', 'jpeg'].includes(extension)) return 'image'
-  return 'unsupported'
 }
 
 export type IngestionFile = {

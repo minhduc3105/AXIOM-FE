@@ -15,6 +15,7 @@ export type JobFilesPagination = {
 
 export type JobFilesPage = {
   organization_id: string;
+  datasource_id: string;
   bucket: string;
   count: number;
   files: JobFile[];

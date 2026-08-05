@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import DOMPurify from "dompurify";
-import type { LayoutBlock } from "../model/documentResults";
+import type { LayoutBlock } from "@/shared/types/document-results";
 
 const ALLOWED_TAGS = [
   "h1",

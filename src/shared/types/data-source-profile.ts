@@ -27,6 +27,7 @@ export type SavedDataSourceProfile = {
   createdAt: string;
   updatedAt: string;
   linkedJobIds: string[];
+  backendDatasourceId?: string;
   config: SavedS3Config | SavedSnowflakeConfig;
 };
 

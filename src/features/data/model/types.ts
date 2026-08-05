@@ -34,6 +34,7 @@ export type BatchDocumentProcessingStatusResponseDto = {
 
 export type IngestionJobDto = {
   job_id: string;
+  datasource_id: string;
   organization_id: string;
   datasource_type: string;
   status: string;
@@ -59,6 +60,12 @@ export type DataFile = {
   sourceStatus: string | null;
   statusDetail: string;
   errorMessage: string | null;
+  organizationId: string;
+  datasourceId: string | null;
+  bucket: string;
+  runId: string | null;
+  documentId: string | null;
+  canInspect: boolean;
 };
 
 export type IngestionJob = IngestionJobDto & {
@@ -70,6 +77,72 @@ export type DataDashboardSnapshot = {
   bucket: string;
   bucketMetadata: Record<string, unknown>;
   files: DataFile[];
+  datasources: DataSource[];
   ingestionJobs: IngestionJob[];
   warnings: string[];
+};
+
+export type DataSourceDto = {
+  id: string;
+  organization_id: string;
+  name: string | null;
+  datasource_type: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DataSource = {
+  id: string;
+  organizationId: string;
+  name: string | null;
+  type: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DataSourceFileDto = StorageFileDto & {
+  name: string;
+};
+
+export type DataSourceFileSortField = "name" | "last_modified" | "size";
+export type DataSourceFileSortOrder = "asc" | "desc";
+
+export type DataSourceFilesQuery = {
+  page: number;
+  pageSize: number;
+  search: string;
+  sortBy: DataSourceFileSortField;
+  sortOrder: DataSourceFileSortOrder;
+};
+
+export type DataSourceFilesResponseDto = {
+  organization_id: string;
+  datasource_id: string;
+  bucket: string;
+  count: number;
+  files: DataSourceFileDto[];
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+  total_unfiltered_count: number;
+  pagination: {
+    page: number;
+    page_size: number;
+    total_count: number;
+    total_pages: number;
+  };
+};
+
+export type DataSourceFilesPage = {
+  organizationId: string;
+  datasourceId: string;
+  bucket: string;
+  files: DataFile[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  totalUnfilteredCount: number;
+  warning: string | null;
 };
