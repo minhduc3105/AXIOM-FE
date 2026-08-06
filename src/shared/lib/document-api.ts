@@ -38,6 +38,8 @@ function isJobFilesPage(value: unknown): value is JobFilesPage {
     !isRecord(value) ||
     typeof value.organization_id !== "string" ||
     !value.organization_id ||
+    typeof value.datasource_id !== "string" ||
+    !value.datasource_id ||
     typeof value.bucket !== "string" ||
     !value.bucket ||
     !isNonNegativeInteger(value.count) ||
@@ -126,6 +128,7 @@ export async function getAllFilesForJob(
     const nextPage = await getFilesForJob(jobId, page, 100, signal);
     if (
       nextPage.organization_id !== firstPage.organization_id ||
+      nextPage.datasource_id !== firstPage.datasource_id ||
       nextPage.bucket !== firstPage.bucket ||
       nextPage.pagination.total_count !== firstPage.pagination.total_count ||
       nextPage.pagination.total_pages !== firstPage.pagination.total_pages
@@ -145,6 +148,7 @@ export async function getAllFilesForJob(
   }
   return {
     organization_id: firstPage.organization_id,
+    datasource_id: firstPage.datasource_id,
     bucket: firstPage.bucket,
     count: files.length,
     files,

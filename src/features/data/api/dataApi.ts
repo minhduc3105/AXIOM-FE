@@ -3,6 +3,11 @@ import type {
   DataDashboardSnapshot,
   DataFile,
   DataHealthStatus,
+  DataSource,
+  DataSourceDto,
+  DataSourceFilesPage,
+  DataSourceFilesQuery,
+  DataSourceFilesResponseDto,
   DocumentProcessingStatusDto,
   IngestionJob,
   IngestionJobDto,
@@ -11,10 +16,8 @@ import type {
 import { getBrowserStorageUrl } from "@/shared/lib/storage-url";
 import { getAllFilesForJob } from "@/shared/lib/document-api";
 
-const documentApiBaseUrl =
-  import.meta.env.VITE_DOCUMENT_API_BASE_URL ?? "/document-api";
-const corpusApiBaseUrl =
-  import.meta.env.VITE_CORPUS_API_BASE_URL ?? "/corpus-api";
+const documentApiBaseUrl = "/api/document";
+const corpusApiBaseUrl = "/api/corpus";
 
 const successfulStatuses = new Set([
   "completed",
@@ -36,6 +39,69 @@ class ApiRequestError extends Error {
     super(message);
     this.name = "ApiRequestError";
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return typeof value === "string" || value === null;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return Number.isInteger(value) && (value as number) >= 0;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return Number.isInteger(value) && (value as number) >= 1;
+}
+
+function isDataSourceDto(value: unknown): value is DataSourceDto {
+  return isRecord(value)
+    && typeof value.id === "string"
+    && value.id.length > 0
+    && typeof value.organization_id === "string"
+    && isNullableString(value.name)
+    && typeof value.datasource_type === "string"
+    && typeof value.created_at === "string"
+    && typeof value.updated_at === "string";
+}
+
+function isDataSourceFileDto(value: unknown) {
+  return isRecord(value)
+    && typeof value.key === "string"
+    && typeof value.name === "string"
+    && isNonNegativeInteger(value.size)
+    && isNullableString(value.last_modified)
+    && isNullableString(value.etag)
+    && typeof value.presigned_url === "string";
+}
+
+function isDataSourceFilesResponseDto(
+  value: unknown,
+): value is DataSourceFilesResponseDto {
+  if (!isRecord(value)
+    || typeof value.organization_id !== "string"
+    || typeof value.datasource_id !== "string"
+    || typeof value.bucket !== "string"
+    || !isNonNegativeInteger(value.count)
+    || !Array.isArray(value.files)
+    || value.files.length !== value.count
+    || !value.files.every(isDataSourceFileDto)
+    || !isPositiveInteger(value.page)
+    || !isPositiveInteger(value.page_size)
+    || value.page_size > 100
+    || !isNonNegativeInteger(value.total_count)
+    || !isNonNegativeInteger(value.total_pages)
+    || !isNonNegativeInteger(value.total_unfiltered_count)
+    || !isRecord(value.pagination)) return false;
+  return value.pagination.page === value.page
+    && value.pagination.page_size === value.page_size
+    && value.pagination.total_count === value.total_count
+    && value.pagination.total_pages === value.total_pages
+    && value.total_pages === Math.ceil(value.total_count / value.page_size)
+    && value.total_unfiltered_count >= value.total_count;
 }
 
 async function getJson<T>(
@@ -105,8 +171,15 @@ function getStatusDetail(
 export function normalizeFile(
   file: OrganizationFilesResponseDto["files"][number],
   processingStatus: DocumentProcessingStatusDto | undefined,
+  context: {
+    organizationId: string;
+    bucket: string;
+    datasourceId?: string | null;
+    name?: string;
+  },
 ): DataFile {
-  const name = getFileName(file.key);
+  const name = context.name ?? getFileName(file.key);
+  const normalizedProcessingStatus = processingStatus?.status?.trim().toLowerCase();
   return {
     key: file.key,
     name,
@@ -122,13 +195,44 @@ export function normalizeFile(
     sourceStatus: processingStatus?.status ?? null,
     statusDetail: getStatusDetail(processingStatus),
     errorMessage: processingStatus?.error_message ?? null,
+    organizationId: context.organizationId,
+    datasourceId: context.datasourceId ?? null,
+    bucket: context.bucket,
+    runId: processingStatus?.run_id ?? null,
+    documentId: processingStatus?.document_id ?? null,
+    canInspect: Boolean(
+      processingStatus?.found && normalizedProcessingStatus === "completed",
+    ),
   };
 }
 
 function normalizeIngestionJob(job: IngestionJobDto): IngestionJob {
   return {
-    ...job,
+    job_id: job.job_id,
+    datasource_id: job.datasource_id,
+    organization_id: job.organization_id,
+    datasource_type: job.datasource_type,
+    status: job.status,
+    records_pulled: job.records_pulled,
+    objects_written: job.objects_written,
+    manifest: job.manifest,
+    error_message: job.error_message,
+    created_at: job.created_at,
+    updated_at: job.updated_at,
+    started_at: job.started_at,
+    finished_at: job.finished_at,
     healthStatus: resolveHealthStatus(job.status, job.error_message),
+  };
+}
+
+function normalizeDataSource(datasource: DataSourceDto): DataSource {
+  return {
+    id: datasource.id,
+    organizationId: datasource.organization_id,
+    name: datasource.name,
+    type: datasource.datasource_type,
+    createdAt: datasource.created_at,
+    updatedAt: datasource.updated_at,
   };
 }
 
@@ -144,7 +248,7 @@ async function listOrganizationFiles(
   signal: AbortSignal,
 ) {
   return getJson<OrganizationFilesResponseDto>(
-    `${documentApiBaseUrl}/api/v1/organizations/${encodeURIComponent(organizationId)}/files`,
+    `${documentApiBaseUrl}/organizations/${encodeURIComponent(organizationId)}/files`,
     { signal },
   );
 }
@@ -154,9 +258,20 @@ async function listIngestionJobs(
   signal: AbortSignal,
 ) {
   return getJson<IngestionJobDto[]>(
-    `${documentApiBaseUrl}/api/v1/ingestions?organization_id=${encodeURIComponent(organizationId)}`,
+    `${documentApiBaseUrl}/ingestions?organization_id=${encodeURIComponent(organizationId)}`,
     { signal },
   );
+}
+
+async function listDataSources(organizationId: string, signal: AbortSignal) {
+  const payload = await getJson<unknown>(
+    `${documentApiBaseUrl}/organizations/${encodeURIComponent(organizationId)}/datasources`,
+    { signal },
+  );
+  if (!Array.isArray(payload) || !payload.every(isDataSourceDto)) {
+    throw new Error("The data source list response was invalid.");
+  }
+  return payload;
 }
 
 export async function getProcessingStatuses(
@@ -169,7 +284,7 @@ export async function getProcessingStatuses(
   const responses = await Promise.all(
     batches.map((batch) =>
       getJson<BatchDocumentProcessingStatusResponseDto>(
-        `${corpusApiBaseUrl}/api/v1/documents/processing-status:batch-get`,
+        `${corpusApiBaseUrl}/documents/processing-status:batch-get`,
         {
           method: "POST",
           signal,
@@ -208,8 +323,74 @@ export async function getDataFilesForJob(
   }
   const statusByKey = new Map(statuses.map((status) => [status.object_key, status]));
   return result.files.map((file) =>
-    normalizeFile(file, statusByKey.get(file.key)),
+    normalizeFile(file, statusByKey.get(file.key), {
+      organizationId: result.organization_id,
+      datasourceId: result.datasource_id,
+      bucket: result.bucket,
+    }),
   );
+}
+
+export async function getDataSourceFiles(
+  datasourceId: string,
+  query: DataSourceFilesQuery,
+  signal: AbortSignal,
+): Promise<DataSourceFilesPage> {
+  const searchParams = new URLSearchParams({
+    page: String(query.page),
+    page_size: String(query.pageSize),
+    sort_by: query.sortBy,
+    sort_order: query.sortOrder,
+  });
+  const search = query.search.trim();
+  if (search) searchParams.set("search", search);
+
+  const payload = await getJson<unknown>(
+    `${documentApiBaseUrl}/datasources/${encodeURIComponent(datasourceId)}/files?${searchParams}`,
+    { signal },
+  );
+  if (!isDataSourceFilesResponseDto(payload) || payload.datasource_id !== datasourceId) {
+    throw new Error("The data source files response was invalid.");
+  }
+  const response = payload;
+  let processingStatuses: DocumentProcessingStatusDto[] = [];
+  let warning: string | null = null;
+  if (response.files.length > 0) {
+    try {
+      processingStatuses = await getProcessingStatuses(
+        response.organization_id,
+        response.bucket,
+        response.files.map((file) => file.key),
+        signal,
+      );
+    } catch (error) {
+      if (signal.aborted) throw error;
+      warning = "Processing status is temporarily unavailable. File inventory is still current.";
+    }
+  }
+
+  const statusByObjectKey = new Map(
+    processingStatuses.map((status) => [status.object_key, status]),
+  );
+  return {
+    organizationId: response.organization_id,
+    datasourceId: response.datasource_id,
+    bucket: response.bucket,
+    files: response.files.map((file) =>
+      normalizeFile(file, statusByObjectKey.get(file.key), {
+        organizationId: response.organization_id,
+        datasourceId: response.datasource_id,
+        bucket: response.bucket,
+        name: file.name,
+      }),
+    ),
+    page: response.page,
+    pageSize: response.page_size,
+    totalCount: response.total_count,
+    totalPages: response.total_pages,
+    totalUnfilteredCount: response.total_unfiltered_count,
+    warning,
+  };
 }
 
 export async function getDataDashboard(
@@ -220,7 +401,10 @@ export async function getDataDashboard(
     (value) => ({ value, error: null }),
     (error: unknown) => ({ value: [] as IngestionJobDto[], error }),
   );
-  const filesResponse = await listOrganizationFiles(organizationId, signal);
+  const [filesResponse, datasourcesResponse] = await Promise.all([
+    listOrganizationFiles(organizationId, signal),
+    listDataSources(organizationId, signal),
+  ]);
   const warnings: string[] = [];
 
   let processingStatuses: DocumentProcessingStatusDto[] = [];
@@ -259,8 +443,12 @@ export async function getDataDashboard(
     bucket: filesResponse.bucket,
     bucketMetadata: filesResponse.bucket_metadata,
     files: filesResponse.files.map((file) =>
-      normalizeFile(file, statusByObjectKey.get(file.key)),
+      normalizeFile(file, statusByObjectKey.get(file.key), {
+        organizationId: filesResponse.organization_id,
+        bucket: filesResponse.bucket,
+      }),
     ),
+    datasources: datasourcesResponse.map(normalizeDataSource),
     ingestionJobs: ingestionJobsResult.value
       .map(normalizeIngestionJob)
       .sort(

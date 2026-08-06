@@ -1,5 +1,28 @@
 export type NumericBbox = [number, number, number, number];
 
+export type ProcessingFile = {
+  key: string;
+  filename: string | null;
+  contentType: string | null;
+};
+
+export type SourcePreviewKind = "pdf" | "image" | "unsupported";
+
+export function getSourcePreviewKind(
+  file: ProcessingFile | null | undefined,
+): SourcePreviewKind {
+  if (!file) return "unsupported";
+  const contentType = file.contentType?.toLowerCase() ?? "";
+  const extension = file.key.split(".").pop()?.toLowerCase() ?? "";
+  if (contentType === "application/pdf" || extension === "pdf") return "pdf";
+  if (
+    contentType === "image/png"
+    || contentType === "image/jpeg"
+    || ["png", "jpg", "jpeg"].includes(extension)
+  ) return "image";
+  return "unsupported";
+}
+
 export type LayoutBlock = {
   component_id: string;
   page: number | null;

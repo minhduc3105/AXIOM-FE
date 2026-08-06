@@ -47,6 +47,7 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
   const { snapshot, loading, error, refresh } =
     useDataDashboard(defaultOrganizationId);
   const files = snapshot?.files ?? [];
+  const datasources = snapshot?.datasources ?? [];
   const ingestionJobs = snapshot?.ingestionJobs ?? [];
   const organizationId = snapshot?.organizationId ?? defaultOrganizationId;
   const { profiles, error: profileError, remove: removeProfile } =
@@ -150,7 +151,7 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
                 <TabsTrigger value="sources" className="rounded-full px-4">
                   Data sources
                   <span className="tabular-nums text-[11px] text-[#8a8377]">
-                    {profiles.length + 1}
+                    {datasources.length}
                   </span>
                 </TabsTrigger>
                 <TabsTrigger value="jobs" className="rounded-full px-4">
@@ -164,7 +165,7 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
 
             <TabsContent value="sources">
               <DataSourcesWorkspace
-                files={files}
+                datasources={datasources}
                 jobs={ingestionJobs}
                 profiles={profiles}
                 loading={initialLoading}

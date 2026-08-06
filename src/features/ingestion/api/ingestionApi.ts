@@ -21,7 +21,7 @@ export type UploadedFile = {
 }
 
 export type IngestionJobStatus = 'pending' | 'pulling' | 'completed' | 'failed'
-export type DatasourceType = 'FILES' | 's3' | 'snowflake'
+export type DatasourceType = 'UPLOAD' | 's3' | 'snowflake'
 
 export type UploadFilesResponse = {
   job_id: string
@@ -35,6 +35,7 @@ export type UploadFilesResponse = {
 
 export type IngestionJobResponse = {
   job_id: string
+  datasource_id: string
   organization_id: string
   datasource_type: DatasourceType
   status: IngestionJobStatus
@@ -81,12 +82,14 @@ export type S3FileListResponse = {
 
 export type S3IngestionRequest = {
   organization_id: string
+  name?: string
   credentials: S3Credentials
   keys: string[]
 }
 
 type SnowflakeIngestionRequest = {
   organization_id: string
+  name?: string
   datasource_type: 'snowflake'
   credentials: {
     account: string
@@ -165,9 +168,11 @@ function isNullableArrayOfRecords(value: unknown): value is Record<string, unkno
 function isIngestionJobResponse(value: unknown): value is IngestionJobResponse {
   if (!isRecord(value)) return false
   const statuses: IngestionJobStatus[] = ['pending', 'pulling', 'completed', 'failed']
-  const datasourceTypes: DatasourceType[] = ['FILES', 's3', 'snowflake']
+  const datasourceTypes: DatasourceType[] = ['UPLOAD', 's3', 'snowflake']
   return typeof value.job_id === 'string'
     && value.job_id.length > 0
+    && typeof value.datasource_id === 'string'
+    && value.datasource_id.length > 0
     && typeof value.organization_id === 'string'
     && datasourceTypes.includes(value.datasource_type as DatasourceType)
     && statuses.includes(value.status as IngestionJobStatus)

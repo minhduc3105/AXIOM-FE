@@ -6,10 +6,10 @@ import type {
 } from "@/shared/types/data-source-profile";
 
 const STORAGE_PREFIX = "axiom:data-source-profiles:v1";
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
 
 type ProfileEnvelope = {
-  version: 1;
+  version: 2;
   profiles: SavedDataSourceProfile[];
 };
 
@@ -67,7 +67,9 @@ function isProfile(
     typeof value.createdAt !== "string" ||
     typeof value.updatedAt !== "string" ||
     !Array.isArray(value.linkedJobIds) ||
-    !value.linkedJobIds.every((jobId) => typeof jobId === "string")
+    !value.linkedJobIds.every((jobId) => typeof jobId === "string") ||
+    (value.backendDatasourceId !== undefined &&
+      typeof value.backendDatasourceId !== "string")
   ) {
     return false;
   }
@@ -116,7 +118,7 @@ export function readDataSourceProfilesResult(
     const value: unknown = JSON.parse(serialized);
     if (
       !isRecord(value) ||
-      value.version !== STORAGE_VERSION ||
+      (value.version !== 1 && value.version !== STORAGE_VERSION) ||
       !Array.isArray(value.profiles)
     ) {
       return {
@@ -152,7 +154,7 @@ function writeProfiles(
       "Saved source storage is unavailable in this browser.",
     );
   }
-  const envelope: ProfileEnvelope = { version: 1, profiles };
+  const envelope: ProfileEnvelope = { version: STORAGE_VERSION, profiles };
   try {
     target.setItem(
       getDataSourceProfileStorageKey(organizationId),
@@ -238,6 +240,9 @@ export function saveDataSourceProfile(
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
     linkedJobIds: existing?.linkedJobIds ?? [],
+    ...(existing?.backendDatasourceId
+      ? { backendDatasourceId: existing.backendDatasourceId }
+      : {}),
     config: normalized.config,
   };
   writeProfiles(
@@ -267,15 +272,22 @@ export function linkJobToDataSourceProfile(
   organizationId: string,
   profileId: string,
   jobId: string,
+  backendDatasourceId?: string,
   storage?: Storage,
 ) {
   const profiles = readDataSourceProfiles(organizationId, storage);
   const profile = profiles.find((item) => item.id === profileId);
   if (!profile) throw new Error("Saved source was not found.");
-  if (profile.linkedJobIds.includes(jobId)) return profile;
+  if (
+    profile.linkedJobIds.includes(jobId)
+    && (!backendDatasourceId || profile.backendDatasourceId === backendDatasourceId)
+  ) return profile;
   const updated: SavedDataSourceProfile = {
     ...profile,
-    linkedJobIds: [...profile.linkedJobIds, jobId],
+    linkedJobIds: profile.linkedJobIds.includes(jobId)
+      ? profile.linkedJobIds
+      : [...profile.linkedJobIds, jobId],
+    ...(backendDatasourceId ? { backendDatasourceId } : {}),
   };
   writeProfiles(
     organizationId,

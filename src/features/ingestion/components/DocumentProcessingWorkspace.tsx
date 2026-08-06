@@ -11,7 +11,7 @@ import type {
   DocumentProcessingUiStatus,
 } from "../model/types";
 import { useDocumentResultInspector } from "../model/useDocumentResultInspector";
-import { DocumentResultViewer } from "./DocumentResultViewer";
+import { DocumentResultViewer } from "@/shared/components/document-results/DocumentResultViewer";
 
 type DocumentProcessingWorkspaceProps = {
   batch: DocumentProcessingBatch;

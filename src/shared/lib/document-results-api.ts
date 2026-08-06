@@ -6,7 +6,7 @@ import type {
   LayoutBlock,
   NumericBbox,
   ParsedDocumentResult,
-} from "../model/documentResults";
+} from "@/shared/types/document-results";
 
 type IngestedDataSelector = {
   organizationId: string;

@@ -33,6 +33,7 @@ function formatDate(value: string) {
 }
 
 function formatSourceType(value: string) {
+  if (value === "UPLOAD") return "File upload";
   return value
     .split(/[_-]/)
     .filter(Boolean)

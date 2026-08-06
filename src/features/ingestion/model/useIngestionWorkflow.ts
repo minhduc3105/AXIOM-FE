@@ -912,6 +912,7 @@ export function useIngestionWorkflow(
         organizationId,
         activeProfile.id,
         job.job_id,
+        job.datasource_id,
       )
       setActiveProfile(profile)
       setProfileError(null)
@@ -1195,6 +1196,7 @@ export function useIngestionWorkflow(
     try {
       const job = await createS3IngestionJob({
         organization_id: organizationId,
+        ...(profileName.trim() ? { name: profileName.trim() } : {}),
         credentials: getS3Credentials(state.s3Connection),
         keys: state.selectedS3Keys,
       }, signal)
@@ -1208,7 +1210,7 @@ export function useIngestionWorkflow(
     } catch (error) {
       if (!isAbortError(error)) dispatch({ type: 'CONNECTOR_SUBMIT_ERROR', message: getErrorMessage(error, 'Unable to create the S3 import job.') })
     }
-  }, [beginRequest, linkAcceptedJob, monitorIngestionJob, organizationId, prepareConnectorProcessing, state.connectorJobStatus, state.ingestionJob, state.s3Connection, state.selectedS3Keys])
+  }, [beginRequest, linkAcceptedJob, monitorIngestionJob, organizationId, prepareConnectorProcessing, profileName, state.connectorJobStatus, state.ingestionJob, state.s3Connection, state.selectedS3Keys])
 
   const submitSnowflakeImport = useCallback(async () => {
     if (state.connectorJobStatus === 'submitting' || state.connectorJobStatus === 'polling' || state.ingestionJob) return
@@ -1217,6 +1219,7 @@ export function useIngestionWorkflow(
     try {
       const job = await createIngestionJob({
         organization_id: organizationId,
+        ...(profileName.trim() ? { name: profileName.trim() } : {}),
         datasource_type: 'snowflake',
         credentials: {
           account: state.snowflakeConnection.account.trim(),
@@ -1244,7 +1247,7 @@ export function useIngestionWorkflow(
     } catch (error) {
       if (!isAbortError(error)) dispatch({ type: 'CONNECTOR_SUBMIT_ERROR', message: getErrorMessage(error, 'Unable to create the Snowflake import job.') })
     }
-  }, [beginRequest, linkAcceptedJob, monitorIngestionJob, organizationId, prepareConnectorProcessing, state.connectorJobStatus, state.ingestionJob, state.snowflakeConnection])
+  }, [beginRequest, linkAcceptedJob, monitorIngestionJob, organizationId, prepareConnectorProcessing, profileName, state.connectorJobStatus, state.ingestionJob, state.snowflakeConnection])
 
   const retryIngestionStatus = useCallback(async () => {
     if (!state.ingestionJob) return

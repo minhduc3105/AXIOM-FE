@@ -24,22 +24,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/shared/lib/utils";
-import type { SavedDataSourceProfile, SavedS3Config, SavedSnowflakeConfig } from "@/shared/types/data-source-profile";
-import type { DataFile, IngestionJob } from "../model/types";
-import { useJobDataFiles, useUploadedDataFiles } from "../model/useJobDataFiles";
-import { DataTable } from "./DataTable";
+import type { SavedDataSourceProfile } from "@/shared/types/data-source-profile";
+import type { DataFile, DataSource, IngestionJob } from "../model/types";
+import { useDataSourceFiles } from "../model/useDataSourceFiles";
+import { DataEmptyState } from "./DataEmptyState";
+import { DataSourceFileInspector } from "./DataSourceFileInspector";
+import { DataSourceFilesTable } from "./DataSourceFilesTable";
 import { StatusBadge } from "./StatusBadge";
 
 type DataSourcesWorkspaceProps = {
-  files: DataFile[];
+  datasources: DataSource[];
   jobs: IngestionJob[];
   profiles: SavedDataSourceProfile[];
   loading: boolean;
@@ -56,89 +51,200 @@ function formatDate(value: string) {
     : new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-function sourceTarget(profile: SavedDataSourceProfile) {
-  if (profile.type === "s3") {
-    const config = profile.config as SavedS3Config;
-    return `${config.bucketName} · ${config.region}`;
-  }
-  const config = profile.config as SavedSnowflakeConfig;
-  return [config.account, config.database, config.schema].filter(Boolean).join(" / ");
+function displayName(datasource: DataSource) {
+  if (datasource.type === "UPLOAD") return "Uploaded files";
+  if (datasource.name?.trim()) return datasource.name;
+  if (datasource.type === "s3") return "Amazon S3";
+  if (datasource.type === "snowflake") return "Snowflake source";
+  return datasource.type;
 }
 
-function ExternalSourceDetail({
-  profile,
+function sourceDescription(datasource: DataSource) {
+  if (datasource.type === "UPLOAD") return "Built-in source";
+  if (datasource.type === "s3") return "Amazon S3";
+  if (datasource.type === "snowflake") return "Snowflake";
+  return "External source";
+}
+
+function SourceIcon({ datasource, className }: { datasource: DataSource; className?: string }) {
+  if (datasource.type === "UPLOAD") return <UploadCloudIcon className={className} />;
+  if (datasource.type === "s3") return <CloudIcon className={className} />;
+  if (datasource.type === "snowflake") return <SnowflakeIcon className={className} />;
+  return <DatabaseIcon className={className} />;
+}
+
+function findReconnectProfile(
+  datasource: DataSource,
+  profiles: SavedDataSourceProfile[],
+  jobs: IngestionJob[],
+) {
+  const direct = profiles.find((profile) => profile.backendDatasourceId === datasource.id);
+  if (direct) return direct;
+  const sourceJobIds = new Set(
+    jobs.filter((job) => job.datasource_id === datasource.id).map((job) => job.job_id),
+  );
+  return profiles.find((profile) => profile.linkedJobIds.some((jobId) => sourceJobIds.has(jobId))) ?? null;
+}
+
+function SourceDetail({
+  datasource,
   jobs,
-  onManage,
-  onDelete,
+  profile,
+  onCreateIngestion,
+  onForgetProfile,
   onViewJobs,
 }: {
-  profile: SavedDataSourceProfile;
+  datasource: DataSource;
   jobs: IngestionJob[];
-  onManage: () => void;
-  onDelete: () => void;
+  profile: SavedDataSourceProfile | null;
+  onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
+  onForgetProfile: (profile: SavedDataSourceProfile) => void;
   onViewJobs: (jobId?: string) => void;
 }) {
-  const linkedJobs = useMemo(() => {
-    const linkedIds = new Set(profile.linkedJobIds);
-    return jobs
-      .filter((job) => linkedIds.has(job.job_id) && job.datasource_type === profile.type)
-      .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
-  }, [jobs, profile.linkedJobIds, profile.type]);
-  const [selectedJobId, setSelectedJobId] = useState(linkedJobs[0]?.job_id ?? "");
-  useEffect(() => {
-    if (!linkedJobs.some((job) => job.job_id === selectedJobId)) {
-      setSelectedJobId(linkedJobs[0]?.job_id ?? "");
-    }
-  }, [linkedJobs, selectedJobId]);
-  const selectedJob = linkedJobs.find((job) => job.job_id === selectedJobId) ?? null;
-  const { files, loading, error } = useJobDataFiles(selectedJob?.job_id ?? null);
+  const files = useDataSourceFiles(datasource.id);
+  const [inspectedFile, setInspectedFile] = useState<DataFile | null>(null);
+  const linkedJobs = useMemo(
+    () => jobs
+      .filter((job) => job.datasource_id === datasource.id)
+      .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at)),
+    [datasource.id, jobs],
+  );
   const latestJob = linkedJobs[0] ?? null;
+  const connector = datasource.type === "s3" || datasource.type === "snowflake"
+    ? datasource.type
+    : null;
+
+  useEffect(() => {
+    if (inspectedFile && !files.result?.files.some((file) => file.key === inspectedFile.key)) {
+      setInspectedFile(null);
+    }
+  }, [files.result?.files, inspectedFile]);
+
+  if (inspectedFile) {
+    return (
+      <DataSourceFileInspector
+        datasource={datasource}
+        file={inspectedFile}
+        onBack={() => setInspectedFile(null)}
+      />
+    );
+  }
 
   return (
     <div className="min-w-0">
       <header className="border-b p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold">{profile.name}</h3><Badge variant="secondary">Saved profile</Badge>{latestJob && <StatusBadge status={latestJob.healthStatus} />}</div>
-            <p className="mt-1 truncate text-sm text-muted-foreground" title={sourceTarget(profile)}>{sourceTarget(profile)}</p>
-            <p className="mt-2 text-xs text-muted-foreground">Updated {formatDate(profile.updatedAt)}</p>
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><SourceIcon datasource={datasource} className="size-5" /></span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-semibold">{displayName(datasource)}</h3>
+                {datasource.type === "UPLOAD" ? <Badge variant="secondary">System source</Badge> : profile ? <Badge variant="secondary">Reconnect saved</Badge> : <Badge variant="outline">Backend source</Badge>}
+                {latestJob && <StatusBadge status={latestJob.healthStatus} />}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{sourceDescription(datasource)}</p>
+              <p className="mt-2 text-xs text-muted-foreground">Updated {formatDate(datasource.updatedAt)}</p>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => onViewJobs(latestJob?.job_id)}>View jobs</Button><Button variant="outline" onClick={onManage}>Reconnect / manage</Button><Button variant="outline" className="text-destructive" onClick={onDelete}><Trash2Icon />Delete</Button></div>
+          <div className="flex flex-wrap gap-2">
+            {latestJob && <Button variant="outline" onClick={() => onViewJobs(latestJob.job_id)}>View jobs</Button>}
+            {datasource.type === "UPLOAD" ? (
+              <Button onClick={() => onCreateIngestion()}><PlusIcon />Upload files</Button>
+            ) : connector ? (
+              <Button variant="outline" onClick={() => onCreateIngestion({ connector, ...(profile ? { profileId: profile.id } : {}) })}>Reconnect / import</Button>
+            ) : null}
+            {profile && datasource.type !== "UPLOAD" && (
+              <Button variant="outline" className="text-destructive" onClick={() => onForgetProfile(profile)}><Trash2Icon />Forget settings</Button>
+            )}
+          </div>
         </div>
       </header>
-      <div className="flex flex-col gap-3 border-b bg-muted/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><h4 className="text-sm font-semibold">Imported files</h4><p className="text-xs text-muted-foreground">Choose a linked ingestion job. Existing unlinked jobs remain in Ingestion jobs.</p></div>
-        {linkedJobs.length > 0 && <Select value={selectedJobId} onValueChange={(value) => setSelectedJobId(value ?? "")}><SelectTrigger className="w-full sm:w-[280px]" aria-label="Choose source ingestion job"><SelectValue /></SelectTrigger><SelectContent>{linkedJobs.map((job) => <SelectItem key={job.job_id} value={job.job_id}>{formatDate(job.updated_at)} · {job.status}</SelectItem>)}</SelectContent></Select>}
-      </div>
-      {error && <Alert variant="destructive" className="m-4"><AlertTitle>Unable to load source files</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-      {!error && <DataTable files={files} loading={loading} emptyTitle={linkedJobs.length ? "No files for this import" : "No linked imports yet"} emptyDescription={linkedJobs.length ? "The selected job has no available objects." : "Reconnect this saved source and start an import to link its files here."} searchLabel={`Search ${profile.name} files`} />}
+      {files.error && <Alert variant="destructive" className="m-4"><AlertTitle>Unable to load source files</AlertTitle><AlertDescription>{files.error}</AlertDescription><Button className="mt-3" variant="outline" size="sm" onClick={files.refresh}>Retry</Button></Alert>}
+      {files.result?.warning && <Alert className="m-4"><AlertTitle>Processing status unavailable</AlertTitle><AlertDescription>{files.result.warning}</AlertDescription></Alert>}
+      {!files.error && (
+        <DataSourceFilesTable
+          result={files.result}
+          loading={files.loading}
+          search={files.search}
+          page={files.page}
+          pageSize={files.pageSize}
+          sortBy={files.sortBy}
+          sortOrder={files.sortOrder}
+          onSearchChange={files.setSearch}
+          onPageChange={files.setPage}
+          onPageSizeChange={files.setPageSize}
+          onSortChange={files.changeSort}
+          onInspect={setInspectedFile}
+          onCreateIngestion={datasource.type === "UPLOAD" ? () => onCreateIngestion() : connector ? () => onCreateIngestion({ connector, ...(profile ? { profileId: profile.id } : {}) }) : undefined}
+        />
+      )}
     </div>
   );
 }
 
-export function DataSourcesWorkspace({ files, jobs, profiles, loading, profileError, onCreateIngestion, onDeleteProfile, onViewJobs }: DataSourcesWorkspaceProps) {
-  const [selectedId, setSelectedId] = useState("uploaded");
-  const [deleteProfile, setDeleteProfile] = useState<SavedDataSourceProfile | null>(null);
-  const uploaded = useUploadedDataFiles(files, jobs);
-  const selectedProfile = profiles.find((profile) => profile.id === selectedId) ?? null;
+export function DataSourcesWorkspace({
+  datasources,
+  jobs,
+  profiles,
+  loading,
+  profileError,
+  onCreateIngestion,
+  onDeleteProfile,
+  onViewJobs,
+}: DataSourcesWorkspaceProps) {
+  const preferredSource = datasources.find((datasource) => datasource.type === "UPLOAD") ?? datasources[0] ?? null;
+  const [selectedId, setSelectedId] = useState(preferredSource?.id ?? "");
+  const [forgetProfile, setForgetProfile] = useState<SavedDataSourceProfile | null>(null);
+  const selectedSource = datasources.find((datasource) => datasource.id === selectedId) ?? preferredSource;
+
   useEffect(() => {
-    if (selectedId !== "uploaded" && !selectedProfile) setSelectedId("uploaded");
-  }, [selectedId, selectedProfile]);
+    if (!selectedSource && preferredSource) setSelectedId(preferredSource.id);
+    if (selectedSource && selectedId !== selectedSource.id) setSelectedId(selectedSource.id);
+  }, [preferredSource, selectedId, selectedSource]);
 
   return (
     <div className="grid min-w-0 xl:grid-cols-[300px_minmax(0,1fr)]">
       <aside className="border-b p-4 xl:border-b-0 xl:border-r" aria-label="Data sources">
-        <div className="flex items-center justify-between gap-3 px-1"><div><h3 className="font-semibold">Data sources</h3><p className="mt-1 text-xs text-muted-foreground">{profiles.length + 1} available</p></div><DropdownMenu><DropdownMenuTrigger render={<Button size="icon-sm" aria-label="Add external source" />}><PlusIcon /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => onCreateIngestion({ connector: "s3" })}><CloudIcon />Amazon S3</DropdownMenuItem><DropdownMenuItem onClick={() => onCreateIngestion({ connector: "snowflake" })}><SnowflakeIcon />Snowflake</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
-        {profileError && <Alert variant="destructive" className="mt-3"><AlertTitle>Saved sources unavailable</AlertTitle><AlertDescription>{profileError}</AlertDescription></Alert>}
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div><h3 className="font-semibold">Data sources</h3><p className="mt-1 text-xs text-muted-foreground">{datasources.length} available</p></div>
+          <DropdownMenu><DropdownMenuTrigger render={<Button size="icon-sm" aria-label="Add external source" />}><PlusIcon /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => onCreateIngestion({ connector: "s3" })}><CloudIcon />Amazon S3</DropdownMenuItem><DropdownMenuItem onClick={() => onCreateIngestion({ connector: "snowflake" })}><SnowflakeIcon />Snowflake</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+        </div>
+        {profileError && <Alert variant="destructive" className="mt-3"><AlertTitle>Reconnect settings unavailable</AlertTitle><AlertDescription>{profileError}</AlertDescription></Alert>}
         <div className="mt-4 grid gap-2">
-          <button type="button" onClick={() => setSelectedId("uploaded")} aria-pressed={selectedId === "uploaded"} className={cn("flex w-full items-center gap-3 rounded-xl border p-3 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-primary/25", selectedId === "uploaded" ? "border-primary/35 bg-primary/10" : "hover:bg-muted/50")}><span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><UploadCloudIcon className="size-4" /></span><span className="min-w-0"><strong className="block text-sm">Uploaded files</strong><span className="block text-xs text-muted-foreground">Built-in source</span></span></button>
-          {profiles.map((profile) => <button type="button" key={profile.id} onClick={() => setSelectedId(profile.id)} aria-pressed={selectedId === profile.id} className={cn("flex w-full items-center gap-3 rounded-xl border p-3 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-primary/25", selectedId === profile.id ? "border-primary/35 bg-primary/10" : "hover:bg-muted/50")}><span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground">{profile.type === "s3" ? <CloudIcon className="size-4" /> : <SnowflakeIcon className="size-4" />}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm">{profile.name}</strong><span className="block truncate text-xs text-muted-foreground">{sourceTarget(profile)}</span></span></button>)}
+          {datasources.map((datasource) => (
+            <button type="button" key={datasource.id} onClick={() => setSelectedId(datasource.id)} aria-pressed={selectedSource?.id === datasource.id} className={cn("flex w-full items-center gap-3 rounded-xl border p-3 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-primary/25", selectedSource?.id === datasource.id ? "border-primary/35 bg-primary/10" : "hover:bg-muted/50")}>
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-primary"><SourceIcon datasource={datasource} className="size-4" /></span>
+              <span className="min-w-0 flex-1"><strong className="block truncate text-sm">{displayName(datasource)}</strong><span className="block truncate text-xs text-muted-foreground">{sourceDescription(datasource)}</span></span>
+            </button>
+          ))}
         </div>
       </aside>
       <section className="min-w-0">
-        {selectedProfile ? <ExternalSourceDetail profile={selectedProfile} jobs={jobs} onManage={() => onCreateIngestion({ connector: selectedProfile.type, profileId: selectedProfile.id })} onDelete={() => setDeleteProfile(selectedProfile)} onViewJobs={onViewJobs} /> : <div><header className="flex flex-wrap items-start justify-between gap-3 border-b p-5"><div className="flex items-start gap-3"><span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><DatabaseIcon className="size-5" /></span><div><h3 className="text-lg font-semibold">Uploaded files</h3><p className="mt-1 text-sm text-muted-foreground">Files added directly to this organization</p></div></div><Button onClick={() => onCreateIngestion()}><PlusIcon />Upload files</Button></header>{uploaded.warning && <Alert className="m-4"><AlertTitle>Partial file classification</AlertTitle><AlertDescription>{uploaded.warning}</AlertDescription></Alert>}<DataTable files={uploaded.files} loading={loading || uploaded.loading} onCreateIngestion={() => onCreateIngestion()} emptyTitle="No uploaded files" emptyDescription="Upload files directly to create the first built-in source batch." searchLabel="Search uploaded files" /></div>}
+        {selectedSource ? (
+          <SourceDetail
+            key={selectedSource.id}
+            datasource={selectedSource}
+            jobs={jobs}
+            profile={findReconnectProfile(selectedSource, profiles, jobs)}
+            onCreateIngestion={onCreateIngestion}
+            onForgetProfile={setForgetProfile}
+            onViewJobs={onViewJobs}
+          />
+        ) : (
+          <DataEmptyState
+            title={loading ? "Loading data sources" : "No data sources yet"}
+            description={loading ? "Reading organization data sources." : "Upload files or connect an external source to begin."}
+            actionLabel={loading ? undefined : "Data Ingestion"}
+            onAction={loading ? undefined : () => onCreateIngestion()}
+          />
+        )}
       </section>
-      <Dialog open={Boolean(deleteProfile)} onOpenChange={(open) => { if (!open) setDeleteProfile(null); }}><DialogContent><DialogHeader><DialogTitle>Delete saved source?</DialogTitle><DialogDescription>This removes {deleteProfile?.name} from this browser only. Files and ingestion history will not be deleted.</DialogDescription></DialogHeader><DialogFooter showCloseButton><Button variant="destructive" onClick={() => { if (deleteProfile) onDeleteProfile(deleteProfile.id); setDeleteProfile(null); }}>Delete profile</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={Boolean(forgetProfile)} onOpenChange={(open) => { if (!open) setForgetProfile(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Forget reconnect settings?</DialogTitle><DialogDescription>This removes the saved non-secret settings for {forgetProfile?.name} from this browser. The backend data source, files and ingestion history remain available.</DialogDescription></DialogHeader>
+          <DialogFooter showCloseButton><Button variant="destructive" onClick={() => { if (forgetProfile) onDeleteProfile(forgetProfile.id); setForgetProfile(null); }}>Forget settings</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { cn } from "@/shared/lib/utils";
-import { getBlockOverlayStyle, type LayoutBlock } from "../model/documentResults";
+import { getBlockOverlayStyle, type LayoutBlock } from "@/shared/types/document-results";
 
 type SourceBlockOverlayProps = {
   blocks: LayoutBlock[];
