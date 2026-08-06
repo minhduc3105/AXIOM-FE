@@ -80,14 +80,8 @@ const quietInputClass =
 const availableProviders = [
   "Azure OpenAI",
   "Google Gemini",
-  "Amazon Bedrock",
-  "Mistral AI",
-  "Cohere",
-  "Groq",
   "OpenRouter",
-  "Ollama",
   "DeepSeek",
-  "Together AI",
 ];
 
 function ProviderMark({ name }: { name: string }) {
