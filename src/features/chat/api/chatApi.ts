@@ -13,6 +13,7 @@ import {
   intelligenceApiUrl,
   listConversationMessages,
 } from "@/shared/lib/intelligence-api";
+import { authFetch } from "@/features/auth/model/authFetch";
 import type { IntelligenceMessage } from "@/shared/types/intelligence";
 
 type SseEvent = {
@@ -236,7 +237,7 @@ export async function reviseInvestigation(
 }
 
 async function postJson(path: string, body: unknown, signal?: AbortSignal) {
-  const response = await fetch(intelligenceApiUrl(path), {
+  const response = await authFetch(intelligenceApiUrl(path), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -265,7 +266,7 @@ async function postJsonWithHeaders(
   headers: Record<string, string>,
   signal?: AbortSignal,
 ) {
-  const response = await fetch(intelligenceApiUrl(path), {
+  const response = await authFetch(intelligenceApiUrl(path), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),

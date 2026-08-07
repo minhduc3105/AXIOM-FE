@@ -3,6 +3,7 @@ import {
   getAllFilesForJob,
   getFilesForJob,
 } from '@/shared/lib/document-api'
+import { authFetch } from '@/features/auth/model/authFetch'
 import type {
   JobFile,
   JobFilesPage,
@@ -27,6 +28,7 @@ export type UploadFilesResponse = {
   job_id: string
   status: 'completed'
   organization_id: string
+  workspace_id: string
   bucket: string
   count: number
   files: UploadedFile[]
@@ -37,6 +39,7 @@ export type IngestionJobResponse = {
   job_id: string
   datasource_id: string
   organization_id: string
+  workspace_id: string
   datasource_type: DatasourceType
   status: IngestionJobStatus
   records_pulled: number
@@ -83,6 +86,7 @@ export type S3FileListResponse = {
 export type S3IngestionRequest = {
   organization_id: string
   name?: string
+  workspace_id?: string
   credentials: S3Credentials
   keys: string[]
 }
@@ -90,6 +94,7 @@ export type S3IngestionRequest = {
 type SnowflakeIngestionRequest = {
   organization_id: string
   name?: string
+  workspace_id?: string
   datasource_type: 'snowflake'
   credentials: {
     account: string
@@ -110,6 +115,9 @@ type SnowflakeIngestionRequest = {
 
 export type CreateIngestionRequest = SnowflakeIngestionRequest
 
+const defaultWorkspaceId =
+  import.meta.env.VITE_AXIOM_WORKSPACE_ID ?? 'default'
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -124,6 +132,7 @@ function isUploadFilesResponse(value: unknown): value is UploadFilesResponse {
     || value.job_id.length === 0
     || value.status !== 'completed'
     || typeof value.organization_id !== 'string'
+    || typeof value.workspace_id !== 'string'
     || typeof value.bucket !== 'string') return false
   if (!Number.isInteger(value.count) || (value.count as number) < 1 || !Array.isArray(value.files) || value.files.length !== value.count) return false
   if (!isRecord(value.bucket_metadata)) return false
@@ -174,6 +183,7 @@ function isIngestionJobResponse(value: unknown): value is IngestionJobResponse {
     && typeof value.datasource_id === 'string'
     && value.datasource_id.length > 0
     && typeof value.organization_id === 'string'
+    && typeof value.workspace_id === 'string'
     && datasourceTypes.includes(value.datasource_type as DatasourceType)
     && statuses.includes(value.status as IngestionJobStatus)
     && Number.isInteger(value.records_pulled)
@@ -234,8 +244,9 @@ export async function uploadFiles(
 
   const formData = new FormData()
   files.forEach((file) => formData.append('files', file))
+  formData.append('workspace_id', defaultWorkspaceId)
 
-  const response = await fetch(
+  const response = await authFetch(
     `/api/document/organizations/${encodeURIComponent(normalizedOrganizationId)}/files`,
     {
       method: 'POST',
@@ -258,10 +269,10 @@ export async function createIngestionJob(
 ): Promise<IngestionJobResponse> {
   if (!request.organization_id.trim()) throw new Error('VITE_AXIOM_ORGANIZATION_ID is not configured.')
 
-  const response = await fetch('/api/document/ingestions', {
+  const response = await authFetch('/api/document/ingestions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
+    body: JSON.stringify({ ...request, workspace_id: request.workspace_id ?? defaultWorkspaceId }),
     signal,
   })
 
@@ -283,7 +294,7 @@ export async function listS3Files(
     throw new Error('The S3 file page size must be between 1 and 1000.')
   }
 
-  const response = await fetch('/api/document/s3/files:list', {
+  const response = await authFetch('/api/document/s3/files:list', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -317,10 +328,10 @@ export async function createS3IngestionJob(
     throw new Error('Choose at least one S3 file before importing.')
   }
 
-  const response = await fetch('/api/document/s3/ingestions', {
+  const response = await authFetch('/api/document/s3/ingestions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
+    body: JSON.stringify({ ...request, workspace_id: request.workspace_id ?? defaultWorkspaceId }),
     signal,
   })
 
@@ -343,7 +354,7 @@ export async function getIngestionJob(
   const normalizedJobId = jobId.trim()
   if (!normalizedJobId) throw new Error('An ingestion job ID is required.')
 
-  const response = await fetch(`/api/document/ingestions/${encodeURIComponent(normalizedJobId)}`, {
+  const response = await authFetch(`/api/document/ingestions/${encodeURIComponent(normalizedJobId)}`, {
     method: 'GET',
     signal,
   })
@@ -372,7 +383,7 @@ export async function getDocumentProcessingStatuses(
   const results: DocumentProcessingStatus[] = []
   for (let index = 0; index < objectKeys.length; index += CORPUS_STATUS_BATCH_SIZE) {
     const batch = objectKeys.slice(index, index + CORPUS_STATUS_BATCH_SIZE)
-    const response = await fetch('/api/corpus/documents/processing-status:batch-get', {
+    const response = await authFetch('/api/corpus/documents/processing-status:batch-get', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

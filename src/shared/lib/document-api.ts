@@ -3,6 +3,7 @@ import type {
   JobFilesPage,
   JobFilesResult,
 } from "@/shared/types/document";
+import { authFetch } from "@/features/auth/model/authFetch";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -97,7 +98,7 @@ export async function getFilesForJob(
     page: String(page),
     page_size: String(pageSize),
   });
-  const response = await fetch(
+  const response = await authFetch(
     `/api/document/jobs/${encodeURIComponent(normalizedJobId)}/files?${query}`,
     { method: "GET", signal },
   );

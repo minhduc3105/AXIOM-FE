@@ -8,6 +8,8 @@ import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
 import { ModelsPage } from "@/features/models/ModelsPage";
 import { MemoryPage } from "@/features/memory/MemoryPage";
+import { LoginPage } from "@/features/auth/components/LoginPage";
+import { useAuth } from "@/features/auth/model/AuthProvider";
 import { AppShell } from "./AppShell";
 import {
   createChatHomeRoute,
@@ -25,6 +27,7 @@ import { createConversation } from "@/shared/lib/intelligence-api";
 import type { ChatEngine } from "@/features/chat/model/types";
 
 export function AppExperience() {
+  const auth = useAuth();
   const { route, navigate } = useAppRoute();
   const chat = useChatWorkflow();
   const [chatEngine, setChatEngine] = useState<ChatEngine>("auto");
@@ -126,6 +129,14 @@ export function AppExperience() {
     [chat.submitQuestion, navigate, route],
   );
 
+  if (auth.status === "restoring") {
+    return <AuthRestoreScreen />;
+  }
+
+  if (auth.status === "unauthenticated") {
+    return <LoginPage />;
+  }
+
   return (
     <AppShell
       activeStage={chat.stage}
@@ -141,6 +152,8 @@ export function AppExperience() {
       onMemory={openMemory}
       onTools={openTools}
       onSettings={openSettings}
+      user={auth.user}
+      onLogout={auth.logout}
     >
       {route.surface === "chat" ? (
         <ChatPage
@@ -188,5 +201,15 @@ export function AppExperience() {
         <ToolsPage onOpenTool={openToolDetail} />
       )}
     </AppShell>
+  );
+}
+
+function AuthRestoreScreen() {
+  return (
+    <main className="grid min-h-screen place-items-center bg-[#f4efe5] text-[#191915] dark:bg-[#11110f] dark:text-[#eee8dc]">
+      <div className="rounded-lg border border-[#d8d0c2] bg-[#fffdf8]/88 px-5 py-4 text-sm text-[#6d685e] shadow-[0_18px_50px_rgba(60,48,25,0.08)] dark:border-[#38372f] dark:bg-[#171714]/90 dark:text-[#eee8dc]/70">
+        Restoring AXIOM session...
+      </div>
+    </main>
   );
 }

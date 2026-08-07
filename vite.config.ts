@@ -5,12 +5,6 @@ import tailwindcss from "@tailwindcss/vite";
 
 const gatewayApiTarget =
   process.env.VITE_GATEWAY_API_PROXY_TARGET ?? "http://localhost:8007";
-const intelligenceApiTarget =
-  process.env.VITE_INTELLIGENCE_API_PROXY_TARGET ?? "http://localhost:8006";
-const documentApiTarget =
-  process.env.VITE_DOCUMENT_API_PROXY_TARGET ?? "http://localhost:38001";
-const corpusApiTarget =
-  process.env.VITE_CORPUS_API_PROXY_TARGET ?? "http://localhost:38002";
 const methodsHubTarget =
   process.env.VITE_METHODS_HUB_PROXY_TARGET ?? "http://localhost:8000";
 const modelServiceTarget =
@@ -23,20 +17,23 @@ export default defineConfig({
   server: {
     allowedHosts: ['axiom.iselab.site'],
     proxy: {
-      "/intelligence-service": {
-        target: intelligenceApiTarget,
+      "/auth-service": {
+        target: gatewayApiTarget,
         changeOrigin: true,
-        rewrite: (path) => path.slice("/intelligence-service".length),
+      },
+      "/intelligence-service": {
+        target: gatewayApiTarget,
+        changeOrigin: true,
       },
       "/document-api": {
-        target: documentApiTarget,
+        target: gatewayApiTarget,
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/document-api/, ""),
+        rewrite: (path) => path.replace(/^\/document-api/, "/document-service"),
       },
       "/corpus-api": {
-        target: corpusApiTarget,
+        target: gatewayApiTarget,
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/corpus-api/, ""),
+        rewrite: (path) => path.replace(/^\/corpus-api/, "/corpus-service"),
       },
       "/methods-hub": {
         target: methodsHubTarget,
@@ -57,14 +54,16 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/storage/, ""),
       },
       "/api/document": {
-        target: documentApiTarget,
+        target: gatewayApiTarget,
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/document/, "/api/v1"),
+        rewrite: (path) =>
+          path.replace(/^\/api\/document/, "/document-service/api/v1"),
       },
       "/api/corpus": {
-        target: corpusApiTarget,
+        target: gatewayApiTarget,
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/corpus/, "/api/v1"),
+        rewrite: (path) =>
+          path.replace(/^\/api\/corpus/, "/corpus-service/api/v1"),
       },
     },
   },

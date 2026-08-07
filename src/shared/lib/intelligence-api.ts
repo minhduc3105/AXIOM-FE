@@ -3,10 +3,13 @@ import type {
   ConversationSummary,
   MessageListResponse,
 } from "@/shared/types/intelligence";
+import { authFetch } from "@/features/auth/model/authFetch";
 
-const INTELLIGENCE_API_BASE_URL = (
-  import.meta.env.VITE_AXIOM_GATEWAY_API_URL || "/intelligence-service"
+const gatewayApiBaseUrl = (
+  import.meta.env.VITE_AXIOM_GATEWAY_API_URL || ""
 ).replace(/\/$/, "");
+const INTELLIGENCE_API_BASE_URL =
+  `${gatewayApiBaseUrl}/intelligence-service`.replace(/\/$/, "");
 
 export function intelligenceApiUrl(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -27,7 +30,7 @@ export async function listConversationsPage(
   if (options.limit) params.set("limit", String(options.limit));
   const query = params.toString();
 
-  const response = await fetch(
+  const response = await authFetch(
     intelligenceApiUrl(`/api/v1/conversations${query ? `?${query}` : ""}`),
     { signal },
   );
@@ -46,7 +49,7 @@ export async function createConversation(
   title?: string,
   signal?: AbortSignal,
 ): Promise<ConversationSummary> {
-  const response = await fetch(intelligenceApiUrl("/api/v1/conversations"), {
+  const response = await authFetch(intelligenceApiUrl("/api/v1/conversations"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title: title || null }),
@@ -62,7 +65,7 @@ export async function listConversationMessages(
   conversationId: string,
   signal?: AbortSignal,
 ) {
-  const response = await fetch(
+  const response = await authFetch(
     intelligenceApiUrl(
       `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
     ),

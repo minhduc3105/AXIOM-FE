@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_AXIOM_ORGANIZATION_ID?: string
+  readonly VITE_AXIOM_WORKSPACE_ID?: string
   readonly VITE_AXIOM_GATEWAY_API_URL?: string
   readonly VITE_ORGANIZATION_ID?: string
   readonly VITE_DOCUMENT_API_BASE_URL?: string

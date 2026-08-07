@@ -13,11 +13,14 @@ import type {
   IngestionJobDto,
   OrganizationFilesResponseDto,
 } from "../model/types";
+import { authFetch } from "@/features/auth/model/authFetch";
 import { getBrowserStorageUrl } from "@/shared/lib/storage-url";
 import { getAllFilesForJob } from "@/shared/lib/document-api";
 
-const documentApiBaseUrl = "/api/document";
-const corpusApiBaseUrl = "/api/corpus";
+const documentApiBaseUrl =
+  import.meta.env.VITE_DOCUMENT_API_BASE_URL ?? "/api/document";
+const corpusApiBaseUrl =
+  import.meta.env.VITE_CORPUS_API_BASE_URL ?? "/api/corpus";
 
 const successfulStatuses = new Set([
   "completed",
@@ -108,7 +111,7 @@ async function getJson<T>(
   url: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(url, {
+  const response = await authFetch(url, {
     ...options,
     headers: {
       Accept: "application/json",

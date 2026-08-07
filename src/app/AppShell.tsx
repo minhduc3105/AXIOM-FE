@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ChatStage } from "@/features/chat/model/types";
+import type { AuthUser } from "@/features/auth/model/types";
 import type { AppSurface } from "@/app/routing/types";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WorkspaceCommandBar } from "@/shared/components/WorkspaceCommandBar";
@@ -20,6 +21,8 @@ type AppShellProps = {
   showCommandBar?: boolean;
   onTools: () => void;
   onSettings: () => void;
+  user: AuthUser | null;
+  onLogout: () => void;
   children: React.ReactNode;
 };
 
@@ -37,6 +40,8 @@ export function AppShell({
   showCommandBar = false,
   onTools,
   onSettings,
+  user,
+  onLogout,
   children,
 }: AppShellProps) {
   const [expanded, setExpanded] = useState(false);
@@ -70,6 +75,8 @@ export function AppShell({
           onMemory={onMemory}
           onTools={onTools}
           onSettings={onSettings}
+          user={user}
+          onLogout={onLogout}
         />
         <div
           className={cn(

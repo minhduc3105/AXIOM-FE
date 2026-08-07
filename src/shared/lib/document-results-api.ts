@@ -1,3 +1,4 @@
+import { authFetch } from "@/features/auth/model/authFetch";
 import { getBrowserStorageUrl } from "@/shared/lib/storage-url";
 import type {
   IngestedDocumentMetadata,
@@ -7,6 +8,9 @@ import type {
   NumericBbox,
   ParsedDocumentResult,
 } from "@/shared/types/document-results";
+
+const defaultWorkspaceId =
+  import.meta.env.VITE_AXIOM_WORKSPACE_ID ?? "default";
 
 type IngestedDataSelector = {
   organizationId: string;
@@ -207,12 +211,13 @@ export async function presignFileForPreview(
   objectKey: string,
   signal?: AbortSignal,
 ): Promise<InlinePreview> {
-  const response = await fetch("/api/document/files/presign", {
+  const response = await authFetch("/api/document/files/presign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       object_path: objectKey,
       bucket_name: bucket,
+      workspace_id: defaultWorkspaceId,
       expires_in: 900,
       force_download: false,
     }),
@@ -244,7 +249,7 @@ export async function getIngestedDocumentData(
   selector: IngestedDataSelector,
   signal?: AbortSignal,
 ): Promise<ParsedDocumentResult> {
-  const response = await fetch("/api/corpus/documents/ingested-data", {
+  const response = await authFetch("/api/corpus/documents/ingested-data", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

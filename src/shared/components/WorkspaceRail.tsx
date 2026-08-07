@@ -11,13 +11,22 @@ import {
   SettingsIcon,
   CpuIcon,
   BrainCircuitIcon,
+  LogOutIcon,
   SunIcon,
 } from "lucide-react";
 import { useTheme } from "@/app/ThemeProvider";
+import type { AuthUser } from "@/features/auth/model/types";
 import type { ChatStage } from "@/features/chat/model/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,6 +64,8 @@ type WorkspaceRailProps = {
   onMemory: () => void;
   onTools: () => void;
   onSettings: () => void;
+  user: AuthUser | null;
+  onLogout: () => void;
 };
 
 const sidebarButtonIconPadding = "has-data-[icon=inline-start]:pl-3";
@@ -92,6 +103,8 @@ function RailContent({
   onMemory,
   onTools,
   onSettings,
+  user,
+  onLogout,
 }: WorkspaceRailProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const conversationsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -563,36 +576,100 @@ function RailContent({
           />
         )}
 
-        <div
-          className={cn(
-            "min-w-0",
-            expanded
-              ? "flex items-center gap-3"
-              : "grid w-full justify-items-center",
-          )}
-        >
-          <Avatar
-            size="lg"
-            className="ring-2 ring-[#fffaf1] dark:ring-[#151512]"
-          >
-            <AvatarImage
-              src="https://www.figma.com/api/mcp/asset/456e95e3-44c6-4626-9d3e-f10a9b6c8e2e"
-              alt="Son Nguyen"
-            />
-            <AvatarFallback>AN</AvatarFallback>
-          </Avatar>
-          <div
-            className={cn(
-              "min-w-0 leading-tight transition-opacity duration-300",
-              expanded ? "grid opacity-100" : "hidden",
-            )}
-          >
-            <strong className="truncate text-[15px]">Son Nguyen</strong>
-          </div>
-        </div>
+        <UserSessionMenu expanded={expanded} user={user} onLogout={onLogout} />
       </div>
     </div>
   );
+}
+
+function UserSessionMenu({
+  expanded,
+  user,
+  onLogout,
+}: {
+  expanded: boolean;
+  user: AuthUser | null;
+  onLogout: () => void;
+}) {
+  const label = user?.display_name || user?.email || "AXIOM user";
+  const initials = userInitials(user);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            className={cn(
+              "h-auto min-w-0 rounded-xl p-1.5 text-left text-[#191915] hover:bg-[#ebe4d8] dark:text-[#eee8dc] dark:hover:bg-white/10",
+              expanded
+                ? "w-full justify-start gap-3"
+                : "size-11 justify-center p-0",
+            )}
+            aria-label="Open user session menu"
+          />
+        }
+      >
+        <Avatar
+          size="lg"
+          className="ring-2 ring-[#fffaf1] dark:ring-[#151512]"
+        >
+          <AvatarImage src="" alt="" />
+          <AvatarFallback>{initials}</AvatarFallback>
+        </Avatar>
+        <span
+          className={cn(
+            "min-w-0 leading-tight transition-opacity duration-300",
+            expanded ? "grid opacity-100" : "hidden",
+          )}
+        >
+          <strong className="truncate text-[14px]">{label}</strong>
+          <span className="truncate text-xs text-[#8a8377] dark:text-[#eee8dc]/55">
+            {user?.org_role || "org_member"}
+          </span>
+        </span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        className="w-64 border-[#d8d0c2] bg-[#fffdf8] text-[#191915] dark:border-[#38372f] dark:bg-[#171714] dark:text-[#eee8dc]"
+        side={expanded ? "top" : "right"}
+        align="start"
+        sideOffset={8}
+      >
+        <div className="grid gap-1 px-2 py-2">
+          <span className="truncate text-sm font-semibold text-[#191915] dark:text-[#eee8dc]">
+            {label}
+          </span>
+          <span className="truncate text-xs font-normal text-[#6d685e] dark:text-[#eee8dc]/60">
+            {user?.email}
+          </span>
+          <span className="truncate text-xs font-normal text-[#8a8377] dark:text-[#eee8dc]/50">
+            Org: {user?.organization_id || "unknown"}
+          </span>
+        </div>
+        <DropdownMenuSeparator className="bg-[#d8d0c2] dark:bg-[#38372f]" />
+        <DropdownMenuItem
+          className="cursor-pointer gap-2 px-2 py-2 text-[#9d2f2f] focus:bg-[#fff1f1] focus:text-[#9d2f2f] dark:text-[#ff9a9a] dark:focus:bg-[#351b1b] dark:focus:text-[#ffb3b3]"
+          onClick={() => void onLogout()}
+          variant="destructive"
+        >
+          <LogOutIcon className="size-4" />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function userInitials(user: AuthUser | null) {
+  const source = user?.display_name || user?.email || "AXIOM";
+  const words = source
+    .replace(/@.*/, "")
+    .split(/\s+|[._-]+/)
+    .filter(Boolean);
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("") || "AX";
 }
 
 export function WorkspaceRail(props: WorkspaceRailProps) {
