@@ -52,43 +52,6 @@ const previewRows = [
   ["C-1005", "Lattice Bank", "missing", "Enterprise", "$210K"],
 ];
 
-function getPreviewMetrics(extension: string) {
-  if (extension === "PDF") {
-    return [
-      ["PDF", "Viewer"],
-      ["Local", "Source"],
-      ["0", "Parser warnings"],
-      ["Ready", "Preflight"],
-      ["100%", "Preview quality"],
-    ];
-  }
-  if (extension === "MD") {
-    return [
-      ["4", "Chunks"],
-      ["7", "Headings"],
-      ["0", "Parser errors"],
-      ["2", "Governed terms"],
-      ["100%", "Completeness"],
-    ];
-  }
-  if (extension === "JSON") {
-    return [
-      ["421", "Events"],
-      ["18", "Fields"],
-      ["11", "Missing values"],
-      ["3", "Nested objects"],
-      ["98.2%", "Completeness"],
-    ];
-  }
-  return [
-    ["1,248", "Rows"],
-    ["12", "Fields"],
-    ["27", "Missing cells"],
-    ["2", "Governed fields"],
-    ["97.8%", "Completeness"],
-  ];
-}
-
 function getStatusLabel(status: AsyncStatus, isSelected: boolean) {
   if (status === "loading") return "Uploading";
   if (status === "success") return "Stored";
@@ -202,7 +165,8 @@ export function UploadWorkspace({
             />
             <strong>Drop or browse multiple files</strong>
             <span className="max-w-64 text-sm text-muted-foreground">
-              PDF, PNG/JPEG, CSV, JSON, TXT/MD, Excel, and Parquet are supported.
+              PDF, PNG/JPEG, CSV, JSON, TXT/MD, Excel, and Parquet are
+              supported.
             </span>
             <Input
               id={inputId}
