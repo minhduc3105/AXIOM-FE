@@ -5,9 +5,18 @@ import {
   Clock3Icon,
   LoaderCircleIcon,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/shared/lib/utils";
 import type { DocumentProcessingStatus } from "../api/ingestionApi";
@@ -99,165 +108,178 @@ export function DocumentProcessingWorkspace({
   const source = sourceMeta[batch.source_kind];
 
   return (
-    <div className="grid min-w-0 gap-5 xl:grid-cols-[330px_minmax(0,1fr)]">
-      <Card className="flex min-h-[760px] min-w-0 flex-col rounded-[28px] bg-card/95 p-4">
-        <div className="flex items-start justify-between gap-3 px-1">
-          <div>
-            <h2 className="text-xl font-semibold">Pipeline results</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{source.label}</p>
-          </div>
-          <Badge
-            variant={statusUnavailable ? "destructive" : "secondary"}
-            className={cn(
-              active && "bg-primary/10 text-primary",
-              status === "complete" &&
-                "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
-            )}
-          >
-            {statusUnavailable
-              ? "Unavailable"
-              : active
-                ? "Indexing"
-                : status === "complete"
-                  ? "Ready"
-                  : "Review"}
-          </Badge>
-        </div>
+    <div className="grid min-h-[calc(100dvh-84px)] min-w-0 gap-4 xl:h-[calc(100dvh-84px)] xl:grid-cols-[330px_minmax(0,1.12fr)_minmax(360px,0.88fr)]">
+      <Card className="min-h-[520px] min-w-0 gap-0 py-0 xl:min-h-0">
+        <CardHeader className="border-b py-4">
+          <CardTitle>Pipeline results</CardTitle>
+          <CardDescription>{source.label}</CardDescription>
+          <CardAction>
+            <Badge
+              variant={
+                statusUnavailable
+                  ? "destructive"
+                  : active || status === "complete"
+                    ? "default"
+                    : "secondary"
+              }
+            >
+              {statusUnavailable
+                ? "Unavailable"
+                : active
+                  ? "Indexing"
+                  : status === "complete"
+                    ? "Ready"
+                    : "Review"}
+            </Badge>
+          </CardAction>
+        </CardHeader>
 
-        <div
-          className="mt-4 grid grid-cols-3 gap-2"
-          role="status"
-          aria-live="polite"
-        >
-          <Metric value={indexedCount} label="Indexed" tone="success" />
-          <Metric value={waitingCount} label="Waiting" tone="active" />
-          <Metric
-            value={failedCount}
-            label="Failed"
-            tone={failedCount ? "danger" : "muted"}
-          />
-        </div>
-
-        {active && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-xs text-primary">
-            <LoaderCircleIcon className="size-4 animate-spin" />
-            Checking AXIOM Corpus...
-          </div>
-        )}
-        {statusUnavailable && (
+        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
           <div
-            className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200"
-            role="alert"
+            className="grid grid-cols-3 gap-2"
+            role="status"
+            aria-live="polite"
           >
-            {error ?? "Document processing status is temporarily unavailable."}
+            <Metric value={indexedCount} label="Indexed" tone="success" />
+            <Metric value={waitingCount} label="Waiting" tone="active" />
+            <Metric
+              value={failedCount}
+              label="Failed"
+              tone={failedCount ? "danger" : "muted"}
+            />
           </div>
-        )}
 
-        <ScrollArea className="mt-4 h-[500px] pr-2">
-          <div
-            className="grid gap-2"
-            role="list"
-            aria-label="Document processing results"
-          >
-            {visibleFiles.map((file, index) => {
-              const absoluteIndex = firstVisibleIndex + index;
-              const result = resultsByKey.get(file.key);
-              const fileState = fileStates[absoluteIndex];
-              const selected = inspector.selectedKey === file.key;
-              const enabled = fileState === "indexed";
-              const displayName = getDisplayName(file.filename, file.key);
-              return (
-                <div key={file.key} role="listitem">
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "grid h-auto min-h-[74px] w-full grid-cols-[38px_minmax(0,1fr)] items-start gap-3 rounded-xl p-3 text-left",
-                      selected &&
-                        "border-primary bg-primary/10 ring-2 ring-primary/15",
-                      fileState === "failed" &&
-                        "border-red-200 bg-red-50/70 dark:border-red-800 dark:bg-red-950/30",
-                      !enabled && "cursor-default opacity-75",
-                    )}
-                    type="button"
-                    disabled={!enabled}
-                    aria-pressed={selected}
-                    aria-label={`${displayName}, ${fileStateLabel[fileState]}`}
-                    onClick={() => inspector.selectFile(file.key)}
-                  >
-                    <span
+          {active && (
+            <Alert className="mt-4">
+              <LoaderCircleIcon className="animate-spin" />
+              <AlertTitle>Checking AXIOM Corpus</AlertTitle>
+              <AlertDescription>
+                Processing status is refreshing for this import.
+              </AlertDescription>
+            </Alert>
+          )}
+          {statusUnavailable && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircleIcon />
+              <AlertTitle>Document status unavailable</AlertTitle>
+              <AlertDescription>
+                {error ??
+                  "Document processing status is temporarily unavailable."}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <ScrollArea className="mt-4 min-h-[280px] flex-1 pr-2">
+            <div
+              className="grid gap-2"
+              role="list"
+              aria-label="Document processing results"
+            >
+              {visibleFiles.map((file, index) => {
+                const absoluteIndex = firstVisibleIndex + index;
+                const result = resultsByKey.get(file.key);
+                const fileState = fileStates[absoluteIndex];
+                const selected = inspector.selectedKey === file.key;
+                const enabled = fileState === "indexed";
+                const displayName = getDisplayName(file.filename, file.key);
+                return (
+                  <div key={file.key} role="listitem">
+                    <Button
+                      variant="outline"
                       className={cn(
-                        "grid size-9 place-items-center rounded-lg bg-muted font-mono text-[10px] font-bold text-muted-foreground",
-                        fileState === "indexed" && "bg-emerald-500 text-white",
-                        fileState === "processing" &&
-                          "bg-primary text-primary-foreground",
-                        fileState === "failed" && "bg-red-500 text-white",
+                        "grid h-auto min-h-[74px] w-full grid-cols-[38px_minmax(0,1fr)] items-start gap-3 rounded-xl p-3 text-left",
+                        selected &&
+                          "border-primary bg-primary/10 ring-2 ring-primary/15",
+                        fileState === "failed" &&
+                          "border-destructive/40 bg-destructive/10",
+                        !enabled && "cursor-default opacity-75",
                       )}
+                      type="button"
+                      disabled={!enabled}
+                      aria-pressed={selected}
+                      aria-label={`${displayName}, ${fileStateLabel[fileState]}`}
+                      onClick={() => inspector.selectFile(file.key)}
                     >
-                      {fileState === "indexed" ? (
-                        <CheckIcon className="size-4" />
-                      ) : fileState === "failed" ? (
-                        <AlertCircleIcon className="size-4" />
-                      ) : fileState === "processing" ? (
-                        <LoaderCircleIcon className="size-4 animate-spin" />
-                      ) : (
-                        <Clock3Icon className="size-4" />
-                      )}
-                    </span>
-                    <span className="min-w-0">
-                      <strong className="block truncate text-sm">
-                        {displayName}
-                      </strong>
-                      <span className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
-                        <span>{getFileType(file.key)}</span>
-                        <span>·</span>
-                        <span>{fileStateLabel[fileState]}</span>
+                      <span
+                        className={cn(
+                          "grid size-9 place-items-center rounded-lg bg-muted font-mono text-[10px] font-bold text-muted-foreground",
+                          fileState === "indexed" &&
+                            "bg-primary text-primary-foreground",
+                          fileState === "processing" &&
+                            "bg-primary text-primary-foreground",
+                          fileState === "failed" &&
+                            "bg-destructive text-destructive-foreground",
+                        )}
+                      >
+                        {fileState === "indexed" ? (
+                          <CheckIcon />
+                        ) : fileState === "failed" ? (
+                          <AlertCircleIcon />
+                        ) : fileState === "processing" ? (
+                          <LoaderCircleIcon className="animate-spin" />
+                        ) : (
+                          <Clock3Icon />
+                        )}
                       </span>
-                      {result?.error_message && (
-                        <span className="mt-1 block text-xs text-red-700 dark:text-red-300">
-                          {result.error_message}
+                      <span className="min-w-0">
+                        <strong className="block truncate text-sm">
+                          {displayName}
+                        </strong>
+                        <span className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                          <span>{getFileType(file.key)}</span>
+                          <span>·</span>
+                          <span>{fileStateLabel[fileState]}</span>
                         </span>
-                      )}
-                    </span>
-                  </Button>
-                </div>
-              );
-            })}
-            {empty && (
-              <div className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-                The import completed without indexable objects.
-              </div>
-            )}
-          </div>
-        </ScrollArea>
+                        {result?.error_message && (
+                          <span className="mt-1 block text-xs text-destructive">
+                            {result.error_message}
+                          </span>
+                        )}
+                      </span>
+                    </Button>
+                  </div>
+                );
+              })}
+              {empty && (
+                <Alert>
+                  <AlertTitle>No indexable objects</AlertTitle>
+                  <AlertDescription>
+                    The import completed without indexable objects.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </ScrollArea>
 
-        {totalPages > 1 && (
-          <nav
-            className="mt-3 flex items-center justify-between gap-2"
-            aria-label="Processing files pagination"
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((page) => page - 1)}
+          {totalPages > 1 && (
+            <nav
+              className="mt-3 flex items-center justify-between gap-2"
+              aria-label="Processing files pagination"
             >
-              Previous
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              {currentPage} / {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((page) => page + 1)}
-            >
-              Next
-            </Button>
-          </nav>
-        )}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((page) => page - 1)}
+              >
+                Previous
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((page) => page + 1)}
+              >
+                Next
+              </Button>
+            </nav>
+          )}
+        </CardContent>
 
-        <div className="mt-auto grid gap-2 pt-4">
+        <CardFooter className="grid gap-2">
           {statusUnavailable && (
             <Button type="button" onClick={onRetry}>
               Retry status check
@@ -266,7 +288,7 @@ export function DocumentProcessingWorkspace({
           <Button variant="outline" type="button" onClick={onBack}>
             {source.backLabel}
           </Button>
-        </div>
+        </CardFooter>
       </Card>
 
       <DocumentResultViewer
@@ -294,11 +316,9 @@ function Metric({
     <div
       className={cn(
         "rounded-xl bg-muted/70 p-3",
-        tone === "success" &&
-          "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200",
+        tone === "success" && "bg-primary/10 text-primary",
         tone === "active" && "bg-primary/10 text-primary",
-        tone === "danger" &&
-          "bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-200",
+        tone === "danger" && "bg-destructive/10 text-destructive",
       )}
     >
       <strong className="block text-xl">{value}</strong>

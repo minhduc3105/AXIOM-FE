@@ -34,7 +34,11 @@ const pageTitles = {
   index: "Index ready with searchable evidence",
 } as const;
 
-export function IngestionPage({ onBack, backLabel, launchContext }: IngestionPageProps) {
+export function IngestionPage({
+  onBack,
+  backLabel,
+  launchContext,
+}: IngestionPageProps) {
   const workflow = useIngestionWorkflow(launchContext);
   const source = workflow.source;
   const selectingS3Files =
@@ -42,8 +46,7 @@ export function IngestionPage({ onBack, backLabel, launchContext }: IngestionPag
     (workflow.s3BrowserStatus === "ready" ||
       workflow.s3BrowserStatus === "loading_more" ||
       workflow.s3BrowserStatus === "loading_all" ||
-      (workflow.s3BrowserStatus === "error" &&
-        workflow.s3Files.length > 0));
+      (workflow.s3BrowserStatus === "error" && workflow.s3Files.length > 0));
   const trackingS3Import =
     workflow.stage === "s3" &&
     (Boolean(workflow.ingestionJob) ||
@@ -52,12 +55,11 @@ export function IngestionPage({ onBack, backLabel, launchContext }: IngestionPag
       workflow.connectorJobStatus === "discovering_files" ||
       workflow.connectorJobStatus === "status_error" ||
       workflow.connectorJobStatus === "files_error");
-  const pageTitle =
-    trackingS3Import
-      ? "Track selected Amazon S3 import"
-      : selectingS3Files
-        ? "Choose Amazon S3 objects to import"
-        : pageTitles[workflow.stage];
+  const pageTitle = trackingS3Import
+    ? "Track selected Amazon S3 import"
+    : selectingS3Files
+      ? "Choose Amazon S3 objects to import"
+      : pageTitles[workflow.stage];
   const repoMessage =
     workflow.stage === "source"
       ? "New ingestion source"
@@ -97,48 +99,48 @@ export function IngestionPage({ onBack, backLabel, launchContext }: IngestionPag
                       : "S3 connection ready"
             : workflow.stage === "snowflake"
               ? workflow.connectorJobStatus === "discovering_files"
-              ? "Preparing objects for indexing"
-              : workflow.connectorJobStatus === "completed"
-              ? `${workflow.ingestionJob?.objects_written ?? 0} objects stored`
-              : workflow.connectorJobStatus === "polling"
-                ? "Source import running"
-                : workflow.connectorJobStatus === "failed" ||
-                    workflow.connectorJobStatus === "status_error" ||
-                    workflow.connectorJobStatus === "files_error"
-                  ? "Source import needs attention"
-                  : "Source import ready"
-            : workflow.stage === "upload"
-              ? workflow.uploadStatus === "loading"
-                ? "Uploading files"
-                : workflow.uploadStatus === "success"
-                  ? `${workflow.uploadResult?.count ?? workflow.files.length} file${(workflow.uploadResult?.count ?? workflow.files.length) === 1 ? "" : "s"} stored`
-                  : `${workflow.files.length} file${workflow.files.length === 1 ? "" : "s"} staged`
-              : workflow.stage === "processing"
-                ? workflow.documentProcessingStatus === "empty"
-                  ? "No objects to index"
-                  : workflow.documentProcessingStatus === "complete"
-                  ? "All files indexed"
-                  : workflow.documentProcessingStatus ===
-                      "completed_with_errors"
-                    ? "Processing completed with errors"
-                    : workflow.documentProcessingStatus === "status_error"
-                      ? "Corpus status unavailable"
-                      : "Document processing"
-                : workflow.stage === "pipeline"
-                  ? workflow.pipelineStatus === "loading"
-                    ? "Pipeline running"
-                    : workflow.pipelineStatus === "success"
+                ? "Preparing objects for indexing"
+                : workflow.connectorJobStatus === "completed"
+                  ? `${workflow.ingestionJob?.objects_written ?? 0} objects stored`
+                  : workflow.connectorJobStatus === "polling"
+                    ? "Source import running"
+                    : workflow.connectorJobStatus === "failed" ||
+                        workflow.connectorJobStatus === "status_error" ||
+                        workflow.connectorJobStatus === "files_error"
+                      ? "Source import needs attention"
+                      : "Source import ready"
+              : workflow.stage === "upload"
+                ? workflow.uploadStatus === "loading"
+                  ? "Uploading files"
+                  : workflow.uploadStatus === "success"
+                    ? `${workflow.uploadResult?.count ?? workflow.files.length} file${(workflow.uploadResult?.count ?? workflow.files.length) === 1 ? "" : "s"} stored`
+                    : `${workflow.files.length} file${workflow.files.length === 1 ? "" : "s"} staged`
+                : workflow.stage === "processing"
+                  ? workflow.documentProcessingStatus === "empty"
+                    ? "No objects to index"
+                    : workflow.documentProcessingStatus === "complete"
+                      ? "All files indexed"
+                      : workflow.documentProcessingStatus ===
+                          "completed_with_errors"
+                        ? "Processing completed with errors"
+                        : workflow.documentProcessingStatus === "status_error"
+                          ? "Corpus status unavailable"
+                          : "Document processing"
+                  : workflow.stage === "pipeline"
+                    ? workflow.pipelineStatus === "loading"
+                      ? "Pipeline running"
+                      : workflow.pipelineStatus === "success"
+                        ? "Profile generated"
+                        : "Pipeline ready"
+                    : workflow.stage === "profile"
                       ? "Profile generated"
-                      : "Pipeline ready"
-                  : workflow.stage === "profile"
-                    ? "Profile generated"
-                    : workflow.stage === "meaning"
-                      ? workflow.meaningStatus === "extracting"
-                        ? "Extracting meaning"
-                        : "Meaning ready"
-                      : workflow.indexStatus === "ready"
-                        ? "Index ready"
-                        : "Building index";
+                      : workflow.stage === "meaning"
+                        ? workflow.meaningStatus === "extracting"
+                          ? "Extracting meaning"
+                          : "Meaning ready"
+                        : workflow.indexStatus === "ready"
+                          ? "Index ready"
+                          : "Building index";
 
   return (
     <IngestionWorkspaceFrame
@@ -154,6 +156,7 @@ export function IngestionPage({ onBack, backLabel, launchContext }: IngestionPag
       error={workflow.error}
       onBack={onBack}
       backLabel={backLabel}
+      fullBleed={workflow.stage === "processing"}
       onNavigate={workflow.navigateProgress}
     >
       {workflow.stage === "source" && (

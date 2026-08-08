@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/shared/lib/utils";
 import type { ProgressStage } from "../model/types";
 import { IngestionProgress } from "./IngestionProgress";
 
@@ -13,6 +14,7 @@ type IngestionWorkspaceFrameProps = {
   error: string | null;
   onBack: () => void;
   backLabel?: string;
+  fullBleed?: boolean;
   onNavigate: (stage: ProgressStage) => void;
   children: ReactNode;
 };
@@ -26,9 +28,67 @@ export function IngestionWorkspaceFrame({
   error,
   onBack,
   backLabel = "Back to chat",
+  fullBleed = false,
   onNavigate,
   children,
 }: IngestionWorkspaceFrameProps) {
+  if (fullBleed) {
+    return (
+      <div className="min-h-screen bg-transparent">
+        <main className="flex min-h-screen w-full flex-col px-3 pb-3 pt-3 sm:px-4 lg:px-5">
+          <header className="mb-3 flex min-h-12 flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <Button
+                variant="ghost"
+                className="h-9 rounded-xl border border-[#d8d0c2] bg-[#fffdf8]/86 px-3 text-[#6d685e] shadow-[0_8px_24px_rgba(24,24,18,0.05)] hover:bg-[#f4efe5] hover:text-[#191915] dark:border-[#38372f] dark:bg-[#1a1a17]/82 dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-white"
+                onClick={onBack}
+                type="button"
+              >
+                <ArrowLeftIcon data-icon="inline-start" />
+                {backLabel}
+              </Button>
+              <span className="inline-flex h-8 items-center rounded-lg border border-[#d8d0c2]/75 bg-[#fffdf8]/58 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2456e8] shadow-[0_8px_24px_rgba(24,24,18,0.04)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-white/6 dark:text-[#7895ff]">
+                Data ingestion
+              </span>
+              <div className="min-w-0">
+                <h1 className="truncate text-base font-semibold text-[#191915] sm:text-lg dark:text-[#eee8dc]">
+                  {title}
+                </h1>
+                <p className="truncate text-xs text-[#6d685e] dark:text-[#aaa397]">
+                  {repoMessage}
+                </p>
+              </div>
+            </div>
+            <span
+              className={cn(
+                "inline-flex h-8 items-center rounded-lg border px-3 text-xs font-semibold",
+                ready
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200"
+                  : "border-[#d8d0c2] bg-[#fffdf8]/70 text-[#6d685e] dark:border-[#38372f] dark:bg-white/6 dark:text-[#aaa397]",
+              )}
+            >
+              {ready ? "Ready" : "Processing"}
+            </span>
+          </header>
+          <section
+            className="min-h-0 min-w-0 flex-1"
+            aria-label="Ingestion stage workspace"
+          >
+            {children}
+          </section>
+          {error && (
+            <p
+              className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+              role="alert"
+            >
+              {error}
+            </p>
+          )}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-transparent">
       <main className="mx-auto w-[min(1440px,100%)] px-5 pb-14 pt-28 sm:px-8 lg:px-10">

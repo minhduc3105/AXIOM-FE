@@ -75,7 +75,7 @@ const initialConnection: MySqlConnection = {
 const initialS3Connection: S3Connection = {
   accessKeyId: "",
   secretAccessKey: "",
-  region: "ap-southeast-1",
+  region: "us-east-1",
   bucketName: "",
 };
 

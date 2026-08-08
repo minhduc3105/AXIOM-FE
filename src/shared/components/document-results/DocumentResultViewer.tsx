@@ -6,10 +6,25 @@ import {
   useRef,
   useState,
 } from "react";
-import { FileSearchIcon, RefreshCwIcon, ScanSearchIcon } from "lucide-react";
+import {
+  AlertCircleIcon,
+  FileSearchIcon,
+  RefreshCwIcon,
+  ScanSearchIcon,
+} from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toggle } from "@/components/ui/toggle";
@@ -91,56 +106,80 @@ export function DocumentResultViewer({
 
   if (!file) {
     return (
-      <div className="grid min-h-[680px] place-items-center rounded-[28px] border border-dashed bg-card/70 p-8 text-center">
-        <div className="max-w-sm">
-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-muted text-primary">
-            <FileSearchIcon />
-          </span>
-          <h3 className="mt-4 text-lg font-semibold">
-            No indexed result selected
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Select an indexed file to compare its source with parsed content.
-          </p>
-        </div>
-      </div>
+      <Card className="min-h-[520px] xl:col-span-2 xl:min-h-0">
+        <CardContent className="grid flex-1 place-items-center p-8 text-center">
+          <div className="flex max-w-sm flex-col items-center gap-3">
+            <span className="grid size-12 place-items-center rounded-lg bg-muted text-primary">
+              <FileSearchIcon />
+            </span>
+            <div>
+              <h3 className="text-lg font-semibold">
+                No indexed result selected
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Select an indexed file to compare its source with parsed
+                content.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
-  return (
-    <section
-      className="min-w-0 overflow-hidden rounded-[28px] border bg-card/95"
-      aria-label="Parsed document inspector"
-    >
-      <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold">
-            {getDisplayName(file)}
-          </h3>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">{blocks.length} blocks</Badge>
-          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
-            Indexed
-          </Badge>
-        </div>
-      </header>
+  const sourceKind = getSourcePreviewKind(file);
+  const sourceDescription =
+    sourceKind === "unsupported"
+      ? "Preview unavailable"
+      : `${sourceKind.toUpperCase()} inline preview`;
 
-      <div className="grid min-h-[680px] xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
-        <SourcePane
-          file={file}
-          preview={preview}
-          blocks={blocks}
-          activeComponentId={activeComponentId}
-          pageIndex={pageIndex}
-          showBoxes={showBoxes}
-          zoom={zoom}
-          onActivate={activateFromSource}
-          onPageIndexChange={setPageIndex}
-          onShowBoxesChange={setShowBoxes}
-          onZoomChange={setZoom}
-          onRetry={onRetryPreview}
-        />
+  return (
+    <>
+      <Card
+        className="h-full min-h-[620px] min-w-0 gap-0 py-0 xl:min-h-0"
+        aria-label="Source document inspector"
+      >
+        <CardHeader className="min-h-16 border-b py-3">
+          <CardTitle className="truncate">{getDisplayName(file)}</CardTitle>
+          <CardAction className="flex flex-wrap items-center justify-end gap-2">
+            {sourceKind === "image" && (
+              <Toggle
+                variant="outline"
+                size="sm"
+                pressed={showBoxes}
+                onPressedChange={setShowBoxes}
+                aria-label="Toggle parsed layout boxes"
+              >
+                <ScanSearchIcon />
+                Boxes
+              </Toggle>
+            )}
+            <Badge variant="secondary">{blocks.length} blocks</Badge>
+            <Badge>Indexed</Badge>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+          <SourcePane
+            file={file}
+            preview={preview}
+            blocks={blocks}
+            activeComponentId={activeComponentId}
+            pageIndex={pageIndex}
+            showBoxes={showBoxes}
+            zoom={zoom}
+            onActivate={activateFromSource}
+            onPageIndexChange={setPageIndex}
+            onShowBoxesChange={setShowBoxes}
+            onZoomChange={setZoom}
+            onRetry={onRetryPreview}
+          />
+        </CardContent>
+      </Card>
+
+      <Card
+        className="h-full min-h-[620px] min-w-0 gap-0 py-0 xl:min-h-0"
+        aria-label="Parsed content inspector"
+      >
         <ParsedPane
           parsing={parsing}
           activeComponentId={activeComponentId}
@@ -148,8 +187,8 @@ export function DocumentResultViewer({
           onActivate={activateFromCard}
           onRetry={onRetryParsing}
         />
-      </div>
-    </section>
+      </Card>
+    </>
   );
 }
 
@@ -173,55 +212,29 @@ function SourcePane(props: SourcePaneProps) {
   const [imageError, setImageError] = useState(false);
   useEffect(() => setImageError(false), [props.preview.data?.url]);
   return (
-    <div className="flex min-h-0 min-w-0 flex-col border-b bg-[#25241f] xl:border-b-0 xl:border-r">
-      <div className="flex min-h-14 items-center justify-between gap-3 border-b border-white/10 bg-[#191915] px-4 text-white">
-        <div className="min-w-0">
-          <strong className="block text-sm">Source document</strong>
-          <span className="block truncate text-[10px] uppercase tracking-[0.14em] text-white/55">
-            {kind === "unsupported"
-              ? "Preview unavailable"
-              : `${kind.toUpperCase()} · inline preview`}
-          </span>
-        </div>
-        {kind === "image" && (
-          <Toggle
-            variant="outline"
-            size="sm"
-            className="border-white/20 text-white hover:bg-white/10 hover:text-white data-[state=on]:bg-amber-300 data-[state=on]:text-[#191915]"
-            pressed={props.showBoxes}
-            onPressedChange={props.onShowBoxesChange}
-            aria-label="Toggle parsed layout boxes"
-          >
-            <ScanSearchIcon />
-            Boxes
-          </Toggle>
-        )}
-      </div>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-foreground">
       {kind === "unsupported" ? (
-        <div className="grid min-h-[520px] flex-1 place-items-center p-8 text-center text-sm text-white/65">
-          Source preview is available for PDF, PNG, and JPEG files. Parsed
-          content remains available beside it.
+        <div className="grid min-h-[420px] flex-1 place-items-center p-8">
+          <Alert className="max-w-md">
+            <AlertTitle>Preview unavailable</AlertTitle>
+            <AlertDescription>
+              Source preview is available for PDF, PNG, and JPEG files. Parsed
+              content remains available beside it.
+            </AlertDescription>
+          </Alert>
         </div>
       ) : props.preview.status === "loading" && !props.preview.data ? (
-        <div className="grid min-h-[520px] flex-1 place-items-center p-6">
-          <div className="w-full max-w-md space-y-3">
-            <Skeleton className="h-10 bg-white/10" />
-            <Skeleton className="h-[430px] bg-white/10" />
+        <div className="grid min-h-[420px] flex-1 place-items-center p-6">
+          <div className="flex w-full max-w-md flex-col gap-3">
+            <Skeleton className="h-10" />
+            <Skeleton className="h-[360px]" />
           </div>
         </div>
       ) : props.preview.status === "error" && !props.preview.data ? (
-        <ResourceError
-          message={props.preview.error}
-          onRetry={props.onRetry}
-          dark
-        />
+        <ResourceError message={props.preview.error} onRetry={props.onRetry} />
       ) : props.preview.data && kind === "pdf" ? (
         <Suspense
-          fallback={
-            <div className="grid min-h-[520px] place-items-center text-sm text-white/70">
-              Loading PDF viewer…
-            </div>
-          }
+          fallback={<SourceLoadingState label="Loading PDF viewer..." />}
         >
           <PdfSourceViewer
             url={props.preview.data.url}
@@ -241,13 +254,12 @@ function SourcePane(props: SourcePaneProps) {
         <ResourceError
           message="The signed image preview could not be loaded."
           onRetry={props.onRetry}
-          dark
         />
       ) : props.preview.data ? (
-        <div className="min-h-[520px] flex-1 overflow-auto p-4">
+        <div className="min-h-[420px] flex-1 overflow-auto p-4">
           <div className="relative mx-auto w-fit max-w-full overflow-hidden bg-white shadow-2xl">
             <img
-              className="block h-auto max-h-[720px] max-w-full"
+              className="block h-auto max-h-[calc(100dvh-180px)] max-w-full"
               src={props.preview.data.url}
               alt={`Source preview for ${getDisplayName(props.file)}`}
               onError={() => setImageError(true)}
@@ -282,107 +294,167 @@ function ParsedPane({
   onRetry,
 }: ParsedPaneProps) {
   return (
-    <div className="flex min-h-0 min-w-0 flex-col bg-muted/35">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {parsing.status === "loading" && !parsing.data ? (
-        <div className="space-y-3 p-4">
-          <Skeleton className="h-10" />
-          <Skeleton className="h-40" />
-          <Skeleton className="h-28" />
-        </div>
+        <>
+          <CardHeader className="min-h-14 border-b py-3">
+            <CardTitle>Parsed content</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 p-4">
+            <Skeleton className="h-10" />
+            <Skeleton className="h-40" />
+            <Skeleton className="h-28" />
+          </CardContent>
+        </>
       ) : parsing.status === "error" && !parsing.data ? (
-        <ResourceError message={parsing.error} onRetry={onRetry} />
+        <>
+          <CardHeader className="min-h-14 border-b py-3">
+            <CardTitle>Parsed content</CardTitle>
+          </CardHeader>
+          <CardContent className="grid flex-1 place-items-center p-6">
+            <ResourceError message={parsing.error} onRetry={onRetry} />
+          </CardContent>
+        </>
       ) : parsing.data ? (
-        <Tabs defaultValue="rendered" className="min-h-0 flex-1 gap-0">
-          <div className="flex min-h-14 items-center justify-between gap-3 border-b bg-card px-4">
-            <div>
-              <strong className="block text-sm">Parsed content</strong>
-            </div>
-            <TabsList>
-              <TabsTrigger value="rendered">Rendered</TabsTrigger>
-              <TabsTrigger value="json">JSON</TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="rendered" className="min-h-0">
-            <ScrollArea className="h-[624px]">
-              <div className="grid gap-3 p-3">
-                {parsing.data.blocks.length ? (
-                  parsing.data.blocks.map((block, index) => {
-                    const active = activeComponentId === block.component_id;
-                    const boxed = Boolean(block.bbox && block.page_bbox);
-                    return (
-                      <article
-                        ref={(element) => {
-                          if (element)
-                            cardRefs.current.set(block.component_id, element);
-                          else cardRefs.current.delete(block.component_id);
-                        }}
-                        className={cn(
-                          "cursor-pointer overflow-hidden rounded-xl border bg-card transition hover:border-primary/45 focus-within:border-primary",
-                          active &&
-                            "border-primary shadow-[0_0_0_2px_color-mix(in_srgb,var(--primary)_18%,transparent)]",
-                        )}
+        <Tabs
+          defaultValue="rendered"
+          className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
+        >
+          <CardHeader className="min-h-14 border-b py-3">
+            <CardTitle>Parsed content</CardTitle>
+            <CardAction>
+              <TabsList>
+                <TabsTrigger value="rendered">Rendered</TabsTrigger>
+                <TabsTrigger value="json">JSON</TabsTrigger>
+              </TabsList>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+            <TabsContent
+              value="rendered"
+              className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="grid gap-3 p-3">
+                  {parsing.data.blocks.length ? (
+                    parsing.data.blocks.map((block, index) => (
+                      <ParsedBlockCard
                         key={block.component_id}
-                        onMouseEnter={() => onActivate(block)}
-                      >
-                        <button
-                          type="button"
-                          className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                          aria-label={`Show ${block.component_id} in source document`}
-                          aria-pressed={active}
-                          onClick={() => onActivate(block)}
-                        >
-                          <span className="flex min-h-9 items-center gap-2 bg-[#191915] px-3 text-white">
-                            <i className="min-w-6 bg-amber-300 px-1 py-0.5 text-center font-mono text-[10px] font-bold not-italic text-[#191915]">
-                              {(index + 1).toString().padStart(2, "0")}
-                            </i>
-                            <b className="font-mono text-[10px] uppercase tracking-[0.08em] text-amber-300">
-                              {block.type}
-                            </b>
-                            <small className="ml-auto font-mono text-[9px] text-white/55">
-                              {block.page === null
-                                ? "Page —"
-                                : `Page ${block.page + 1}`}{" "}
-                              · {boxed ? "Boxed" : "No box"}
-                            </small>
-                          </span>
-                          <code className="block break-all border-b bg-muted/55 px-3 py-2 font-mono text-[10px] text-muted-foreground">
-                            {block.component_id}
-                          </code>
-                        </button>
-                        <RenderedBlockContent block={block} />
-                      </article>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-xl border border-dashed bg-card p-5">
-                    <strong className="text-sm">No layout blocks</strong>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                      {parsing.data.mainText ||
-                        "Corpus did not return block or main-text content for this document."}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </TabsContent>
-          <TabsContent value="json" className="min-h-0">
-            <ScrollArea className="h-[624px]">
-              <pre className="m-3 overflow-x-auto rounded-xl border bg-[#191915] p-4 text-xs leading-relaxed text-[#eee8dc]">
-                {JSON.stringify(
-                  {
-                    document: parsing.data.document,
-                    processing_run: parsing.data.processingRun,
-                    reading_order: parsing.data.readingOrder,
-                    blocks: parsing.data.blocks,
-                  },
-                  null,
-                  2,
-                )}
-              </pre>
-            </ScrollArea>
-          </TabsContent>
+                        block={block}
+                        index={index}
+                        active={activeComponentId === block.component_id}
+                        cardRefs={cardRefs}
+                        onActivate={onActivate}
+                      />
+                    ))
+                  ) : (
+                    <Alert>
+                      <AlertTitle>No layout blocks</AlertTitle>
+                      <AlertDescription className="whitespace-pre-wrap">
+                        {parsing.data.mainText ||
+                          "Corpus did not return block or main-text content for this document."}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+            <TabsContent
+              value="json"
+              className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <ScrollArea className="min-h-0 flex-1">
+                <pre className="m-3 overflow-x-auto rounded-xl bg-foreground p-4 text-xs leading-relaxed text-background">
+                  {JSON.stringify(
+                    {
+                      document: parsing.data.document,
+                      processing_run: parsing.data.processingRun,
+                      reading_order: parsing.data.readingOrder,
+                      blocks: parsing.data.blocks,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </ScrollArea>
+            </TabsContent>
+          </CardContent>
         </Tabs>
       ) : null}
+    </div>
+  );
+}
+
+function ParsedBlockCard({
+  block,
+  index,
+  active,
+  cardRefs,
+  onActivate,
+}: {
+  block: LayoutBlock;
+  index: number;
+  active: boolean;
+  cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+  onActivate: (block: LayoutBlock) => void;
+}) {
+  const boxed = Boolean(block.bbox && block.page_bbox);
+  const pageLabel = block.page === null ? "Page -" : `Page ${block.page + 1}`;
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onActivate(block);
+  };
+
+  return (
+    <Card
+      ref={(element) => {
+        if (element) cardRefs.current.set(block.component_id, element);
+        else cardRefs.current.delete(block.component_id);
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Show ${block.component_id} in source document`}
+      aria-pressed={active}
+      className={cn(
+        "cursor-pointer gap-0 py-0 transition hover:ring-primary/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+        active && "ring-primary",
+      )}
+      onMouseEnter={() => onActivate(block)}
+      onClick={() => onActivate(block)}
+      onKeyDown={handleKeyDown}
+    >
+      <CardHeader className="gap-2 bg-muted/40 py-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Badge>{(index + 1).toString().padStart(2, "0")}</Badge>
+          <Badge variant="outline">{block.type}</Badge>
+          <Badge variant="secondary">{pageLabel}</Badge>
+          <Badge variant={boxed ? "secondary" : "outline"}>
+            {boxed ? "Boxed" : "No box"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <Separator />
+      <CardContent className="p-0">
+        <code className="block break-all bg-muted/55 px-3 py-2 font-mono text-[10px] text-muted-foreground">
+          {block.component_id}
+        </code>
+        <Separator />
+        <RenderedBlockContent block={block} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function SourceLoadingState({ label }: { label: string }) {
+  return (
+    <div className="grid min-h-[420px] flex-1 place-items-center p-6">
+      <div className="flex w-full max-w-md flex-col gap-3">
+        <Skeleton className="h-10" />
+        <Skeleton className="h-[360px]" />
+        <p className="text-center text-xs text-background/70">{label}</p>
+      </div>
     </div>
   );
 }
@@ -390,33 +462,26 @@ function ParsedPane({
 function ResourceError({
   message,
   onRetry,
-  dark = false,
 }: {
   message: string;
   onRetry: () => void;
-  dark?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "grid min-h-[520px] flex-1 place-items-center p-6 text-center",
-        dark && "text-white",
-      )}
-    >
-      <div className="max-w-sm">
-        <p className={cn("text-sm text-destructive", dark && "text-red-200")}>
-          {message}
-        </p>
+    <div className="grid min-h-[420px] flex-1 place-items-center p-6">
+      <Alert variant="destructive" className="max-w-sm">
+        <AlertCircleIcon />
+        <AlertTitle>Resource unavailable</AlertTitle>
+        <AlertDescription>{message}</AlertDescription>
         <Button
           className="mt-4"
-          variant={dark ? "secondary" : "outline"}
+          variant="outline"
           type="button"
           onClick={onRetry}
         >
           <RefreshCwIcon data-icon="inline-start" />
           Retry
         </Button>
-      </div>
+      </Alert>
     </div>
   );
 }

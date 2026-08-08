@@ -42,8 +42,8 @@ export function S3Form({
   );
   const requiredReady = Boolean(
     credentialsReady &&
-      connection.region.trim() &&
-      connection.bucketName.trim(),
+    connection.region.trim() &&
+    connection.bucketName.trim(),
   );
   const overviewStatus = error
     ? { label: "Access failed", variant: "destructive" as const }
@@ -74,9 +74,7 @@ export function S3Form({
             <Input
               autoComplete="off"
               value={connection.accessKeyId}
-              onChange={(event) =>
-                onChange("accessKeyId", event.target.value)
-              }
+              onChange={(event) => onChange("accessKeyId", event.target.value)}
               disabled={busy}
               required
             />
@@ -98,7 +96,7 @@ export function S3Form({
             <label className="grid gap-2">
               AWS region
               <Input
-                placeholder="ap-southeast-1"
+                placeholder="us-east-1"
                 value={connection.region}
                 onChange={(event) => onChange("region", event.target.value)}
                 disabled={busy}
@@ -110,9 +108,7 @@ export function S3Form({
               <Input
                 placeholder="company-documents"
                 value={connection.bucketName}
-                onChange={(event) =>
-                  onChange("bucketName", event.target.value)
-                }
+                onChange={(event) => onChange("bucketName", event.target.value)}
                 disabled={busy}
                 required
               />

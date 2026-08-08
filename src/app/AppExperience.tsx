@@ -95,9 +95,7 @@ export function AppExperience() {
     navigate(createMemoryRoute());
   }, [navigate]);
 
-  const openSettings = useCallback(() => {
-    navigate(createMemoryRoute());
-  }, [navigate]);
+  const openSettings = useCallback(() => {}, []);
 
   const openToolDetail = useCallback(
     (toolName: string) => {
