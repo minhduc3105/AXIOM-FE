@@ -12,6 +12,7 @@ import {
   RefreshCwIcon,
   ScanSearchIcon,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Toggle } from "@/components/ui/toggle";
 import { cn } from "@/shared/lib/utils";
 import type {
@@ -128,10 +137,6 @@ export function DocumentResultViewer({
   }
 
   const sourceKind = getSourcePreviewKind(file);
-  const sourceDescription =
-    sourceKind === "unsupported"
-      ? "Preview unavailable"
-      : `${sourceKind.toUpperCase()} inline preview`;
 
   return (
     <>
@@ -218,8 +223,8 @@ function SourcePane(props: SourcePaneProps) {
           <Alert className="max-w-md">
             <AlertTitle>Preview unavailable</AlertTitle>
             <AlertDescription>
-              Source preview is available for PDF, PNG, and JPEG files. Parsed
-              content remains available beside it.
+              Source preview is available for PDF, PNG, JPEG, and XLSX files.
+              Parsed content remains available beside it.
             </AlertDescription>
           </Alert>
         </div>
@@ -250,6 +255,11 @@ function SourcePane(props: SourcePaneProps) {
             onZoomChange={props.onZoomChange}
           />
         </Suspense>
+      ) : props.preview.data && kind === "xlsx" ? (
+        <SpreadsheetSourceViewer
+          url={props.preview.data.url}
+          fileName={getDisplayName(props.file)}
+        />
       ) : props.preview.data && imageError ? (
         <ResourceError
           message="The signed image preview could not be loaded."
@@ -285,6 +295,182 @@ type ParsedPaneProps = {
   onActivate: (block: LayoutBlock) => void;
   onRetry: () => void;
 };
+
+type SpreadsheetPreviewState =
+  | { status: "loading"; data: null; error: null }
+  | {
+      status: "ready";
+      data: {
+        sheetName: string;
+        sheetCount: number;
+        columns: string[];
+        rows: string[][];
+      };
+      error: null;
+    }
+  | { status: "error"; data: null; error: string };
+
+function normalizeSheetRows(rows: string[][], width: number) {
+  return rows.map((row) =>
+    Array.from({ length: width }, (_, index) => row[index] ?? ""),
+  );
+}
+
+async function parseSpreadsheetPreview(
+  url: string,
+  signal: AbortSignal,
+): Promise<Extract<SpreadsheetPreviewState, { status: "ready" }>["data"]> {
+  const response = await fetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`Workbook preview failed with HTTP ${response.status}.`);
+  }
+  const workbook = XLSX.read(await response.arrayBuffer(), {
+    type: "array",
+    cellDates: true,
+  });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName)
+    throw new Error("The workbook does not contain a visible sheet.");
+  const sheet = workbook.Sheets[sheetName];
+  const rawRows = XLSX.utils.sheet_to_json<
+    Array<string | number | boolean | Date | null>
+  >(sheet, {
+    header: 1,
+    blankrows: false,
+    defval: "",
+    raw: false,
+  });
+  const sampleRows = rawRows
+    .filter((row) => row.some((cell) => String(cell ?? "").trim()))
+    .slice(0, 30);
+  const width = Math.min(
+    Math.max(...sampleRows.map((row) => row.length), 1),
+    16,
+  );
+  return {
+    sheetName,
+    sheetCount: workbook.SheetNames.length,
+    columns: Array.from({ length: width }, (_, index) =>
+      XLSX.utils.encode_col(index),
+    ),
+    rows: normalizeSheetRows(
+      sampleRows.map((row) =>
+        row
+          .slice(0, width)
+          .map((cell) =>
+            cell instanceof Date ? cell.toLocaleString() : String(cell ?? ""),
+          ),
+      ),
+      width,
+    ),
+  };
+}
+
+function SpreadsheetSourceViewer({
+  url,
+  fileName,
+}: {
+  url: string;
+  fileName: string;
+}) {
+  const [state, setState] = useState<SpreadsheetPreviewState>({
+    status: "loading",
+    data: null,
+    error: null,
+  });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setState({ status: "loading", data: null, error: null });
+    void parseSpreadsheetPreview(url, controller.signal)
+      .then((data) => {
+        setState({ status: "ready", data, error: null });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setState({
+          status: "error",
+          data: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unable to parse workbook preview.",
+        });
+      });
+    return () => controller.abort();
+  }, [url]);
+
+  if (state.status === "loading") {
+    return <SourceLoadingState label="Loading spreadsheet preview..." />;
+  }
+  if (state.status === "error") {
+    return (
+      <div className="grid min-h-[420px] flex-1 place-items-center p-6">
+        <Alert variant="destructive" className="max-w-sm">
+          <AlertCircleIcon />
+          <AlertTitle>Spreadsheet preview unavailable</AlertTitle>
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const { columns, rows, sheetName, sheetCount } = state.data;
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-foreground">
+      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
+        <Badge>{sheetName}</Badge>
+        <Badge variant="secondary">
+          {sheetCount} sheet{sheetCount === 1 ? "" : "s"}
+        </Badge>
+        <span className="min-w-0 truncate text-xs text-muted-foreground">
+          {fileName}
+        </span>
+      </div>
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="min-w-max p-4">
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {columns.map((column) => (
+                    <TableHead key={column}>{column}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.length ? (
+                  rows.map((row, rowIndex) => (
+                    <TableRow key={`${sheetName}-${rowIndex}`}>
+                      {columns.map((column, columnIndex) => (
+                        <TableCell
+                          key={`${column}-${columnIndex}`}
+                          className="max-w-[280px] truncate"
+                          title={row[columnIndex] ?? ""}
+                        >
+                          {row[columnIndex] || "—"}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-32 text-center text-muted-foreground"
+                    >
+                      No populated cells were found in this sheet.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
 
 function ParsedPane({
   parsing,

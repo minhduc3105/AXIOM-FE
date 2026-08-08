@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import { FileTextIcon, Trash2Icon, UploadCloudIcon } from "lucide-react";
+import * as XLSX from "xlsx";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,12 +47,24 @@ type UploadWorkspaceProps = {
   onBack: () => void;
 };
 
-const previewRows = [
-  ["C-1001", "Northstar Labs", "ops@northstar.co", "Enterprise", "$124K"],
-  ["C-1002", "Packet Foundry", "missing", "Mid-market", "$48K"],
-  ["C-1003", "Vector Works", "finance@vector.io", "Enterprise", "$171K"],
-  ["C-1005", "Lattice Bank", "missing", "Enterprise", "$210K"],
-];
+type DataPreviewState = {
+  status: "idle" | "loading" | "ready" | "error";
+  title: string;
+  description: string;
+  columns: string[];
+  rows: string[][];
+  metrics: Array<{ label: string; value: string }>;
+  error?: string;
+};
+
+const emptyDataPreview: DataPreviewState = {
+  status: "idle",
+  title: "Select a data file",
+  description: "File metadata and sample rows will appear here.",
+  columns: ["Property", "Value"],
+  rows: [],
+  metrics: [],
+};
 
 function getStatusLabel(status: AsyncStatus, isSelected: boolean) {
   if (status === "loading") return "Uploading";
@@ -84,6 +97,248 @@ function isImageFile(file: IngestionFile | undefined) {
   );
 }
 
+function isWorkbookFile(file: IngestionFile | undefined) {
+  return file?.extension.toUpperCase() === "XLSX";
+}
+
+function isTextPreviewFile(file: IngestionFile | undefined) {
+  const extension = file?.extension.toLowerCase();
+  return (
+    extension === "csv" ||
+    extension === "json" ||
+    extension === "txt" ||
+    extension === "md" ||
+    extension === "markdown" ||
+    file?.file.type.startsWith("text/") ||
+    file?.file.type === "application/json"
+  );
+}
+
+function parseDelimitedLine(line: string) {
+  const cells: string[] = [];
+  let current = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function normalizeTableRows(rows: string[][], width: number) {
+  return rows.map((row) =>
+    Array.from({ length: width }, (_, index) => row[index] ?? ""),
+  );
+}
+
+async function buildTextDataPreview(
+  file: IngestionFile,
+): Promise<DataPreviewState> {
+  const sample = await file.file.slice(0, 128 * 1024).text();
+  const extension = file.extension.toLowerCase();
+  const metrics = [
+    { label: "Type", value: file.extension.toUpperCase() },
+    { label: "Size", value: file.sizeLabel },
+  ];
+
+  if (extension === "json") {
+    try {
+      const parsed = JSON.parse(sample) as unknown;
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((item) => typeof item === "object" && item !== null)
+      ) {
+        const records = parsed.slice(0, 8) as Array<Record<string, unknown>>;
+        const columns = Array.from(
+          new Set(records.flatMap((record) => Object.keys(record))),
+        ).slice(0, 8);
+        return {
+          status: "ready",
+          title: file.name,
+          description: "JSON preview generated from the selected upload file.",
+          columns: columns.length ? columns : ["Value"],
+          rows: records.map((record) =>
+            (columns.length ? columns : ["Value"]).map((column) =>
+              typeof record[column] === "object"
+                ? JSON.stringify(record[column])
+                : String(record[column] ?? ""),
+            ),
+          ),
+          metrics: [
+            ...metrics,
+            { label: "Sample", value: `${records.length} records` },
+          ],
+        };
+      }
+      if (typeof parsed === "object" && parsed !== null) {
+        const entries = Object.entries(parsed as Record<string, unknown>).slice(
+          0,
+          10,
+        );
+        return {
+          status: "ready",
+          title: file.name,
+          description:
+            "JSON object preview generated from the selected upload file.",
+          columns: ["Key", "Value"],
+          rows: entries.map(([key, value]) => [
+            key,
+            typeof value === "object"
+              ? JSON.stringify(value)
+              : String(value ?? ""),
+          ]),
+          metrics: [
+            ...metrics,
+            { label: "Keys", value: String(entries.length) },
+          ],
+        };
+      }
+    } catch {
+      // Fall through to text sample when the uploaded JSON is incomplete or invalid.
+    }
+  }
+
+  const lines = sample
+    .split(/\r?\n/)
+    .filter((line) => line.trim())
+    .slice(0, 9);
+  if (extension === "csv" && lines.length > 0) {
+    const parsedRows = lines.map(parseDelimitedLine);
+    const header = parsedRows[0] ?? [];
+    const width = Math.max(...parsedRows.map((row) => row.length), 1);
+    const columns = header.some(Boolean)
+      ? normalizeTableRows([header], width)[0]
+      : Array.from({ length: width }, (_, index) => `Column ${index + 1}`);
+    return {
+      status: "ready",
+      title: file.name,
+      description: "CSV preview generated from the selected upload file.",
+      columns,
+      rows: normalizeTableRows(parsedRows.slice(1, 8), columns.length),
+      metrics: [
+        ...metrics,
+        { label: "Sample", value: `${Math.max(lines.length - 1, 0)} rows` },
+      ],
+    };
+  }
+
+  return {
+    status: "ready",
+    title: file.name,
+    description: "Text preview generated from the selected upload file.",
+    columns: ["Line", "Content"],
+    rows: lines.slice(0, 10).map((line, index) => [String(index + 1), line]),
+    metrics: [...metrics, { label: "Sample", value: `${lines.length} lines` }],
+  };
+}
+
+async function buildWorkbookPreview(
+  file: IngestionFile,
+): Promise<DataPreviewState> {
+  const workbook = XLSX.read(await file.file.arrayBuffer(), {
+    type: "array",
+    cellDates: true,
+  });
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) {
+    return {
+      status: "error",
+      title: file.name,
+      description: "Unable to inspect this workbook.",
+      columns: ["Property", "Value"],
+      rows: [
+        ["File", file.name],
+        ["Size", file.sizeLabel],
+      ],
+      metrics: [
+        { label: "Type", value: "XLSX" },
+        { label: "Size", value: file.sizeLabel },
+      ],
+      error: "The workbook does not contain any visible sheets.",
+    };
+  }
+
+  const sheet = workbook.Sheets[firstSheetName];
+  const rawRows = XLSX.utils.sheet_to_json<
+    Array<string | number | boolean | Date | null>
+  >(sheet, {
+    header: 1,
+    blankrows: false,
+    defval: "",
+    raw: false,
+  });
+  const nonEmptyRows = rawRows.filter((row) =>
+    row.some((cell) => String(cell ?? "").trim()),
+  );
+  const sampleRows = nonEmptyRows.slice(0, 10);
+  const width = Math.min(
+    Math.max(...sampleRows.map((row) => row.length), 1),
+    12,
+  );
+  const columns = Array.from({ length: width }, (_, index) =>
+    XLSX.utils.encode_col(index),
+  );
+  const rows = normalizeTableRows(
+    sampleRows.map((row) =>
+      row
+        .slice(0, width)
+        .map((cell) =>
+          cell instanceof Date ? cell.toLocaleString() : String(cell ?? ""),
+        ),
+    ),
+    width,
+  );
+
+  return {
+    status: "ready",
+    title: file.name,
+    description: `SheetJS preview from sheet "${firstSheetName}".`,
+    columns,
+    rows,
+    metrics: [
+      { label: "Sheets", value: String(workbook.SheetNames.length) },
+      { label: "Active sheet", value: firstSheetName },
+      { label: "Sample", value: `${rows.length} rows` },
+      { label: "Size", value: file.sizeLabel },
+    ],
+  };
+}
+
+async function buildDataPreview(
+  file: IngestionFile,
+): Promise<DataPreviewState> {
+  if (isWorkbookFile(file)) return buildWorkbookPreview(file);
+  if (isTextPreviewFile(file)) return buildTextDataPreview(file);
+  return {
+    status: "ready",
+    title: file.name,
+    description: "Binary file selected for upload.",
+    columns: ["Property", "Value"],
+    rows: [
+      ["File name", file.name],
+      ["Type", file.extension.toUpperCase()],
+      ["Browser MIME type", file.file.type || "Not provided"],
+      ["Size", file.sizeLabel],
+    ],
+    metrics: [
+      { label: "Type", value: file.extension.toUpperCase() },
+      { label: "Size", value: file.sizeLabel },
+    ],
+  };
+}
+
 export function UploadWorkspace({
   files,
   selectedFileId,
@@ -98,6 +353,8 @@ export function UploadWorkspace({
 }: UploadWorkspaceProps) {
   const [dragging, setDragging] = useState(false);
   const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string | null>(null);
+  const [dataPreview, setDataPreview] =
+    useState<DataPreviewState>(emptyDataPreview);
   const inputId = "axiom-upload-more";
   const uploading = uploadStatus === "loading";
   const uploaded = uploadStatus === "success";
@@ -127,6 +384,49 @@ export function UploadWorkspace({
     const objectUrl = URL.createObjectURL(selected.file);
     setSourcePreviewUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
+  }, [selected, selectedIsImage, selectedIsPdf]);
+
+  useEffect(() => {
+    if (!selected || selectedIsPdf || selectedIsImage) {
+      setDataPreview(emptyDataPreview);
+      return;
+    }
+
+    let cancelled = false;
+    setDataPreview({
+      ...emptyDataPreview,
+      status: "loading",
+      title: selected.name,
+      description: "Reading preview from the selected upload file.",
+    });
+    void buildDataPreview(selected)
+      .then((preview) => {
+        if (!cancelled) setDataPreview(preview);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setDataPreview({
+          status: "error",
+          title: selected.name,
+          description: "Unable to generate a browser-side preview.",
+          columns: ["Property", "Value"],
+          rows: [
+            ["File name", selected.name],
+            ["Size", selected.sizeLabel],
+          ],
+          metrics: [
+            { label: "Type", value: selected.extension.toUpperCase() },
+            { label: "Size", value: selected.sizeLabel },
+          ],
+          error:
+            error instanceof Error
+              ? error.message
+              : "The selected file could not be read.",
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selected, selectedIsImage, selectedIsPdf]);
 
   const dropFiles = (event: DragEvent<HTMLLabelElement>) => {
@@ -296,7 +596,7 @@ export function UploadWorkspace({
               imagePreviewUrl={sourcePreviewUrl}
             />
           ) : (
-            <DataPreview />
+            <DataPreview preview={dataPreview} />
           )}
         </CardContent>
       </Card>
@@ -393,50 +693,52 @@ function PdfPreview({
   );
 }
 
-function DataPreview() {
+function DataPreview({ preview }: { preview: DataPreviewState }) {
+  const hasRows = preview.rows.length > 0;
   return (
     <div className="flex flex-col gap-5">
       <div className="overflow-hidden rounded-xl border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>customer_id</TableHead>
-              <TableHead>customer_name</TableHead>
-              <TableHead>email</TableHead>
-              <TableHead>segment</TableHead>
-              <TableHead>revenue</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {previewRows.map((row) => (
-              <TableRow key={row[0]}>
-                {row.map((cell) => (
-                  <TableCell key={cell}>{cell}</TableCell>
+        {preview.status === "loading" ? (
+          <div className="grid min-h-[280px] place-items-center p-6 text-center text-muted-foreground">
+            Reading file preview...
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {preview.columns.map((column) => (
+                  <TableHead key={column}>{column}</TableHead>
                 ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <Card size="sm" className="bg-muted/60">
-          <CardHeader>
-            <CardTitle>Detected schema</CardTitle>
-            <CardDescription>
-              Identifier: customer_id · Money: revenue · Timestamp: renewal_date
-              · PII: email
-            </CardDescription>
-          </CardHeader>
-        </Card>
-        <Card size="sm" className="bg-muted/60">
-          <CardHeader>
-            <CardTitle>Upload preflight</CardTitle>
-            <CardDescription>
-              No parser errors · 2 missing email fields · approval required
-              before searchable activation.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+            </TableHeader>
+            <TableBody>
+              {hasRows ? (
+                preview.rows.map((row, rowIndex) => (
+                  <TableRow key={`${preview.title}-${rowIndex}`}>
+                    {preview.columns.map((column, columnIndex) => (
+                      <TableCell
+                        key={`${column}-${columnIndex}`}
+                        className="max-w-[280px] truncate"
+                        title={row[columnIndex] ?? ""}
+                      >
+                        {row[columnIndex] || "—"}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={preview.columns.length}
+                    className="h-32 text-center text-muted-foreground"
+                  >
+                    No preview rows were found in this file.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   );

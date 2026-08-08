@@ -6,7 +6,7 @@ export type ProcessingFile = {
   contentType: string | null;
 };
 
-export type SourcePreviewKind = "pdf" | "image" | "unsupported";
+export type SourcePreviewKind = "pdf" | "image" | "xlsx" | "unsupported";
 
 export function getSourcePreviewKind(
   file: ProcessingFile | null | undefined,
@@ -16,10 +16,17 @@ export function getSourcePreviewKind(
   const extension = file.key.split(".").pop()?.toLowerCase() ?? "";
   if (contentType === "application/pdf" || extension === "pdf") return "pdf";
   if (
-    contentType === "image/png"
-    || contentType === "image/jpeg"
-    || ["png", "jpg", "jpeg"].includes(extension)
-  ) return "image";
+    contentType ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    extension === "xlsx"
+  )
+    return "xlsx";
+  if (
+    contentType === "image/png" ||
+    contentType === "image/jpeg" ||
+    ["png", "jpg", "jpeg"].includes(extension)
+  )
+    return "image";
   return "unsupported";
 }
 
