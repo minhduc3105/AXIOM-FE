@@ -17,13 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { ToolDetail, ToolParameter } from "../model/types";
 import { formatToolName } from "../model/toolPresentation";
@@ -65,40 +58,61 @@ function ToolParameterField({
       </div>
 
       {enumValues && enumValues.length > 0 ? (
-        <Select
-          value={value}
-          onValueChange={(nextValue) => onChange(String(nextValue))}
-        >
-          <SelectTrigger
-            id={id}
-            className="h-9 w-full bg-white dark:bg-[#20201c]"
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                id={id}
+                type="button"
+                variant="outline"
+                className="h-9 w-full justify-between"
+              />
+            }
           >
-            <SelectValue placeholder="Select a value" />
-          </SelectTrigger>
-          <SelectContent>
-            {enumValues.map((option) => (
-              <SelectItem key={String(option)} value={String(option)}>
-                {String(option)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <span className="truncate">{value || "Select a value"}</span>
+            <ChevronDownIcon data-icon="inline-end" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuRadioGroup
+              value={value}
+              onValueChange={(nextValue) => onChange(String(nextValue))}
+            >
+              {enumValues.map((option) => (
+                <DropdownMenuRadioItem
+                  key={String(option)}
+                  value={String(option)}
+                >
+                  {String(option)}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : parameter.type === "bool" ? (
-        <Select
-          value={value || "false"}
-          onValueChange={(nextValue) => onChange(String(nextValue))}
-        >
-          <SelectTrigger
-            id={id}
-            className="h-9 w-full bg-white dark:bg-[#20201c]"
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                id={id}
+                type="button"
+                variant="outline"
+                className="h-9 w-full justify-between"
+              />
+            }
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="true">True</SelectItem>
-            <SelectItem value="false">False</SelectItem>
-          </SelectContent>
-        </Select>
+            {value === "true" ? "True" : "False"}
+            <ChevronDownIcon data-icon="inline-end" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuRadioGroup
+              value={value || "false"}
+              onValueChange={(nextValue) => onChange(String(nextValue))}
+            >
+              <DropdownMenuRadioItem value="true">True</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="false">False</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : parameter.type === "list" || parameter.type === "dict" ? (
         <Textarea
           id={id}

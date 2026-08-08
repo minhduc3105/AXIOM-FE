@@ -3,20 +3,20 @@ import {
   ArrowDownIcon,
   ArrowUpDownIcon,
   ArrowUpIcon,
+  ChevronDownIcon,
   DownloadIcon,
   FileIcon,
   SearchIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -55,6 +55,20 @@ const statusRank: Record<DataHealthStatus, number> = {
   processing: 1,
   failed: 2,
 };
+const statusFilterOptions: Array<{
+  value: DataFileStatusFilter;
+  label: string;
+}> = [
+  { value: "all", label: "All statuses" },
+  { value: "success", label: "Success" },
+  { value: "processing", label: "Processing" },
+  { value: "failed", label: "Failed" },
+];
+const pageSizeOptions = [
+  { value: "10", label: "10" },
+  { value: "20", label: "20" },
+  { value: "50", label: "50" },
+];
 
 const byteFormatter = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
 
@@ -103,8 +117,10 @@ export function transformDataFiles(
       file.name.toLowerCase().includes(normalizedQuery) ||
       file.key.toLowerCase().includes(normalizedQuery) ||
       file.type.toLowerCase().includes(normalizedQuery);
-    return matchesQuery &&
-      (options.statusFilter === "all" || file.status === options.statusFilter);
+    return (
+      matchesQuery &&
+      (options.statusFilter === "all" || file.status === options.statusFilter)
+    );
   });
 
   return [...filtered].sort((left, right) => {
@@ -135,8 +151,30 @@ export function transformDataFiles(
 function DataTableSkeleton() {
   return (
     <Table className="min-w-[920px]">
-      <TableHeader><TableRow>{["File", "Status", "Last modified", "Size", ""].map((heading, index) => <TableHead key={`${heading}-${index}`} className="h-11 px-4">{heading}</TableHead>)}</TableRow></TableHeader>
-      <TableBody>{Array.from({ length: 5 }, (_, index) => <TableRow key={index}>{Array.from({ length: 5 }, (__, cellIndex) => <TableCell key={cellIndex} className="px-4 py-4"><Skeleton className={cellIndex === 0 ? "h-8 w-64" : "h-5 w-24"} /></TableCell>)}</TableRow>)}</TableBody>
+      <TableHeader>
+        <TableRow>
+          {["File", "Status", "Last modified", "Size", ""].map(
+            (heading, index) => (
+              <TableHead key={`${heading}-${index}`} className="h-11 px-4">
+                {heading}
+              </TableHead>
+            ),
+          )}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {Array.from({ length: 5 }, (_, index) => (
+          <TableRow key={index}>
+            {Array.from({ length: 5 }, (__, cellIndex) => (
+              <TableCell key={cellIndex} className="px-4 py-4">
+                <Skeleton
+                  className={cellIndex === 0 ? "h-8 w-64" : "h-5 w-24"}
+                />
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
     </Table>
   );
 }
@@ -152,39 +190,63 @@ export function DataTable({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DataFileStatusFilter>("all");
   const [sortField, setSortField] = useState<DataFileSortField>("lastModified");
-  const [sortDirection, setSortDirection] = useState<DataFileSortDirection>("descending");
+  const [sortDirection, setSortDirection] =
+    useState<DataFileSortDirection>("descending");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
   const transformedFiles = useMemo(
-    () => transformDataFiles(files, { query, statusFilter, sortField, sortDirection }),
+    () =>
+      transformDataFiles(files, {
+        query,
+        statusFilter,
+        sortField,
+        sortDirection,
+      }),
     [files, query, sortDirection, sortField, statusFilter],
   );
   const totalPages = Math.max(1, Math.ceil(transformedFiles.length / pageSize));
-  const visibleFiles = transformedFiles.slice((page - 1) * pageSize, page * pageSize);
+  const visibleFiles = transformedFiles.slice(
+    (page - 1) * pageSize,
+    page * pageSize,
+  );
 
-  useEffect(() => setPage((current) => Math.min(current, totalPages)), [totalPages]);
+  useEffect(
+    () => setPage((current) => Math.min(current, totalPages)),
+    [totalPages],
+  );
 
   const resetPage = () => setPage(1);
   const changeSort = (field: DataFileSortField) => {
     setSortDirection((current) =>
-      sortField === field && current === "ascending" ? "descending" : "ascending",
+      sortField === field && current === "ascending"
+        ? "descending"
+        : "ascending",
     );
     setSortField(field);
     resetPage();
   };
   const sortIcon = (field: DataFileSortField) => {
     if (sortField !== field) return <ArrowUpDownIcon className="size-3.5" />;
-    return sortDirection === "ascending"
-      ? <ArrowUpIcon className="size-3.5" />
-      : <ArrowDownIcon className="size-3.5" />;
+    return sortDirection === "ascending" ? (
+      <ArrowUpIcon className="size-3.5" />
+    ) : (
+      <ArrowDownIcon className="size-3.5" />
+    );
   };
   const ariaSort = (field: DataFileSortField) =>
     sortField === field ? sortDirection : "none";
 
   if (loading && files.length === 0) return <DataTableSkeleton />;
   if (files.length === 0) {
-    return <DataEmptyState title={emptyTitle} description={emptyDescription} actionLabel={onCreateIngestion ? "Data Ingestion" : undefined} onAction={onCreateIngestion} />;
+    return (
+      <DataEmptyState
+        title={emptyTitle}
+        description={emptyDescription}
+        actionLabel={onCreateIngestion ? "Data Ingestion" : undefined}
+        onAction={onCreateIngestion}
+      />
+    );
   }
 
   return (
@@ -193,54 +255,200 @@ export function DataTable({
         <label className="relative min-w-0 flex-1 lg:max-w-md">
           <span className="sr-only">{searchLabel}</span>
           <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => { setQuery(event.target.value); resetPage(); }} placeholder={searchLabel} className="pl-9" />
+          <Input
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              resetPage();
+            }}
+            placeholder={searchLabel}
+            className="pl-9"
+          />
         </label>
-        <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as DataFileStatusFilter); resetPage(); }}>
-          <SelectTrigger className="w-full lg:w-[170px]" aria-label="Filter files by status"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectGroup><SelectItem value="all">All statuses</SelectItem><SelectItem value="success">Success</SelectItem><SelectItem value="processing">Processing</SelectItem><SelectItem value="failed">Failed</SelectItem></SelectGroup></SelectContent>
-        </Select>
-        <span className="text-sm tabular-nums text-muted-foreground">{transformedFiles.length} of {files.length}</span>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="outline"
+                className="w-full justify-between lg:w-[170px]"
+                aria-label="Filter files by status"
+              />
+            }
+          >
+            {statusFilterOptions.find((option) => option.value === statusFilter)
+              ?.label ?? "All statuses"}
+            <ChevronDownIcon data-icon="inline-end" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuRadioGroup
+              value={statusFilter}
+              onValueChange={(value) => {
+                setStatusFilter(value as DataFileStatusFilter);
+                resetPage();
+              }}
+            >
+              {statusFilterOptions.map((option) => (
+                <DropdownMenuRadioItem key={option.value} value={option.value}>
+                  {option.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <span className="text-sm tabular-nums text-muted-foreground">
+          {transformedFiles.length} of {files.length}
+        </span>
       </div>
 
       {transformedFiles.length === 0 ? (
-        <DataEmptyState title="No matching files" description="Adjust the search or status filter to see more results." />
+        <DataEmptyState
+          title="No matching files"
+          description="Adjust the search or status filter to see more results."
+        />
       ) : (
         <>
           <div className="max-w-full overflow-x-auto">
             <Table className="min-w-[920px]">
               <TableHeader className="bg-muted/45">
                 <TableRow className="hover:bg-transparent">
-                  {([
-                    ["file", "File", "w-[42%]"],
-                    ["status", "Status", ""],
-                    ["lastModified", "Last modified", ""],
-                    ["size", "Size", "text-right"],
-                  ] as const).map(([field, label, className]) => (
-                    <TableHead key={field} aria-sort={ariaSort(field)} className={`h-11 px-4 text-xs font-semibold ${className}`}>
-                      <button type="button" onClick={() => changeSort(field)} className={`inline-flex items-center gap-1.5 rounded-md py-1 outline-none focus-visible:ring-3 focus-visible:ring-primary/25 ${field === "size" ? "float-right" : ""}`}>
-                        {label}{sortIcon(field)}
+                  {(
+                    [
+                      ["file", "File", "w-[42%]"],
+                      ["status", "Status", ""],
+                      ["lastModified", "Last modified", ""],
+                      ["size", "Size", "text-right"],
+                    ] as const
+                  ).map(([field, label, className]) => (
+                    <TableHead
+                      key={field}
+                      aria-sort={ariaSort(field)}
+                      className={`h-11 px-4 text-xs font-semibold ${className}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => changeSort(field)}
+                        className={`inline-flex items-center gap-1.5 rounded-md py-1 outline-none focus-visible:ring-3 focus-visible:ring-primary/25 ${field === "size" ? "float-right" : ""}`}
+                      >
+                        {label}
+                        {sortIcon(field)}
                       </button>
                     </TableHead>
                   ))}
-                  <TableHead className="h-11 w-14 px-4"><span className="sr-only">Actions</span></TableHead>
+                  <TableHead className="h-11 w-14 px-4">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visibleFiles.map((file) => (
                   <TableRow key={file.key} className="group">
-                    <TableCell className="max-w-0 px-4 py-3.5"><div className="flex min-w-0 items-center gap-3"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-muted text-primary"><FileIcon className="size-4" /></span><div className="min-w-0"><strong className="block truncate text-sm font-medium">{file.name}</strong><span className="block truncate text-xs text-muted-foreground" title={file.key}>{file.key}</span></div></div></TableCell>
-                    <TableCell className="px-4 py-3.5"><div className="grid justify-items-start gap-1"><StatusBadge status={file.status} /><span className="max-w-[190px] truncate text-xs capitalize text-muted-foreground" title={file.errorMessage ?? file.statusDetail}>{file.statusDetail}</span></div></TableCell>
-                    <TableCell className="px-4 py-3.5 text-sm text-muted-foreground">{formatDate(file.lastModified)}</TableCell>
-                    <TableCell className="px-4 py-3.5 text-right text-sm font-medium tabular-nums">{formatFileSize(file.size)}</TableCell>
-                    <TableCell className="px-4 py-3.5 text-right"><a href={file.downloadUrl} className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-primary/25" aria-label={`Download ${file.name}`} title={`Download ${file.name}`}><DownloadIcon className="size-4" /></a></TableCell>
+                    <TableCell className="max-w-0 px-4 py-3.5">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-muted text-primary">
+                          <FileIcon className="size-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <strong className="block truncate text-sm font-medium">
+                            {file.name}
+                          </strong>
+                          <span
+                            className="block truncate text-xs text-muted-foreground"
+                            title={file.key}
+                          >
+                            {file.key}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-4 py-3.5">
+                      <div className="grid justify-items-start gap-1">
+                        <StatusBadge status={file.status} />
+                        <span
+                          className="max-w-[190px] truncate text-xs capitalize text-muted-foreground"
+                          title={file.errorMessage ?? file.statusDetail}
+                        >
+                          {file.statusDetail}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-4 py-3.5 text-sm text-muted-foreground">
+                      {formatDate(file.lastModified)}
+                    </TableCell>
+                    <TableCell className="px-4 py-3.5 text-right text-sm font-medium tabular-nums">
+                      {formatFileSize(file.size)}
+                    </TableCell>
+                    <TableCell className="px-4 py-3.5 text-right">
+                      <a
+                        href={file.downloadUrl}
+                        className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-primary/25"
+                        aria-label={`Download ${file.name}`}
+                        title={`Download ${file.name}`}
+                      >
+                        <DownloadIcon className="size-4" />
+                      </a>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
           <div className="flex flex-col gap-3 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground"><span>Rows per page</span><Select value={String(pageSize)} onValueChange={(value) => { setPageSize(Number(value)); resetPage(); }}><SelectTrigger className="w-20" aria-label="Rows per page"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="20">20</SelectItem><SelectItem value="50">50</SelectItem></SelectContent></Select></div>
-            <div className="flex items-center justify-between gap-3 sm:justify-end"><span className="text-sm tabular-nums text-muted-foreground">Page {page} of {totalPages}</span><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((current) => current - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((current) => current + 1)}>Next</Button></div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Rows per page</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label="Rows per page"
+                    />
+                  }
+                >
+                  {pageSize}
+                  <ChevronDownIcon data-icon="inline-end" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuRadioGroup
+                    value={String(pageSize)}
+                    onValueChange={(value) => {
+                      setPageSize(Number(value));
+                      resetPage();
+                    }}
+                  >
+                    {pageSizeOptions.map((option) => (
+                      <DropdownMenuRadioItem
+                        key={option.value}
+                        value={option.value}
+                      >
+                        {option.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="flex items-center justify-between gap-3 sm:justify-end">
+              <span className="text-sm tabular-nums text-muted-foreground">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
+                onClick={() => setPage((current) => current - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === totalPages}
+                onClick={() => setPage((current) => current + 1)}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         </>
       )}

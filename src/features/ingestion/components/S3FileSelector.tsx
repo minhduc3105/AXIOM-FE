@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CloudIcon, FileIcon, SearchIcon } from "lucide-react";
+import { ChevronDownIcon, CloudIcon, FileIcon, SearchIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,15 +11,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -145,9 +144,7 @@ export function S3FileSelector({
   const toggleFilteredSelection = () => {
     if (allFilteredSelected) {
       const filteredKeySet = new Set(filteredKeys);
-      onSetSelection(
-        selectedKeys.filter((key) => !filteredKeySet.has(key)),
-      );
+      onSetSelection(selectedKeys.filter((key) => !filteredKeySet.has(key)));
       return;
     }
     onSetSelection(Array.from(new Set([...selectedKeys, ...filteredKeys])));
@@ -199,27 +196,35 @@ export function S3FileSelector({
               className="pl-9"
             />
           </label>
-          <Select
-            value={extensionFilter}
-            onValueChange={(value) => setExtensionFilter(value ?? "all")}
-          >
-            <SelectTrigger
-              className="w-full lg:w-[190px]"
-              aria-label="Filter by file type"
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  className="w-full justify-between lg:w-[190px]"
+                  aria-label="Filter by file type"
+                />
+              }
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">All file types</SelectItem>
+              {extensionFilter === "all" ? "All file types" : extensionFilter}
+              <ChevronDownIcon data-icon="inline-end" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuRadioGroup
+                value={extensionFilter}
+                onValueChange={(value) => setExtensionFilter(String(value))}
+              >
+                <DropdownMenuRadioItem value="all">
+                  All file types
+                </DropdownMenuRadioItem>
                 {extensions.map((extension) => (
-                  <SelectItem value={extension} key={extension}>
+                  <DropdownMenuRadioItem value={extension} key={extension}>
                     {extension}
-                  </SelectItem>
+                  </DropdownMenuRadioItem>
                 ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <span className="text-sm tabular-nums text-muted-foreground">
             {filteredFiles.length} shown
           </span>
@@ -360,10 +365,7 @@ export function S3FileSelector({
       </CardContent>
 
       <CardFooter className="flex-col gap-3 border-t sm:flex-row sm:justify-between">
-        <div
-          className="text-sm text-muted-foreground"
-          aria-live="polite"
-        >
+        <div className="text-sm text-muted-foreground" aria-live="polite">
           {selectedKeys.length} object{selectedKeys.length === 1 ? "" : "s"}{" "}
           selected
         </div>

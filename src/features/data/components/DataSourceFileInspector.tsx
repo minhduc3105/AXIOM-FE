@@ -1,7 +1,13 @@
 import { useMemo } from "react";
 import { ArrowLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { DocumentResultViewer } from "@/shared/components/document-results/DocumentResultViewer";
 import { useProcessedDocumentResources } from "@/shared/hooks/use-processed-document-resources";
 import type { ProcessingFile } from "@/shared/types/document-results";
@@ -44,17 +50,20 @@ export function DataSourceFileInspector({
   return (
     <div className="grid gap-4 p-4 sm:p-5">
       <Card size="sm">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3">
-          <Button variant="ghost" size="sm" type="button" onClick={onBack}>
-            <ArrowLeftIcon data-icon="inline-start" />
-            Back to files
-          </Button>
-          <p className="min-w-0 truncate text-xs text-muted-foreground">
+        <CardHeader>
+          <CardTitle className="truncate">{file.name}</CardTitle>
+          <CardDescription className="truncate">
             {datasource.type === "UPLOAD"
               ? "Uploaded files"
               : (datasource.name ?? datasource.type)}
-          </p>
-        </CardContent>
+          </CardDescription>
+          <CardAction>
+            <Button variant="ghost" size="sm" type="button" onClick={onBack}>
+              <ArrowLeftIcon data-icon="inline-start" />
+              Back to files
+            </Button>
+          </CardAction>
+        </CardHeader>
       </Card>
       <DocumentResultViewer
         file={processingFile}

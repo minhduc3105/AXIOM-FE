@@ -152,7 +152,7 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
                 <TabsTrigger value="sources" className="rounded-full px-4">
                   Data sources
                   <span className="tabular-nums text-[11px] text-[#8a8377]">
-                    {datasources.length}
+                    {datasources.length || (files.length > 0 ? 1 : 0)}
                   </span>
                 </TabsTrigger>
                 <TabsTrigger value="jobs" className="rounded-full px-4">
@@ -167,6 +167,7 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
             <TabsContent value="sources">
               <DataSourcesWorkspace
                 datasources={datasources}
+                files={files}
                 jobs={ingestionJobs}
                 profiles={profiles}
                 loading={initialLoading}
