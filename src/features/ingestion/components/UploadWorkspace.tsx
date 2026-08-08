@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
-import { FileTextIcon, UploadCloudIcon } from "lucide-react";
+import { FileTextIcon, Trash2Icon, UploadCloudIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ type UploadWorkspaceProps = {
   uploadResult: UploadFilesResponse | null;
   onFiles: (files: FileList | File[]) => void;
   onSelectFile: (id: string) => void;
+  onRemoveFile: (id: string) => void;
   onUpload: () => void;
   onProcessing: () => void;
   onBack: () => void;
@@ -90,6 +91,7 @@ export function UploadWorkspace({
   uploadResult,
   onFiles,
   onSelectFile,
+  onRemoveFile,
   onUpload,
   onProcessing,
   onBack,
@@ -194,38 +196,55 @@ export function UploadWorkspace({
               {files.map((file) => {
                 const isSelected = file.id === selected?.id;
                 return (
-                  <Button
-                    variant="outline"
-                    type="button"
+                  <div
                     className={cn(
-                      "grid h-auto min-h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] gap-3 p-3 text-left",
+                      "grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border bg-background p-3 transition-colors hover:bg-muted",
                       isSelected && "border-primary bg-primary/10",
                     )}
                     data-state={isSelected ? "active" : "inactive"}
                     key={file.id}
-                    onClick={() => onSelectFile(file.id)}
                   >
-                    <Badge
-                      variant={isSelected ? "default" : "secondary"}
-                      className="size-10 rounded-lg p-0"
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      className="grid h-auto min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] justify-stretch gap-3 p-0 text-left hover:bg-transparent"
+                      onClick={() => onSelectFile(file.id)}
                     >
-                      {file.extension}
-                    </Badge>
-                    <span className="grid min-w-0 gap-0.5">
-                      <strong className="truncate">{file.name}</strong>
-                      <small className="truncate text-muted-foreground">
-                        {file.sizeLabel} ·{" "}
-                        {uploading
-                          ? "uploading"
-                          : uploaded
-                            ? "stored"
-                            : "ready"}
-                      </small>
-                    </span>
-                    <Badge variant={getStatusVariant(uploadStatus, isSelected)}>
-                      {getStatusLabel(uploadStatus, isSelected)}
-                    </Badge>
-                  </Button>
+                      <Badge
+                        variant={isSelected ? "default" : "secondary"}
+                        className="size-10 rounded-lg p-0"
+                      >
+                        {file.extension}
+                      </Badge>
+                      <span className="grid min-w-0 gap-0.5">
+                        <strong className="truncate">{file.name}</strong>
+                        <small className="truncate text-muted-foreground">
+                          {file.sizeLabel} ·{" "}
+                          {uploading
+                            ? "uploading"
+                            : uploaded
+                              ? "stored"
+                              : "ready"}
+                        </small>
+                      </span>
+                      <Badge
+                        variant={getStatusVariant(uploadStatus, isSelected)}
+                      >
+                        {getStatusLabel(uploadStatus, isSelected)}
+                      </Badge>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      type="button"
+                      aria-label={`Remove ${file.name}`}
+                      title={`Remove ${file.name}`}
+                      disabled={uploading || uploaded}
+                      onClick={() => onRemoveFile(file.id)}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </div>
                 );
               })}
             </div>
@@ -265,12 +284,14 @@ export function UploadWorkspace({
           </CardTitle>
           <CardAction>
             <Badge variant="secondary">
-              {selected?.extension ?? "FILE"} selected
+              {selected?.extension ?? "No file"}
             </Badge>
           </CardAction>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col gap-5">
-          {selectedIsPdf ? (
+          {!selected ? (
+            <EmptyPreview />
+          ) : selectedIsPdf ? (
             <PdfPreview
               fileName={selected?.name}
               pdfPreviewUrl={sourcePreviewUrl}
@@ -285,6 +306,14 @@ export function UploadWorkspace({
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function EmptyPreview() {
+  return (
+    <div className="grid min-h-[560px] flex-1 place-items-center rounded-xl border bg-muted/30 p-6 text-center text-muted-foreground">
+      Add a file to preview it here.
     </div>
   );
 }

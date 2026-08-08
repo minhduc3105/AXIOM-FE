@@ -240,6 +240,7 @@ export function IngestionPage({ onBack, backLabel, launchContext }: IngestionPag
           uploadResult={workflow.uploadResult}
           onFiles={workflow.addFiles}
           onSelectFile={workflow.selectFile}
+          onRemoveFile={workflow.removeFile}
           onUpload={() => void workflow.uploadSelectedFiles()}
           onProcessing={() => workflow.navigateProgress("pipeline")}
           onBack={workflow.openSource}
