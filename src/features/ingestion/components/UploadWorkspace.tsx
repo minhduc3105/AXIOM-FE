@@ -185,7 +185,6 @@ export function UploadWorkspace({
 
           <div className="grid grid-cols-2 gap-3">
             <QueueMetric value={files.length.toString()} label="Files" />
-            <QueueMetric value={typeCount.toString()} label="Types" />
             <QueueMetric value={totalSize} label="Size" />
           </div>
 
@@ -227,11 +226,6 @@ export function UploadWorkspace({
                               : "ready"}
                         </small>
                       </span>
-                      <Badge
-                        variant={getStatusVariant(uploadStatus, isSelected)}
-                      >
-                        {getStatusLabel(uploadStatus, isSelected)}
-                      </Badge>
                     </Button>
                     <Button
                       variant="ghost"

@@ -7,12 +7,7 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { defaultOrganizationId } from "./api/dataApi";
 import { DataDashboardHeader } from "./components/DataDashboardHeader";
 import { DataMetrics } from "./components/DataMetrics";
@@ -44,17 +39,22 @@ function formatAggregateSize(bytes: number) {
 }
 
 export function DataPage({ onCreateIngestion }: DataPageProps) {
-  const { snapshot, loading, error, refresh } =
-    useDataDashboard(defaultOrganizationId);
+  const { snapshot, loading, error, refresh } = useDataDashboard(
+    defaultOrganizationId,
+  );
   const files = snapshot?.files ?? [];
   const datasources = snapshot?.datasources ?? [];
   const ingestionJobs = snapshot?.ingestionJobs ?? [];
   const organizationId = snapshot?.organizationId ?? defaultOrganizationId;
-  const { profiles, error: profileError, remove: removeProfile } =
-    useDataSourceProfiles(organizationId);
+  const {
+    profiles,
+    error: profileError,
+    remove: removeProfile,
+  } = useDataSourceProfiles(organizationId);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [activeDataView, setActiveDataView] = useState("sources");
-  const selectedJob = ingestionJobs.find((job) => job.job_id === selectedJobId) ?? null;
+  const selectedJob =
+    ingestionJobs.find((job) => job.job_id === selectedJobId) ?? null;
 
   const summary = useMemo(() => {
     return {
@@ -130,7 +130,11 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
           totalSize={summary.totalSize}
         />
 
-        <Tabs value={activeDataView} onValueChange={(value) => setActiveDataView(value)} className="gap-0">
+        <Tabs
+          value={activeDataView}
+          onValueChange={(value) => setActiveDataView(value)}
+          className="gap-0"
+        >
           <section
             className="overflow-hidden rounded-[28px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 shadow-[0_24px_70px_rgba(24,24,18,0.09)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88"
             aria-label="Data inventory and ingestion activity"
@@ -140,9 +144,6 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
                 <h2 className="text-lg font-semibold text-[#191915] dark:text-[#f4efe5]">
                   Organization data
                 </h2>
-                <p className="mt-1 text-sm text-[#6d685e] dark:text-[#aaa397]">
-                  Bucket: {snapshot?.bucket ?? defaultOrganizationId}
-                </p>
               </div>
               <TabsList
                 className="h-10 w-full justify-start rounded-full border border-[#d8d0c2]/70 bg-[#f4efe5]/70 p-1 sm:w-auto dark:border-[#38372f]/80 dark:bg-white/5"
