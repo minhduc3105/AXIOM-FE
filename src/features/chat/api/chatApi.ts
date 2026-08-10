@@ -74,6 +74,7 @@ type StreamCallbacks = {
 
 type CreateInvestigationOptions = {
   files?: File[];
+  modelAlias?: string | null;
   onProcessEvents?: (events: ProcessEvent[]) => void;
   onOutputText?: (result: MockResult) => void;
 };
@@ -140,7 +141,10 @@ export async function createInvestigation(
         size: file.size,
         content_type: file.contentType,
       })),
-      runtime_options: { engine },
+      runtime_options: {
+        engine,
+        ...(resolvedOptions.modelAlias ? { model: resolvedOptions.modelAlias } : {}),
+      },
     },
     signal,
   );

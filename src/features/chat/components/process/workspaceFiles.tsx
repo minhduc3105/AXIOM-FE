@@ -141,6 +141,29 @@ async function downloadWorkspaceFile(file: WorkspaceFile) {
   }
 }
 
+export async function downloadWorkspaceFilesPackage(
+  files: WorkspaceFile[],
+  sessionId: string,
+) {
+  if (files.length === 0) return;
+  const entries = await Promise.all(
+    files.map(async (file) => {
+      const response = await fetch(file.url);
+      if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+      return {
+        name: filePackageName(file.name),
+        bytes: new Uint8Array(await response.arrayBuffer()),
+      };
+    }),
+  );
+  const zip = createZip(entries);
+  const objectUrl = URL.createObjectURL(
+    new Blob([zip], { type: "application/zip" }),
+  );
+  triggerBrowserDownload(objectUrl, `package_${safePackageId(sessionId)}.zip`);
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
 function triggerBrowserDownload(
   url: string,
   filename: string,
@@ -240,4 +263,152 @@ function fileTypeFromName(name: string) {
   if (["md", "markdown", "txt", "csv", "json", "html"].includes(ext))
     return "text";
   return "file";
+}
+
+function createZip(entries: Array<{ name: string; bytes: Uint8Array }>) {
+  const encoder = new TextEncoder();
+  const records: Uint8Array[] = [];
+  const centralRecords: Uint8Array[] = [];
+  let offset = 0;
+  const emittedNames = new Set<string>();
+
+  for (const entry of entries) {
+    const name = uniqueZipName(entry.name, emittedNames);
+    const nameBytes = encoder.encode(name);
+    const crc = crc32(entry.bytes);
+    const localHeader = zipLocalHeader(nameBytes, entry.bytes, crc);
+    records.push(localHeader, entry.bytes);
+    centralRecords.push(zipCentralHeader(nameBytes, entry.bytes, crc, offset));
+    offset += localHeader.length + entry.bytes.length;
+  }
+
+  const centralOffset = offset;
+  const centralSize = centralRecords.reduce((sum, item) => sum + item.length, 0);
+  return concatBytes([
+    ...records,
+    ...centralRecords,
+    zipEndRecord(entries.length, centralSize, centralOffset),
+  ]);
+}
+
+function zipLocalHeader(name: Uint8Array, bytes: Uint8Array, crc: number) {
+  const header = new Uint8Array(30 + name.length);
+  const view = new DataView(header.buffer);
+  view.setUint32(0, 0x04034b50, true);
+  view.setUint16(4, 20, true);
+  view.setUint16(6, 0, true);
+  view.setUint16(8, 0, true);
+  view.setUint16(10, 0, true);
+  view.setUint16(12, 0, true);
+  view.setUint32(14, crc, true);
+  view.setUint32(18, bytes.length, true);
+  view.setUint32(22, bytes.length, true);
+  view.setUint16(26, name.length, true);
+  view.setUint16(28, 0, true);
+  header.set(name, 30);
+  return header;
+}
+
+function zipCentralHeader(
+  name: Uint8Array,
+  bytes: Uint8Array,
+  crc: number,
+  offset: number,
+) {
+  const header = new Uint8Array(46 + name.length);
+  const view = new DataView(header.buffer);
+  view.setUint32(0, 0x02014b50, true);
+  view.setUint16(4, 20, true);
+  view.setUint16(6, 20, true);
+  view.setUint16(8, 0, true);
+  view.setUint16(10, 0, true);
+  view.setUint16(12, 0, true);
+  view.setUint16(14, 0, true);
+  view.setUint32(16, crc, true);
+  view.setUint32(20, bytes.length, true);
+  view.setUint32(24, bytes.length, true);
+  view.setUint16(28, name.length, true);
+  view.setUint16(30, 0, true);
+  view.setUint16(32, 0, true);
+  view.setUint16(34, 0, true);
+  view.setUint16(36, 0, true);
+  view.setUint32(38, 0, true);
+  view.setUint32(42, offset, true);
+  header.set(name, 46);
+  return header;
+}
+
+function zipEndRecord(entries: number, centralSize: number, centralOffset: number) {
+  const record = new Uint8Array(22);
+  const view = new DataView(record.buffer);
+  view.setUint32(0, 0x06054b50, true);
+  view.setUint16(4, 0, true);
+  view.setUint16(6, 0, true);
+  view.setUint16(8, entries, true);
+  view.setUint16(10, entries, true);
+  view.setUint32(12, centralSize, true);
+  view.setUint32(16, centralOffset, true);
+  view.setUint16(20, 0, true);
+  return record;
+}
+
+function concatBytes(chunks: Uint8Array[]) {
+  const length = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return bytes;
+}
+
+let crcTable: Uint32Array | null = null;
+
+function crc32(bytes: Uint8Array) {
+  const table =
+    crcTable ??
+    (crcTable = Uint32Array.from({ length: 256 }, (_, index) => {
+      let value = index;
+      for (let bit = 0; bit < 8; bit += 1) {
+        value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+      }
+      return value >>> 0;
+    }));
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function filePackageName(name: string) {
+  return (
+    name
+      .replace(/\\/g, "/")
+      .split("/")
+      .filter(Boolean)
+      .pop()
+      ?.replace(/[<>:"|?*\x00-\x1f]/g, "_") || "file"
+  );
+}
+
+function uniqueZipName(name: string, emittedNames: Set<string>) {
+  if (!emittedNames.has(name)) {
+    emittedNames.add(name);
+    return name;
+  }
+  const dotIndex = name.lastIndexOf(".");
+  const base = dotIndex > 0 ? name.slice(0, dotIndex) : name;
+  const ext = dotIndex > 0 ? name.slice(dotIndex) : "";
+  let index = 2;
+  let next = `${base}-${index}${ext}`;
+  while (emittedNames.has(next)) {
+    index += 1;
+    next = `${base}-${index}${ext}`;
+  }
+  emittedNames.add(next);
+  return next;
+}
+
+function safePackageId(value: string) {
+  return (value || "session").replace(/[^a-zA-Z0-9._-]+/g, "_");
 }

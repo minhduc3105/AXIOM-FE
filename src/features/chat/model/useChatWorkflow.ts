@@ -7,6 +7,7 @@ import {
   runWorkflow,
 } from "../api/chatApi";
 import type {
+  ChatAttachment,
   ChatEngine,
   ChatTurn,
   ChatWorkflowState,
@@ -297,8 +298,12 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
   }
 }
 
-const optimisticInvestigation = (question: string): Investigation => ({
+const optimisticInvestigation = (
+  question: string,
+  attachments: ChatAttachment[] = [],
+): Investigation => ({
   question,
+  attachments,
   confidence: 94,
   intent: "generate_revenue_report",
   scope: "Q3 revenue, payments",
@@ -308,8 +313,12 @@ const optimisticInvestigation = (question: string): Investigation => ({
   output: "Reviewed markdown answer with cited evidence",
 });
 
-const streamingDirectAnswerInvestigation = (question: string): Investigation => ({
+const streamingDirectAnswerInvestigation = (
+  question: string,
+  attachments: ChatAttachment[] = [],
+): Investigation => ({
   question,
+  attachments,
   confidence: 100,
   intent: "general_direct",
   scope: "Answered from general knowledge or conversation context.",
@@ -317,6 +326,21 @@ const streamingDirectAnswerInvestigation = (question: string): Investigation => 
   policy: "No data workflow or engine execution was required.",
   output: "Direct answer",
 });
+
+function chatAttachmentsFromFiles(files: File[]): ChatAttachment[] {
+  return files.map((file) => ({
+    name: file.name,
+    size: file.size,
+    type: file.type || undefined,
+  }));
+}
+
+function attachFilesToInvestigation(
+  investigation: Investigation,
+  attachments: ChatAttachment[],
+): Investigation {
+  return attachments.length ? { ...investigation, attachments } : investigation;
+}
 
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
@@ -406,13 +430,15 @@ export function useChatWorkflow() {
       conversationId: string | null = null,
       engine: ChatEngine = "auto",
       files: File[] = [],
+      modelAlias?: string | null,
     ) => {
       cancelCurrentRequest();
+      const attachments = chatAttachmentsFromFiles(files);
       const controller = new AbortController();
       requestRef.current = controller;
       dispatch({
         type: "submit/start",
-        investigation: optimisticInvestigation(question),
+        investigation: optimisticInvestigation(question, attachments),
         conversationId,
       });
 
@@ -424,10 +450,14 @@ export function useChatWorkflow() {
           controller.signal,
           {
             files,
+            modelAlias,
             onOutputText: (result) =>
               dispatch({
                 type: "submit/stream",
-                investigation: streamingDirectAnswerInvestigation(question),
+                investigation: streamingDirectAnswerInvestigation(
+                  question,
+                  attachments,
+                ),
                 result,
               }),
             onProcessEvents: (events) =>
@@ -437,14 +467,20 @@ export function useChatWorkflow() {
         if (outcome.kind === "completed") {
           dispatch({
             type: "submit/completed",
-            investigation: outcome.investigation,
+            investigation: attachFilesToInvestigation(
+              outcome.investigation,
+              attachments,
+            ),
             result: outcome.result,
             processEvents: outcome.processEvents,
           });
         } else {
           dispatch({
             type: "submit/confirmation",
-            investigation: outcome.investigation,
+            investigation: attachFilesToInvestigation(
+              outcome.investigation,
+              attachments,
+            ),
           });
         }
       } catch (error) {

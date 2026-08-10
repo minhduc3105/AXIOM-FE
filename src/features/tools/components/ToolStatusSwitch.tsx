@@ -1,3 +1,5 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 
 type ToolStatusSwitchProps = {
@@ -18,14 +20,15 @@ export function ToolStatusSwitch({
   showLabel = true,
 }: ToolStatusSwitchProps) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       role="switch"
       aria-checked={checked}
       aria-busy={disabled || undefined}
       aria-label={`${checked ? "Disable" : "Enable"} ${label}`}
       disabled={disabled}
-      className="group/switch inline-flex h-8 shrink-0 items-center gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-[#2456e8]/30 disabled:cursor-wait disabled:opacity-65 dark:focus-visible:ring-[#7895ff]/35"
+      className="group/switch h-8 shrink-0 gap-2 rounded-lg px-1 disabled:cursor-wait disabled:opacity-65"
       onClick={(event) => {
         event.stopPropagation();
         if (disabled) return;
@@ -34,16 +37,17 @@ export function ToolStatusSwitch({
       onKeyDown={(event) => event.stopPropagation()}
     >
       {showLabel && (
-        <span
+        <Badge
+          variant="outline"
           className={cn(
-            "min-w-12 text-right text-xs font-medium",
+            "h-6 min-w-16 justify-center rounded-md px-2 text-xs font-medium",
             checked
-              ? "text-[#1237b4] dark:text-[#bcc9ff]"
-              : "text-[#777064] dark:text-[#aaa397]",
+              ? "border-primary/30 bg-primary/10 text-primary"
+              : "bg-muted text-muted-foreground",
           )}
         >
           {disabled ? disabledLabel : checked ? "Active" : "Inactive"}
-        </span>
+        </Badge>
       )}
       <span
         className={cn(
@@ -61,6 +65,6 @@ export function ToolStatusSwitch({
           )}
         />
       </span>
-    </button>
+    </Button>
   );
 }

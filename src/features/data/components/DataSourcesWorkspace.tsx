@@ -543,13 +543,14 @@ export function DataSourcesWorkspace({
         <ScrollArea className="mt-4 max-h-[460px]">
           <div className="flex flex-col gap-2 pr-2">
             {visibleSources.map((datasource) => (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 key={datasource.id}
                 onClick={() => setSelectedId(datasource.id)}
                 aria-pressed={selectedSource?.id === datasource.id}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-xl border p-3 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-primary/25",
+                  "h-auto w-full items-center justify-start gap-3 rounded-xl border p-3 text-left",
                   selectedSource?.id === datasource.id
                     ? "border-primary/35 bg-primary/10"
                     : "hover:bg-muted/50",
@@ -566,7 +567,7 @@ export function DataSourcesWorkspace({
                     {sourceDescription(datasource)}
                   </span>
                 </span>
-              </button>
+              </Button>
             ))}
           </div>
         </ScrollArea>

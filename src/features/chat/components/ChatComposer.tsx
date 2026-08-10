@@ -7,6 +7,7 @@ import {
   SheetIcon,
   XIcon,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
-import type { ChatEngine } from "../model/types";
+import type { ChatEngine, ChatModelOption } from "../model/types";
 
 const engineOptions: Array<{ value: ChatEngine; label: string }> = [
   { value: "auto", label: "Auto" },
@@ -30,14 +31,25 @@ export function ChatComposer({
   onSubmit,
   engine,
   onEngineChange,
+  models,
+  selectedModelAlias,
+  onModelChange,
   placeholder = "Ask AXIOM to review, analyze, or generate...",
   disabled = false,
   sendDisabled = disabled,
   className,
 }: {
-  onSubmit: (message: string, engine: ChatEngine, files: File[]) => void;
+  onSubmit: (
+    message: string,
+    engine: ChatEngine,
+    files: File[],
+    modelAlias?: string | null,
+  ) => void;
   engine: ChatEngine;
+  models: ChatModelOption[];
+  selectedModelAlias: string | null;
   onEngineChange: (engine: ChatEngine) => void;
+  onModelChange: (modelAlias: string | null) => void;
   placeholder?: string;
   disabled?: boolean;
   sendDisabled?: boolean;
@@ -46,17 +58,25 @@ export function ChatComposer({
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [engineMenuOpen, setEngineMenuOpen] = useState(false);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const fileInputId = useId();
   const selectedEngineLabel =
     engineOptions.find((option) => option.value === engine)?.label || "Auto";
+  const selectedModel =
+    models.find((model) => model.alias === selectedModelAlias) ?? models[0];
+  const selectedModelLabel = selectedModel?.label ?? "Model";
   const selectEngine = (nextEngine: string) => {
     onEngineChange(nextEngine as ChatEngine);
     setEngineMenuOpen(false);
   };
+  const selectModel = (modelAlias: string) => {
+    onModelChange(modelAlias || null);
+    setModelMenuOpen(false);
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (value.trim() && !sendDisabled) {
-      onSubmit(value.trim(), engine, files);
+      onSubmit(value.trim(), engine, files, selectedModel?.alias ?? null);
       setValue("");
       setFiles([]);
     }
@@ -66,7 +86,7 @@ export function ChatComposer({
     if (event.key !== "Enter" || event.shiftKey || sendDisabled) return;
     event.preventDefault();
     if (value.trim()) {
-      onSubmit(value.trim(), engine, files);
+      onSubmit(value.trim(), engine, files, selectedModel?.alias ?? null);
       setValue("");
       setFiles([]);
     }
@@ -101,22 +121,25 @@ export function ChatComposer({
               ? SheetIcon
               : FileIcon;
             return (
-              <span
-                className="inline-flex max-w-[320px] shrink-0 items-center gap-2 rounded-full border border-[#d8d0c2]/80 bg-[#f4efe5]/80 px-3 py-1.5 text-xs text-[#4f4a42] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1]"
+              <Badge
+                variant="outline"
+                className="h-8 max-w-[320px] shrink-0 gap-2 rounded-full border-[#d8d0c2]/80 bg-[#f4efe5]/80 px-3 text-[#4f4a42] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1]"
                 key={`${file.name}-${file.size}-${index}`}
               >
                 <FileTypeIcon className="size-3.5 shrink-0 text-[#2456e8] dark:text-[#7895ff]" />
                 <span className="max-w-[240px] truncate">{file.name}</span>
-                <button
+                <Button
                   type="button"
-                  className="grid size-5 shrink-0 place-items-center rounded-full text-[#6d685e] hover:bg-[#d8d0c2]/70 hover:text-[#191915] dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-[#eee8dc]"
+                  size="icon-xs"
+                  variant="ghost"
+                  className="-mr-1 rounded-full"
                   aria-label={`Remove ${file.name}`}
                   disabled={disabled}
                   onClick={() => removeFile(index)}
                 >
-                  <XIcon className="size-3" />
-                </button>
-              </span>
+                  <XIcon />
+                </Button>
+              </Badge>
             );
           })}
         </div>
@@ -142,12 +165,12 @@ export function ChatComposer({
             onChange={addFiles}
           />
           <Button
-            type="button"
+            render={<label htmlFor={fileInputId} />}
+            nativeButton={false}
             variant="outline"
             className="size-10 rounded-full border-[#d8d0c2]/80 bg-[#f4efe5]/70 p-0 text-[#4f4a42] shadow-none hover:bg-[#ebe4d8] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1] dark:hover:bg-white/10"
             aria-label="Attach files"
             disabled={disabled}
-            onClick={() => document.getElementById(fileInputId)?.click()}
           >
             <PaperclipIcon />
           </Button>
@@ -177,14 +200,44 @@ export function ChatComposer({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <Button
-          className="size-12 shrink-0 rounded-full bg-[#2456e8] text-white shadow-[0_12px_28px_rgba(36,86,232,0.32)] hover:bg-[#1d48c7]"
-          type="submit"
-          aria-label="Send"
-          disabled={sendDisabled}
-        >
-          <SendIcon />
-        </Button>
+        <div className="flex min-w-0 shrink-0 items-center gap-2">
+          <DropdownMenu open={modelMenuOpen} onOpenChange={setModelMenuOpen}>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 max-w-[220px] min-w-[132px] justify-between rounded-full border-[#d8d0c2]/80 bg-[#f4efe5]/70 px-3 text-[#4f4a42] shadow-none hover:bg-[#ebe4d8] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1] dark:hover:bg-white/10"
+                  aria-label="Select LLM model"
+                  disabled={disabled || models.length === 0}
+                />
+              }
+            >
+              <span className="truncate">{selectedModelLabel}</span>
+              <ChevronDownIcon data-icon="inline-end" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[220px]">
+              <DropdownMenuRadioGroup
+                value={selectedModel?.alias ?? ""}
+                onValueChange={selectModel}
+              >
+                {models.map((model) => (
+                  <DropdownMenuRadioItem key={model.id} value={model.alias}>
+                    {model.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            className="size-12 shrink-0 rounded-full bg-[#2456e8] text-white shadow-[0_12px_28px_rgba(36,86,232,0.32)] hover:bg-[#1d48c7]"
+            type="submit"
+            aria-label="Send"
+            disabled={sendDisabled}
+          >
+            <SendIcon />
+          </Button>
+        </div>
       </div>
     </form>
   );

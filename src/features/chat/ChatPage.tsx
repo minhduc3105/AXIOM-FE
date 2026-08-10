@@ -10,6 +10,7 @@ import { PanelRightOpenIcon } from "lucide-react";
 import type {
   ChatStage,
   ChatEngine,
+  ChatModelOption,
   ChatTurn,
   EditableSpecification,
   Investigation,
@@ -30,8 +31,16 @@ type ChatPageProps = {
   loading: boolean;
   mode: "home" | "chat";
   engine: ChatEngine;
-  onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
+  models: ChatModelOption[];
+  selectedModelAlias: string | null;
+  onSubmit: (
+    value: string,
+    engine: ChatEngine,
+    files: File[],
+    modelAlias?: string | null,
+  ) => void;
   onEngineChange: (engine: ChatEngine) => void;
+  onModelChange: (modelAlias: string | null) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
   onSpecificationRevise: (feedback: string) => void;
   onResetSpecification: () => void;
@@ -53,8 +62,11 @@ export function ChatPage({
   loading,
   mode,
   engine,
+  models,
+  selectedModelAlias,
   onSubmit,
   onEngineChange,
+  onModelChange,
   onSpecificationChange,
   onSpecificationRevise,
   onResetSpecification,
@@ -138,7 +150,10 @@ export function ChatPage({
       >
         <WelcomeWorkspace
           engine={engine}
+          models={models}
+          selectedModelAlias={selectedModelAlias}
           onEngineChange={onEngineChange}
+          onModelChange={onModelChange}
           onSubmit={onSubmit}
           onData={onData}
         />
@@ -150,8 +165,11 @@ export function ChatPage({
     return (
       <EmptyChatWorkspace
         engine={engine}
+        models={models}
+        selectedModelAlias={selectedModelAlias}
         loading={loading}
         onEngineChange={onEngineChange}
+        onModelChange={onModelChange}
         onSubmit={onSubmit}
       />
     );
@@ -190,7 +208,10 @@ export function ChatPage({
               ))}
 
               <section className="flex flex-col gap-6">
-                <UserMessage question={investigation.question} />
+                <UserMessage
+                  attachments={investigation.attachments}
+                  question={investigation.question}
+                />
 
                 {stage === "pending" && (
                   <ReviewCard stage="pending" investigation={investigation} />
@@ -262,8 +283,11 @@ export function ChatPage({
           <ChatComposer
             className="sticky bottom-4 z-20 shrink-0"
             engine={engine}
+            models={models}
+            selectedModelAlias={selectedModelAlias}
             sendDisabled={loading}
             onEngineChange={onEngineChange}
+            onModelChange={onModelChange}
             onSubmit={onSubmit}
             placeholder={
               loading
@@ -311,11 +335,22 @@ function EmptyChatWorkspace({
   engine,
   onSubmit,
   onEngineChange,
+  models,
+  selectedModelAlias,
+  onModelChange,
   loading,
 }: {
   engine: ChatEngine;
-  onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
+  models: ChatModelOption[];
+  selectedModelAlias: string | null;
+  onSubmit: (
+    value: string,
+    engine: ChatEngine,
+    files: File[],
+    modelAlias?: string | null,
+  ) => void;
   onEngineChange: (engine: ChatEngine) => void;
+  onModelChange: (modelAlias: string | null) => void;
   loading: boolean;
 }) {
   return (
@@ -335,8 +370,11 @@ function EmptyChatWorkspace({
         </div>
         <ChatComposer
           engine={engine}
+          models={models}
+          selectedModelAlias={selectedModelAlias}
           onSubmit={onSubmit}
           onEngineChange={onEngineChange}
+          onModelChange={onModelChange}
           disabled={loading}
           placeholder="Message AXIOM..."
         />
@@ -358,7 +396,10 @@ function HistoryTurn({
 }) {
   return (
     <section className="flex flex-col gap-5">
-      <UserMessage question={turn.investigation.question} />
+      <UserMessage
+        attachments={turn.investigation.attachments}
+        question={turn.investigation.question}
+      />
       <ReviewCard
         stage="result"
         investigation={turn.investigation}
