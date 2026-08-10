@@ -9,6 +9,7 @@ import { ToolsPage } from "@/features/tools/ToolsPage";
 import { ModelsPage } from "@/features/models/ModelsPage";
 import { MemoryPage } from "@/features/memory/MemoryPage";
 import { LoginPage } from "@/features/auth/components/LoginPage";
+import { OrganizationUsersPage } from "@/features/auth/components/OrganizationUsersPage";
 import { useAuth } from "@/features/auth/model/AuthProvider";
 import { AppShell } from "./AppShell";
 import {
@@ -19,6 +20,7 @@ import {
   createReportsRoute,
   createModelsRoute,
   createMemoryRoute,
+  createOrganizationRoute,
   createToolDetailRoute,
   createToolsRoute,
 } from "./routing/paths";
@@ -95,7 +97,9 @@ export function AppExperience() {
     navigate(createMemoryRoute());
   }, [navigate]);
 
-  const openSettings = useCallback(() => {}, []);
+  const openSettings = useCallback(() => {
+    navigate(createOrganizationRoute());
+  }, [navigate]);
 
   const openToolDetail = useCallback(
     (toolName: string) => {
@@ -193,6 +197,8 @@ export function AppExperience() {
         <ModelsPage />
       ) : route.surface === "memory" ? (
         <MemoryPage />
+      ) : route.surface === "organization" ? (
+        <OrganizationUsersPage />
       ) : route.page === "detail" && route.toolName ? (
         <ToolDetailPage toolName={route.toolName} onBack={openTools} />
       ) : (

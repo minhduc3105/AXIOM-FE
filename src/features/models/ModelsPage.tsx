@@ -1,11 +1,24 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+import {
+  ArrowDownUpIcon,
   BotIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
   CircleAlertIcon,
   CloudIcon,
+  DatabaseIcon,
   DatabaseZapIcon,
   EllipsisIcon,
+  ImageIcon,
   KeyRoundIcon,
   LoaderCircleIcon,
   PencilIcon,
@@ -31,6 +44,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   activateModel,
   modelServiceApiBaseUrl,
@@ -83,6 +109,33 @@ const availableProviders = [
   "OpenRouter",
   "DeepSeek",
 ];
+
+const capabilityOptions = [
+  {
+    value: "llm" as const,
+    label: "LLM",
+    description: "Text generation and reasoning",
+    icon: BotIcon,
+  },
+  {
+    value: "vlm" as const,
+    label: "VLM",
+    description: "Image-aware understanding",
+    icon: ImageIcon,
+  },
+  {
+    value: "embedding" as const,
+    label: "Embedding",
+    description: "Semantic retrieval vectors",
+    icon: DatabaseIcon,
+  },
+  {
+    value: "reranker" as const,
+    label: "Reranker",
+    description: "Search result relevance",
+    icon: ArrowDownUpIcon,
+  },
+] as const;
 
 function ProviderMark({ name }: { name: string }) {
   return (
@@ -323,6 +376,16 @@ export function ModelsPage() {
   const registry = useModelRegistry();
   const [source, setSource] = useState<ProviderSource>("cloud");
   const [query, setQuery] = useState("");
+  const capabilityTabsViewportRef = useRef<HTMLDivElement>(null);
+  const [capabilityTabScroll, setCapabilityTabScroll] = useState({
+    canScrollPrev: false,
+    canScrollNext: false,
+  });
+  const [selectedCapability, setSelectedCapability] =
+    useState<ModelCapability>("llm");
+  const [previewModelIds, setPreviewModelIds] = useState<
+    Partial<Record<ModelCapability, string>>
+  >({});
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
     null,
   );
@@ -397,6 +460,46 @@ export function ModelsPage() {
     ? models.filter((model) => model.providerId === selectedProvider.id)
     : [];
   const primaryModel = models.find((model) => model.primary);
+  const getProviderName = (providerId: string | null) =>
+    providers.find((provider) => provider.id === providerId)?.name ??
+    "Provider unavailable";
+
+  useLayoutEffect(() => {
+    const viewport = capabilityTabsViewportRef.current;
+    if (!viewport) return;
+
+    const updateScrollState = () => {
+      const maxScrollLeft = viewport.scrollWidth - viewport.clientWidth;
+      setCapabilityTabScroll({
+        canScrollPrev: viewport.scrollLeft > 2,
+        canScrollNext: maxScrollLeft - viewport.scrollLeft > 2,
+      });
+    };
+
+    updateScrollState();
+    viewport.addEventListener("scroll", updateScrollState, { passive: true });
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(viewport);
+    if (viewport.firstElementChild) {
+      resizeObserver.observe(viewport.firstElementChild);
+    }
+
+    return () => {
+      viewport.removeEventListener("scroll", updateScrollState);
+      resizeObserver.disconnect();
+    };
+  }, [models.length]);
+
+  const scrollCapabilityTabs = (direction: "prev" | "next") => {
+    const viewport = capabilityTabsViewportRef.current;
+    if (!viewport) return;
+    viewport.scrollBy({
+      left:
+        (direction === "next" ? 1 : -1) *
+        Math.max(viewport.clientWidth * 0.7, 160),
+      behavior: "smooth",
+    });
+  };
 
   const closeDialog = () => {
     if (saving) return;
@@ -530,6 +633,211 @@ export function ModelsPage() {
     closeDialog();
   };
 
+  const renderCapabilityContent = (capability: ModelCapability) => {
+    const capabilityMeta = capabilityOptions.find(
+      (option) => option.value === capability,
+    );
+    const capabilityModels = models.filter(
+      (model) => model.raw.capability === capability,
+    );
+    const activeModel =
+      capabilityModels.find(
+        (model) => model.raw.status.toLowerCase() === "active",
+      ) ?? capabilityModels[0] ?? null;
+    const previewModel =
+      capabilityModels.find(
+        (model) => model.id === previewModelIds[capability],
+      ) ?? activeModel;
+    const Icon = capabilityMeta?.icon ?? SparklesIcon;
+
+    return (
+      <TabsContent
+        key={capability}
+        value={capability}
+        className="m-0 min-h-0"
+      >
+        <div className="border-b border-[#e1dacc] p-4 sm:p-5 dark:border-[#38372f]">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#edf2ff] text-[#2456e8] dark:bg-[#7895ff]/12 dark:text-[#9aafff]">
+                <Icon className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">
+                  {capabilityMeta?.label} model selection
+                </p>
+                <h2 className="mt-1 text-base font-semibold">
+                  {previewModel?.label ?? `No ${capabilityMeta?.label} model`}
+                </h2>
+                <p className="mt-1 text-xs text-[#6d685e] dark:text-[#aaa397]">
+                  {previewModel
+                    ? `${getProviderName(previewModel.providerId)} · ${previewModel.name} · ${previewModel.contextWindow}`
+                    : "Connect a provider and register a model for this capability."}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className="h-8 border-amber-200 bg-amber-50 px-2.5 text-[11px] font-medium text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200"
+              >
+                <CheckIcon className="size-3.5" /> Preview only
+              </Badge>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex h-9 max-w-full items-center gap-2 rounded-lg border border-[#d8d0c2] bg-[#fffdf8] px-3 text-left text-xs font-medium shadow-sm outline-none transition-colors hover:border-[#2456e8]/45 focus-visible:ring-2 focus-visible:ring-[#2456e8]/35 dark:border-[#49483f] dark:bg-[#20201c] dark:hover:border-[#7895ff]/45"
+                  disabled={!capabilityModels.length}
+                  aria-label={`Preview selected ${capabilityMeta?.label} model`}
+                >
+                  <span className="max-w-44 truncate">
+                    {previewModel?.label ?? "Choose a model"}
+                  </span>
+                  <ChevronDownIcon className="size-3.5 text-[#777064]" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-64 rounded-xl">
+                  <DropdownMenuRadioGroup
+                    value={previewModel?.id ?? ""}
+                    onValueChange={(modelId) =>
+                      setPreviewModelIds((current) => ({
+                        ...current,
+                        [capability]: modelId,
+                      }))
+                    }
+                  >
+                    {capabilityModels.map((model) => (
+                      <DropdownMenuRadioItem key={model.id} value={model.id}>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">
+                            {model.label}
+                          </span>
+                          <span className="block truncate text-[11px] text-[#777064] dark:text-[#aaa397]">
+                            {getProviderName(model.providerId)} · {model.name}
+                          </span>
+                        </span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] text-[#8a8377] dark:text-[#aaa397]">
+            Preview changes stay in this browser session and do not update AXIOM configuration.
+          </p>
+        </div>
+
+        {registry.loading && models.length === 0 ? (
+          <div className="grid gap-2 p-5">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-20 rounded-xl" />
+            ))}
+          </div>
+        ) : capabilityModels.length ? (
+          <div className="divide-y divide-[#e9e2d6] dark:divide-[#38372f]">
+            {capabilityModels.map((model) => {
+              const previewed = previewModel?.id === model.id;
+              return (
+                <div
+                  key={model.id}
+                  className="grid gap-3 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#f4efe5] text-[#2456e8] dark:bg-white/5 dark:text-[#9aafff]">
+                      <Icon className="size-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <strong className="truncate text-sm">{model.label}</strong>
+                        {model.raw.status.toLowerCase() === "active" && (
+                          <Badge className="h-5 border-0 bg-[#eef3ff] px-1.5 text-[9px] text-[#1237b4] shadow-none dark:bg-[#7895ff]/15 dark:text-[#bcc9ff]">
+                            ACTIVE
+                          </Badge>
+                        )}
+                        {previewed && (
+                          <Badge variant="outline" className="h-5 border-amber-200 px-1.5 text-[9px] text-amber-800 dark:border-amber-400/25 dark:text-amber-200">
+                            PREVIEW
+                          </Badge>
+                        )}
+                        {!model.enabled && (
+                          <Badge variant="outline" className="h-5 px-1.5 text-[9px]">
+                            {model.raw.status.toUpperCase()}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#6d685e] dark:text-[#aaa397]">
+                        <span>{getProviderName(model.providerId)}</span>
+                        <code>{model.name}</code>
+                        <span>rev {model.raw.revision}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!model.primary && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-lg border-[#d8d0c2] text-xs dark:border-[#49483f]"
+                        onClick={() => void activateManagedModel(model)}
+                        disabled={activating === model.id}
+                      >
+                        {activating === model.id ? <LoaderCircleIcon className="animate-spin" /> : <DatabaseZapIcon />}
+                        Activate
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-lg border-[#d8d0c2] text-xs dark:border-[#49483f]"
+                      onClick={() => void testModel(model)}
+                      disabled={testing === model.id}
+                    >
+                      {testing === model.id ? <LoaderCircleIcon className="animate-spin" /> : <DatabaseZapIcon />}
+                      {testing === model.id ? "Testing" : "Test"}
+                    </Button>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      className="rounded-lg"
+                      onClick={() => {
+                        setEditingModel(model);
+                        setDialogMode("model");
+                      }}
+                      aria-label={`Edit ${model.label}`}
+                    >
+                      <PencilIcon />
+                    </Button>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      className="rounded-lg text-[#a53838] hover:bg-rose-50 hover:text-[#8b2424] dark:text-rose-300 dark:hover:bg-rose-400/10"
+                      onClick={() => {
+                        setEditingModel(model);
+                        setDialogMode("delete");
+                      }}
+                      aria-label={`Delete ${model.label}`}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="grid min-h-52 place-items-center px-5 text-center">
+            <div>
+              <CircleAlertIcon className="mx-auto size-5 text-[#8a8377]" />
+              <p className="mt-2 text-sm font-medium">No {capabilityMeta?.label} models configured</p>
+              <p className="mt-1 text-xs text-[#777064] dark:text-[#aaa397]">
+                Choose a provider below, then add a model for this capability.
+              </p>
+            </div>
+          </div>
+        )}
+      </TabsContent>
+    );
+  };
+
   return (
     <section
       className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10"
@@ -550,8 +858,8 @@ export function ModelsPage() {
                 Model control
               </h1>
               <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
-                Configure providers and verify the models AXIOM may use for
-                investigation workflows.
+                Review models by capability, preview a choice, and keep
+                provider connections within reach.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -574,7 +882,7 @@ export function ModelsPage() {
               </Button>
             </div>
           </div>
-          <div className="grid gap-3 border-t border-[#e1dacc] pt-4 dark:border-[#38372f] lg:grid-cols-[auto_minmax(210px,1fr)_auto] lg:items-center">
+          <div className="hidden grid gap-3 border-t border-[#e1dacc] pt-4 dark:border-[#38372f] lg:grid-cols-[auto_minmax(210px,1fr)_auto] lg:items-center">
             <div
               className="flex w-fit rounded-full border border-[#d8d0c2] bg-[#f4efe5]/75 p-1 dark:border-[#49483f] dark:bg-white/5"
               role="tablist"
@@ -632,8 +940,233 @@ export function ModelsPage() {
           </div>
         )}
 
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <section
+            className={cn(panelClass, "min-w-0 overflow-hidden")}
+            aria-label="Models by capability"
+          >
+            <Tabs
+              value={selectedCapability}
+              onValueChange={(value) => setSelectedCapability(value as ModelCapability)}
+              className="gap-0"
+            >
+              <div className="border-b border-[#e1dacc] px-4 pt-4 dark:border-[#38372f] sm:px-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">
+                      Model workspace
+                    </p>
+                    <p className="mt-1 text-sm text-[#625d53] dark:text-[#c5bcaf]">
+                      Select a capability to inspect and preview its available models.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-9 w-fit rounded-full bg-[#2456e8] text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c]"
+                    onClick={() => setDialogMode("model")}
+                    disabled={!selectedProvider}
+                  >
+                    <PlusIcon /> Add model
+                  </Button>
+                </div>
+                <div className="relative mt-4 max-w-full">
+                  {capabilityTabScroll.canScrollPrev && (
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="outline"
+                      className="absolute left-1 top-1/2 z-10 size-7 -translate-y-1/2 rounded-full border-[#d8d0c2] bg-[#fffdf8] shadow-sm dark:border-[#49483f] dark:bg-[#20201c]"
+                      onClick={() => scrollCapabilityTabs("prev")}
+                      aria-label="Show previous model capabilities"
+                    >
+                      <ChevronLeftIcon className="size-3.5" />
+                    </Button>
+                  )}
+                  <div
+                    ref={capabilityTabsViewportRef}
+                    className="max-w-full overflow-hidden"
+                  >
+                    <TabsList
+                      className="h-10 w-max min-w-full rounded-t-xl rounded-b-none bg-transparent p-0"
+                      variant="line"
+                      aria-label="Model capability"
+                    >
+                      {capabilityOptions.map((option) => {
+                        const Icon = option.icon;
+                        const count = models.filter(
+                          (model) => model.raw.capability === option.value,
+                        ).length;
+                        return (
+                          <TabsTrigger
+                            key={option.value}
+                            value={option.value}
+                            className="h-10 shrink-0 gap-2 rounded-none px-3 text-xs sm:px-4"
+                          >
+                            <Icon className="size-3.5" />
+                            {option.label}
+                            <span className="rounded-full bg-[#f1ede4] px-1.5 py-0.5 text-[10px] tabular-nums text-[#6d685e] dark:bg-white/8 dark:text-[#c5bcaf]">
+                              {count}
+                            </span>
+                          </TabsTrigger>
+                        );
+                      })}
+                    </TabsList>
+                  </div>
+                  {capabilityTabScroll.canScrollNext && (
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="outline"
+                      className="absolute right-1 top-1/2 z-10 size-7 -translate-y-1/2 rounded-full border-[#d8d0c2] bg-[#fffdf8] shadow-sm dark:border-[#49483f] dark:bg-[#20201c]"
+                      onClick={() => scrollCapabilityTabs("next")}
+                      aria-label="Show more model capabilities"
+                    >
+                      <ChevronRightIcon className="size-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {capabilityOptions.map((option) => renderCapabilityContent(option.value))}
+            </Tabs>
+          </section>
+
+          <aside
+            className={cn(panelClass, "min-w-0 p-4 sm:p-5 xl:sticky xl:top-6")}
+            aria-labelledby="configured-providers-compact-title"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-emerald-500" />
+                  <h2 id="configured-providers-compact-title" className="text-sm font-semibold">
+                    Providers
+                  </h2>
+                  <Badge variant="outline" className="h-5 rounded-full border-[#d8d0c2] px-1.5 text-[10px] tabular-nums text-[#625d53] dark:border-[#49483f] dark:text-[#c5bcaf]">
+                    {filteredProviders.length}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-[#777064] dark:text-[#aaa397]">
+                  Connection context for {formatCapability(selectedCapability)}.
+                </p>
+              </div>
+              <Button
+                size="icon-sm"
+                variant="outline"
+                className="rounded-lg border-[#d8d0c2] dark:border-[#49483f]"
+                disabled={registry.loading}
+                onClick={() => void refreshRegistry()}
+                aria-label="Refresh provider status"
+              >
+                <RefreshCwIcon className={registry.loading ? "animate-spin" : ""} />
+              </Button>
+            </div>
+
+            <div className="mt-4 flex rounded-lg border border-[#d8d0c2] bg-[#f4efe5]/75 p-1 dark:border-[#49483f] dark:bg-white/5">
+              {(["cloud", "local"] as ProviderSource[]).map((item) => (
+                <Button
+                  key={item}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSource(item)}
+                  className={cn(
+                    "h-8 flex-1 rounded-md px-2 text-xs capitalize",
+                    source === item
+                      ? "bg-white text-[#191915] shadow-sm dark:bg-[#292923] dark:text-[#f4efe5]"
+                      : "text-[#6d685e] dark:text-[#aaa397]",
+                  )}
+                >
+                  {item === "cloud" ? <CloudIcon /> : <ServerCogIcon />}
+                  {item}
+                </Button>
+              ))}
+            </div>
+            <div className="relative mt-3 min-w-0">
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8377]" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className={cn(quietInputClass, "w-full rounded-lg pl-9")}
+                placeholder="Search providers"
+                aria-label="Search configured providers"
+              />
+            </div>
+
+            <div className="mt-3 grid gap-2">
+              {registry.loading && providers.length === 0 ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                  <Skeleton key={index} className="h-16 rounded-xl" />
+                ))
+              ) : filteredProviders.length ? (
+                filteredProviders.map((provider) => {
+                  const capabilityCount = models.filter(
+                    (model) =>
+                      model.providerId === provider.id &&
+                      model.raw.capability === selectedCapability,
+                  ).length;
+                  const selected = selectedProvider?.id === provider.id;
+                  return (
+                    <div
+                      key={provider.id}
+                      className={cn(
+                        "group rounded-xl border p-3 transition-colors",
+                        selected
+                          ? "border-[#2456e8]/45 bg-[#edf2ff]/45 dark:border-[#7895ff]/45 dark:bg-[#7895ff]/8"
+                          : "border-[#e1dacc] bg-[#fffdf8]/60 hover:border-[#2456e8]/30 dark:border-[#38372f] dark:bg-[#20201c]/60 dark:hover:border-[#7895ff]/30",
+                      )}
+                    >
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <ProviderMark name={provider.name} />
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 text-left outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-[#2456e8]/45"
+                          onClick={() => setSelectedProviderId(provider.id)}
+                          aria-pressed={selected}
+                        >
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate text-xs font-semibold">{provider.name}</span>
+                            <span className={cn("size-1.5 shrink-0 rounded-full", provider.status === "online" ? "bg-emerald-500" : "bg-[#a89f91]")} />
+                          </span>
+                          <span className="mt-1 block text-[11px] text-[#777064] dark:text-[#aaa397]">
+                            {capabilityCount} {formatCapability(selectedCapability)} model{capabilityCount === 1 ? "" : "s"}
+                          </span>
+                        </button>
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          className="size-7 rounded-md opacity-100 xl:opacity-0 xl:group-hover:opacity-100 xl:group-focus-within:opacity-100"
+                          onClick={() => {
+                            setSelectedProviderId(provider.id);
+                            setDialogMode("settings");
+                          }}
+                          aria-label={`Edit ${provider.name} settings`}
+                        >
+                          <PencilIcon className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#d8d0c2] px-4 py-6 text-center dark:border-[#49483f]">
+                  <CircleAlertIcon className="mx-auto size-4 text-[#8a8377]" />
+                  <p className="mt-2 text-xs font-medium">No providers found</p>
+                </div>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 h-8 w-full rounded-lg border-dashed border-[#d8d0c2] text-xs dark:border-[#49483f]"
+              onClick={() => setDialogMode("provider")}
+            >
+              <PlusIcon /> Add provider
+            </Button>
+          </aside>
+        </div>
+
         <section
-          className={cn(panelClass, "p-4 sm:p-5")}
+          className={cn(panelClass, "hidden p-4 sm:p-5")}
           aria-labelledby="configured-providers-title"
         >
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -784,7 +1317,7 @@ export function ModelsPage() {
         </section>
 
         <section
-          className={cn(panelClass, "overflow-hidden")}
+          className={cn(panelClass, "hidden overflow-hidden")}
           aria-labelledby="provider-models-title"
         >
           <div className="flex flex-col gap-3 border-b border-[#e1dacc] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5 dark:border-[#38372f]">

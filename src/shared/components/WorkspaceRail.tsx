@@ -550,9 +550,9 @@ function RailContent({
                   : "size-11 justify-center px-0",
                 "rounded-xl",
               )}
-              data-active="false"
+              data-active={surface === "organization"}
               onClick={onSettings}
-              aria-label="Settings"
+              aria-label="Organization settings"
             >
               <SettingsIcon data-icon="inline-start" />
               <span
@@ -563,7 +563,7 @@ function RailContent({
                     : "pointer-events-none w-0 overflow-hidden opacity-0",
                 )}
               >
-                Settings
+                Organization
               </span>
             </Button>
           </div>
@@ -736,6 +736,10 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
             }}
             onTools={() => {
               props.onTools();
+              setMobileOpen(false);
+            }}
+            onSettings={() => {
+              props.onSettings();
               setMobileOpen(false);
             }}
           />

@@ -5,6 +5,7 @@ import {
   createReportsRoute,
   createModelsRoute,
   createMemoryRoute,
+  createOrganizationRoute,
   createToolDetailRoute,
   createToolsRoute,
   getAppRoutePath,
@@ -136,6 +137,14 @@ describe("settings routing", () => {
 
   it("creates a stable memory URL", () => {
     expect(getAppRoutePath(createMemoryRoute())).toBe("/memory");
+  });
+
+  it("parses the organization settings path", () => {
+    expect(parseAppRoute("/settings")).toEqual({
+      surface: "organization",
+      sessionId: null,
+    });
+    expect(getAppRoutePath(createOrganizationRoute())).toBe("/settings");
   });
 
   it("keeps the former memory settings path as a legacy route", () => {
