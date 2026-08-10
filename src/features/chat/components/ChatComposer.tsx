@@ -1,5 +1,12 @@
 import { ChangeEvent, FormEvent, KeyboardEvent, useId, useState } from "react";
-import { ChevronDownIcon, PaperclipIcon, SendIcon, XIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  FileIcon,
+  PaperclipIcon,
+  SendIcon,
+  SheetIcon,
+  XIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -84,6 +91,36 @@ export function ChatComposer({
       )}
       onSubmit={submit}
     >
+      {files.length > 0 && (
+        <div
+          className="flex min-w-0 gap-2 overflow-x-auto px-2 pb-1 [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]"
+          aria-label="Selected files"
+        >
+          {files.map((file, index) => {
+            const FileTypeIcon = isSpreadsheetFile(file.name)
+              ? SheetIcon
+              : FileIcon;
+            return (
+              <span
+                className="inline-flex max-w-[320px] shrink-0 items-center gap-2 rounded-full border border-[#d8d0c2]/80 bg-[#f4efe5]/80 px-3 py-1.5 text-xs text-[#4f4a42] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1]"
+                key={`${file.name}-${file.size}-${index}`}
+              >
+                <FileTypeIcon className="size-3.5 shrink-0 text-[#2456e8] dark:text-[#7895ff]" />
+                <span className="max-w-[240px] truncate">{file.name}</span>
+                <button
+                  type="button"
+                  className="grid size-5 shrink-0 place-items-center rounded-full text-[#6d685e] hover:bg-[#d8d0c2]/70 hover:text-[#191915] dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-[#eee8dc]"
+                  aria-label={`Remove ${file.name}`}
+                  disabled={disabled}
+                  onClick={() => removeFile(index)}
+                >
+                  <XIcon className="size-3" />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
       <Textarea
         className="max-h-40 min-h-12 w-full resize-none overflow-y-auto border-0 bg-transparent px-4 py-3 text-base leading-6 text-[#191915] shadow-none [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin] placeholder:text-[#8a8275] focus-visible:ring-0 dark:bg-transparent dark:text-[#eee8dc] dark:placeholder:text-[#aaa397] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:hover:bg-[#c7bdad] dark:[&::-webkit-scrollbar-thumb]:hover:bg-[#4a493f]"
         value={value}
@@ -94,30 +131,6 @@ export function ChatComposer({
         rows={1}
         aria-label="Ask AXIOM"
       />
-      {files.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-2" aria-label="Selected files">
-          {files.map((file, index) => (
-            <span
-              className="inline-flex max-w-full items-center gap-2 rounded-full border border-[#d8d0c2]/80 bg-[#f4efe5]/80 px-3 py-1.5 text-xs text-[#4f4a42] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1]"
-              key={`${file.name}-${file.size}-${index}`}
-            >
-              <span className="max-w-[220px] truncate">{file.name}</span>
-              <span className="shrink-0 text-[#8a8275] dark:text-[#aaa397]">
-                {formatFileSize(file.size)}
-              </span>
-              <button
-                type="button"
-                className="grid size-5 shrink-0 place-items-center rounded-full text-[#6d685e] hover:bg-[#d8d0c2]/70 hover:text-[#191915] dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-[#eee8dc]"
-                aria-label={`Remove ${file.name}`}
-                disabled={disabled}
-                onClick={() => removeFile(index)}
-              >
-                <XIcon className="size-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
       <div className="flex min-w-0 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <input
@@ -177,14 +190,6 @@ export function ChatComposer({
   );
 }
 
-function formatFileSize(bytes: number) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let value = bytes;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  return `${value >= 10 || unitIndex === 0 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`;
+function isSpreadsheetFile(name: string) {
+  return /\.(csv|tsv|xls|xlsx|ods)$/i.test(name);
 }

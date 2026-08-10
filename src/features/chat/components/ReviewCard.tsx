@@ -19,6 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
+import { AnswerActions } from "./AnswerActions";
 import { AxiomIdentity, visibleSkeletonClass } from "./AxiomIdentity";
 import { MarkdownContent } from "./MarkdownContent";
 import {
@@ -316,6 +317,11 @@ function CompletedResponseCard({
 
         <section className="dark:border-[#38372f]" aria-label="Final answer">
           <MarkdownContent markdown={result.markdown} />
+          <AnswerActions
+            markdown={result.markdown}
+            events={presentation.transcriptEvents}
+            artifacts={result.artifacts}
+          />
         </section>
       </CardContent>
     </Card>
