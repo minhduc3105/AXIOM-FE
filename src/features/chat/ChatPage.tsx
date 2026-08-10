@@ -30,7 +30,7 @@ type ChatPageProps = {
   loading: boolean;
   mode: "home" | "chat";
   engine: ChatEngine;
-  onSubmit: (value: string, engine: ChatEngine) => void;
+  onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
   onEngineChange: (engine: ChatEngine) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
   onSpecificationRevise: (feedback: string) => void;
@@ -341,7 +341,7 @@ function EmptyChatWorkspace({
   loading,
 }: {
   engine: ChatEngine;
-  onSubmit: (value: string, engine: ChatEngine) => void;
+  onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
   onEngineChange: (engine: ChatEngine) => void;
   loading: boolean;
 }) {

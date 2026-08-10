@@ -112,7 +112,7 @@ export function AppExperience() {
   );
 
   const submitQuestion = useCallback(
-    async (question: string, engine: ChatEngine) => {
+    async (question: string, engine: ChatEngine, files: File[] = []) => {
       let conversationId = route.surface === "chat" ? route.sessionId : null;
 
       if (!conversationId) {
@@ -122,7 +122,7 @@ export function AppExperience() {
         navigate(createChatRoute(conversationId));
       }
 
-      chat.submitQuestion(question, conversationId, engine);
+      chat.submitQuestion(question, conversationId, engine, files);
     },
     [chat.submitQuestion, navigate, route],
   );

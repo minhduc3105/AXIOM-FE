@@ -72,6 +72,19 @@ type StreamCallbacks = {
   onOutputText?: (result: MockResult) => void;
 };
 
+type CreateInvestigationOptions = {
+  files?: File[];
+  onProcessEvents?: (events: ProcessEvent[]) => void;
+  onOutputText?: (result: MockResult) => void;
+};
+
+export type UploadedCorpusFile = {
+  filename: string;
+  relativePath: string;
+  size: number;
+  contentType?: string;
+};
+
 export type ConversationHistorySnapshot = {
   turns: ChatTurn[];
   pendingInvestigation: Investigation | null;
@@ -107,20 +120,34 @@ export async function createInvestigation(
   conversationId: string | null = null,
   engine: ChatEngine = "auto",
   signal?: AbortSignal,
-  onOutputText?: (result: MockResult) => void,
+  options: CreateInvestigationOptions | ((result: MockResult) => void) = {},
 ): Promise<InitialChatOutcome> {
   pendingConfirmation = null;
+  const resolvedOptions =
+    typeof options === "function" ? { onOutputText: options } : options;
+  const uploadedFiles =
+    conversationId && resolvedOptions.files?.length
+      ? await uploadCorpusFiles(conversationId, resolvedOptions.files, signal)
+      : [];
   const response = await postJson(
     "/api/v1/responses",
     {
       input: question,
       conversation_id: conversationId,
-      data_corpus_package: { sources: [], schemas: {}, metadata: {} },
+      uploaded_files: uploadedFiles.map((file) => ({
+        filename: file.filename,
+        relative_path: file.relativePath,
+        size: file.size,
+        content_type: file.contentType,
+      })),
       runtime_options: { engine },
     },
     signal,
   );
-  const outcome = await readResponseStream(response, signal, { onOutputText });
+  const outcome = await readResponseStream(response, signal, {
+    onOutputText: resolvedOptions.onOutputText,
+    onProcessEvents: resolvedOptions.onProcessEvents,
+  });
 
   if (outcome.completed) {
     return {
@@ -139,6 +166,49 @@ export async function createInvestigation(
     kind: "confirmation",
     investigation: confirmationToInvestigation(outcome.confirmation, question),
   };
+}
+
+export async function uploadCorpusFiles(
+  conversationId: string,
+  files: File[],
+  signal?: AbortSignal,
+): Promise<UploadedCorpusFile[]> {
+  if (!files.length) return [];
+  const formData = new FormData();
+  formData.append("conv_uid", safeUploadConversationId(conversationId));
+  files.forEach((file) => formData.append("files", file));
+
+  const response = await authFetch(
+    "/data-intelligence-api/api/v1/backend_qa_flow/upload",
+    { method: "POST", body: formData, signal },
+  );
+  if (!response.ok) throw new Error(await responseErrorMessage(response));
+
+  const payload: unknown = await response.json();
+  const data = asRecord(asRecord(payload).data);
+  const rawFiles = Array.isArray(data.files) ? data.files : [];
+  const uploaded = rawFiles.flatMap((item, index) => {
+    const record = asRecord(item);
+    const relativePath = stringValue(record.relative_path);
+    if (!relativePath) return [];
+    return [
+      {
+        filename: stringValue(record.filename) || relativePath,
+        relativePath,
+        size: numberValue(record.size),
+        contentType: files[index]?.type || undefined,
+      },
+    ];
+  });
+
+  if (uploaded.length !== files.length) {
+    throw new Error("Upload succeeded but returned incomplete file paths.");
+  }
+  return uploaded;
+}
+
+function safeUploadConversationId(value: string) {
+  return value.replace(/[^A-Za-z0-9_-]+/g, "_").slice(0, 120) || "conversation";
 }
 
 export async function runWorkflow(
@@ -336,6 +406,33 @@ function applyStreamEvent(
   outcome: StreamOutcome,
   callbacks?: StreamCallbacks,
 ) {
+  if (event.type === "delta") {
+    const delta = rawStringValue(event.content);
+    if (delta) {
+      outcome.outputText += delta;
+      callbacks?.onOutputText?.(
+        completedToResult(streamingCompletedResponse(event, outcome.outputText)),
+      );
+    }
+    return;
+  }
+
+  if (isLambdaProcessEvent(event.type)) {
+    const processEvent = {
+      ...event,
+      type: `pipeline.lambda.${event.type}`,
+      event_id: lambdaEventId(event, outcome.processEvents.length),
+      label: lambdaEventLabel(event),
+      details: event,
+    };
+    outcome.processEvents = upsertProcessEvent(
+      outcome.processEvents,
+      processEventFromApiEvent(processEvent),
+    );
+    callbacks?.onProcessEvents?.(outcome.processEvents);
+    return;
+  }
+
   if (event.type.startsWith("pipeline.")) {
     outcome.processEvents = upsertProcessEvent(
       outcome.processEvents,
@@ -384,6 +481,32 @@ function applyStreamEvent(
         : "The intelligence response failed.",
     );
   }
+}
+
+function isLambdaProcessEvent(type: string) {
+  return ["status", "tool_call", "tool_result", "keepalive"].includes(type);
+}
+
+function lambdaEventId(event: SseEvent, index: number) {
+  const toolCall = asRecord(event.tool_call);
+  const toolCallId =
+    stringValue(event.tool_call_id) || stringValue(toolCall.id);
+  const step = stringValue(event.step);
+  if (toolCallId) return ["tool", toolCallId].join(":");
+  return [event.type, step, toolCallId, String(index)]
+    .filter(Boolean)
+    .join(":");
+}
+
+function lambdaEventLabel(event: SseEvent) {
+  const toolCall = asRecord(event.tool_call);
+  const fn = asRecord(toolCall.function);
+  return (
+    stringValue(event.tool_name) ||
+    stringValue(fn.name) ||
+    stringValue(event.content) ||
+    event.type
+  );
 }
 
 function confirmationFromEvent(event: SseEvent): PendingConfirmation {
@@ -614,8 +737,12 @@ function processRuntimeFields(
   explicitStep: Record<string, unknown> = {},
 ): Partial<ProcessEvent> {
   const details = asRecord(event.details);
+  const detailToolCall = asRecord(details.tool_call);
+  const detailToolFunction = asRecord(detailToolCall.function);
   const inputs = firstPresent(
     details.inputs,
+    parseJsonString(detailToolFunction.arguments) || detailToolFunction.arguments,
+    detailToolCall,
     event.inputs,
     explicitStep.inputs,
     event.input,
@@ -625,6 +752,7 @@ function processRuntimeFields(
   );
   const outputs = firstPresent(
     details.outputs,
+    details.result,
     event.outputs,
     explicitStep.outputs,
     event.output,
@@ -661,6 +789,15 @@ function firstPresent(...values: unknown[]) {
   return values.find(hasRuntimeValue);
 }
 
+function parseJsonString(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 function hasRuntimeValue(value: unknown) {
   return value !== null && value !== undefined && value !== "";
 }
@@ -692,7 +829,10 @@ function stringArrayValue(value: unknown) {
 }
 
 function processEventDetail(event: SseEvent) {
+  const details = asRecord(event.details);
   const parts = [
+    stringValue(event.content),
+    stringValue(details.content),
     stringValue(event.phase),
     stringValue(event.engine),
     stringValue(event.objective),
@@ -982,10 +1122,12 @@ class ResponsesSSEParser {
       if (line.startsWith("event:")) eventName = line.slice(6).trim();
       if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
     }
-    if (!eventName || dataLines.length === 0) return [];
+    if (dataLines.length === 0) return [];
     try {
       const payload = JSON.parse(dataLines.join("\n")) as SseEvent;
-      return payload && payload.type === eventName ? [payload] : [];
+      if (!payload?.type) return [];
+      if (!eventName || payload.type === eventName) return [payload];
+      return [];
     } catch {
       return [];
     }
@@ -1040,12 +1182,27 @@ function normalizeFlags(value: unknown, evidence: EvidenceItem[]): string[] {
 
 function normalizeArtifacts(metadata: Record<string, unknown>): string[] {
   const values = [
+    metadata.generated_files,
+    metadata.generatedFiles,
     metadata.artifacts,
     metadata.artifact_refs,
     metadata.artifactRefs,
   ];
   for (const value of values) {
-    if (Array.isArray(value)) return value.map(String).filter(Boolean);
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => {
+          const record = asRecord(item);
+          return (
+            stringValue(record.url) ||
+            stringValue(record.oss_url) ||
+            stringValue(record.name) ||
+            stringValue(record.filename) ||
+            String(item)
+          );
+        })
+        .filter(Boolean);
+    }
   }
   const artifact = stringValue(metadata.artifact_ref);
   return artifact ? [artifact] : [];

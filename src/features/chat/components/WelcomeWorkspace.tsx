@@ -28,7 +28,7 @@ gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 type WelcomeWorkspaceProps = {
   engine: ChatEngine;
-  onSubmit: (value: string, engine: ChatEngine) => void;
+  onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
   onEngineChange: (engine: ChatEngine) => void;
   onData: () => void;
 };

@@ -5,6 +5,8 @@ import tailwindcss from "@tailwindcss/vite";
 
 const gatewayApiTarget =
   process.env.VITE_GATEWAY_API_PROXY_TARGET ?? "http://localhost:8007";
+const dataIntelligenceApiTarget =
+  process.env.VITE_DATA_INTELLIGENCE_API_PROXY_TARGET ?? "http://localhost:8036";
 const methodsHubTarget =
   process.env.VITE_METHODS_HUB_PROXY_TARGET ?? "http://localhost:8000";
 const modelServiceTarget =
@@ -17,6 +19,11 @@ export default defineConfig({
   server: {
     allowedHosts: ['axiom.iselab.site'],
     proxy: {
+      "/data-intelligence-api": {
+        target: dataIntelligenceApiTarget,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/data-intelligence-api/, ""),
+      },
       "/auth-service": {
         target: gatewayApiTarget,
         changeOrigin: true,

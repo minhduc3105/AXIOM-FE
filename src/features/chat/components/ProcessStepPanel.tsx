@@ -7,6 +7,9 @@ import {
   ChevronUpIcon,
   Clock3Icon,
   Code2Icon,
+  DownloadIcon,
+  FileTextIcon,
+  FolderOpenIcon,
   InfoIcon,
   LoaderCircleIcon,
   TerminalSquareIcon,
@@ -40,11 +43,24 @@ function isToolProcessEvent(event: ProcessEvent) {
   const eventType = event.eventType?.toLowerCase() ?? "";
   const phase = event.phase?.toLowerCase() ?? "";
   return (
+    isLambdaProcessEvent(event) ||
     phase === "tool" ||
     eventType === "tool.called" ||
     eventType.endsWith(".tool.called") ||
     Boolean(event.code) ||
     Boolean(event.artifactRefs?.some((ref) => /\/executions?\//i.test(ref)))
+  );
+}
+
+function isLambdaProcessEvent(event: ProcessEvent) {
+  const eventType = event.eventType?.toLowerCase() ?? "";
+  const phase = event.phase?.toLowerCase() ?? "";
+  const label = event.label.toLowerCase();
+  return (
+    eventType.startsWith("pipeline.lambda.") ||
+    (eventType === "engine.step" &&
+      phase === "engine" &&
+      label.startsWith("lambda "))
   );
 }
 
@@ -64,6 +80,7 @@ export function ProcessWorkspace({
   const { transcriptEvents } = presentation;
   const [expanded, setExpanded] = useState(true);
   const hasScrollableTranscript = transcriptEvents.length > 5;
+  const workspaceFiles = extractWorkspaceFiles(transcriptEvents);
 
   if (transcriptEvents.length === 0) {
     return (
@@ -129,6 +146,10 @@ export function ProcessWorkspace({
           </ScrollArea>
         </div>
       )}
+
+      {workspaceFiles.length > 0 && (
+        <WorkspaceFileList files={workspaceFiles} />
+      )}
     </section>
   );
 }
@@ -190,6 +211,88 @@ function ProcessStepButton({
       </button>
     </li>
   );
+}
+
+type WorkspaceFile = {
+  name: string;
+  url: string;
+  type: string;
+};
+
+const GEN_REPORT_PUBLIC_URL = (
+  import.meta.env.VITE_GEN_REPORT_API_URL || "http://localhost:8011"
+).replace(/\/$/, "");
+
+function WorkspaceFileList({ files }: { files: WorkspaceFile[] }) {
+  return (
+    <section
+      className="overflow-hidden rounded-2xl border border-[#d8d0c2]/80 bg-[#fffdf8]/60 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/55"
+      aria-label="Workspace files"
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-[#d8d0c2]/70 px-3 py-2.5 dark:border-[#38372f]/70">
+        <div className="flex min-w-0 items-center gap-2">
+          <FolderOpenIcon className="size-4 shrink-0 text-[#6d685e] dark:text-[#aaa397]" />
+          <strong className="truncate text-sm font-semibold text-[#191915] dark:text-[#eee8dc]">
+            Workspace files
+          </strong>
+        </div>
+        <Badge variant="outline" className="shrink-0">
+          {files.length}
+        </Badge>
+      </div>
+      <div className="grid gap-1.5 p-2">
+        {files.map((file) => (
+          <button
+            type="button"
+            className="group flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-transparent px-3 py-2 text-left transition-colors hover:border-[#d8d0c2]/80 hover:bg-white/75 dark:hover:border-[#38372f]/80 dark:hover:bg-[#20201c]/75"
+            key={`${file.url}:${file.name}`}
+            onClick={() => downloadWorkspaceFile(file)}
+          >
+            <FileTextIcon className="size-4 shrink-0 text-[#2456e8] dark:text-[#7895ff]" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-[#191915] dark:text-[#eee8dc]">
+                {file.name}
+              </span>
+              <span className="block truncate text-[11px] uppercase text-[#6d685e] dark:text-[#aaa397]">
+                {file.type || "file"}
+              </span>
+            </span>
+            <DownloadIcon className="size-3.5 shrink-0 text-[#6d685e] opacity-0 transition-opacity group-hover:opacity-100 dark:text-[#aaa397]" />
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+async function downloadWorkspaceFile(file: WorkspaceFile) {
+  try {
+    const response = await fetch(file.url);
+    if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    triggerBrowserDownload(objectUrl, file.name);
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  } catch {
+    triggerBrowserDownload(file.url, file.name, true);
+  }
+}
+
+function triggerBrowserDownload(
+  url: string,
+  filename: string,
+  openInNewTab = false,
+) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  if (openInNewTab) {
+    link.target = "_blank";
+    link.rel = "noreferrer";
+  }
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 export function ProcessStepDetail({
@@ -989,6 +1092,78 @@ function firstProcessTab(event: ProcessEvent) {
   if (hasDisplayValue(event.inputs)) return "input";
   if (hasDisplayValue(event.outputs) || event.code?.content) return "output";
   return "input";
+}
+
+function extractWorkspaceFiles(events: ProcessEvent[]): WorkspaceFile[] {
+  const files = new Map<string, WorkspaceFile>();
+  for (const event of events) {
+    for (const value of [
+      event.outputs,
+      event.details,
+      isRecord(event.outputs) ? event.outputs.result : null,
+      isRecord(event.details) ? event.details.result : null,
+    ]) {
+      for (const file of workspaceFilesFromValue(value)) {
+        files.set(file.url || file.name, file);
+      }
+    }
+  }
+  return [...files.values()];
+}
+
+function workspaceFilesFromValue(value: unknown): WorkspaceFile[] {
+  if (!hasDisplayValue(value)) return [];
+  if (Array.isArray(value)) return value.flatMap(workspaceFilesFromValue);
+  if (!isRecord(value)) return [];
+
+  const direct = workspaceFileFromRecord(value);
+  const nestedValues = [
+    value.generated_files,
+    value.generatedFiles,
+    value.files,
+    value.images,
+    value.artifacts,
+  ];
+  return [
+    ...(direct ? [direct] : []),
+    ...nestedValues.flatMap(workspaceFilesFromValue),
+  ];
+}
+
+function workspaceFileFromRecord(value: Record<string, unknown>) {
+  const url = normalizeWorkspaceFileUrl(
+    stringFromUnknown(value.url) ||
+      stringFromUnknown(value.proxy_url) ||
+      stringFromUnknown(value.oss_url),
+  );
+  const name =
+    stringFromUnknown(value.filename) ||
+    stringFromUnknown(value.name) ||
+    artifactName(stringFromUnknown(value.path)) ||
+    artifactName(url);
+  if (!url || !name) return null;
+  return {
+    name,
+    url,
+    type: stringFromUnknown(value.type) || fileTypeFromName(name),
+  };
+}
+
+function normalizeWorkspaceFileUrl(value: string) {
+  if (!value) return "";
+  if (value.startsWith("/api/v1/files/")) return `${GEN_REPORT_PUBLIC_URL}${value}`;
+  if (/^https?:\/\//i.test(value)) return value;
+  return "";
+}
+
+function fileTypeFromName(name: string) {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext))
+    return "image";
+  if (ext === "pdf") return "pdf";
+  if (["md", "markdown", "txt", "csv", "json", "html"].includes(ext))
+    return "text";
+  return "file";
 }
 
 function hasDisplayValue(value: unknown): boolean {

@@ -405,6 +405,7 @@ export function useChatWorkflow() {
       question: string,
       conversationId: string | null = null,
       engine: ChatEngine = "auto",
+      files: File[] = [],
     ) => {
       cancelCurrentRequest();
       const controller = new AbortController();
@@ -421,12 +422,17 @@ export function useChatWorkflow() {
           conversationId,
           engine,
           controller.signal,
-          (result) =>
-            dispatch({
-              type: "submit/stream",
-              investigation: streamingDirectAnswerInvestigation(question),
-              result,
-            }),
+          {
+            files,
+            onOutputText: (result) =>
+              dispatch({
+                type: "submit/stream",
+                investigation: streamingDirectAnswerInvestigation(question),
+                result,
+              }),
+            onProcessEvents: (events) =>
+              dispatch({ type: "process/events", events }),
+          },
         );
         if (outcome.kind === "completed") {
           dispatch({
