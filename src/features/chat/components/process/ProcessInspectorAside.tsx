@@ -47,16 +47,15 @@ export function ProcessInspectorAside({
     () => new Set(activeProcessEventKey ? [activeProcessEventKey] : []),
   );
   const [downloading, setDownloading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"analysis" | "files">(
-    "analysis",
-  );
+  const [activeTab, setActiveTab] = useState<"analysis" | "files">("analysis");
   const stepElements = useRef(new Map<string, HTMLLIElement>());
   const analysisScrollArea = useRef<HTMLDivElement | null>(null);
   const localSelectionKey = useRef<string | null>(null);
 
   useEffect(() => {
     if (!activeProcessEventKey) return;
-    const shouldSkipScroll = localSelectionKey.current === activeProcessEventKey;
+    const shouldSkipScroll =
+      localSelectionKey.current === activeProcessEventKey;
     localSelectionKey.current = null;
     setActiveTab("analysis");
     setExpandedKeys((current) => new Set(current).add(activeProcessEventKey));
