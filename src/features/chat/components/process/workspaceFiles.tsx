@@ -2,6 +2,7 @@ import type { ProcessEvent } from "../../model/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/shared/lib/utils";
+import { getBrowserStorageUrl } from "@/shared/lib/storage-url";
 import { DownloadIcon, FileTextIcon, FolderOpenIcon } from "lucide-react";
 import {
   artifactName,
@@ -191,11 +192,16 @@ export function extractWorkspaceFiles(events: ProcessEvent[]): WorkspaceFile[] {
       isRecord(event.details) ? event.details.result : null,
     ]) {
       for (const file of workspaceFilesFromValue(value)) {
-        files.set(file.url || file.name, file);
+        const key = workspaceFileIdentity(file);
+        if (!files.has(key)) files.set(key, file);
       }
     }
   }
   return [...files.values()];
+}
+
+export function workspaceFileIdentity(file: WorkspaceFile) {
+  return file.name.trim().toLowerCase();
 }
 
 export function workspaceFileFromArtifact(value: string): WorkspaceFile | null {
@@ -251,7 +257,19 @@ function normalizeWorkspaceFileUrl(value: string) {
   if (!value) return "";
   if (value.startsWith("/api/v1/files/"))
     return `${GEN_REPORT_PUBLIC_URL}${value}`;
-  if (/^https?:\/\//i.test(value)) return value;
+  if (/^https?:\/\//i.test(value)) {
+    const storageUrl = getBrowserStorageUrl(value);
+    if (storageUrl !== value) return storageUrl;
+    try {
+      const url = new URL(value);
+      if (url.hostname === "host.docker.internal" && url.port === "8011") {
+        return `${GEN_REPORT_PUBLIC_URL}${url.pathname}${url.search}`;
+      }
+    } catch {
+      return value;
+    }
+    return value;
+  }
   return "";
 }
 
@@ -283,7 +301,10 @@ function createZip(entries: Array<{ name: string; bytes: Uint8Array }>) {
   }
 
   const centralOffset = offset;
-  const centralSize = centralRecords.reduce((sum, item) => sum + item.length, 0);
+  const centralSize = centralRecords.reduce(
+    (sum, item) => sum + item.length,
+    0,
+  );
   return concatBytes([
     ...records,
     ...centralRecords,
@@ -338,7 +359,11 @@ function zipCentralHeader(
   return header;
 }
 
-function zipEndRecord(entries: number, centralSize: number, centralOffset: number) {
+function zipEndRecord(
+  entries: number,
+  centralSize: number,
+  centralOffset: number,
+) {
   const record = new Uint8Array(22);
   const view = new DataView(record.buffer);
   view.setUint32(0, 0x06054b50, true);

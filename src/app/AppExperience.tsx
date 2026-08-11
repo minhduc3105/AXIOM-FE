@@ -157,9 +157,16 @@ export function AppExperience() {
         navigate(createChatRoute(conversationId));
       }
 
-      chat.submitQuestion(question, conversationId, engine, files, modelAlias);
+      chat.submitQuestion(
+        question,
+        conversationId,
+        engine,
+        files,
+        auth.user?.organization_id,
+        modelAlias,
+      );
     },
-    [chat.submitQuestion, navigate, route],
+    [auth.user?.organization_id, chat.submitQuestion, navigate, route],
   );
 
   if (auth.status === "restoring") {

@@ -430,6 +430,7 @@ export function useChatWorkflow() {
       conversationId: string | null = null,
       engine: ChatEngine = "auto",
       files: File[] = [],
+      organizationId?: string | null,
       modelAlias?: string | null,
     ) => {
       cancelCurrentRequest();
@@ -450,6 +451,7 @@ export function useChatWorkflow() {
           controller.signal,
           {
             files,
+            organizationId,
             modelAlias,
             onOutputText: (result) =>
               dispatch({
@@ -652,7 +654,9 @@ export function useChatWorkflow() {
           if (hasHydratedContent) {
             dispatch({
               type: "conversation/load-success",
-              history: activeTurn ? snapshot.turns.slice(0, -1) : snapshot.turns,
+              history: activeTurn
+                ? snapshot.turns.slice(0, -1)
+                : snapshot.turns,
               investigation: activeTurn?.investigation || null,
               result: activeTurn?.result || null,
               processEvents: activeTurn?.processEvents || createProcessEvents(),
@@ -667,7 +671,7 @@ export function useChatWorkflow() {
               (!activeTurn &&
                 !snapshot.pendingInvestigation &&
                 snapshot.pendingQuestion)) &&
-              !controller.signal.aborted,
+            !controller.signal.aborted,
           );
           if (shouldContinuePolling) {
             await waitForPendingConversationPoll(controller.signal);

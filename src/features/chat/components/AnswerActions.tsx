@@ -17,6 +17,7 @@ import {
 import {
   extractWorkspaceFiles,
   workspaceFileFromArtifact,
+  workspaceFileIdentity,
   type WorkspaceFile,
 } from "./ProcessStepPanel";
 
@@ -146,10 +147,10 @@ function mergeGeneratedFiles(
   artifacts: string[],
 ): WorkspaceFile[] {
   const files = new Map<string, WorkspaceFile>();
-  for (const file of eventFiles) files.set(file.url || file.name, file);
+  for (const file of eventFiles) files.set(workspaceFileIdentity(file), file);
   for (const artifact of artifacts) {
     const file = workspaceFileFromArtifact(artifact);
-    if (file) files.set(file.url || file.name, file);
+    if (file) files.set(workspaceFileIdentity(file), file);
   }
   return [...files.values()];
 }

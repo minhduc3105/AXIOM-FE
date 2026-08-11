@@ -74,16 +74,19 @@ type StreamCallbacks = {
 
 type CreateInvestigationOptions = {
   files?: File[];
+  organizationId?: string | null;
   modelAlias?: string | null;
   onProcessEvents?: (events: ProcessEvent[]) => void;
   onOutputText?: (result: MockResult) => void;
 };
 
+const defaultWorkspaceId = import.meta.env.VITE_AXIOM_WORKSPACE_ID ?? "default";
+
 export type UploadedCorpusFile = {
   filename: string;
-  relativePath: string;
   size: number;
   contentType?: string;
+  fileRef: Record<string, unknown>;
 };
 
 export type ConversationHistorySnapshot = {
@@ -128,7 +131,12 @@ export async function createInvestigation(
     typeof options === "function" ? { onOutputText: options } : options;
   const uploadedFiles =
     conversationId && resolvedOptions.files?.length
-      ? await uploadCorpusFiles(conversationId, resolvedOptions.files, signal)
+      ? await uploadCorpusFiles(
+          conversationId,
+          resolvedOptions.organizationId,
+          resolvedOptions.files,
+          signal,
+        )
       : [];
   const response = await postJson(
     "/api/v1/responses",
@@ -137,13 +145,15 @@ export async function createInvestigation(
       conversation_id: conversationId,
       uploaded_files: uploadedFiles.map((file) => ({
         filename: file.filename,
-        relative_path: file.relativePath,
         size: file.size,
         content_type: file.contentType,
+        metadata: { file_ref: file.fileRef },
       })),
       runtime_options: {
         engine,
-        ...(resolvedOptions.modelAlias ? { model: resolvedOptions.modelAlias } : {}),
+        ...(resolvedOptions.modelAlias
+          ? { model: resolvedOptions.modelAlias }
+          : {}),
       },
     },
     signal,
@@ -174,16 +184,24 @@ export async function createInvestigation(
 
 export async function uploadCorpusFiles(
   conversationId: string,
+  organizationId: string | null | undefined,
   files: File[],
   signal?: AbortSignal,
 ): Promise<UploadedCorpusFile[]> {
   if (!files.length) return [];
+  if (!organizationId?.trim()) {
+    throw new Error(
+      "Organization ID is required before uploading attachments.",
+    );
+  }
   const formData = new FormData();
-  formData.append("conv_uid", safeUploadConversationId(conversationId));
+  formData.append("workspace_id", defaultWorkspaceId);
   files.forEach((file) => formData.append("files", file));
 
   const response = await authFetch(
-    "/data-intelligence-api/api/v1/backend_qa_flow/upload",
+    intelligenceApiUrl(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}/attachments`,
+    ),
     { method: "POST", body: formData, signal },
   );
   if (!response.ok) throw new Error(await responseErrorMessage(response));
@@ -193,14 +211,15 @@ export async function uploadCorpusFiles(
   const rawFiles = Array.isArray(data.files) ? data.files : [];
   const uploaded = rawFiles.flatMap((item, index) => {
     const record = asRecord(item);
-    const relativePath = stringValue(record.relative_path);
-    if (!relativePath) return [];
+    const fileRef = asRecord(record.file_ref);
+    if (!stringValue(fileRef.url)) return [];
     return [
       {
-        filename: stringValue(record.filename) || relativePath,
-        relativePath,
+        filename:
+          stringValue(record.filename) || files[index]?.name || "upload",
         size: numberValue(record.size),
         contentType: files[index]?.type || undefined,
+        fileRef,
       },
     ];
   });
@@ -209,10 +228,6 @@ export async function uploadCorpusFiles(
     throw new Error("Upload succeeded but returned incomplete file paths.");
   }
   return uploaded;
-}
-
-function safeUploadConversationId(value: string) {
-  return value.replace(/[^A-Za-z0-9_-]+/g, "_").slice(0, 120) || "conversation";
 }
 
 export async function runWorkflow(
@@ -239,11 +254,9 @@ export async function runWorkflow(
       },
       signal,
     );
-    const reviseOutcome = await readResponseStream(
-      reviseResponse,
-      signal,
-      { onProcessEvents },
-    );
+    const reviseOutcome = await readResponseStream(reviseResponse, signal, {
+      onProcessEvents,
+    });
     if (reviseOutcome.completed) {
       pendingConfirmation = null;
       markAllDone(reviseOutcome.processEvents, onProcessEvents);
@@ -263,11 +276,9 @@ export async function runWorkflow(
     { action: "confirm", revision: confirmation.revision },
     signal,
   );
-  const outcome = await readResponseStream(
-    confirmResponse,
-    signal,
-    { onProcessEvents },
-  );
+  const outcome = await readResponseStream(confirmResponse, signal, {
+    onProcessEvents,
+  });
 
   if (!outcome.completed) {
     throw new Error("The intelligence service did not complete the response.");
@@ -394,8 +405,7 @@ async function readResponseStream(
       const events = done
         ? parser.finish()
         : parser.push(decoder.decode(value, { stream: true }));
-      for (const event of events)
-        applyStreamEvent(event, outcome, callbacks);
+      for (const event of events) applyStreamEvent(event, outcome, callbacks);
       if (done) break;
     }
   } finally {
@@ -415,7 +425,9 @@ function applyStreamEvent(
     if (delta) {
       outcome.outputText += delta;
       callbacks?.onOutputText?.(
-        completedToResult(streamingCompletedResponse(event, outcome.outputText)),
+        completedToResult(
+          streamingCompletedResponse(event, outcome.outputText),
+        ),
       );
     }
     return;
@@ -450,7 +462,9 @@ function applyStreamEvent(
     if (delta) {
       outcome.outputText += delta;
       callbacks?.onOutputText?.(
-        completedToResult(streamingCompletedResponse(event, outcome.outputText)),
+        completedToResult(
+          streamingCompletedResponse(event, outcome.outputText),
+        ),
       );
     }
     return;
@@ -745,7 +759,8 @@ function processRuntimeFields(
   const detailToolFunction = asRecord(detailToolCall.function);
   const inputs = firstPresent(
     details.inputs,
-    parseJsonString(detailToolFunction.arguments) || detailToolFunction.arguments,
+    parseJsonString(detailToolFunction.arguments) ||
+      detailToolFunction.arguments,
     detailToolCall,
     event.inputs,
     explicitStep.inputs,
@@ -806,7 +821,9 @@ function hasRuntimeValue(value: unknown) {
   return value !== null && value !== undefined && value !== "";
 }
 
-function normalizeProcessCode(value: unknown): ProcessEvent["code"] | undefined {
+function normalizeProcessCode(
+  value: unknown,
+): ProcessEvent["code"] | undefined {
   const record = asRecord(value);
   const content = stringValue(record.content) || stringValue(record.code);
   if (!content) return undefined;
@@ -824,7 +841,13 @@ function normalizeProcessCode(value: unknown): ProcessEvent["code"] | undefined 
 
 function artifactNameFromRef(ref: string) {
   if (!ref) return "";
-  return ref.replace(/^artifact:\/\//, "").split("/").filter(Boolean).pop() || "";
+  return (
+    ref
+      .replace(/^artifact:\/\//, "")
+      .split("/")
+      .filter(Boolean)
+      .pop() || ""
+  );
 }
 
 function stringArrayValue(value: unknown) {
@@ -984,9 +1007,14 @@ function completedResponseFromMessage(
 
 function isTerminalAssistantStatus(status: string) {
   const normalized = status.toLowerCase();
-  return ["completed", "complete", "done", "success", "failed", "error"].includes(
-    normalized,
-  );
+  return [
+    "completed",
+    "complete",
+    "done",
+    "success",
+    "failed",
+    "error",
+  ].includes(normalized);
 }
 
 function confirmationFromMessage(

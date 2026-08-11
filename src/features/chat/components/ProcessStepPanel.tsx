@@ -10,5 +10,6 @@ export { ProcessStepDetail } from "./process/ProcessStepDetail";
 export {
   extractWorkspaceFiles,
   workspaceFileFromArtifact,
+  workspaceFileIdentity,
   type WorkspaceFile,
 } from "./process/workspaceFiles";
