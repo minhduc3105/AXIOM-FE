@@ -16,6 +16,7 @@ export const modelServiceApiBaseUrl =
 
 type V2ProviderView = {
   id: string;
+  scope: "system" | "organization";
   display_name: string;
   source: string;
   base_url: string;
@@ -98,14 +99,16 @@ function v2ProviderToProviderView(provider: V2ProviderView): ProviderView {
     adapter_type: provider.protocol,
     base_url: provider.base_url,
     secret_ref: provider.credential_configured ? "configured" : null,
-    scope: provider.source,
+    scope: provider.scope === "organization" ? "tenant" : "platform",
     status: provider.status,
     created_at: provider.created_at,
     updated_at: provider.updated_at,
   };
 }
 
-function v2ModelToLogicalModelView(model: V2ProviderModelView): LogicalModelView {
+function v2ModelToLogicalModelView(
+  model: V2ProviderModelView,
+): LogicalModelView {
   return {
     id: model.resource_id,
     alias: model.resource_id,
@@ -134,41 +137,15 @@ function v2ModelToDeploymentView(model: V2ProviderModelView): DeploymentView {
   };
 }
 
-function isCredentialEncryptionError(error: unknown) {
-  return (
-    error instanceof ModelServiceApiError &&
-    error.message.includes("credential_encryption_not_configured")
-  );
-}
-
-function hasApiKey(payload: Record<string, unknown>) {
-  return typeof payload.api_key === "string" && payload.api_key.length > 0;
-}
-
-function withoutApiKey(payload: Record<string, unknown>) {
-  const { api_key: _apiKey, ...rest } = payload;
-  return rest;
-}
-
 async function requestProvider(
   path: string,
   method: "POST" | "PATCH",
   payload: Record<string, unknown>,
 ) {
-  try {
-    return await requestJson<V2ProviderView>(path, {
-      method,
-      body: JSON.stringify(payload),
-    });
-  } catch (error) {
-    if (!hasApiKey(payload) || !isCredentialEncryptionError(error)) {
-      throw error;
-    }
-    return requestJson<V2ProviderView>(path, {
-      method,
-      body: JSON.stringify(withoutApiKey(payload)),
-    });
-  }
+  return requestJson<V2ProviderView>(path, {
+    method,
+    body: JSON.stringify(payload),
+  });
 }
 
 async function upsertProvider(
@@ -189,11 +166,24 @@ async function upsertProvider(
         source: payload.source,
         base_url: payload.base_url,
         protocol: payload.protocol,
-        api_key: payload.api_key,
         status: payload.status,
       },
     );
   }
+}
+
+async function upsertProviderCredential(
+  providerId: string,
+  apiKey: string | null,
+) {
+  if (!apiKey) return;
+  await requestJson(
+    `/api/v2/providers/${encodeURIComponent(providerId)}/credential`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ api_key: apiKey }),
+    },
+  );
 }
 
 async function upsertProviderModel(
@@ -300,17 +290,21 @@ export async function listDeployments(modelId: string, signal?: AbortSignal) {
 export async function registerModel(
   body: ModelRegistrationRequest,
 ): Promise<ModelRegistrationResponse> {
-  const providerId = body.provider.id || slugifyProviderId(body.provider.name);
+  const organizationProviderId =
+    body.provider.scope === "tenant" ? body.provider.id : undefined;
+  const providerId =
+    organizationProviderId || slugifyProviderId(`custom-${body.provider.name}`);
+  const apiKey = apiKeyFromSecretRef(body.provider.secret_ref);
   const providerPayload = {
     id: providerId,
     display_name: body.provider.name,
     source: body.provider.scope === "tenant" ? "custom" : "cloud",
     base_url: body.provider.base_url,
     protocol: body.provider.adapter_type,
-    api_key: apiKeyFromSecretRef(body.provider.secret_ref),
     status: body.activate ? "active" : "inactive",
   };
   const provider = await upsertProvider(providerId, providerPayload);
+  await upsertProviderCredential(provider.id, apiKey);
   const model = await upsertProviderModel(provider.id, {
     model_id: body.model.upstream_model_id,
     name: body.model.display_name || body.model.alias,
@@ -379,6 +373,27 @@ async function resolveModelTarget(model: LogicalModelView) {
   };
 }
 
+function createVisionSmokeTestImage() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 64;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Unable to create the VLM smoke-test image.");
+  }
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#2563eb";
+  context.fillRect(8, 8, 22, 22);
+  context.fillStyle = "#f97316";
+  context.beginPath();
+  context.arc(46, 46, 12, 0, Math.PI * 2);
+  context.fill();
+
+  return canvas.toDataURL("image/png");
+}
+
 export async function testModel(
   model: LogicalModelView,
 ): Promise<ModelTestResult> {
@@ -438,11 +453,44 @@ export async function testModel(
     }
 
     if (model.capability === "vlm") {
+      const response = await requestJson<LlmResponse>(
+        "/api/v2/inference/vision-responses",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            ...target,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: "Briefly identify the colored shapes in this image.",
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: createVisionSmokeTestImage(),
+                      detail: "low",
+                    },
+                  },
+                ],
+              },
+            ],
+            temperature: 0,
+            max_output_tokens: 64,
+            stream: false,
+          }),
+        },
+      );
       return {
-        status: "error",
-        title: "Vision smoke test needs an image",
+        status: "success",
+        title: "Vision request succeeded",
         detail:
-          "The configured VLM endpoint requires an image URL or data URI. Use registry activation here, then test VLMs from an image-aware flow.",
+          response.output.content.trim() ||
+          `Finished with reason ${response.finish_reason}.`,
+        traceId: response.trace_id,
+        latencyMs: Math.round(performance.now() - startedAt),
       };
     }
 

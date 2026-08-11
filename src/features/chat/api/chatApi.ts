@@ -128,6 +128,7 @@ export async function createInvestigation(
   options: CreateInvestigationOptions | ((result: MockResult) => void) = {},
 ): Promise<InitialChatOutcome> {
   pendingConfirmation = null;
+  const sessionId = conversationId ?? crypto.randomUUID();
   const resolvedOptions =
     typeof options === "function" ? { onOutputText: options } : options;
   const uploadedFiles =
@@ -143,6 +144,7 @@ export async function createInvestigation(
     "/api/v1/responses",
     {
       input: question,
+      session_id: sessionId,
       conversation_id: conversationId,
       uploaded_files: uploadedFiles.map((file) => ({
         filename: file.filename,

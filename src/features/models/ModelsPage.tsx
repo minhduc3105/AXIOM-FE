@@ -807,9 +807,6 @@ export function ModelsPage() {
                   >
                     {selectedProvider?.name ?? "Select a provider"} models
                   </h2>
-                  <span className="text-xs text-[#777064] dark:text-[#aaa397]">
-                    {selectedProvider?.updatedAt}
-                  </span>
                 </div>
                 <p className="mt-0.5 text-xs text-[#6d685e] dark:text-[#aaa397]">
                   Test a model before enabling it for AXIOM workflows.
