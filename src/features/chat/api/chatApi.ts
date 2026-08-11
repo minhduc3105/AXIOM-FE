@@ -83,6 +83,7 @@ type CreateInvestigationOptions = {
 const defaultWorkspaceId = import.meta.env.VITE_AXIOM_WORKSPACE_ID ?? "default";
 
 export type UploadedCorpusFile = {
+  artifactId: string;
   filename: string;
   size: number;
   contentType?: string;
@@ -149,6 +150,7 @@ export async function createInvestigation(
         content_type: file.contentType,
         metadata: { file_ref: file.fileRef },
       })),
+      input_artifact_ids: uploadedFiles.map((file) => file.artifactId),
       runtime_options: {
         engine,
         ...(resolvedOptions.modelAlias
@@ -212,9 +214,12 @@ export async function uploadCorpusFiles(
   const uploaded = rawFiles.flatMap((item, index) => {
     const record = asRecord(item);
     const fileRef = asRecord(record.file_ref);
-    if (!stringValue(fileRef.url)) return [];
+    const artifactId =
+      stringValue(fileRef.file_id) || stringValue(fileRef.object_key);
+    if (!artifactId || !stringValue(fileRef.url)) return [];
     return [
       {
+        artifactId,
         filename:
           stringValue(record.filename) || files[index]?.name || "upload",
         size: numberValue(record.size),
@@ -396,6 +401,17 @@ async function readResponseStream(
   const decoder = new TextDecoder();
   const parser = new ResponsesSSEParser();
   const outcome: StreamOutcome = { processEvents: [], outputText: "" };
+  let latestResponseId: string | null = null;
+  let cancellationSent = false;
+  const notifyCancellation = () => {
+    if (!latestResponseId || cancellationSent) return;
+    cancellationSent = true;
+    void postJson(
+      `/api/v1/responses/${encodeURIComponent(latestResponseId)}/cancel`,
+      {},
+    ).catch(() => undefined);
+  };
+  signal?.addEventListener("abort", notifyCancellation);
 
   try {
     while (true) {
@@ -405,10 +421,17 @@ async function readResponseStream(
       const events = done
         ? parser.finish()
         : parser.push(decoder.decode(value, { stream: true }));
-      for (const event of events) applyStreamEvent(event, outcome, callbacks);
+      for (const event of events) {
+        if (typeof event.response_id === "string") {
+          latestResponseId = event.response_id;
+          if (signal?.aborted) notifyCancellation();
+        }
+        applyStreamEvent(event, outcome, callbacks);
+      }
       if (done) break;
     }
   } finally {
+    signal?.removeEventListener("abort", notifyCancellation);
     reader.releaseLock();
   }
 
