@@ -22,14 +22,22 @@ import { cn } from "@/shared/lib/utils";
 import { ChatComposer } from "./ChatComposer";
 import { OutcomeCarousel } from "./OutcomeCarousel";
 import { WorkflowAccordion } from "./WorkflowAccordion";
-import type { ChatEngine } from "../model/types";
+import type { ChatEngine, ChatModelOption } from "../model/types";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 type WelcomeWorkspaceProps = {
   engine: ChatEngine;
-  onSubmit: (value: string, engine: ChatEngine) => void;
+  models: ChatModelOption[];
+  selectedModelAlias: string | null;
+  onSubmit: (
+    value: string,
+    engine: ChatEngine,
+    files: File[],
+    modelAlias?: string | null,
+  ) => void;
   onEngineChange: (engine: ChatEngine) => void;
+  onModelChange: (modelAlias: string | null) => void;
   onData: () => void;
 };
 
@@ -69,8 +77,11 @@ const bentoCards = [
 
 export function WelcomeWorkspace({
   engine,
+  models,
+  selectedModelAlias,
   onSubmit,
   onEngineChange,
+  onModelChange,
   onData,
 }: WelcomeWorkspaceProps) {
   const root = useRef<HTMLDivElement>(null);
@@ -139,7 +150,10 @@ export function WelcomeWorkspace({
           <ChatComposer
             className="mt-9 max-w-3xl"
             engine={engine}
+            models={models}
+            selectedModelAlias={selectedModelAlias}
             onEngineChange={onEngineChange}
+            onModelChange={onModelChange}
             onSubmit={onSubmit}
           />
           <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-sm text-[#6d685e] dark:text-[#aaa397]">

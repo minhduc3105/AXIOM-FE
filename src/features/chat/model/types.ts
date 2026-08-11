@@ -3,14 +3,28 @@ export type WorkflowStage = Exclude<ChatStage, "welcome" | "pending">;
 export type ProcessStatus = "waiting" | "running" | "done" | "failed";
 export type ChatEngine = "auto" | "general" | "reason" | "report";
 
+export type ChatModelOption = {
+  id: string;
+  alias: string;
+  label: string;
+  status?: string;
+};
+
 export type Investigation = {
   question: string;
+  attachments?: ChatAttachment[];
   confidence: number;
   intent: string;
   scope: string;
   specMarkdown: string;
   policy: string;
   output: string;
+};
+
+export type ChatAttachment = {
+  name: string;
+  size: number;
+  type?: string;
 };
 
 export type EditableSpecification = Pick<

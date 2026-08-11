@@ -77,7 +77,7 @@ function EvidenceContent({ result, onClose }: { result: MockResult; onClose: () 
           <div className="grid gap-3">
             {result.artifacts.map((artifact) => (
               <Card className="rounded-2xl border border-[#d8d0c2] bg-[#fffdf8]/86 dark:border-[#38372f] dark:bg-[#20201c]" key={artifact}>
-                <CardContent className="flex items-center gap-3 p-4"><FileCheck2Icon className="size-5 text-[#2456e8]" /><div><strong>{artifact}</strong><span className="block text-sm text-[#6d685e] dark:text-[#aaa397]">Generated with the reviewed answer</span></div></CardContent>
+                <CardContent className="flex items-center gap-3 p-4"><FileCheck2Icon className="size-5 text-[#2456e8]" /><div><strong>{isUrl(artifact) ? artifactName(artifact) : artifact}</strong><span className="block text-sm text-[#6d685e] dark:text-[#aaa397]">{isUrl(artifact) ? <a className="underline underline-offset-4" href={artifact} rel="noreferrer" target="_blank">Open generated artifact</a> : "Generated with the reviewed answer"}</span></div></CardContent>
               </Card>
             ))}
           </div>
@@ -93,4 +93,18 @@ function EvidenceContent({ result, onClose }: { result: MockResult; onClose: () 
       </Tabs>
     </div>
   )
+}
+
+function isUrl(value: string) {
+  return /^https?:\/\//.test(value) || value.startsWith("/api/");
+}
+
+function artifactName(value: string) {
+  try {
+    const parsed = new URL(value, window.location.origin);
+    const pathValue = parsed.searchParams.get("path") || parsed.pathname;
+    return decodeURIComponent(pathValue.split("/").filter(Boolean).pop() || value);
+  } catch {
+    return value;
+  }
 }

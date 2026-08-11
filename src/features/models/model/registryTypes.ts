@@ -46,6 +46,7 @@ export type DeploymentView = {
 
 export type ModelRegistrationRequest = {
   provider: {
+    id?: string;
     name: string;
     adapter_type: string;
     base_url: string;

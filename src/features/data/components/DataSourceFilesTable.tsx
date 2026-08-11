@@ -1,3 +1,4 @@
+import { useId } from "react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -16,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -129,6 +131,7 @@ export function DataSourceFilesTable({
   onInspect,
   onCreateIngestion,
 }: DataSourceFilesTableProps) {
+  const searchId = useId();
   const files = result?.files ?? [];
   const totalCount = result?.totalCount ?? 0;
   const totalUnfilteredCount = result?.totalUnfilteredCount ?? 0;
@@ -145,16 +148,21 @@ export function DataSourceFilesTable({
   return (
     <div className="min-w-0">
       <div className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center">
-        <label className="relative min-w-0 flex-1 lg:max-w-md">
-          <span className="sr-only">Search data source files</span>
-          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search files"
-            className="pl-9"
-          />
-        </label>
+        <Field className="min-w-0 flex-1 lg:max-w-md">
+          <FieldLabel htmlFor={searchId} className="sr-only">
+            Search data source files
+          </FieldLabel>
+          <div className="relative">
+            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id={searchId}
+              value={search}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder="Search files"
+              className="pl-9"
+            />
+          </div>
+        </Field>
         <span className="text-sm tabular-nums text-muted-foreground">
           {totalCount} of {totalUnfilteredCount}
         </span>
@@ -204,17 +212,19 @@ export function DataSourceFilesTable({
                       )}
                     >
                       {field ? (
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="xs"
                           onClick={() => onSortChange(field)}
                           className={cn(
-                            "inline-flex items-center gap-1.5 rounded-md py-1 outline-none focus-visible:ring-3 focus-visible:ring-primary/25",
+                            "h-auto gap-1.5 rounded-md px-1 py-1",
                             field === "size" && "float-right",
                           )}
                         >
                           {label}
                           {sortIcon(field)}
-                        </button>
+                        </Button>
                       ) : (
                         label
                       )}
@@ -235,13 +245,14 @@ export function DataSourceFilesTable({
                         </span>
                         <div className="min-w-0">
                           {file.canInspect ? (
-                            <button
+                            <Button
                               type="button"
+                              variant="link"
                               onClick={() => onInspect(file)}
-                              className="block max-w-full truncate text-left text-sm font-medium outline-none hover:text-primary focus-visible:rounded focus-visible:ring-3 focus-visible:ring-primary/25"
+                              className="h-auto max-w-full justify-start truncate p-0 text-left text-sm font-medium text-foreground hover:text-primary"
                             >
                               {file.name}
-                            </button>
+                            </Button>
                           ) : (
                             <strong className="block truncate text-sm font-medium">
                               {file.name}

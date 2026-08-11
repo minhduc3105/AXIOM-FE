@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer } from "./components/ChatComposer";
 import { EvidencePanel } from "./components/EvidencePanel";
-import { ProcessStepDetail } from "./components/ProcessStepPanel";
+import { ProcessInspectorAside } from "./components/ProcessStepPanel";
 import { ReviewCard } from "./components/ReviewCard";
 import { UserMessage } from "./components/UserMessage";
 import { WelcomeWorkspace } from "./components/WelcomeWorkspace";
 import { Button } from "@/components/ui/button";
-import { ChevronLeftIcon, XIcon } from "lucide-react";
+import { PanelRightOpenIcon } from "lucide-react";
 import type {
   ChatStage,
   ChatEngine,
+  ChatModelOption,
   ChatTurn,
   EditableSpecification,
   Investigation,
@@ -30,8 +31,16 @@ type ChatPageProps = {
   loading: boolean;
   mode: "home" | "chat";
   engine: ChatEngine;
-  onSubmit: (value: string, engine: ChatEngine) => void;
+  models: ChatModelOption[];
+  selectedModelAlias: string | null;
+  onSubmit: (
+    value: string,
+    engine: ChatEngine,
+    files: File[],
+    modelAlias?: string | null,
+  ) => void;
   onEngineChange: (engine: ChatEngine) => void;
+  onModelChange: (modelAlias: string | null) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
   onSpecificationRevise: (feedback: string) => void;
   onResetSpecification: () => void;
@@ -53,8 +62,11 @@ export function ChatPage({
   loading,
   mode,
   engine,
+  models,
+  selectedModelAlias,
   onSubmit,
   onEngineChange,
+  onModelChange,
   onSpecificationChange,
   onSpecificationRevise,
   onResetSpecification,
@@ -63,13 +75,11 @@ export function ChatPage({
   onCloseEvidence,
   onData,
 }: ChatPageProps) {
-  const chatMainRef = useRef<HTMLDivElement>(null);
+  const chatMainRef = useRef<HTMLElement>(null);
   const [inspectedProcessStep, setInspectedProcessStep] = useState<{
     key: string;
     event: ProcessEvent;
   } | null>(null);
-  const [processInspectorCollapsed, setProcessInspectorCollapsed] =
-    useState(false);
   const processSignature = useMemo(
     () => processEvents.map((event) => event.status).join("-"),
     [processEvents],
@@ -88,10 +98,16 @@ export function ChatPage({
     [history, processEvents],
   );
   const processInspectorOpen = Boolean(inspectedProcessStep);
+  const canOpenProcessInspector = inspectableProcessEvents.length > 0;
 
   function handleProcessEventSelect(event: ProcessEvent, key: string) {
     setInspectedProcessStep({ event, key });
-    setProcessInspectorCollapsed(false);
+  }
+
+  function handleOpenProcessInspector() {
+    const latestStep = inspectableProcessEvents[inspectableProcessEvents.length - 1];
+    if (!latestStep) return;
+    setInspectedProcessStep(latestStep);
   }
 
   useEffect(() => {
@@ -134,7 +150,10 @@ export function ChatPage({
       >
         <WelcomeWorkspace
           engine={engine}
+          models={models}
+          selectedModelAlias={selectedModelAlias}
           onEngineChange={onEngineChange}
+          onModelChange={onModelChange}
           onSubmit={onSubmit}
           onData={onData}
         />
@@ -146,8 +165,11 @@ export function ChatPage({
     return (
       <EmptyChatWorkspace
         engine={engine}
+        models={models}
+        selectedModelAlias={selectedModelAlias}
         loading={loading}
         onEngineChange={onEngineChange}
+        onModelChange={onModelChange}
         onSubmit={onSubmit}
       />
     );
@@ -156,25 +178,23 @@ export function ChatPage({
 
   return (
     <section
-      className="h-dvh min-h-screen w-full overflow-hidden bg-transparent"
+      ref={chatMainRef}
+      className="h-dvh min-h-screen w-full overflow-y-auto overflow-x-hidden bg-transparent [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]"
       aria-label="Investigation workspace"
     >
       <div
         className={cn(
-          "mx-auto grid h-full min-h-0 gap-5 transition-[width] duration-300 ease-out max-sm:w-[calc(100%_-_24px)]",
+          "mx-auto grid min-h-full gap-5 transition-[width] duration-300 ease-out max-sm:w-[calc(100%_-_24px)]",
           processInspectorOpen
-            ? processInspectorCollapsed
-              ? "w-[min(1010px,calc(100%_-_40px))] xl:grid-cols-[minmax(560px,900px)_64px]"
-              : "w-[calc(100%_-_40px)] xl:grid-cols-[minmax(0,760px)_minmax(0,1fr)] 2xl:w-[calc(100%_-_64px)] 2xl:grid-cols-[minmax(0,820px)_minmax(0,1fr)]"
+            ? "w-[calc(100%_-_40px)] xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] 2xl:w-[calc(100%_-_64px)]"
             : evidenceOpen && stage === "result"
               ? "w-[min(1480px,calc(100%_-_56px))]"
               : "w-[min(980px,calc(100%_-_56px))]",
         )}
       >
-        <div className="flex min-h-0 flex-col gap-4 pb-4 pt-10 max-sm:pt-8 md:pt-14">
+        <div className="flex min-h-[100dvh] flex-col gap-4 pb-4 pt-10 max-sm:pt-8 md:pt-14">
           <div
-            ref={chatMainRef}
-            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="min-h-0 flex-1 overflow-visible pr-2"
           >
             <div className="flex flex-col gap-10 pb-6">
               {history.map((turn, index) => (
@@ -188,7 +208,10 @@ export function ChatPage({
               ))}
 
               <section className="flex flex-col gap-6">
-                <UserMessage question={investigation.question} />
+                <UserMessage
+                  attachments={investigation.attachments}
+                  question={investigation.question}
+                />
 
                 {stage === "pending" && (
                   <ReviewCard stage="pending" investigation={investigation} />
@@ -258,10 +281,13 @@ export function ChatPage({
           </div>
 
           <ChatComposer
-            className="shrink-0"
+            className="sticky bottom-4 z-20 shrink-0"
             engine={engine}
+            models={models}
+            selectedModelAlias={selectedModelAlias}
             sendDisabled={loading}
             onEngineChange={onEngineChange}
+            onModelChange={onModelChange}
             onSubmit={onSubmit}
             placeholder={
               loading
@@ -275,62 +301,33 @@ export function ChatPage({
 
         {inspectedProcessStep && (
           <aside
+            data-process-inspector
             className="min-h-0 min-w-0 max-w-full pb-4 pt-10 max-xl:pt-0 md:pt-14"
             aria-label="Process details"
           >
             <div className="sticky top-10 h-[calc(100dvh-4.5rem)] min-h-0 min-w-0 max-w-full md:top-14">
-              {processInspectorCollapsed ? (
-                <CollapsedProcessInspector
-                  label={inspectedProcessStep.event.label}
-                  onExpand={() => setProcessInspectorCollapsed(false)}
-                  onClose={() => setInspectedProcessStep(null)}
-                />
-              ) : (
-                <ProcessStepDetail
-                  event={inspectedProcessStep.event}
-                  onCollapse={() => setProcessInspectorCollapsed(true)}
-                  onClose={() => setInspectedProcessStep(null)}
-                />
-              )}
+              <ProcessInspectorAside
+                items={inspectableProcessEvents}
+                activeProcessEventKey={inspectedProcessStep.key}
+                onProcessEventSelect={handleProcessEventSelect}
+                onClose={() => setInspectedProcessStep(null)}
+              />
             </div>
           </aside>
         )}
       </div>
+      {!processInspectorOpen && canOpenProcessInspector && (
+        <Button
+          type="button"
+          variant="outline"
+          className="fixed right-5 top-24 z-30 rounded-2xl border-[#d8d0c2] bg-white/92 px-4 shadow-[0_10px_30px_rgba(24,24,18,0.12)] backdrop-blur-xl hover:bg-[#f7f3eb] dark:border-[#38372f] dark:bg-[#20201c]/92 dark:hover:bg-[#292923]"
+          onClick={handleOpenProcessInspector}
+        >
+          <PanelRightOpenIcon data-icon="inline-start" />
+          Logs & Files
+        </Button>
+      )}
     </section>
-  );
-}
-
-function CollapsedProcessInspector({
-  label,
-  onExpand,
-  onClose,
-}: {
-  label: string;
-  onExpand: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <div className="flex h-full min-h-[420px] w-full flex-col items-center gap-3 rounded-2xl border border-[#d8d0c2]/80 bg-[#fffdf8]/75 px-2 py-3 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/65">
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        aria-label="Expand process details"
-        onClick={onExpand}
-      >
-        <ChevronLeftIcon />
-      </Button>
-
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        aria-label="Close process details"
-        onClick={onClose}
-      >
-        <XIcon />
-      </Button>
-    </div>
   );
 }
 
@@ -338,11 +335,22 @@ function EmptyChatWorkspace({
   engine,
   onSubmit,
   onEngineChange,
+  models,
+  selectedModelAlias,
+  onModelChange,
   loading,
 }: {
   engine: ChatEngine;
-  onSubmit: (value: string, engine: ChatEngine) => void;
+  models: ChatModelOption[];
+  selectedModelAlias: string | null;
+  onSubmit: (
+    value: string,
+    engine: ChatEngine,
+    files: File[],
+    modelAlias?: string | null,
+  ) => void;
   onEngineChange: (engine: ChatEngine) => void;
+  onModelChange: (modelAlias: string | null) => void;
   loading: boolean;
 }) {
   return (
@@ -362,8 +370,11 @@ function EmptyChatWorkspace({
         </div>
         <ChatComposer
           engine={engine}
+          models={models}
+          selectedModelAlias={selectedModelAlias}
           onSubmit={onSubmit}
           onEngineChange={onEngineChange}
+          onModelChange={onModelChange}
           disabled={loading}
           placeholder="Message AXIOM..."
         />
@@ -385,7 +396,10 @@ function HistoryTurn({
 }) {
   return (
     <section className="flex flex-col gap-5">
-      <UserMessage question={turn.investigation.question} />
+      <UserMessage
+        attachments={turn.investigation.attachments}
+        question={turn.investigation.question}
+      />
       <ReviewCard
         stage="result"
         investigation={turn.investigation}

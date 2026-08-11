@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
   ArrowDownIcon,
   ArrowUpDownIcon,
@@ -16,6 +16,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -27,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { DataFile, DataHealthStatus } from "../model/types";
+import { cn } from "@/shared/lib/utils";
 import { DataEmptyState } from "./DataEmptyState";
 import { StatusBadge } from "./StatusBadge";
 
@@ -187,6 +189,7 @@ export function DataTable({
   emptyDescription = "Start an ingestion to add source files and make them available to AXIOM.",
   searchLabel = "Search files",
 }: DataTableProps) {
+  const searchId = useId();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DataFileStatusFilter>("all");
   const [sortField, setSortField] = useState<DataFileSortField>("lastModified");
@@ -252,19 +255,24 @@ export function DataTable({
   return (
     <div className="min-w-0">
       <div className="flex flex-col gap-3 border-b px-5 py-4 lg:flex-row lg:items-center">
-        <label className="relative min-w-0 flex-1 lg:max-w-md">
-          <span className="sr-only">{searchLabel}</span>
-          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              resetPage();
-            }}
-            placeholder={searchLabel}
-            className="pl-9"
-          />
-        </label>
+        <Field className="min-w-0 flex-1 lg:max-w-md">
+          <FieldLabel htmlFor={searchId} className="sr-only">
+            {searchLabel}
+          </FieldLabel>
+          <div className="relative">
+            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id={searchId}
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                resetPage();
+              }}
+              placeholder={searchLabel}
+              className="pl-9"
+            />
+          </div>
+        </Field>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -322,16 +330,24 @@ export function DataTable({
                     <TableHead
                       key={field}
                       aria-sort={ariaSort(field)}
-                      className={`h-11 px-4 text-xs font-semibold ${className}`}
+                      className={cn(
+                        "h-11 px-4 text-xs font-semibold",
+                        className,
+                      )}
                     >
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="xs"
                         onClick={() => changeSort(field)}
-                        className={`inline-flex items-center gap-1.5 rounded-md py-1 outline-none focus-visible:ring-3 focus-visible:ring-primary/25 ${field === "size" ? "float-right" : ""}`}
+                        className={cn(
+                          "h-auto gap-1.5 rounded-md px-1 py-1",
+                          field === "size" && "float-right",
+                        )}
                       >
                         {label}
                         {sortIcon(field)}
-                      </button>
+                      </Button>
                     </TableHead>
                   ))}
                   <TableHead className="h-11 w-14 px-4">
@@ -378,14 +394,16 @@ export function DataTable({
                       {formatFileSize(file.size)}
                     </TableCell>
                     <TableCell className="px-4 py-3.5 text-right">
-                      <a
-                        href={file.downloadUrl}
-                        className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-primary/25"
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        render={<a href={file.downloadUrl} />}
+                        nativeButton={false}
                         aria-label={`Download ${file.name}`}
                         title={`Download ${file.name}`}
                       >
-                        <DownloadIcon className="size-4" />
-                      </a>
+                        <DownloadIcon />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

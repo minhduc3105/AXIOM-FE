@@ -18,6 +18,7 @@ import {
   WifiIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,8 +29,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   activateModel,
@@ -109,13 +110,13 @@ function FormField({
   required?: boolean;
 }) {
   return (
-    <div className="grid gap-1.5">
-      <Label
+    <Field>
+      <FieldLabel
         htmlFor={id}
         className="text-xs font-medium text-[#625d53] dark:text-[#c5bcaf]"
       >
         {label}
-      </Label>
+      </FieldLabel>
       <Input
         id={id}
         name={id}
@@ -125,7 +126,7 @@ function FormField({
         required={required}
         className={quietInputClass}
       />
-    </div>
+    </Field>
   );
 }
 
@@ -297,6 +298,7 @@ function buildRegistrationRequest({
 
   return {
     provider: {
+      id: provider?.id,
       name: providerName || provider?.name || "custom-provider",
       adapter_type: provider?.adapter_type || inferProviderFromBaseUrl(baseUrl),
       base_url: baseUrl || provider?.base_url || "",
@@ -601,16 +603,21 @@ export function ModelsPage() {
                 </Button>
               ))}
             </div>
-            <div className="relative min-w-0">
-              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8377]" />
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className={cn(quietInputClass, "w-full rounded-full pl-9")}
-                placeholder="Search configured providers"
-                aria-label="Search configured providers"
-              />
-            </div>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="model-provider-search" className="sr-only">
+                Search configured providers
+              </FieldLabel>
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8377]" />
+                <Input
+                  id="model-provider-search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className={cn(quietInputClass, "w-full rounded-full pl-9")}
+                  placeholder="Search configured providers"
+                />
+              </div>
+            </Field>
             <Button
               variant="outline"
               size="sm"
@@ -627,9 +634,11 @@ export function ModelsPage() {
         </header>
 
         {registry.error && (
-          <div className="rounded-[18px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/70 dark:bg-red-950/35 dark:text-red-200">
-            {registry.error}
-          </div>
+          <Alert variant="destructive" className="rounded-[18px]">
+            <CircleAlertIcon />
+            <AlertTitle>Model registry unavailable</AlertTitle>
+            <AlertDescription>{registry.error}</AlertDescription>
+          </Alert>
         )}
 
         <section
@@ -948,9 +957,10 @@ export function ModelsPage() {
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {availableProviders.map((name) => (
-              <button
+              <Button
                 key={name}
                 type="button"
+                variant="outline"
                 className="flex min-h-12 items-center gap-2 rounded-xl border border-[#e7dfd2] bg-[#fffdfa] px-3 text-left text-xs font-medium transition-colors hover:border-[#2456e8]/35 hover:bg-[#edf2ff]/45 dark:border-[#38372f] dark:bg-[#20201c] dark:hover:border-[#7895ff]/35 dark:hover:bg-[#7895ff]/8"
                 onClick={() => {
                   setDialogMode("provider");
@@ -962,7 +972,7 @@ export function ModelsPage() {
                 </div>
                 <span className="min-w-0 flex-1 truncate">{name}</span>
                 <ChevronRightIcon className="size-3.5 text-[#8a8377]" />
-              </button>
+              </Button>
             ))}
           </div>
         </section>
@@ -981,7 +991,7 @@ export function ModelsPage() {
                 use.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4">
+            <FieldGroup className="gap-4">
               <FormField
                 id="provider-name"
                 label="Provider name"
@@ -1007,7 +1017,7 @@ export function ModelsPage() {
                 placeholder="openai/gpt-4o-mini"
                 required
               />
-            </div>
+            </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>
                 Cancel
@@ -1037,7 +1047,7 @@ export function ModelsPage() {
                 Register this provider with an updated endpoint or credential.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4">
+            <FieldGroup className="gap-4">
               <FormField
                 id="settings-endpoint"
                 label="Base endpoint"
@@ -1057,7 +1067,7 @@ export function ModelsPage() {
                 defaultValue={selectedModels[0]?.raw.alias}
                 required
               />
-            </div>
+            </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>
                 Cancel
@@ -1086,7 +1096,7 @@ export function ModelsPage() {
                 current workspace.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4">
+            <FieldGroup className="gap-4">
               <FormField
                 id="model-id"
                 label="Model name"
@@ -1100,7 +1110,7 @@ export function ModelsPage() {
                 type="password"
                 placeholder="Leave empty to reuse provider secret"
               />
-            </div>
+            </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>
                 Cancel

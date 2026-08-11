@@ -72,6 +72,24 @@ type StreamCallbacks = {
   onOutputText?: (result: MockResult) => void;
 };
 
+type CreateInvestigationOptions = {
+  files?: File[];
+  organizationId?: string | null;
+  modelAlias?: string | null;
+  onProcessEvents?: (events: ProcessEvent[]) => void;
+  onOutputText?: (result: MockResult) => void;
+};
+
+const defaultWorkspaceId = import.meta.env.VITE_AXIOM_WORKSPACE_ID ?? "default";
+
+export type UploadedCorpusFile = {
+  artifactId: string;
+  filename: string;
+  size: number;
+  contentType?: string;
+  fileRef: Record<string, unknown>;
+};
+
 export type ConversationHistorySnapshot = {
   turns: ChatTurn[];
   pendingInvestigation: Investigation | null;
@@ -107,20 +125,45 @@ export async function createInvestigation(
   conversationId: string | null = null,
   engine: ChatEngine = "auto",
   signal?: AbortSignal,
-  onOutputText?: (result: MockResult) => void,
+  options: CreateInvestigationOptions | ((result: MockResult) => void) = {},
 ): Promise<InitialChatOutcome> {
   pendingConfirmation = null;
+  const resolvedOptions =
+    typeof options === "function" ? { onOutputText: options } : options;
+  const uploadedFiles =
+    conversationId && resolvedOptions.files?.length
+      ? await uploadCorpusFiles(
+          conversationId,
+          resolvedOptions.organizationId,
+          resolvedOptions.files,
+          signal,
+        )
+      : [];
   const response = await postJson(
     "/api/v1/responses",
     {
       input: question,
       conversation_id: conversationId,
-      data_corpus_package: { sources: [], schemas: {}, metadata: {} },
-      runtime_options: { engine },
+      uploaded_files: uploadedFiles.map((file) => ({
+        filename: file.filename,
+        size: file.size,
+        content_type: file.contentType,
+        metadata: { file_ref: file.fileRef },
+      })),
+      input_artifact_ids: uploadedFiles.map((file) => file.artifactId),
+      runtime_options: {
+        engine,
+        ...(resolvedOptions.modelAlias
+          ? { model: resolvedOptions.modelAlias }
+          : {}),
+      },
     },
     signal,
   );
-  const outcome = await readResponseStream(response, signal, { onOutputText });
+  const outcome = await readResponseStream(response, signal, {
+    onOutputText: resolvedOptions.onOutputText,
+    onProcessEvents: resolvedOptions.onProcessEvents,
+  });
 
   if (outcome.completed) {
     return {
@@ -139,6 +182,57 @@ export async function createInvestigation(
     kind: "confirmation",
     investigation: confirmationToInvestigation(outcome.confirmation, question),
   };
+}
+
+export async function uploadCorpusFiles(
+  conversationId: string,
+  organizationId: string | null | undefined,
+  files: File[],
+  signal?: AbortSignal,
+): Promise<UploadedCorpusFile[]> {
+  if (!files.length) return [];
+  if (!organizationId?.trim()) {
+    throw new Error(
+      "Organization ID is required before uploading attachments.",
+    );
+  }
+  const formData = new FormData();
+  formData.append("workspace_id", defaultWorkspaceId);
+  files.forEach((file) => formData.append("files", file));
+
+  const response = await authFetch(
+    intelligenceApiUrl(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}/attachments`,
+    ),
+    { method: "POST", body: formData, signal },
+  );
+  if (!response.ok) throw new Error(await responseErrorMessage(response));
+
+  const payload: unknown = await response.json();
+  const data = asRecord(asRecord(payload).data);
+  const rawFiles = Array.isArray(data.files) ? data.files : [];
+  const uploaded = rawFiles.flatMap((item, index) => {
+    const record = asRecord(item);
+    const fileRef = asRecord(record.file_ref);
+    const artifactId =
+      stringValue(fileRef.file_id) || stringValue(fileRef.object_key);
+    if (!artifactId || !stringValue(fileRef.url)) return [];
+    return [
+      {
+        artifactId,
+        filename:
+          stringValue(record.filename) || files[index]?.name || "upload",
+        size: numberValue(record.size),
+        contentType: files[index]?.type || undefined,
+        fileRef,
+      },
+    ];
+  });
+
+  if (uploaded.length !== files.length) {
+    throw new Error("Upload succeeded but returned incomplete file paths.");
+  }
+  return uploaded;
 }
 
 export async function runWorkflow(
@@ -165,11 +259,9 @@ export async function runWorkflow(
       },
       signal,
     );
-    const reviseOutcome = await readResponseStream(
-      reviseResponse,
-      signal,
-      { onProcessEvents },
-    );
+    const reviseOutcome = await readResponseStream(reviseResponse, signal, {
+      onProcessEvents,
+    });
     if (reviseOutcome.completed) {
       pendingConfirmation = null;
       markAllDone(reviseOutcome.processEvents, onProcessEvents);
@@ -189,11 +281,9 @@ export async function runWorkflow(
     { action: "confirm", revision: confirmation.revision },
     signal,
   );
-  const outcome = await readResponseStream(
-    confirmResponse,
-    signal,
-    { onProcessEvents },
-  );
+  const outcome = await readResponseStream(confirmResponse, signal, {
+    onProcessEvents,
+  });
 
   if (!outcome.completed) {
     throw new Error("The intelligence service did not complete the response.");
@@ -311,6 +401,17 @@ async function readResponseStream(
   const decoder = new TextDecoder();
   const parser = new ResponsesSSEParser();
   const outcome: StreamOutcome = { processEvents: [], outputText: "" };
+  let latestResponseId: string | null = null;
+  let cancellationSent = false;
+  const notifyCancellation = () => {
+    if (!latestResponseId || cancellationSent) return;
+    cancellationSent = true;
+    void postJson(
+      `/api/v1/responses/${encodeURIComponent(latestResponseId)}/cancel`,
+      {},
+    ).catch(() => undefined);
+  };
+  signal?.addEventListener("abort", notifyCancellation);
 
   try {
     while (true) {
@@ -320,11 +421,17 @@ async function readResponseStream(
       const events = done
         ? parser.finish()
         : parser.push(decoder.decode(value, { stream: true }));
-      for (const event of events)
+      for (const event of events) {
+        if (typeof event.response_id === "string") {
+          latestResponseId = event.response_id;
+          if (signal?.aborted) notifyCancellation();
+        }
         applyStreamEvent(event, outcome, callbacks);
+      }
       if (done) break;
     }
   } finally {
+    signal?.removeEventListener("abort", notifyCancellation);
     reader.releaseLock();
   }
 
@@ -336,6 +443,35 @@ function applyStreamEvent(
   outcome: StreamOutcome,
   callbacks?: StreamCallbacks,
 ) {
+  if (event.type === "delta") {
+    const delta = rawStringValue(event.content);
+    if (delta) {
+      outcome.outputText += delta;
+      callbacks?.onOutputText?.(
+        completedToResult(
+          streamingCompletedResponse(event, outcome.outputText),
+        ),
+      );
+    }
+    return;
+  }
+
+  if (isLambdaProcessEvent(event.type)) {
+    const processEvent = {
+      ...event,
+      type: `pipeline.lambda.${event.type}`,
+      event_id: lambdaEventId(event, outcome.processEvents.length),
+      label: lambdaEventLabel(event),
+      details: event,
+    };
+    outcome.processEvents = upsertProcessEvent(
+      outcome.processEvents,
+      processEventFromApiEvent(processEvent),
+    );
+    callbacks?.onProcessEvents?.(outcome.processEvents);
+    return;
+  }
+
   if (event.type.startsWith("pipeline.")) {
     outcome.processEvents = upsertProcessEvent(
       outcome.processEvents,
@@ -349,7 +485,9 @@ function applyStreamEvent(
     if (delta) {
       outcome.outputText += delta;
       callbacks?.onOutputText?.(
-        completedToResult(streamingCompletedResponse(event, outcome.outputText)),
+        completedToResult(
+          streamingCompletedResponse(event, outcome.outputText),
+        ),
       );
     }
     return;
@@ -384,6 +522,32 @@ function applyStreamEvent(
         : "The intelligence response failed.",
     );
   }
+}
+
+function isLambdaProcessEvent(type: string) {
+  return ["status", "tool_call", "tool_result", "keepalive"].includes(type);
+}
+
+function lambdaEventId(event: SseEvent, index: number) {
+  const toolCall = asRecord(event.tool_call);
+  const toolCallId =
+    stringValue(event.tool_call_id) || stringValue(toolCall.id);
+  const step = stringValue(event.step);
+  if (toolCallId) return ["tool", toolCallId].join(":");
+  return [event.type, step, toolCallId, String(index)]
+    .filter(Boolean)
+    .join(":");
+}
+
+function lambdaEventLabel(event: SseEvent) {
+  const toolCall = asRecord(event.tool_call);
+  const fn = asRecord(toolCall.function);
+  return (
+    stringValue(event.tool_name) ||
+    stringValue(fn.name) ||
+    stringValue(event.content) ||
+    event.type
+  );
 }
 
 function confirmationFromEvent(event: SseEvent): PendingConfirmation {
@@ -614,8 +778,13 @@ function processRuntimeFields(
   explicitStep: Record<string, unknown> = {},
 ): Partial<ProcessEvent> {
   const details = asRecord(event.details);
+  const detailToolCall = asRecord(details.tool_call);
+  const detailToolFunction = asRecord(detailToolCall.function);
   const inputs = firstPresent(
     details.inputs,
+    parseJsonString(detailToolFunction.arguments) ||
+      detailToolFunction.arguments,
+    detailToolCall,
     event.inputs,
     explicitStep.inputs,
     event.input,
@@ -625,6 +794,7 @@ function processRuntimeFields(
   );
   const outputs = firstPresent(
     details.outputs,
+    details.result,
     event.outputs,
     explicitStep.outputs,
     event.output,
@@ -661,11 +831,22 @@ function firstPresent(...values: unknown[]) {
   return values.find(hasRuntimeValue);
 }
 
+function parseJsonString(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 function hasRuntimeValue(value: unknown) {
   return value !== null && value !== undefined && value !== "";
 }
 
-function normalizeProcessCode(value: unknown): ProcessEvent["code"] | undefined {
+function normalizeProcessCode(
+  value: unknown,
+): ProcessEvent["code"] | undefined {
   const record = asRecord(value);
   const content = stringValue(record.content) || stringValue(record.code);
   if (!content) return undefined;
@@ -683,7 +864,13 @@ function normalizeProcessCode(value: unknown): ProcessEvent["code"] | undefined 
 
 function artifactNameFromRef(ref: string) {
   if (!ref) return "";
-  return ref.replace(/^artifact:\/\//, "").split("/").filter(Boolean).pop() || "";
+  return (
+    ref
+      .replace(/^artifact:\/\//, "")
+      .split("/")
+      .filter(Boolean)
+      .pop() || ""
+  );
 }
 
 function stringArrayValue(value: unknown) {
@@ -692,7 +879,10 @@ function stringArrayValue(value: unknown) {
 }
 
 function processEventDetail(event: SseEvent) {
+  const details = asRecord(event.details);
   const parts = [
+    stringValue(event.content),
+    stringValue(details.content),
     stringValue(event.phase),
     stringValue(event.engine),
     stringValue(event.objective),
@@ -840,9 +1030,14 @@ function completedResponseFromMessage(
 
 function isTerminalAssistantStatus(status: string) {
   const normalized = status.toLowerCase();
-  return ["completed", "complete", "done", "success", "failed", "error"].includes(
-    normalized,
-  );
+  return [
+    "completed",
+    "complete",
+    "done",
+    "success",
+    "failed",
+    "error",
+  ].includes(normalized);
 }
 
 function confirmationFromMessage(
@@ -982,10 +1177,12 @@ class ResponsesSSEParser {
       if (line.startsWith("event:")) eventName = line.slice(6).trim();
       if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
     }
-    if (!eventName || dataLines.length === 0) return [];
+    if (dataLines.length === 0) return [];
     try {
       const payload = JSON.parse(dataLines.join("\n")) as SseEvent;
-      return payload && payload.type === eventName ? [payload] : [];
+      if (!payload?.type) return [];
+      if (!eventName || payload.type === eventName) return [payload];
+      return [];
     } catch {
       return [];
     }
@@ -1040,12 +1237,27 @@ function normalizeFlags(value: unknown, evidence: EvidenceItem[]): string[] {
 
 function normalizeArtifacts(metadata: Record<string, unknown>): string[] {
   const values = [
+    metadata.generated_files,
+    metadata.generatedFiles,
     metadata.artifacts,
     metadata.artifact_refs,
     metadata.artifactRefs,
   ];
   for (const value of values) {
-    if (Array.isArray(value)) return value.map(String).filter(Boolean);
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => {
+          const record = asRecord(item);
+          return (
+            stringValue(record.url) ||
+            stringValue(record.oss_url) ||
+            stringValue(record.name) ||
+            stringValue(record.filename) ||
+            String(item)
+          );
+        })
+        .filter(Boolean);
+    }
   }
   const artifact = stringValue(metadata.artifact_ref);
   return artifact ? [artifact] : [];

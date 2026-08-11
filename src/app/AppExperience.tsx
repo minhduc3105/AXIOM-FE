@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { DataPage } from "@/features/data/DataPage";
@@ -7,6 +7,7 @@ import { ReportsPage } from "@/features/reports/ReportsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
 import { ModelsPage } from "@/features/models/ModelsPage";
+import { useModelRegistry } from "@/features/models/model/useModelRegistry";
 import { MemoryPage } from "@/features/memory/MemoryPage";
 import { LoginPage } from "@/features/auth/components/LoginPage";
 import { useAuth } from "@/features/auth/model/AuthProvider";
@@ -24,14 +25,43 @@ import {
 } from "./routing/paths";
 import { useAppRoute } from "./routing/useAppRoute";
 import { createConversation } from "@/shared/lib/intelligence-api";
-import type { ChatEngine } from "@/features/chat/model/types";
+import type { ChatEngine, ChatModelOption } from "@/features/chat/model/types";
 
 export function AppExperience() {
   const auth = useAuth();
   const { route, navigate } = useAppRoute();
   const chat = useChatWorkflow();
+  const llmRegistry = useModelRegistry("llm");
   const [chatEngine, setChatEngine] = useState<ChatEngine>("auto");
+  const [selectedModelAlias, setSelectedModelAlias] = useState<string | null>(
+    null,
+  );
   const skipNextHydrationRef = useRef<string | null>(null);
+  const llmModelOptions: ChatModelOption[] = useMemo(
+    () =>
+      llmRegistry.models.map((model) => ({
+        id: model.id,
+        alias: model.alias,
+        label: model.display_name || model.alias,
+        status: model.status,
+      })),
+    [llmRegistry.models],
+  );
+
+  useEffect(() => {
+    if (
+      selectedModelAlias &&
+      llmModelOptions.some((model) => model.alias === selectedModelAlias)
+    ) {
+      return;
+    }
+
+    const activeModel =
+      llmModelOptions.find(
+        (model) => model.status?.toLowerCase() === "active",
+      ) ?? llmModelOptions[0];
+    setSelectedModelAlias(activeModel?.alias ?? null);
+  }, [llmModelOptions, selectedModelAlias]);
 
   useEffect(() => {
     if (route.surface !== "chat" || !route.sessionId) {
@@ -112,7 +142,12 @@ export function AppExperience() {
   );
 
   const submitQuestion = useCallback(
-    async (question: string, engine: ChatEngine) => {
+    async (
+      question: string,
+      engine: ChatEngine,
+      files: File[] = [],
+      modelAlias?: string | null,
+    ) => {
       let conversationId = route.surface === "chat" ? route.sessionId : null;
 
       if (!conversationId) {
@@ -122,9 +157,16 @@ export function AppExperience() {
         navigate(createChatRoute(conversationId));
       }
 
-      chat.submitQuestion(question, conversationId, engine);
+      chat.submitQuestion(
+        question,
+        conversationId,
+        engine,
+        files,
+        auth.user?.organization_id,
+        modelAlias,
+      );
     },
-    [chat.submitQuestion, navigate, route],
+    [auth.user?.organization_id, chat.submitQuestion, navigate, route],
   );
 
   if (auth.status === "restoring") {
@@ -166,8 +208,11 @@ export function AppExperience() {
           loading={chat.loading}
           mode={route.page === "home" ? "home" : "chat"}
           engine={chatEngine}
+          models={llmModelOptions}
+          selectedModelAlias={selectedModelAlias}
           onSubmit={submitQuestion}
           onEngineChange={setChatEngine}
+          onModelChange={setSelectedModelAlias}
           onSpecificationChange={chat.updateSpecification}
           onSpecificationRevise={chat.reviseSpecification}
           onResetSpecification={chat.resetSpecification}
