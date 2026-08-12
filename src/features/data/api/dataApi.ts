@@ -31,9 +31,6 @@ const successfulStatuses = new Set([
 ]);
 const failedStatuses = new Set(["cancelled", "error", "failed"]);
 
-export const defaultOrganizationId =
-  import.meta.env.VITE_ORGANIZATION_ID ?? "test-org";
-
 class ApiRequestError extends Error {
   constructor(
     message: string,

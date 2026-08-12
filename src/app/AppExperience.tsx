@@ -177,6 +177,10 @@ export function AppExperience() {
     return <LoginPage />;
   }
 
+  if (!auth.user) {
+    return <AuthRestoreScreen />;
+  }
+
   return (
     <AppShell
       activeStage={chat.stage}
@@ -223,6 +227,7 @@ export function AppExperience() {
         />
       ) : route.surface === "data" && route.page === "ingestion" ? (
         <IngestionPage
+          organizationId={auth.user.organization_id}
           onBack={openData}
           backLabel="Back to data"
           launchContext={{
@@ -231,7 +236,10 @@ export function AppExperience() {
           }}
         />
       ) : route.surface === "data" ? (
-        <DataPage onCreateIngestion={openDataIngestion} />
+        <DataPage
+          organizationId={auth.user.organization_id}
+          onCreateIngestion={openDataIngestion}
+        />
       ) : route.surface === "reports" ? (
         <ReportsPage onData={openData} />
       ) : route.surface === "models" ? (

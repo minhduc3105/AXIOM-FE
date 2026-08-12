@@ -213,14 +213,6 @@ const defaultLaunchContext: IngestionLaunchContext = {
   profileId: null,
 };
 
-function getOrganizationId() {
-  return (
-    import.meta.env.VITE_AXIOM_ORGANIZATION_ID ??
-    import.meta.env.VITE_ORGANIZATION_ID ??
-    "test-org"
-  );
-}
-
 function getS3SavedConfig(connection: S3Connection): SavedS3Config {
   return {
     region: connection.region.trim(),
@@ -1108,9 +1100,9 @@ function assertUniqueS3Files(existingFiles: S3File[], incomingFiles: S3File[]) {
 }
 
 export function useIngestionWorkflow(
+  organizationId: string,
   launchContext: IngestionLaunchContext = defaultLaunchContext,
 ) {
-  const organizationId = getOrganizationId();
   const initialProfile = useMemo(() => {
     if (!launchContext.profileId) return null;
     const profile =

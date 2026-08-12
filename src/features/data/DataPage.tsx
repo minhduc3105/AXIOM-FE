@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { defaultOrganizationId } from "./api/dataApi";
 import { DataDashboardHeader } from "./components/DataDashboardHeader";
 import { DataMetrics } from "./components/DataMetrics";
 import { DataSourcesWorkspace } from "./components/DataSourcesWorkspace";
@@ -18,6 +17,7 @@ import { useDataDashboard } from "./model/useDataDashboard";
 import { useDataSourceProfiles } from "@/shared/hooks/use-data-source-profiles";
 
 type DataPageProps = {
+  organizationId: string;
   onCreateIngestion: (context?: {
     connector?: "s3" | "snowflake";
     profileId?: string;
@@ -38,14 +38,11 @@ function formatAggregateSize(bytes: number) {
   }).format(value)} ${units[unitIndex]} stored`;
 }
 
-export function DataPage({ onCreateIngestion }: DataPageProps) {
-  const { snapshot, loading, error, refresh } = useDataDashboard(
-    defaultOrganizationId,
-  );
+export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
+  const { snapshot, loading, error, refresh } = useDataDashboard(organizationId);
   const files = snapshot?.files ?? [];
   const datasources = snapshot?.datasources ?? [];
   const ingestionJobs = snapshot?.ingestionJobs ?? [];
-  const organizationId = snapshot?.organizationId ?? defaultOrganizationId;
   const {
     profiles,
     error: profileError,
@@ -81,7 +78,7 @@ export function DataPage({ onCreateIngestion }: DataPageProps) {
       />
       <div className="mx-auto grid w-full max-w-[1360px] gap-6">
         <DataDashboardHeader
-          organizationId={snapshot?.organizationId ?? defaultOrganizationId}
+          organizationId={organizationId}
           refreshing={loading}
           onRefresh={refresh}
           onCreateIngestion={onCreateIngestion}

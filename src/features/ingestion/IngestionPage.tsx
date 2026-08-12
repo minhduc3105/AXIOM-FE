@@ -15,6 +15,7 @@ import { useIngestionWorkflow } from "./model/useIngestionWorkflow";
 import type { IngestionLaunchContext } from "./model/useIngestionWorkflow";
 
 type IngestionPageProps = {
+  organizationId: string;
   onBack: () => void;
   backLabel?: string;
   launchContext?: IngestionLaunchContext;
@@ -35,11 +36,12 @@ const pageTitles = {
 } as const;
 
 export function IngestionPage({
+  organizationId,
   onBack,
   backLabel,
   launchContext,
 }: IngestionPageProps) {
-  const workflow = useIngestionWorkflow(launchContext);
+  const workflow = useIngestionWorkflow(organizationId, launchContext);
   const source = workflow.source;
   const selectingS3Files =
     workflow.stage === "s3" &&
