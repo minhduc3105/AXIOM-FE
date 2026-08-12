@@ -4,7 +4,8 @@ export type AppSurface =
   | "reports"
   | "tools"
   | "models"
-  | "memory";
+  | "memory"
+  | "organization";
 
 export type DataIngestionLaunchContext = {
   connector: "s3" | "snowflake" | null;
@@ -28,4 +29,5 @@ export type AppRoute =
       sessionId: null;
     }
   | { surface: "models"; sessionId: null }
-  | { surface: "memory"; sessionId: null };
+  | { surface: "memory"; sessionId: null }
+  | { surface: "organization"; sessionId: null };

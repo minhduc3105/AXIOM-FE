@@ -73,6 +73,7 @@ export function parseAppRoute(pathname: string, search = ""): AppRoute {
     if (segments[1] && segments[1] !== "memory") {
       return { surface: "chat", page: "home", sessionId: null };
     }
+    if (!segments[1]) return { surface: "organization", sessionId: null };
     return { surface: "memory", sessionId: null };
   }
 
@@ -97,6 +98,7 @@ export function getAppRoutePath(route: AppRoute) {
   if (route.surface === "reports") return `/${ROUTE_SEGMENTS.reports}`;
   if (route.surface === "models") return `/${ROUTE_SEGMENTS.models}`;
   if (route.surface === "memory") return `/${ROUTE_SEGMENTS.memory}`;
+  if (route.surface === "organization") return `/${ROUTE_SEGMENTS.settings}`;
   if (route.surface === "tools") {
     return route.page === "detail" && route.toolName
       ? `/${ROUTE_SEGMENTS.tools}/${encodeURIComponent(route.toolName)}`
@@ -148,6 +150,10 @@ export function createModelsRoute(): AppRoute {
 
 export function createMemoryRoute(): AppRoute {
   return { surface: "memory", sessionId: null };
+}
+
+export function createOrganizationRoute(): AppRoute {
+  return { surface: "organization", sessionId: null };
 }
 
 export function createToolDetailRoute(toolName: string): AppRoute {

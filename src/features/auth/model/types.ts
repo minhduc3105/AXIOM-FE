@@ -15,6 +15,32 @@ export type AuthTokenResponse = {
   user: AuthUser
 }
 
+export type OrganizationSummary = {
+  id: string
+  slug: string
+  display_name: string
+  status: string
+}
+
+export type OrganizationRegistrationResponse = AuthTokenResponse & {
+  organization: OrganizationSummary
+}
+
+export type RegisterOrganizationInput = {
+  organizationName: string
+  organizationSlug: string
+  adminDisplayName: string
+  adminEmail: string
+  adminPassword: string
+}
+
+export type CreateOrganizationUserInput = {
+  displayName: string
+  email: string
+  password: string
+  orgRole: AuthUser['org_role']
+}
+
 export type CurrentUserResponse = {
   user: AuthUser
 }

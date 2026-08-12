@@ -1,6 +1,10 @@
 import type {
   AuthTokenResponse,
+  AuthUser,
+  CreateOrganizationUserInput,
   CurrentUserResponse,
+  OrganizationRegistrationResponse,
+  RegisterOrganizationInput,
 } from '@/features/auth/model/types'
 
 const gatewayApiBaseUrl = (
@@ -52,6 +56,76 @@ export async function loginWithPassword(
     throw new Error(await authErrorMessage(response, 'AXIOM Auth is unavailable.'))
   }
   return (await response.json()) as AuthTokenResponse
+}
+
+export async function registerOrganization(
+  input: RegisterOrganizationInput,
+  signal?: AbortSignal,
+): Promise<OrganizationRegistrationResponse> {
+  const response = await fetch(authApiUrl('/api/v1/orgs/register'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      organization_name: input.organizationName,
+      organization_slug: input.organizationSlug,
+      admin_display_name: input.adminDisplayName,
+      admin_email: input.adminEmail,
+      admin_password: input.adminPassword,
+    }),
+    signal,
+  })
+  if (!response.ok) {
+    throw new Error(await authErrorMessage(response, 'Unable to register organization.'))
+  }
+  return (await response.json()) as OrganizationRegistrationResponse
+}
+
+export async function listOrganizationUsers(
+  organizationId: string,
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<AuthUser[]> {
+  const response = await fetch(
+    authApiUrl(`/api/v1/orgs/${encodeURIComponent(organizationId)}/users`),
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal,
+    },
+  )
+  if (!response.ok) {
+    throw new Error(await authErrorMessage(response, 'Unable to load organization users.'))
+  }
+  const payload = (await response.json()) as { users: AuthUser[] }
+  return payload.users
+}
+
+export async function createOrganizationUser(
+  organizationId: string,
+  input: CreateOrganizationUserInput,
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<AuthUser> {
+  const response = await fetch(
+    authApiUrl(`/api/v1/orgs/${encodeURIComponent(organizationId)}/users`),
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        display_name: input.displayName,
+        email: input.email,
+        password: input.password,
+        org_role: input.orgRole,
+      }),
+      signal,
+    },
+  )
+  if (!response.ok) {
+    throw new Error(await authErrorMessage(response, 'Unable to create organization user.'))
+  }
+  return (await response.json()) as AuthUser
 }
 
 export async function refreshWithToken(

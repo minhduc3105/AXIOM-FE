@@ -12,9 +12,15 @@ import {
   getCurrentUser,
   loginWithPassword,
   logoutWithToken,
+  registerOrganization,
   refreshWithToken,
 } from '@/features/auth/api/authApi'
-import type { AuthSession, AuthStatus, AuthUser } from './types'
+import type {
+  AuthSession,
+  AuthStatus,
+  AuthUser,
+  RegisterOrganizationInput,
+} from './types'
 import { configureAuthFetch } from './authFetch'
 
 const storageKey = 'axiom.auth.session'
@@ -24,6 +30,7 @@ type AuthContextValue = {
   user: AuthUser | null
   accessToken: string | null
   login: (email: string, password: string) => Promise<void>
+  register: (input: RegisterOrganizationInput) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<boolean>
 }
@@ -130,6 +137,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [updateSession],
   )
 
+  const register = useCallback(
+    async (input: RegisterOrganizationInput) => {
+      const tokenResponse = await registerOrganization(input)
+      updateSession({
+        accessToken: tokenResponse.access_token,
+        refreshToken: tokenResponse.refresh_token,
+        user: tokenResponse.user,
+      })
+    },
+    [updateSession],
+  )
+
   const logout = useCallback(async () => {
     const refreshToken = sessionRef.current?.refreshToken
     clearSession()
@@ -147,10 +166,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       accessToken: session?.accessToken ?? null,
       login,
+      register,
       logout,
       refresh,
     }),
-    [login, logout, refresh, session, status],
+    [login, logout, refresh, register, session, status],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
