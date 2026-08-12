@@ -83,6 +83,7 @@ export type ProcessingSourceKind = 'upload' | 's3' | 'snowflake'
 export type DocumentProcessingBatch = {
   job_id: string
   organization_id: string
+  workspace_id: string
   bucket: string
   count: number
   source_kind: ProcessingSourceKind

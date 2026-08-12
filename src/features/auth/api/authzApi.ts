@@ -16,6 +16,10 @@ export type WorkspaceMembership = {
   role: WorkspaceRole
 }
 
+export type AssignedWorkspace = Workspace & {
+  role: WorkspaceRole
+}
+
 const gatewayApiBaseUrl = (import.meta.env.VITE_AXIOM_GATEWAY_API_URL || '').replace(/\/$/, '')
 const authzApiBaseUrl = `${gatewayApiBaseUrl}/authz-service`.replace(/\/$/, '')
 
@@ -47,6 +51,18 @@ export async function listWorkspaces(organizationId: string, accessToken: string
   const payload = await request<{ workspaces: Workspace[] }>(
     `/api/v1/orgs/${encodeURIComponent(organizationId)}/workspaces`,
     accessToken,
+  )
+  return payload.workspaces
+}
+
+export async function listMyWorkspaces(
+  accessToken: string,
+  signal?: AbortSignal,
+) {
+  const payload = await request<{ workspaces: AssignedWorkspace[] }>(
+    '/api/v1/authz/me/workspaces',
+    accessToken,
+    { signal },
   )
   return payload.workspaces
 }

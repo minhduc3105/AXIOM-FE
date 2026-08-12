@@ -42,6 +42,7 @@ export function DataSourceFileInspector({
   );
   const resources = useProcessedDocumentResources({
     organizationId: file.organizationId,
+    workspaceId: file.workspaceId,
     bucket: file.bucket,
     file: processingFile,
     result: processingResult,

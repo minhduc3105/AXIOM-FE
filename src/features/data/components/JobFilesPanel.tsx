@@ -10,7 +10,10 @@ type JobFilesPanelProps = {
 };
 
 export function JobFilesPanel({ job }: JobFilesPanelProps) {
-  const { files, loading, error } = useJobDataFiles(job?.job_id ?? null);
+  const { files, loading, error } = useJobDataFiles(
+    job?.job_id ?? null,
+    job?.workspace_id ?? null,
+  );
   if (!job) return null;
   return (
     <section className="mt-4 overflow-hidden rounded-2xl border" aria-label="Ingestion job files">

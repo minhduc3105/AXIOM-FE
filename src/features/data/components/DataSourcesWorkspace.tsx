@@ -292,7 +292,7 @@ function SourceDetail({
   onForgetProfile: (profile: SavedDataSourceProfile) => void;
   onViewJobs: (jobId?: string) => void;
 }) {
-  const files = useDataSourceFiles(datasource.id);
+  const files = useDataSourceFiles(datasource.id, datasource.workspaceId);
   const [inspectedFile, setInspectedFile] = useState<DataFile | null>(null);
   const linkedJobs = useMemo(
     () =>
@@ -471,6 +471,7 @@ export function DataSourcesWorkspace({
     return {
       id: ORGANIZATION_FILES_SOURCE_ID,
       organizationId: files[0]?.organizationId ?? "",
+      workspaceId: files[0]?.workspaceId ?? "",
       name: "Stored objects",
       type: "organization_files",
       createdAt: newestFile?.lastModified ?? new Date(0).toISOString(),

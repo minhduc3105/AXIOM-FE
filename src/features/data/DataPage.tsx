@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangleIcon, ServerCrashIcon } from "lucide-react";
 import {
   Alert,
@@ -15,6 +15,7 @@ import { IngestionJobsTable } from "./components/IngestionJobsTable";
 import { JobFilesPanel } from "./components/JobFilesPanel";
 import { useDataDashboard } from "./model/useDataDashboard";
 import { useDataSourceProfiles } from "@/shared/hooks/use-data-source-profiles";
+import { useDataWorkspace } from "./model/DataWorkspaceProvider";
 
 type DataPageProps = {
   organizationId: string;
@@ -39,7 +40,12 @@ function formatAggregateSize(bytes: number) {
 }
 
 export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
-  const { snapshot, loading, error, refresh } = useDataDashboard(organizationId);
+  const workspace = useDataWorkspace();
+  const workspaceId = workspace.selectedWorkspace?.id ?? "";
+  const { snapshot, loading, error, refresh } = useDataDashboard(
+    organizationId,
+    workspaceId,
+  );
   const files = snapshot?.files ?? [];
   const datasources = snapshot?.datasources ?? [];
   const ingestionJobs = snapshot?.ingestionJobs ?? [];
@@ -52,6 +58,11 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
   const [activeDataView, setActiveDataView] = useState("sources");
   const selectedJob =
     ingestionJobs.find((job) => job.job_id === selectedJobId) ?? null;
+
+  useEffect(() => {
+    setSelectedJobId(null);
+    setActiveDataView("sources");
+  }, [workspaceId]);
 
   const summary = useMemo(() => {
     return {
@@ -82,7 +93,24 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
           refreshing={loading}
           onRefresh={refresh}
           onCreateIngestion={onCreateIngestion}
+          workspaces={workspace.workspaces}
+          selectedWorkspace={workspace.selectedWorkspace}
+          workspacesLoading={workspace.loading}
+          onWorkspaceSelect={workspace.selectWorkspace}
         />
+
+        {workspace.error && (
+          <Alert variant="destructive" className="rounded-[18px]">
+            <ServerCrashIcon />
+            <AlertTitle>Workspaces are unavailable</AlertTitle>
+            <AlertDescription>{workspace.error}</AlertDescription>
+            <AlertAction>
+              <Button variant="outline" size="sm" onClick={workspace.refreshWorkspaces}>
+                Retry
+              </Button>
+            </AlertAction>
+          </Alert>
+        )}
 
         {error && (
           <Alert

@@ -9,9 +9,6 @@ import type {
   ParsedDocumentResult,
 } from "@/shared/types/document-results";
 
-const defaultWorkspaceId =
-  import.meta.env.VITE_AXIOM_WORKSPACE_ID ?? "default";
-
 type IngestedDataSelector = {
   organizationId: string;
   bucket: string;
@@ -209,15 +206,17 @@ async function getHttpError(response: Response, operation: string) {
 export async function presignFileForPreview(
   bucket: string,
   objectKey: string,
+  workspaceId: string,
   signal?: AbortSignal,
 ): Promise<InlinePreview> {
+  if (!workspaceId.trim()) throw new Error("A workspace is required to preview this file.");
   const response = await authFetch("/api/document/files/presign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       object_path: objectKey,
       bucket_name: bucket,
-      workspace_id: defaultWorkspaceId,
+      workspace_id: workspaceId,
       expires_in: 900,
       force_download: false,
     }),

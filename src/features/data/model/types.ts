@@ -1,6 +1,7 @@
 export type DataHealthStatus = "success" | "processing" | "failed";
 
 export type StorageFileDto = {
+  workspace_id?: string;
   key: string;
   size: number;
   last_modified: string | null;
@@ -12,7 +13,7 @@ export type OrganizationFilesResponseDto = {
   organization_id: string;
   bucket: string;
   count: number;
-  files: StorageFileDto[];
+  files: Array<StorageFileDto & { workspace_id: string }>;
   bucket_metadata: Record<string, unknown>;
 };
 
@@ -36,6 +37,7 @@ export type IngestionJobDto = {
   job_id: string;
   datasource_id: string;
   organization_id: string;
+  workspace_id: string;
   datasource_type: string;
   status: string;
   records_pulled: number;
@@ -61,6 +63,7 @@ export type DataFile = {
   statusDetail: string;
   errorMessage: string | null;
   organizationId: string;
+  workspaceId: string;
   datasourceId: string | null;
   bucket: string;
   runId: string | null;
@@ -74,6 +77,7 @@ export type IngestionJob = IngestionJobDto & {
 
 export type DataDashboardSnapshot = {
   organizationId: string;
+  workspaceId: string;
   bucket: string;
   bucketMetadata: Record<string, unknown>;
   files: DataFile[];
@@ -85,6 +89,7 @@ export type DataDashboardSnapshot = {
 export type DataSourceDto = {
   id: string;
   organization_id: string;
+  workspace_id: string;
   name: string | null;
   datasource_type: string;
   created_at: string;
@@ -94,6 +99,7 @@ export type DataSourceDto = {
 export type DataSource = {
   id: string;
   organizationId: string;
+  workspaceId: string;
   name: string | null;
   type: string;
   createdAt: string;

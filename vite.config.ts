@@ -28,6 +28,10 @@ export default defineConfig({
         target: gatewayApiTarget,
         changeOrigin: true,
       },
+      "/authz-service": {
+        target: gatewayApiTarget,
+        changeOrigin: true,
+      },
       "/intelligence-service": {
         target: gatewayApiTarget,
         changeOrigin: true,

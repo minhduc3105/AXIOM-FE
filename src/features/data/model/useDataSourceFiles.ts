@@ -8,7 +8,7 @@ import type {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-export function useDataSourceFiles(datasourceId: string) {
+export function useDataSourceFiles(datasourceId: string, workspaceId: string) {
   const [result, setResult] = useState<DataSourceFilesPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +34,7 @@ export function useDataSourceFiles(datasourceId: string) {
     setError(null);
     void getDataSourceFiles(
       datasourceId,
+      workspaceId,
       { page, pageSize, search: debouncedSearch, sortBy, sortOrder },
       controller.signal,
     )
@@ -56,7 +57,7 @@ export function useDataSourceFiles(datasourceId: string) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [datasourceId, debouncedSearch, page, pageSize, refreshToken, sortBy, sortOrder]);
+  }, [datasourceId, debouncedSearch, page, pageSize, refreshToken, sortBy, sortOrder, workspaceId]);
 
   const setSearch = useCallback((value: string) => {
     setSearchValue(value);

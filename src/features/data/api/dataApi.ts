@@ -16,6 +16,7 @@ import type {
 import { authFetch } from "@/features/auth/model/authFetch";
 import { getBrowserStorageUrl } from "@/shared/lib/storage-url";
 import { getAllFilesForJob } from "@/shared/lib/document-api";
+import { filterWorkspaceRecords } from "../model/workspaceScope";
 
 const documentApiBaseUrl =
   import.meta.env.VITE_DOCUMENT_API_BASE_URL ?? "/api/document";
@@ -62,6 +63,7 @@ function isDataSourceDto(value: unknown): value is DataSourceDto {
     && typeof value.id === "string"
     && value.id.length > 0
     && typeof value.organization_id === "string"
+    && typeof value.workspace_id === "string"
     && isNullableString(value.name)
     && typeof value.datasource_type === "string"
     && typeof value.created_at === "string"
@@ -169,11 +171,14 @@ function getStatusDetail(
 }
 
 export function normalizeFile(
-  file: OrganizationFilesResponseDto["files"][number],
+  file: Omit<OrganizationFilesResponseDto["files"][number], "workspace_id"> & {
+    workspace_id?: string;
+  },
   processingStatus: DocumentProcessingStatusDto | undefined,
   context: {
     organizationId: string;
     bucket: string;
+    workspaceId: string;
     datasourceId?: string | null;
     name?: string;
   },
@@ -196,6 +201,7 @@ export function normalizeFile(
     statusDetail: getStatusDetail(processingStatus),
     errorMessage: processingStatus?.error_message ?? null,
     organizationId: context.organizationId,
+    workspaceId: context.workspaceId,
     datasourceId: context.datasourceId ?? null,
     bucket: context.bucket,
     runId: processingStatus?.run_id ?? null,
@@ -211,6 +217,7 @@ function normalizeIngestionJob(job: IngestionJobDto): IngestionJob {
     job_id: job.job_id,
     datasource_id: job.datasource_id,
     organization_id: job.organization_id,
+    workspace_id: job.workspace_id,
     datasource_type: job.datasource_type,
     status: job.status,
     records_pulled: job.records_pulled,
@@ -229,6 +236,7 @@ function normalizeDataSource(datasource: DataSourceDto): DataSource {
   return {
     id: datasource.id,
     organizationId: datasource.organization_id,
+    workspaceId: datasource.workspace_id,
     name: datasource.name,
     type: datasource.datasource_type,
     createdAt: datasource.created_at,
@@ -304,6 +312,7 @@ export async function getProcessingStatuses(
 
 export async function getDataFilesForJob(
   jobId: string,
+  workspaceId: string,
   signal: AbortSignal,
 ): Promise<DataFile[]> {
   const result = await getAllFilesForJob(jobId, signal);
@@ -327,12 +336,14 @@ export async function getDataFilesForJob(
       organizationId: result.organization_id,
       datasourceId: result.datasource_id,
       bucket: result.bucket,
+      workspaceId,
     }),
   );
 }
 
 export async function getDataSourceFiles(
   datasourceId: string,
+  workspaceId: string,
   query: DataSourceFilesQuery,
   signal: AbortSignal,
 ): Promise<DataSourceFilesPage> {
@@ -381,6 +392,7 @@ export async function getDataSourceFiles(
         organizationId: response.organization_id,
         datasourceId: response.datasource_id,
         bucket: response.bucket,
+        workspaceId,
         name: file.name,
       }),
     ),
@@ -395,6 +407,7 @@ export async function getDataSourceFiles(
 
 export async function getDataDashboard(
   organizationId: string,
+  workspaceId: string,
   signal: AbortSignal,
 ): Promise<DataDashboardSnapshot> {
   const ingestionJobsRequest = listIngestionJobs(organizationId, signal).then(
@@ -406,14 +419,20 @@ export async function getDataDashboard(
     listDataSources(organizationId, signal),
   ]);
   const warnings: string[] = [];
+  const scoped = filterWorkspaceRecords(
+    filesResponse.files,
+    datasourcesResponse,
+    (await ingestionJobsRequest).value,
+    workspaceId,
+  );
 
   let processingStatuses: DocumentProcessingStatusDto[] = [];
-  if (filesResponse.files.length > 0) {
+  if (scoped.files.length > 0) {
     try {
       processingStatuses = await getProcessingStatuses(
         filesResponse.organization_id,
         filesResponse.bucket,
-        filesResponse.files.map((file) => file.key),
+        scoped.files.map((file) => file.key),
         signal,
       );
     } catch (error) {
@@ -440,16 +459,18 @@ export async function getDataDashboard(
 
   return {
     organizationId: filesResponse.organization_id,
+    workspaceId,
     bucket: filesResponse.bucket,
     bucketMetadata: filesResponse.bucket_metadata,
-    files: filesResponse.files.map((file) =>
+    files: scoped.files.map((file) =>
       normalizeFile(file, statusByObjectKey.get(file.key), {
         organizationId: filesResponse.organization_id,
         bucket: filesResponse.bucket,
+        workspaceId,
       }),
     ),
-    datasources: datasourcesResponse.map(normalizeDataSource),
-    ingestionJobs: ingestionJobsResult.value
+    datasources: scoped.datasources.map(normalizeDataSource),
+    ingestionJobs: scoped.jobs
       .map(normalizeIngestionJob)
       .sort(
         (first, second) =>
