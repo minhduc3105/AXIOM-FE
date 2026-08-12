@@ -108,7 +108,9 @@ function RailContent({
 }: WorkspaceRailProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const conversationsScrollRef = useRef<HTMLDivElement | null>(null);
-  const loadingConversationPagesRef = useRef(new Set<number>());
+  const loadingConversationPagesRef = useRef(
+    new Map<number, AbortSignal | null>(),
+  );
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [conversationsLoadingMore, setConversationsLoadingMore] =
@@ -122,7 +124,8 @@ function RailContent({
   const loadConversationPage = useCallback(
     async (page: number, signal?: AbortSignal) => {
       if (loadingConversationPagesRef.current.has(page)) return;
-      loadingConversationPagesRef.current.add(page);
+      const requestOwner = signal ?? null;
+      loadingConversationPagesRef.current.set(page, requestOwner);
       if (page === 1) {
         setConversationsLoading(true);
         setConversationsError(null);
@@ -141,7 +144,8 @@ function RailContent({
         );
         setConversationPage(payload.pagination?.page ?? page);
         setHasMoreConversations(
-          payload.pagination?.has_next ?? items.length === conversationPageLimit,
+          payload.pagination?.has_next ??
+            items.length === conversationPageLimit,
         );
         setConversationsError(null);
       } catch (error: unknown) {
@@ -153,11 +157,11 @@ function RailContent({
             : "Unable to load recent work.",
         );
       } finally {
+        if (loadingConversationPagesRef.current.get(page) !== requestOwner)
+          return;
         loadingConversationPagesRef.current.delete(page);
-        if (!signal?.aborted) {
-          if (page === 1) setConversationsLoading(false);
-          else setConversationsLoadingMore(false);
-        }
+        if (page === 1) setConversationsLoading(false);
+        else setConversationsLoadingMore(false);
       }
     },
     [],
@@ -167,7 +171,12 @@ function RailContent({
     const controller = new AbortController();
     void loadConversationPage(1, controller.signal);
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (loadingConversationPagesRef.current.get(1) === controller.signal) {
+        loadingConversationPagesRef.current.delete(1);
+      }
+    };
   }, [activeStage, loadConversationPage]);
 
   const loadNextConversationPage = useCallback(() => {
@@ -190,10 +199,9 @@ function RailContent({
 
   useEffect(() => {
     if (!expanded) return;
-    const viewport =
-      conversationsScrollRef.current?.querySelector<HTMLElement>(
-        "[data-slot='scroll-area-viewport']",
-      );
+    const viewport = conversationsScrollRef.current?.querySelector<HTMLElement>(
+      "[data-slot='scroll-area-viewport']",
+    );
     if (!viewport) return;
 
     const handleScroll = () => {
@@ -450,7 +458,9 @@ function RailContent({
               className={cn(
                 workspaceNavButtonClass,
                 sidebarButtonIconPadding,
-                expanded ? "w-full justify-start px-3" : "size-11 justify-center px-0",
+                expanded
+                  ? "w-full justify-start px-3"
+                  : "size-11 justify-center px-0",
                 "rounded-xl",
               )}
               data-active={surface === "memory"}
@@ -458,7 +468,14 @@ function RailContent({
               aria-label="Memory settings"
             >
               <BrainCircuitIcon data-icon="inline-start" />
-              <span className={cn("transition-opacity duration-300", expanded ? "opacity-100" : "pointer-events-none w-0 overflow-hidden opacity-0")}>
+              <span
+                className={cn(
+                  "transition-opacity duration-300",
+                  expanded
+                    ? "opacity-100"
+                    : "pointer-events-none w-0 overflow-hidden opacity-0",
+                )}
+              >
                 Memory
               </span>
             </Button>
@@ -610,10 +627,7 @@ function UserSessionMenu({
           />
         }
       >
-        <Avatar
-          size="lg"
-          className="ring-2 ring-[#fffaf1] dark:ring-[#151512]"
-        >
+        <Avatar size="lg">
           <AvatarImage src="" alt="" />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
@@ -666,10 +680,12 @@ function userInitials(user: AuthUser | null) {
     .replace(/@.*/, "")
     .split(/\s+|[._-]+/)
     .filter(Boolean);
-  return words
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase())
-    .join("") || "AX";
+  return (
+    words
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase())
+      .join("") || "AX"
+  );
 }
 
 export function WorkspaceRail(props: WorkspaceRailProps) {
