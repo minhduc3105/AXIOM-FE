@@ -12,7 +12,6 @@ const tool: ToolSummary = {
   required_params: ["text"],
   param_count: 2,
   enabled: false,
-  revision: 3,
 };
 
 describe("ToolCard", () => {
@@ -21,7 +20,13 @@ describe("ToolCard", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        Response.json({ tool: { name: tool.name, enabled: true, revision: 4 } }),
+        Response.json({
+          tool_name: tool.name,
+          enabled: true,
+          changed: true,
+          scope: "process",
+          persistent: false,
+        }),
       ),
     );
   });
@@ -80,7 +85,7 @@ describe("ToolCard", () => {
     expect(fetch).toHaveBeenCalledWith(
       "/methods-hub/api/v1/admin/tools/keyword_extract",
       expect.objectContaining({
-        body: JSON.stringify({ enabled: true, expected_revision: 3 }),
+        body: JSON.stringify({ enabled: true }),
         method: "PATCH",
       }),
     );

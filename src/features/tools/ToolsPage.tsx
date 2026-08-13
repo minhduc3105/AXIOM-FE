@@ -123,39 +123,35 @@ function ToolSection({
 export function ToolsPage({ onOpenTool }: ToolsPageProps) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<ToolKind | undefined>();
-  const { catalog, source, loading, error, refresh } = useToolCatalog({
+  const { catalog, loading, error, refresh } = useToolCatalog({
     kind,
     query,
   });
-  const { getToolRevision, isToolEnabled, isToolUpdating, setToolEnabled } =
-    useToolsState();
+  const { isToolEnabled, isToolUpdating, setToolEnabled } = useToolsState();
   const initialLoading = loading && !catalog;
 
   const { activeTools, disabledTools } = useMemo(() => {
     const tools = catalog?.tools ?? [];
     return {
       activeTools: tools.filter((tool) =>
-        isToolEnabled(tool.name, tool.kind, tool.enabled),
+        isToolEnabled(tool.name, tool.enabled),
       ),
       disabledTools: tools.filter(
-        (tool) => !isToolEnabled(tool.name, tool.kind, tool.enabled),
+        (tool) => !isToolEnabled(tool.name, tool.enabled),
       ),
     };
   }, [catalog?.tools, isToolEnabled]);
 
   const disableAllActiveTools = () => {
     activeTools.forEach((tool) => {
-      const revision = getToolRevision(tool.name, tool.revision);
-      if (typeof revision === "number" && !isToolUpdating(tool.name)) {
-        setToolEnabled(tool.name, false, revision);
+      if (!isToolUpdating(tool.name)) {
+        setToolEnabled(tool.name, false);
       }
     });
   };
 
   const actionableActiveCount = activeTools.filter(
-    (tool) =>
-      typeof getToolRevision(tool.name, tool.revision) === "number" &&
-      !isToolUpdating(tool.name),
+    (tool) => !isToolUpdating(tool.name),
   ).length;
 
   return (
@@ -249,13 +245,13 @@ export function ToolsPage({ onOpenTool }: ToolsPageProps) {
           </div>
         </header>
 
-        {source === "sample" && error && (
+        {error ? (
           <Alert className="rounded-[18px] border-amber-300/70 bg-amber-50/80 text-amber-950 shadow-[0_14px_38px_rgba(120,75,18,0.08)] dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
             <AlertTriangleIcon />
-            <AlertTitle>Showing sample catalog</AlertTitle>
+            <AlertTitle>Methods-Hub is unavailable</AlertTitle>
             <AlertDescription className="text-amber-800 dark:text-amber-200">
-              Methods-Hub is not responding. Status changes require a live
-              Methods-Hub connection.
+              The live tool catalog could not be loaded. Check the Methods-Hub
+              URL and service configuration, then try again.
             </AlertDescription>
             <AlertAction>
               <Button
@@ -270,9 +266,9 @@ export function ToolsPage({ onOpenTool }: ToolsPageProps) {
               </Button>
             </AlertAction>
           </Alert>
-        )}
+        ) : null}
 
-        {initialLoading ? (
+        {error ? null : initialLoading ? (
           <ToolCatalogSkeleton />
         ) : catalog && catalog.tools.length > 0 ? (
           <div className="grid gap-10">

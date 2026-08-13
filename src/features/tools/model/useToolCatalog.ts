@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react";
 import { listTools } from "../api/toolsApi";
-import { getMockToolCatalog } from "./mockTools";
-import type {
-  CatalogSource,
-  ToolCatalogFilters,
-  ToolCatalogResponse,
-} from "./types";
+import type { ToolCatalogFilters, ToolCatalogResponse } from "./types";
 
 export function useToolCatalog(filters: ToolCatalogFilters) {
   const [catalog, setCatalog] = useState<ToolCatalogResponse | null>(null);
-  const [source, setSource] = useState<CatalogSource>("api");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
@@ -22,12 +16,10 @@ export function useToolCatalog(filters: ToolCatalogFilters) {
       void listTools(filters, controller.signal)
         .then((response) => {
           setCatalog(response);
-          setSource("api");
         })
         .catch((requestError: unknown) => {
           if (controller.signal.aborted) return;
-          setCatalog(getMockToolCatalog(filters));
-          setSource("sample");
+          setCatalog(null);
           setError(
             requestError instanceof Error
               ? requestError.message
@@ -47,7 +39,6 @@ export function useToolCatalog(filters: ToolCatalogFilters) {
 
   return {
     catalog,
-    source,
     loading,
     error,
     refresh: () => setRefreshToken((current) => current + 1),
