@@ -33,6 +33,21 @@ npm run dev
 
 Open the local URL printed by Vite.
 
+### Methods-Hub tools catalog
+
+The Tools page uses the Methods-Hub Tool Catalog API. The browser calls the
+relative `/methods-hub` path, which Vite proxies to `METHODS_HUB_PROXY_TARGET`.
+
+- From the host, use `METHODS_HUB_PROXY_TARGET=http://localhost:38000`.
+- When the Vite server runs in the same Docker network, use
+  `METHODS_HUB_PROXY_TARGET=http://methods-hub:8000`.
+
+The page supports listing, kind/query filters, detail inspection, and
+process-scoped enable/disable actions. An admin token is required by Methods-Hub
+for mutations. For local Vite development, set `METHOD_HUB_ADMIN_TOKEN` (without
+the `VITE_` prefix) so the Vite proxy adds the bearer header server-side. Use an
+authenticated BFF for deployed browser apps.
+
 Build and preview production output:
 
 ```bash

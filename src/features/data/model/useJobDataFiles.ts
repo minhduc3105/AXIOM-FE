@@ -10,21 +10,22 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function useJobDataFiles(jobId: string | null) {
+export function useJobDataFiles(jobId: string | null, workspaceId: string | null) {
+  const cacheKey = jobId && workspaceId ? `${workspaceId}:${jobId}` : null;
   const [files, setFiles] = useState<DataFile[]>(
-    jobId ? dataFileCache.get(jobId) ?? [] : [],
+    cacheKey ? dataFileCache.get(cacheKey) ?? [] : [],
   );
-  const [loading, setLoading] = useState(Boolean(jobId && !dataFileCache.has(jobId)));
+  const [loading, setLoading] = useState(Boolean(cacheKey && !dataFileCache.has(cacheKey)));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!jobId) {
+    if (!jobId || !workspaceId || !cacheKey) {
       setFiles([]);
       setLoading(false);
       setError(null);
       return;
     }
-    const cached = dataFileCache.get(jobId);
+    const cached = dataFileCache.get(cacheKey);
     if (cached) {
       setFiles(cached);
       setLoading(false);
@@ -35,9 +36,9 @@ export function useJobDataFiles(jobId: string | null) {
     setFiles([]);
     setLoading(true);
     setError(null);
-    void getDataFilesForJob(jobId, controller.signal)
+    void getDataFilesForJob(jobId, workspaceId, controller.signal)
       .then((nextFiles) => {
-        dataFileCache.set(jobId, nextFiles);
+        dataFileCache.set(cacheKey, nextFiles);
         setFiles(nextFiles);
       })
       .catch((requestError: unknown) => {
@@ -49,7 +50,7 @@ export function useJobDataFiles(jobId: string | null) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [jobId]);
+  }, [cacheKey, jobId, workspaceId]);
 
   return { files, loading, error };
 }

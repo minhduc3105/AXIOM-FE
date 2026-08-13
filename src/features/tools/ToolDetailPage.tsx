@@ -2,7 +2,6 @@ import {
   ArrowLeftIcon,
   BoxIcon,
   BracesIcon,
-  CalendarDaysIcon,
   CircleAlertIcon,
   CodeXmlIcon,
   LoaderCircleIcon,
@@ -10,14 +9,7 @@ import {
   PowerIcon,
   PowerOffIcon,
   RefreshCwIcon,
-  UserRoundIcon,
 } from "lucide-react";
-import {
-  Alert,
-  AlertAction,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,7 +18,6 @@ import { useToolsState } from "./model/ToolsProvider";
 import {
   formatToolKind,
   formatToolName,
-  getToolPresentation,
 } from "./model/toolPresentation";
 import { useToolDetail } from "./model/useToolDetail";
 
@@ -52,9 +43,8 @@ function ToolDetailSkeleton() {
 }
 
 export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
-  const { tool, source, loading, error, refresh } = useToolDetail(toolName);
-  const { getToolRevision, isToolEnabled, isToolUpdating, setToolEnabled } =
-    useToolsState();
+  const { tool, loading, error, refresh } = useToolDetail(toolName);
+  const { isToolEnabled, isToolUpdating, setToolEnabled } = useToolsState();
 
   if (loading && !tool) {
     return (
@@ -69,11 +59,21 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
       <section className="grid min-h-screen place-items-center px-5 py-20">
         <div className="max-w-md text-center">
           <CircleAlertIcon className="mx-auto size-8 text-[#8a8377]" />
-          <h1 className="mt-4 text-xl font-semibold">Tool not found</h1>
+          <h1 className="mt-4 text-xl font-semibold">
+            {error ? "Methods-Hub is unavailable" : "Tool not found"}
+          </h1>
           <p className="mt-2 text-sm text-[#6d685e] dark:text-[#aaa397]">
-            The catalog does not contain <code>{toolName}</code>.
+            {error
+              ? "The live tool detail could not be loaded. Check the Methods-Hub URL and service configuration."
+              : <>The catalog does not contain <code>{toolName}</code>.</>}
           </p>
-          <Button variant="outline" className="mt-5" onClick={onBack}>
+          {error ? (
+            <Button variant="outline" className="mt-5" onClick={refresh}>
+              <RefreshCwIcon />
+              Retry
+            </Button>
+          ) : null}
+          <Button variant="outline" className="mt-5 ml-2" onClick={onBack}>
             <ArrowLeftIcon />
             Back to Tools
           </Button>
@@ -82,12 +82,9 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
     );
   }
 
-  const presentation = getToolPresentation(tool.name, tool.kind);
   const displayName = formatToolName(tool.name);
-  const enabled = isToolEnabled(tool.name, tool.kind, tool.enabled);
-  const revision = getToolRevision(tool.name, tool.revision);
+  const enabled = isToolEnabled(tool.name, tool.enabled);
   const updating = isToolUpdating(tool.name);
-  const canUpdate = typeof revision === "number";
   const implementation = tool.implementation ?? tool.implementations?.[0];
 
   return (
@@ -108,28 +105,6 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
           <ArrowLeftIcon />
           Back to Tools
         </Button>
-
-        {source === "sample" && error && (
-          <Alert className="min-w-0 max-w-full overflow-hidden rounded-[18px] border-amber-300/70 bg-amber-50/80 pr-3 text-amber-950 shadow-[0_14px_38px_rgba(120,75,18,0.08)] sm:pr-24 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
-            <CircleAlertIcon />
-            <AlertTitle>Showing sample tool details</AlertTitle>
-            <AlertDescription className="text-amber-800 dark:text-amber-200">
-              Methods-Hub is not responding. Read-only metadata remains
-              available from the sample catalog.
-            </AlertDescription>
-            <AlertAction className="hidden sm:block">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full bg-white/70 dark:bg-[#1a1a17]"
-                onClick={refresh}
-              >
-                <RefreshCwIcon />
-                Retry
-              </Button>
-            </AlertAction>
-          </Alert>
-        )}
 
         <header className="flex min-w-0 max-w-full flex-col gap-5 overflow-hidden rounded-[28px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 p-5 shadow-[0_24px_70px_rgba(24,24,18,0.09)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88 sm:flex-row sm:items-start sm:justify-between sm:p-6 lg:p-7">
           <div className="flex w-full min-w-0 max-w-full items-start gap-3 sm:gap-4">
@@ -164,7 +139,7 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
                 className="h-7 rounded-full border-[#d8d0c2] bg-[#f4efe5]/72 px-3 text-[10px] font-medium text-[#625d53] dark:border-[#49483f] dark:bg-white/5 dark:text-[#c5bcaf]"
               >
                 <LockKeyholeIcon className="mr-1.5 size-3" />
-                Read-only details
+                Live catalog
               </Badge>
               <Badge
                 className={
@@ -191,9 +166,9 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
                   ? "h-9 w-full rounded-full px-4 sm:w-auto"
                   : "h-9 w-full rounded-full bg-[#2456e8] px-4 text-white hover:bg-[#1d48c7] sm:w-auto dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
               }
-              disabled={updating || !canUpdate}
+              disabled={updating}
               aria-busy={updating || undefined}
-              onClick={() => setToolEnabled(tool.name, !enabled, revision)}
+              onClick={() => setToolEnabled(tool.name, !enabled)}
             >
               {updating ? (
                 <LoaderCircleIcon className="animate-spin" />
@@ -217,33 +192,32 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
               <dl className="grid gap-px overflow-hidden rounded-[18px] border border-[#d8d0c2]/80 bg-[#d8d0c2]/80 sm:grid-cols-3 dark:border-[#38372f] dark:bg-[#38372f]">
                 <div className="bg-[#f4efe5]/72 p-3.5 dark:bg-white/5">
                   <dt className="flex items-center gap-1.5 text-[11px] text-[#777064] dark:text-[#aaa397]">
-                    <BracesIcon className="size-3.5" /> Version
-                  </dt>
-                  <dd className="mt-1.5 text-sm font-semibold tabular-nums">
-                    v{presentation.version}
-                  </dd>
-                </div>
-                <div className="bg-[#f4efe5]/72 p-3.5 dark:bg-white/5">
-                  <dt className="flex items-center gap-1.5 text-[11px] text-[#777064] dark:text-[#aaa397]">
-                    <CalendarDaysIcon className="size-3.5" /> Updated
+                    <BracesIcon className="size-3.5" /> Kind
                   </dt>
                   <dd className="mt-1.5 text-sm font-semibold">
-                    {new Intl.DateTimeFormat("en", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    }).format(new Date(`${presentation.updatedAt}T00:00:00`))}
+                    {formatToolKind(tool.kind)}
                   </dd>
                 </div>
                 <div className="bg-[#f4efe5]/72 p-3.5 dark:bg-white/5">
                   <dt className="flex items-center gap-1.5 text-[11px] text-[#777064] dark:text-[#aaa397]">
-                    <UserRoundIcon className="size-3.5" /> Owner
+                    <CodeXmlIcon className="size-3.5" /> Parameters
                   </dt>
-                  <dd className="mt-1.5 truncate text-sm font-semibold">
-                    {presentation.author}
+                  <dd className="mt-1.5 text-sm font-semibold tabular-nums">
+                    {tool.params.length}
+                  </dd>
+                </div>
+                <div className="bg-[#f4efe5]/72 p-3.5 dark:bg-white/5">
+                  <dt className="flex items-center gap-1.5 text-[11px] text-[#777064] dark:text-[#aaa397]">
+                    <PowerIcon className="size-3.5" /> Visibility
+                  </dt>
+                  <dd className="mt-1.5 text-sm font-semibold">
+                    Process-scoped
                   </dd>
                 </div>
               </dl>
+              <p className="mt-3 text-xs leading-5 text-[#777064] dark:text-[#aaa397]">
+                Enabling or disabling a tool updates the current Methods-Hub process only; the setting resets when it restarts.
+              </p>
 
               {(implementation || tool.supported_dataset_types?.length) && (
                 <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">

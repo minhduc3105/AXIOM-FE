@@ -8,7 +8,6 @@ interface ImportMetaEnv {
   readonly VITE_DOCUMENT_API_BASE_URL?: string
   readonly VITE_CORPUS_API_BASE_URL?: string
   readonly VITE_METHODS_HUB_API_BASE_URL?: string
-  readonly VITE_METHODS_HUB_ADMIN_TOKEN?: string
   readonly VITE_MEMORY_API_BASE_URL?: string
   readonly VITE_REME_API_BASE_URL?: string
   readonly VITE_MEMORY_TENANT_ID?: string

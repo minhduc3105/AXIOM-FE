@@ -7,34 +7,18 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { updateToolEnabled } from "../api/toolsApi";
-import { getToolPresentation } from "./toolPresentation";
-import type { ToolKind } from "./types";
 
 type ToolOverride = {
   enabled: boolean;
-  revision?: number | null;
 };
 
 type EnabledTools = Record<string, ToolOverride>;
 type ToolFlags = Record<string, boolean>;
-type ToolErrors = Record<string, string | null>;
 
 type ToolsContextValue = {
-  isToolEnabled: (name: string, kind?: ToolKind, apiEnabled?: boolean) => boolean;
-  getToolRevision: (name: string, apiRevision?: number | null) => number | null;
+  isToolEnabled: (name: string, apiEnabled: boolean) => boolean;
   isToolUpdating: (name: string) => boolean;
-  getToolError: (name: string) => string | null;
-  setToolEnabled: (
-    name: string,
-    enabled: boolean,
-    expectedRevision?: number | null,
-  ) => void;
-  toggleTool: (
-    name: string,
-    kind?: ToolKind,
-    apiEnabled?: boolean,
-    apiRevision?: number | null,
-  ) => void;
+  setToolEnabled: (name: string, enabled: boolean) => void;
 };
 
 const ToolsContext = createContext<ToolsContextValue | null>(null);
@@ -42,19 +26,9 @@ const ToolsContext = createContext<ToolsContextValue | null>(null);
 export function ToolsProvider({ children }: { children: React.ReactNode }) {
   const [enabledTools, setEnabledTools] = useState<EnabledTools>({});
   const [updatingTools, setUpdatingTools] = useState<ToolFlags>({});
-  const [toolErrors, setToolErrors] = useState<ToolErrors>({});
 
   const isToolEnabled = useCallback(
-    (name: string, kind: ToolKind = "utility_method", apiEnabled?: boolean) =>
-      enabledTools[name]?.enabled ??
-      apiEnabled ??
-      getToolPresentation(name, kind).defaultEnabled,
-    [enabledTools],
-  );
-
-  const getToolRevision = useCallback(
-    (name: string, apiRevision?: number | null) =>
-      enabledTools[name]?.revision ?? apiRevision ?? null,
+    (name: string, apiEnabled: boolean) => enabledTools[name]?.enabled ?? apiEnabled,
     [enabledTools],
   );
 
@@ -63,46 +37,28 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
     [updatingTools],
   );
 
-  const getToolError = useCallback(
-    (name: string) => toolErrors[name] ?? null,
-    [toolErrors],
-  );
-
   const setToolEnabled = useCallback(
-    (name: string, enabled: boolean, expectedRevision?: number | null) => {
-      const revision = getToolRevision(name, expectedRevision);
-      if (typeof revision !== "number") {
-        const message = "Tool status is unavailable until Methods-Hub returns a revision.";
-        setToolErrors((current) => ({ ...current, [name]: message }));
-        toast.error("Unable to update tool status", {
-          description: message,
-        });
-        return;
-      }
-
+    (name: string, enabled: boolean) => {
       const hadOverride = Object.prototype.hasOwnProperty.call(enabledTools, name);
       const previousOverride = enabledTools[name];
 
       setEnabledTools((current) => ({
         ...current,
-        [name]: { enabled, revision },
+        [name]: { enabled },
       }));
       setUpdatingTools((current) => ({ ...current, [name]: true }));
-      setToolErrors((current) => ({ ...current, [name]: null }));
 
-      void updateToolEnabled(name, enabled, revision)
+      void updateToolEnabled(name, enabled)
         .then((response) => {
-          const confirmedEnabled =
-            response.enabled ?? response.tool?.enabled ?? enabled;
-          const confirmedRevision = response.tool?.revision ?? revision + 1;
           setEnabledTools((current) => ({
             ...current,
             [name]: {
-              enabled: confirmedEnabled,
-              revision: confirmedRevision,
+              enabled: response.enabled,
             },
           }));
-          toast.success(`${name} ${confirmedEnabled ? "enabled" : "disabled"}`);
+          toast.success(`${name} ${response.enabled ? "enabled" : "disabled"}`, {
+            description: "This visibility change resets when Methods-Hub restarts.",
+          });
         })
         .catch((error: unknown) => {
           setEnabledTools((current) => {
@@ -120,7 +76,6 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
             error instanceof Error
               ? error.message
               : "Unable to update tool status.";
-          setToolErrors((current) => ({ ...current, [name]: message }));
           toast.error("Unable to update tool status", {
             description: message,
           });
@@ -129,41 +84,19 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
           setUpdatingTools((current) => ({ ...current, [name]: false }));
         });
     },
-    [enabledTools, getToolRevision],
-  );
-
-  const toggleTool = useCallback(
-    (
-      name: string,
-      kind: ToolKind = "utility_method",
-      apiEnabled?: boolean,
-      apiRevision?: number | null,
-    ) => {
-      setToolEnabled(
-        name,
-        !isToolEnabled(name, kind, apiEnabled),
-        getToolRevision(name, apiRevision),
-      );
-    },
-    [getToolRevision, isToolEnabled, setToolEnabled],
+    [enabledTools],
   );
 
   const value = useMemo(
     () => ({
       isToolEnabled,
-      getToolRevision,
       isToolUpdating,
-      getToolError,
       setToolEnabled,
-      toggleTool,
     }),
     [
       isToolEnabled,
-      getToolRevision,
       isToolUpdating,
-      getToolError,
       setToolEnabled,
-      toggleTool,
     ],
   );
 

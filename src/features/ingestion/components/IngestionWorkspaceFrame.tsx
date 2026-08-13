@@ -8,6 +8,7 @@ import { IngestionProgress } from "./IngestionProgress";
 type IngestionWorkspaceFrameProps = {
   title: string;
   repoMessage: string;
+  workspaceName: string;
   ready: boolean;
   active: ProgressStage;
   furthest: number;
@@ -22,6 +23,7 @@ type IngestionWorkspaceFrameProps = {
 export function IngestionWorkspaceFrame({
   title,
   repoMessage,
+  workspaceName,
   ready,
   active,
   furthest,
@@ -49,6 +51,9 @@ export function IngestionWorkspaceFrame({
               </Button>
               <span className="inline-flex h-8 items-center rounded-lg border border-[#d8d0c2]/75 bg-[#fffdf8]/58 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2456e8] shadow-[0_8px_24px_rgba(24,24,18,0.04)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-white/6 dark:text-[#7895ff]">
                 Data ingestion
+              </span>
+              <span className="inline-flex h-8 max-w-52 items-center truncate rounded-lg border border-[#d8d0c2]/75 bg-[#fffdf8]/58 px-3 text-xs font-semibold text-[#6d685e] dark:border-[#38372f]/80 dark:bg-white/6 dark:text-[#aaa397]">
+                {workspaceName}
               </span>
               <div className="min-w-0">
                 <h1 className="truncate text-base font-semibold text-[#191915] sm:text-lg dark:text-[#eee8dc]">
@@ -106,6 +111,9 @@ export function IngestionWorkspaceFrame({
               </Button>
               <span className="inline-flex h-8 items-center rounded-full border border-[#d8d0c2]/75 bg-[#fffdf8]/58 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2456e8] shadow-[0_8px_24px_rgba(24,24,18,0.04)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-white/6 dark:text-[#7895ff]">
                 Data ingestion
+              </span>
+              <span className="inline-flex h-8 max-w-52 items-center truncate rounded-full border border-[#d8d0c2]/75 bg-[#fffdf8]/58 px-3 text-xs font-semibold text-[#6d685e] dark:border-[#38372f]/80 dark:bg-white/6 dark:text-[#aaa397]">
+                {workspaceName}
               </span>
             </div>
             <h1 className="mt-4 max-w-5xl text-[clamp(3rem,5vw,5.5rem)] font-semibold leading-[0.92] tracking-normal text-[#191915] dark:text-[#eee8dc]">

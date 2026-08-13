@@ -30,11 +30,13 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function useProcessedDocumentResources({
   organizationId,
+  workspaceId,
   bucket,
   file,
   result,
 }: {
   organizationId: string;
+  workspaceId: string;
   bucket: string;
   file: ProcessingFile | null;
   result: ProcessedDocumentResultSelector | null;
@@ -66,7 +68,7 @@ export function useProcessedDocumentResources({
     previewCache.current.delete(cacheKey);
     const controller = new AbortController();
     setPreview({ status: "loading", data: cached ?? null, error: null });
-    void presignFileForPreview(bucket, file.key, controller.signal)
+    void presignFileForPreview(bucket, file.key, workspaceId, controller.signal)
       .then((data) => {
         previewCache.current.set(cacheKey, data);
         setPreview({ status: "success", data, error: null });
@@ -81,7 +83,7 @@ export function useProcessedDocumentResources({
         }
       });
     return () => controller.abort();
-  }, [bucket, completed, file, previewAttempt]);
+  }, [bucket, completed, file, previewAttempt, workspaceId]);
 
   useEffect(() => {
     if (!file || !completed || !parsingCacheKey) {

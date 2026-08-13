@@ -21,13 +21,9 @@ type ToolCardProps = {
 };
 
 export function ToolCard({ tool, enabled: enabledProp, onOpen }: ToolCardProps) {
-  const { getToolRevision, isToolEnabled, isToolUpdating, setToolEnabled } =
-    useToolsState();
-  const enabled =
-    enabledProp ?? isToolEnabled(tool.name, tool.kind, tool.enabled);
-  const revision = getToolRevision(tool.name, tool.revision);
+  const { isToolEnabled, isToolUpdating, setToolEnabled } = useToolsState();
+  const enabled = enabledProp ?? isToolEnabled(tool.name, tool.enabled);
   const updating = isToolUpdating(tool.name);
-  const canUpdate = typeof revision === "number";
   const displayName = formatToolName(tool.name);
   const transitionName = `tool-${tool.name.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
@@ -56,12 +52,12 @@ export function ToolCard({ tool, enabled: enabledProp, onOpen }: ToolCardProps) 
           size="sm"
           aria-label={`Enable ${displayName}`}
           aria-busy={updating || undefined}
-          disabled={updating || !canUpdate}
+          disabled={updating}
           className="h-7 min-w-[72px] rounded-full bg-[#2456e8] px-3 text-white shadow-[0_6px_16px_rgba(36,86,232,0.16)] hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
           onClick={(event) => {
             event.stopPropagation();
-            if (updating || !canUpdate) return;
-            setToolEnabled(tool.name, true, revision);
+            if (updating) return;
+            setToolEnabled(tool.name, true);
           }}
           onKeyDown={(event) => event.stopPropagation()}
         >
@@ -169,7 +165,7 @@ export function ToolCard({ tool, enabled: enabledProp, onOpen }: ToolCardProps) 
           variant={enabled ? "destructive" : "default"}
           aria-label={`${enabled ? "Disable" : "Enable"} ${displayName}`}
           aria-busy={updating || undefined}
-          disabled={updating || !canUpdate}
+          disabled={updating}
           className={cn(
             "h-8 min-w-[88px] rounded-full px-3",
             !enabled &&
@@ -177,8 +173,8 @@ export function ToolCard({ tool, enabled: enabledProp, onOpen }: ToolCardProps) 
           )}
           onClick={(event) => {
             event.stopPropagation();
-            if (updating || !canUpdate) return;
-            setToolEnabled(tool.name, !enabled, revision);
+            if (updating) return;
+            setToolEnabled(tool.name, !enabled);
           }}
           onKeyDown={(event) => event.stopPropagation()}
         >

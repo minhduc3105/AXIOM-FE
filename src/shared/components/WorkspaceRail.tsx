@@ -9,7 +9,6 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   SettingsIcon,
-  CpuIcon,
   BrainCircuitIcon,
   LogOutIcon,
   SunIcon,
@@ -60,7 +59,6 @@ type WorkspaceRailProps = {
   onConversationOpen: (conversationId: string) => void;
   onData: () => void;
   onReports: () => void;
-  onModels: () => void;
   onMemory: () => void;
   onTools: () => void;
   onSettings: () => void;
@@ -99,7 +97,6 @@ function RailContent({
   onConversationOpen,
   onData,
   onReports,
-  onModels,
   onMemory,
   onTools,
   onSettings,
@@ -489,32 +486,6 @@ function RailContent({
                   : "size-11 justify-center px-0",
                 "rounded-xl",
               )}
-              data-active={surface === "models"}
-              onClick={onModels}
-              aria-label="Models"
-            >
-              <CpuIcon data-icon="inline-start" />
-              <span
-                className={cn(
-                  "transition-opacity duration-300",
-                  expanded
-                    ? "opacity-100"
-                    : "pointer-events-none w-0 overflow-hidden opacity-0",
-                )}
-              >
-                Models
-              </span>
-            </Button>
-            <Button
-              variant="ghost"
-              className={cn(
-                workspaceNavButtonClass,
-                sidebarButtonIconPadding,
-                expanded
-                  ? "w-full justify-start px-3"
-                  : "size-11 justify-center px-0",
-                "rounded-xl",
-              )}
               data-active={surface === "tools"}
               onClick={onTools}
               aria-label="Tools"
@@ -567,7 +538,7 @@ function RailContent({
                   : "size-11 justify-center px-0",
                 "rounded-xl",
               )}
-              data-active="false"
+              data-active={surface === "organization"}
               onClick={onSettings}
               aria-label="Settings"
             >
@@ -593,7 +564,12 @@ function RailContent({
           />
         )}
 
-        <UserSessionMenu expanded={expanded} user={user} onLogout={onLogout} />
+        <UserSessionMenu
+          expanded={expanded}
+          user={user}
+          onSettings={onSettings}
+          onLogout={onLogout}
+        />
       </div>
     </div>
   );
@@ -602,10 +578,12 @@ function RailContent({
 function UserSessionMenu({
   expanded,
   user,
+  onSettings,
   onLogout,
 }: {
   expanded: boolean;
   user: AuthUser | null;
+  onSettings: () => void;
   onLogout: () => void;
 }) {
   const label = user?.display_name || user?.email || "AXIOM user";
@@ -627,7 +605,7 @@ function UserSessionMenu({
           />
         }
       >
-        <Avatar size="lg">
+        <Avatar size="lg" className="ring-2 ring-[#fffaf1] dark:ring-[#151512]">
           <AvatarImage src="" alt="" />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
@@ -661,6 +639,13 @@ function UserSessionMenu({
           </span>
         </div>
         <DropdownMenuSeparator className="bg-[#d8d0c2] dark:bg-[#38372f]" />
+        <DropdownMenuItem
+          className="cursor-pointer gap-2 px-2 py-2"
+          onClick={onSettings}
+        >
+          <SettingsIcon className="size-4" />
+          Manage organizations
+        </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer gap-2 px-2 py-2 text-[#9d2f2f] focus:bg-[#fff1f1] focus:text-[#9d2f2f] dark:text-[#ff9a9a] dark:focus:bg-[#351b1b] dark:focus:text-[#ffb3b3]"
           onClick={() => void onLogout()}
@@ -742,16 +727,16 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
               props.onReports();
               setMobileOpen(false);
             }}
-            onModels={() => {
-              props.onModels();
-              setMobileOpen(false);
-            }}
             onMemory={() => {
               props.onMemory();
               setMobileOpen(false);
             }}
             onTools={() => {
               props.onTools();
+              setMobileOpen(false);
+            }}
+            onSettings={() => {
+              props.onSettings();
               setMobileOpen(false);
             }}
           />

@@ -213,14 +213,6 @@ const defaultLaunchContext: IngestionLaunchContext = {
   profileId: null,
 };
 
-function getOrganizationId() {
-  return (
-    import.meta.env.VITE_AXIOM_ORGANIZATION_ID ??
-    import.meta.env.VITE_ORGANIZATION_ID ??
-    "test-org"
-  );
-}
-
 function getS3SavedConfig(connection: S3Connection): SavedS3Config {
   return {
     region: connection.region.trim(),
@@ -486,6 +478,7 @@ function createUploadProcessingBatch(
   return {
     job_id: result.job_id,
     organization_id: result.organization_id,
+    workspace_id: result.workspace_id,
     bucket: result.bucket,
     count: result.count,
     source_kind: "upload",
@@ -509,6 +502,7 @@ function createConnectorProcessingBatch(
   return {
     job_id: job.job_id,
     organization_id: filesResult.organization_id,
+    workspace_id: job.workspace_id,
     bucket: filesResult.bucket,
     count: filesResult.count,
     source_kind: job.datasource_type,
@@ -1108,9 +1102,10 @@ function assertUniqueS3Files(existingFiles: S3File[], incomingFiles: S3File[]) {
 }
 
 export function useIngestionWorkflow(
+  organizationId: string,
+  workspaceId: string,
   launchContext: IngestionLaunchContext = defaultLaunchContext,
 ) {
-  const organizationId = getOrganizationId();
   const initialProfile = useMemo(() => {
     if (!launchContext.profileId) return null;
     const profile =
@@ -1273,6 +1268,7 @@ export function useIngestionWorkflow(
     dispatch({ type: "S3_BROWSE_START", status: "loading" });
     try {
       const result = await listS3Files(
+        workspaceId,
         getS3Credentials(state.s3Connection),
         1000,
         null,
@@ -1302,6 +1298,7 @@ export function useIngestionWorkflow(
     state.ingestionJob,
     state.s3BrowserStatus,
     state.s3Connection,
+    workspaceId,
   ]);
 
   const loadMoreS3Files = useCallback(async () => {
@@ -1318,6 +1315,7 @@ export function useIngestionWorkflow(
     dispatch({ type: "S3_BROWSE_START", status: "loading_more" });
     try {
       const result = await listS3Files(
+        workspaceId,
         getS3Credentials(state.s3Connection),
         1000,
         requestedToken,
@@ -1351,6 +1349,7 @@ export function useIngestionWorkflow(
     state.s3Connection,
     state.s3Files,
     state.s3NextToken,
+    workspaceId,
   ]);
 
   const loadAllS3Files = useCallback(async () => {
@@ -1376,6 +1375,7 @@ export function useIngestionWorkflow(
         }
         seenTokens.add(nextToken);
         const result = await listS3Files(
+          workspaceId,
           getS3Credentials(state.s3Connection),
           1000,
           nextToken,
@@ -1412,6 +1412,7 @@ export function useIngestionWorkflow(
     state.s3Connection,
     state.s3Files,
     state.s3NextToken,
+    workspaceId,
   ]);
 
   const retryS3Browser = useCallback(() => {
@@ -1579,6 +1580,7 @@ export function useIngestionWorkflow(
       const job = await createS3IngestionJob(
         {
           organization_id: organizationId,
+          workspace_id: workspaceId,
           ...(profileName.trim() ? { name: profileName.trim() } : {}),
           credentials: getS3Credentials(state.s3Connection),
           keys: state.selectedS3Keys,
@@ -1613,6 +1615,7 @@ export function useIngestionWorkflow(
     state.ingestionJob,
     state.s3Connection,
     state.selectedS3Keys,
+    workspaceId,
   ]);
 
   const submitSnowflakeImport = useCallback(async () => {
@@ -1628,6 +1631,7 @@ export function useIngestionWorkflow(
       const job = await createIngestionJob(
         {
           organization_id: organizationId,
+          workspace_id: workspaceId,
           ...(profileName.trim() ? { name: profileName.trim() } : {}),
           datasource_type: "snowflake",
           credentials: {
@@ -1681,6 +1685,7 @@ export function useIngestionWorkflow(
     state.connectorJobStatus,
     state.ingestionJob,
     state.snowflakeConnection,
+    workspaceId,
   ]);
 
   const retryIngestionStatus = useCallback(async () => {
@@ -1714,6 +1719,7 @@ export function useIngestionWorkflow(
     try {
       const result = await uploadFiles(
         organizationId,
+        workspaceId,
         state.files.map((file) => file.file),
         signal,
       );
@@ -1736,6 +1742,7 @@ export function useIngestionWorkflow(
     organizationId,
     state.files,
     state.uploadStatus,
+    workspaceId,
   ]);
 
   const retryDocumentProcessingStatus = useCallback(async () => {

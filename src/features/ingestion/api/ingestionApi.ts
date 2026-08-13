@@ -83,7 +83,7 @@ export type S3FileListResponse = {
 export type S3IngestionRequest = {
   organization_id: string;
   name?: string;
-  workspace_id?: string;
+  workspace_id: string;
   credentials: S3Credentials;
   keys: string[];
 };
@@ -91,7 +91,7 @@ export type S3IngestionRequest = {
 type SnowflakeIngestionRequest = {
   organization_id: string;
   name?: string;
-  workspace_id?: string;
+  workspace_id: string;
   datasource_type: "snowflake";
   credentials: {
     account: string;
@@ -112,7 +112,8 @@ type SnowflakeIngestionRequest = {
 
 export type CreateIngestionRequest = SnowflakeIngestionRequest;
 
-const defaultWorkspaceId = import.meta.env.VITE_AXIOM_WORKSPACE_ID ?? "default";
+export const defaultWorkspaceId =
+  import.meta.env.VITE_AXIOM_WORKSPACE_ID ?? "default";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -263,18 +264,20 @@ async function getHttpError(response: Response, operation: string) {
 
 export async function uploadFiles(
   organizationId: string,
+  workspaceId: string,
   files: File[],
   signal?: AbortSignal,
 ): Promise<UploadFilesResponse> {
   const normalizedOrganizationId = organizationId.trim();
   if (!normalizedOrganizationId)
     throw new Error("VITE_AXIOM_ORGANIZATION_ID is not configured.");
+  if (!workspaceId.trim()) throw new Error("Choose a workspace before uploading.");
   if (!files.length)
     throw new Error("Choose at least one file before uploading.");
 
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
-  formData.append("workspace_id", defaultWorkspaceId);
+  formData.append("workspace_id", workspaceId);
 
   const response = await authFetch(
     `/api/document/organizations/${encodeURIComponent(normalizedOrganizationId)}/files`,
@@ -301,13 +304,15 @@ export async function createIngestionJob(
 ): Promise<IngestionJobResponse> {
   if (!request.organization_id.trim())
     throw new Error("VITE_AXIOM_ORGANIZATION_ID is not configured.");
+  if (!request.workspace_id.trim())
+    throw new Error("Choose a workspace before importing.");
 
   const response = await authFetch("/api/document/ingestions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...request,
-      workspace_id: request.workspace_id ?? defaultWorkspaceId,
+      workspace_id: request.workspace_id,
     }),
     signal,
   });
@@ -323,11 +328,15 @@ export async function createIngestionJob(
 }
 
 export async function listS3Files(
+  workspaceId: string,
   credentials: S3Credentials,
   maxKey = 1000,
   nextToken: string | null = null,
   signal?: AbortSignal,
 ): Promise<S3FileListResponse> {
+  if (!workspaceId.trim()) {
+    throw new Error("Choose a workspace before browsing S3 files.");
+  }
   if (!isPositiveInteger(maxKey) || maxKey > 1000) {
     throw new Error("The S3 file page size must be between 1 and 1000.");
   }
@@ -336,7 +345,7 @@ export async function listS3Files(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      workspace_id: defaultWorkspaceId,
+      workspace_id: workspaceId,
       credentials,
       maxKey,
       nextToken,
@@ -366,6 +375,9 @@ export async function createS3IngestionJob(
   if (!request.organization_id.trim()) {
     throw new Error("VITE_AXIOM_ORGANIZATION_ID is not configured.");
   }
+  if (!request.workspace_id.trim()) {
+    throw new Error("Choose a workspace before importing.");
+  }
   if (
     !request.keys.length ||
     request.keys.some((key) => !key.trim() || key.endsWith("/"))
@@ -378,7 +390,7 @@ export async function createS3IngestionJob(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...request,
-      workspace_id: request.workspace_id ?? defaultWorkspaceId,
+      workspace_id: request.workspace_id,
     }),
     signal,
   });

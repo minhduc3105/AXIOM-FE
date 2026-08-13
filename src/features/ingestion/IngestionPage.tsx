@@ -13,8 +13,10 @@ import { UploadWorkspace } from "./components/UploadWorkspace";
 import { progressStageByView } from "./model/types";
 import { useIngestionWorkflow } from "./model/useIngestionWorkflow";
 import type { IngestionLaunchContext } from "./model/useIngestionWorkflow";
+import { useDataWorkspace } from "@/features/data/model/DataWorkspaceProvider";
 
 type IngestionPageProps = {
+  organizationId: string;
   onBack: () => void;
   backLabel?: string;
   launchContext?: IngestionLaunchContext;
@@ -35,11 +37,18 @@ const pageTitles = {
 } as const;
 
 export function IngestionPage({
+  organizationId,
   onBack,
   backLabel,
   launchContext,
 }: IngestionPageProps) {
-  const workflow = useIngestionWorkflow(launchContext);
+  const workspace = useDataWorkspace();
+  const selectedWorkspace = workspace.selectedWorkspace;
+  const workflow = useIngestionWorkflow(
+    organizationId,
+    selectedWorkspace?.id ?? "",
+    launchContext,
+  );
   const source = workflow.source;
   const selectingS3Files =
     workflow.stage === "s3" &&
@@ -146,6 +155,7 @@ export function IngestionPage({
     <IngestionWorkspaceFrame
       title={pageTitle}
       repoMessage={repoMessage}
+      workspaceName={selectedWorkspace?.name ?? "No workspace selected"}
       ready={
         workflow.indexStatus === "ready" ||
         workflow.documentProcessingStatus === "complete" ||

@@ -8,8 +8,6 @@ import type {
 export const methodsHubApiBaseUrl =
   import.meta.env.VITE_METHODS_HUB_API_BASE_URL ?? "/methods-hub";
 
-const methodsHubAdminToken = import.meta.env.VITE_METHODS_HUB_ADMIN_TOKEN;
-
 class ToolsApiError extends Error {
   constructor(
     message: string,
@@ -57,10 +55,6 @@ async function patchJson<T>(url: string, body: unknown): Promise<T> {
     Accept: "application/json",
     "Content-Type": "application/json",
   };
-  if (methodsHubAdminToken) {
-    headers.Authorization = `Bearer ${methodsHubAdminToken}`;
-  }
-
   const response = await fetch(url, {
     method: "PATCH",
     headers,
@@ -102,10 +96,9 @@ export function getTool(toolName: string, signal: AbortSignal) {
 export function updateToolEnabled(
   toolName: string,
   enabled: boolean,
-  expectedRevision: number,
 ) {
   return patchJson<ToolEnabledResponse>(
     `${methodsHubApiBaseUrl}/api/v1/admin/tools/${encodeURIComponent(toolName)}`,
-    { enabled, expected_revision: expectedRevision },
+    { enabled },
   );
 }

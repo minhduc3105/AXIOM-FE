@@ -11,10 +11,19 @@ import {
 import {
   getCurrentUser,
   loginWithPassword,
+  createOrganization,
   logoutWithToken,
+  registerOrganization,
   refreshWithToken,
+  switchOrganization,
 } from '@/features/auth/api/authApi'
-import type { AuthSession, AuthStatus, AuthUser } from './types'
+import type {
+  AuthSession,
+  AuthStatus,
+  AuthUser,
+  CreateOrganizationInput,
+  RegisterOrganizationInput,
+} from './types'
 import { configureAuthFetch } from './authFetch'
 
 const storageKey = 'axiom.auth.session'
@@ -24,6 +33,8 @@ type AuthContextValue = {
   user: AuthUser | null
   accessToken: string | null
   login: (email: string, password: string) => Promise<void>
+  createOrganization: (input: CreateOrganizationInput) => Promise<void>
+  switchOrganization: (organizationId: string) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<boolean>
 }
@@ -130,6 +141,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [updateSession],
   )
 
+  const createOrganizationForUser = useCallback(
+    async (input: CreateOrganizationInput) => {
+      const accessToken = sessionRef.current?.accessToken
+      if (!accessToken) throw new Error('Sign in to create an organization.')
+      const tokenResponse = await createOrganization(input, accessToken)
+      updateSession({
+        accessToken: tokenResponse.access_token,
+        refreshToken: tokenResponse.refresh_token,
+        user: tokenResponse.user,
+      })
+    },
+    [updateSession],
+  )
+
+  const switchOrganizationForUser = useCallback(
+    async (organizationId: string) => {
+      const accessToken = sessionRef.current?.accessToken
+      if (!accessToken) throw new Error('Sign in to switch organizations.')
+      const tokenResponse = await switchOrganization(organizationId, accessToken)
+      updateSession({ accessToken: tokenResponse.access_token, refreshToken: tokenResponse.refresh_token, user: tokenResponse.user })
+    }, [updateSession],
+  )
+
   const logout = useCallback(async () => {
     const refreshToken = sessionRef.current?.refreshToken
     clearSession()
@@ -147,10 +181,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       accessToken: session?.accessToken ?? null,
       login,
+      createOrganization: createOrganizationForUser,
+      switchOrganization: switchOrganizationForUser,
       logout,
       refresh,
     }),
-    [login, logout, refresh, session, status],
+    [createOrganizationForUser, login, logout, refresh, session, status, switchOrganizationForUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

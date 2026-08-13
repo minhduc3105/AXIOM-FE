@@ -6,10 +6,10 @@ import { IngestionPage } from "@/features/ingestion/IngestionPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
-import { ModelsPage } from "@/features/models/ModelsPage";
 import { useModelRegistry } from "@/features/models/model/useModelRegistry";
 import { MemoryPage } from "@/features/memory/MemoryPage";
 import { LoginPage } from "@/features/auth/components/LoginPage";
+import { OrganizationUsersPage } from "@/features/auth/components/OrganizationUsersPage";
 import { useAuth } from "@/features/auth/model/AuthProvider";
 import { AppShell } from "./AppShell";
 import {
@@ -18,20 +18,35 @@ import {
   createDataIngestionRoute,
   createDataRoute,
   createReportsRoute,
-  createModelsRoute,
   createMemoryRoute,
+  createOrganizationRoute,
   createToolDetailRoute,
   createToolsRoute,
 } from "./routing/paths";
 import { useAppRoute } from "./routing/useAppRoute";
 import { createConversation } from "@/shared/lib/intelligence-api";
 import type { ChatEngine, ChatModelOption } from "@/features/chat/model/types";
+import { useAppScope } from "@/shared/hooks/use-app-scope";
+import { useDataWorkspace } from "@/features/data/model/DataWorkspaceProvider";
+import { getRouteWorkspaceScope } from "./scope";
 
 export function AppExperience() {
   const auth = useAuth();
   const { route, navigate } = useAppRoute();
   const chat = useChatWorkflow();
-  const llmRegistry = useModelRegistry("llm");
+  const dataWorkspace = useDataWorkspace();
+  const modelRegistryContext = useMemo(
+    () =>
+      auth.user
+        ? {
+            userId: auth.user.id,
+            organizationId: auth.user.organization_id,
+            orgRole: auth.user.org_role,
+          }
+        : null,
+    [auth.user],
+  );
+  const llmRegistry = useModelRegistry(modelRegistryContext);
   const [chatEngine, setChatEngine] = useState<ChatEngine>("auto");
   const [selectedModelAlias, setSelectedModelAlias] = useState<string | null>(
     null,
@@ -39,13 +54,16 @@ export function AppExperience() {
   const skipNextHydrationRef = useRef<string | null>(null);
   const llmModelOptions: ChatModelOption[] = useMemo(
     () =>
-      llmRegistry.models.map((model) => ({
-        id: model.id,
-        alias: model.alias,
-        label: model.display_name || model.alias,
-        status: model.status,
-      })),
-    [llmRegistry.models],
+      Object.values(llmRegistry.modelsByProvider)
+        .flat()
+        .filter((model) => model.capability === "llm")
+        .map((model) => ({
+          id: model.resource_id,
+          alias: model.resource_id,
+          label: model.name || model.model_id,
+          status: model.status,
+        })),
+    [llmRegistry.modelsByProvider],
   );
 
   useEffect(() => {
@@ -62,6 +80,19 @@ export function AppExperience() {
       ) ?? llmModelOptions[0];
     setSelectedModelAlias(activeModel?.alias ?? null);
   }, [llmModelOptions, selectedModelAlias]);
+
+  const routeScope = getRouteWorkspaceScope(route);
+  const showWorkspace = routeScope.showWorkspace;
+  const workspaceId =
+    route.surface === "data" && route.page === "ingestion"
+      ? (dataWorkspace.selectedWorkspace?.id ?? null)
+      : routeScope.workspaceId;
+  const scope = useAppScope({
+    user: auth.user,
+    accessToken: auth.accessToken,
+    showWorkspace,
+    workspaceId,
+  });
 
   useEffect(() => {
     if (route.surface !== "chat" || !route.sessionId) {
@@ -117,15 +148,13 @@ export function AppExperience() {
     navigate(createToolsRoute());
   }, [navigate]);
 
-  const openModels = useCallback(() => {
-    navigate(createModelsRoute());
-  }, [navigate]);
-
   const openMemory = useCallback(() => {
     navigate(createMemoryRoute());
   }, [navigate]);
 
-  const openSettings = useCallback(() => {}, []);
+  const openSettings = useCallback(() => {
+    navigate(createOrganizationRoute());
+  }, [navigate]);
 
   const openToolDetail = useCallback(
     (toolName: string) => {
@@ -177,6 +206,10 @@ export function AppExperience() {
     return <LoginPage />;
   }
 
+  if (!auth.user) {
+    return <AuthRestoreScreen />;
+  }
+
   return (
     <AppShell
       activeStage={chat.stage}
@@ -188,11 +221,11 @@ export function AppExperience() {
       onConversationOpen={openConversation}
       onData={openData}
       onReports={openReports}
-      onModels={openModels}
       onMemory={openMemory}
       onTools={openTools}
       onSettings={openSettings}
       user={auth.user}
+      scope={scope}
       onLogout={auth.logout}
     >
       {route.surface === "chat" ? (
@@ -223,6 +256,7 @@ export function AppExperience() {
         />
       ) : route.surface === "data" && route.page === "ingestion" ? (
         <IngestionPage
+          organizationId={auth.user.organization_id}
           onBack={openData}
           backLabel="Back to data"
           launchContext={{
@@ -231,13 +265,16 @@ export function AppExperience() {
           }}
         />
       ) : route.surface === "data" ? (
-        <DataPage onCreateIngestion={openDataIngestion} />
+        <DataPage
+          organizationId={auth.user.organization_id}
+          onCreateIngestion={openDataIngestion}
+        />
       ) : route.surface === "reports" ? (
         <ReportsPage onData={openData} />
-      ) : route.surface === "models" ? (
-        <ModelsPage />
       ) : route.surface === "memory" ? (
         <MemoryPage />
+      ) : route.surface === "organization" ? (
+        <OrganizationUsersPage initialTab={route.tab} />
       ) : route.page === "detail" && route.toolName ? (
         <ToolDetailPage toolName={route.toolName} onBack={openTools} />
       ) : (

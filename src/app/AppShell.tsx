@@ -5,7 +5,9 @@ import type { AppSurface } from "@/app/routing/types";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WorkspaceCommandBar } from "@/shared/components/WorkspaceCommandBar";
 import { WorkspaceRail } from "@/shared/components/WorkspaceRail";
+import { AppScopeBar } from "@/shared/components/AppScopeBar";
 import { cn } from "@/shared/lib/utils";
+import type { AppScopeContext } from "@/shared/types/appScope";
 
 type AppShellProps = {
   activeStage: ChatStage;
@@ -16,12 +18,12 @@ type AppShellProps = {
   onConversationOpen: (conversationId: string) => void;
   onData: () => void;
   onReports: () => void;
-  onModels: () => void;
   onMemory: () => void;
   showCommandBar?: boolean;
   onTools: () => void;
   onSettings: () => void;
   user: AuthUser | null;
+  scope: AppScopeContext | null;
   onLogout: () => void;
   children: React.ReactNode;
 };
@@ -35,12 +37,12 @@ export function AppShell({
   onConversationOpen,
   onData,
   onReports,
-  onModels,
   onMemory,
   showCommandBar = false,
   onTools,
   onSettings,
   user,
+  scope,
   onLogout,
   children,
 }: AppShellProps) {
@@ -71,7 +73,6 @@ export function AppShell({
           onConversationOpen={onConversationOpen}
           onData={onData}
           onReports={onReports}
-          onModels={onModels}
           onMemory={onMemory}
           onTools={onTools}
           onSettings={onSettings}
@@ -84,6 +85,7 @@ export function AppShell({
             expanded && "md:ml-[304px]",
           )}
         >
+          <AppScopeBar scope={scope} />
           {showCommandBar && (
             <WorkspaceCommandBar
               onHome={onHome}

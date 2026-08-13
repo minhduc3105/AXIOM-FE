@@ -2,12 +2,18 @@ import { DatabaseIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/shared/lib/utils";
+import type { AssignedWorkspace } from "@/features/auth/api/authzApi";
+import { WorkspaceSelector } from "./WorkspaceSelector";
 
 type DataDashboardHeaderProps = {
   organizationId: string;
   refreshing: boolean;
   onRefresh: () => void;
   onCreateIngestion: () => void;
+  workspaces: AssignedWorkspace[];
+  selectedWorkspace: AssignedWorkspace | null;
+  workspacesLoading: boolean;
+  onWorkspaceSelect: (workspaceId: string) => void;
 };
 
 export function DataDashboardHeader({
@@ -15,11 +21,15 @@ export function DataDashboardHeader({
   refreshing,
   onRefresh,
   onCreateIngestion,
+  workspaces,
+  selectedWorkspace,
+  workspacesLoading,
+  onWorkspaceSelect,
 }: DataDashboardHeaderProps) {
   const insightCards = [
     ["Files", "Inventory"],
     ["Jobs", "Pipeline"],
-    [organizationId, "Organization"],
+    [selectedWorkspace?.name ?? "—", "Workspace"],
   ];
 
   return (
@@ -49,18 +59,25 @@ export function DataDashboardHeader({
               pipelines
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-[#625d53] dark:text-[#c5bcaf]">
-              File inventory, ingestion jobs, and processing health for{" "}
+              File inventory, ingestion jobs, and processing health in{" "}
               <span className="font-semibold text-[#191915] dark:text-[#f4efe5]">
-                {organizationId}
+                {selectedWorkspace?.name ?? organizationId}
               </span>
               .
             </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <WorkspaceSelector
+              workspaces={workspaces}
+              selected={selectedWorkspace}
+              loading={workspacesLoading}
+              onSelect={onWorkspaceSelect}
+            />
             <Button
               className="h-11 min-w-0 rounded-full px-5 shadow-[0_14px_30px_rgba(36,86,232,0.20)] sm:flex-none"
               onClick={onCreateIngestion}
+              disabled={!selectedWorkspace}
             >
               <PlusIcon data-icon="inline-start" />
               Upload Data
