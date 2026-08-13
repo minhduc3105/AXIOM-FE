@@ -3,7 +3,6 @@ import {
   createDataIngestionRoute,
   createDataRoute,
   createReportsRoute,
-  createModelsRoute,
   createMemoryRoute,
   createOrganizationRoute,
   createToolDetailRoute,
@@ -117,15 +116,12 @@ describe("tools routing", () => {
 });
 
 describe("settings routing", () => {
-  it("parses the models path", () => {
+  it("keeps the former models path inside organization settings", () => {
     expect(parseAppRoute("/models")).toEqual({
-      surface: "models",
+      surface: "organization",
+      tab: "models",
       sessionId: null,
     });
-  });
-
-  it("creates a stable models URL", () => {
-    expect(getAppRoutePath(createModelsRoute())).toBe("/models");
   });
 
   it("parses the memory path", () => {
@@ -142,6 +138,7 @@ describe("settings routing", () => {
   it("parses the organization settings path", () => {
     expect(parseAppRoute("/settings")).toEqual({
       surface: "organization",
+      tab: "overview",
       sessionId: null,
     });
     expect(getAppRoutePath(createOrganizationRoute())).toBe("/settings");
@@ -154,11 +151,12 @@ describe("settings routing", () => {
     });
   });
 
-  it("does not keep the removed model settings route", () => {
+  it("keeps models nested under organization settings", () => {
     expect(parseAppRoute("/settings/models")).toEqual({
-      surface: "chat",
-      page: "home",
+      surface: "organization",
+      tab: "models",
       sessionId: null,
     });
+    expect(getAppRoutePath(createOrganizationRoute("models"))).toBe("/settings/models");
   });
 });

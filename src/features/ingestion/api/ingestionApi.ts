@@ -112,6 +112,9 @@ type SnowflakeIngestionRequest = {
 
 export type CreateIngestionRequest = SnowflakeIngestionRequest;
 
+export const defaultWorkspaceId =
+  import.meta.env.VITE_AXIOM_WORKSPACE_ID ?? "default";
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

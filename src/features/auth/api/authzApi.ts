@@ -23,6 +23,17 @@ export type AssignedWorkspace = Workspace & {
 const gatewayApiBaseUrl = (import.meta.env.VITE_AXIOM_GATEWAY_API_URL || '').replace(/\/$/, '')
 const authzApiBaseUrl = `${gatewayApiBaseUrl}/authz-service`.replace(/\/$/, '')
 
+async function parseJsonResponse<T>(response: Response): Promise<T> {
+  const body = await response.text()
+  try {
+    return JSON.parse(body) as T
+  } catch {
+    throw new Error(
+      'Authorization service returned an unexpected non-JSON response. Check the API gateway/proxy configuration.',
+    )
+  }
+}
+
 async function request<T>(path: string, accessToken: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${authzApiBaseUrl}${path}`, {
     ...init,
@@ -44,7 +55,7 @@ async function request<T>(path: string, accessToken: string, init: RequestInit =
     throw new Error(detail || `Authorization service request failed (${response.status}).`)
   }
   if (response.status === 204) return undefined as T
-  return (await response.json()) as T
+  return parseJsonResponse<T>(response)
 }
 
 export async function listWorkspaces(organizationId: string, accessToken: string) {
