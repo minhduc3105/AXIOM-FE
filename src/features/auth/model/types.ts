@@ -22,6 +22,11 @@ export type OrganizationSummary = {
   status: string
 }
 
+export type OrganizationMembership = {
+  organization: OrganizationSummary
+  org_role: AuthUser['org_role']
+}
+
 export type OrganizationRegistrationResponse = AuthTokenResponse & {
   organization: OrganizationSummary
 }
@@ -34,10 +39,12 @@ export type RegisterOrganizationInput = {
   adminPassword: string
 }
 
+export type CreateOrganizationInput = Pick<RegisterOrganizationInput, 'organizationName' | 'organizationSlug'>
+
 export type CreateOrganizationUserInput = {
   displayName: string
   email: string
-  password: string
+  password?: string
   orgRole: AuthUser['org_role']
 }
 

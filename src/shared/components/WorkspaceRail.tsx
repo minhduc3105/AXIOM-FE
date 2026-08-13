@@ -9,7 +9,6 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   SettingsIcon,
-  CpuIcon,
   BrainCircuitIcon,
   LogOutIcon,
   SunIcon,
@@ -60,7 +59,6 @@ type WorkspaceRailProps = {
   onConversationOpen: (conversationId: string) => void;
   onData: () => void;
   onReports: () => void;
-  onModels: () => void;
   onMemory: () => void;
   onTools: () => void;
   onSettings: () => void;
@@ -99,7 +97,6 @@ function RailContent({
   onConversationOpen,
   onData,
   onReports,
-  onModels,
   onMemory,
   onTools,
   onSettings,
@@ -141,7 +138,8 @@ function RailContent({
         );
         setConversationPage(payload.pagination?.page ?? page);
         setHasMoreConversations(
-          payload.pagination?.has_next ?? items.length === conversationPageLimit,
+          payload.pagination?.has_next ??
+            items.length === conversationPageLimit,
         );
         setConversationsError(null);
       } catch (error: unknown) {
@@ -190,10 +188,9 @@ function RailContent({
 
   useEffect(() => {
     if (!expanded) return;
-    const viewport =
-      conversationsScrollRef.current?.querySelector<HTMLElement>(
-        "[data-slot='scroll-area-viewport']",
-      );
+    const viewport = conversationsScrollRef.current?.querySelector<HTMLElement>(
+      "[data-slot='scroll-area-viewport']",
+    );
     if (!viewport) return;
 
     const handleScroll = () => {
@@ -450,7 +447,9 @@ function RailContent({
               className={cn(
                 workspaceNavButtonClass,
                 sidebarButtonIconPadding,
-                expanded ? "w-full justify-start px-3" : "size-11 justify-center px-0",
+                expanded
+                  ? "w-full justify-start px-3"
+                  : "size-11 justify-center px-0",
                 "rounded-xl",
               )}
               data-active={surface === "memory"}
@@ -458,25 +457,6 @@ function RailContent({
               aria-label="Memory settings"
             >
               <BrainCircuitIcon data-icon="inline-start" />
-              <span className={cn("transition-opacity duration-300", expanded ? "opacity-100" : "pointer-events-none w-0 overflow-hidden opacity-0")}>
-                Memory
-              </span>
-            </Button>
-            <Button
-              variant="ghost"
-              className={cn(
-                workspaceNavButtonClass,
-                sidebarButtonIconPadding,
-                expanded
-                  ? "w-full justify-start px-3"
-                  : "size-11 justify-center px-0",
-                "rounded-xl",
-              )}
-              data-active={surface === "models"}
-              onClick={onModels}
-              aria-label="Models"
-            >
-              <CpuIcon data-icon="inline-start" />
               <span
                 className={cn(
                   "transition-opacity duration-300",
@@ -485,7 +465,7 @@ function RailContent({
                     : "pointer-events-none w-0 overflow-hidden opacity-0",
                 )}
               >
-                Models
+                Memory
               </span>
             </Button>
             <Button
@@ -552,7 +532,7 @@ function RailContent({
               )}
               data-active={surface === "organization"}
               onClick={onSettings}
-              aria-label="Organization settings"
+              aria-label="Settings"
             >
               <SettingsIcon data-icon="inline-start" />
               <span
@@ -563,7 +543,7 @@ function RailContent({
                     : "pointer-events-none w-0 overflow-hidden opacity-0",
                 )}
               >
-                Organization
+                Settings
               </span>
             </Button>
           </div>
@@ -576,7 +556,12 @@ function RailContent({
           />
         )}
 
-        <UserSessionMenu expanded={expanded} user={user} onLogout={onLogout} />
+        <UserSessionMenu
+          expanded={expanded}
+          user={user}
+          onSettings={onSettings}
+          onLogout={onLogout}
+        />
       </div>
     </div>
   );
@@ -585,10 +570,12 @@ function RailContent({
 function UserSessionMenu({
   expanded,
   user,
+  onSettings,
   onLogout,
 }: {
   expanded: boolean;
   user: AuthUser | null;
+  onSettings: () => void;
   onLogout: () => void;
 }) {
   const label = user?.display_name || user?.email || "AXIOM user";
@@ -610,10 +597,7 @@ function UserSessionMenu({
           />
         }
       >
-        <Avatar
-          size="lg"
-          className="ring-2 ring-[#fffaf1] dark:ring-[#151512]"
-        >
+        <Avatar size="lg" className="ring-2 ring-[#fffaf1] dark:ring-[#151512]">
           <AvatarImage src="" alt="" />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
@@ -648,6 +632,13 @@ function UserSessionMenu({
         </div>
         <DropdownMenuSeparator className="bg-[#d8d0c2] dark:bg-[#38372f]" />
         <DropdownMenuItem
+          className="cursor-pointer gap-2 px-2 py-2"
+          onClick={onSettings}
+        >
+          <SettingsIcon className="size-4" />
+          Manage organizations
+        </DropdownMenuItem>
+        <DropdownMenuItem
           className="cursor-pointer gap-2 px-2 py-2 text-[#9d2f2f] focus:bg-[#fff1f1] focus:text-[#9d2f2f] dark:text-[#ff9a9a] dark:focus:bg-[#351b1b] dark:focus:text-[#ffb3b3]"
           onClick={() => void onLogout()}
           variant="destructive"
@@ -666,10 +657,12 @@ function userInitials(user: AuthUser | null) {
     .replace(/@.*/, "")
     .split(/\s+|[._-]+/)
     .filter(Boolean);
-  return words
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase())
-    .join("") || "AX";
+  return (
+    words
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase())
+      .join("") || "AX"
+  );
 }
 
 export function WorkspaceRail(props: WorkspaceRailProps) {
@@ -724,10 +717,6 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
             }}
             onReports={() => {
               props.onReports();
-              setMobileOpen(false);
-            }}
-            onModels={() => {
-              props.onModels();
               setMobileOpen(false);
             }}
             onMemory={() => {

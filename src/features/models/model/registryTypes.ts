@@ -1,158 +1,65 @@
 export type ModelCapability = "llm" | "embedding" | "vlm" | "reranker";
+export type ResourceStatus = "active" | "inactive";
+export type ProviderSource = "cloud" | "custom" | "local" | string;
 
-export type ModelStatus =
-  | "draft"
-  | "validated"
-  | "active"
-  | "inactive"
-  | string;
+export type ProviderCatalogItem = {
+  id: string;
+  display_name: string;
+  source: ProviderSource;
+  default_base_url: string;
+  protocol: string;
+  requires_api_key: boolean;
+};
 
 export type ProviderView = {
+  resource_id: string;
   id: string;
-  name: string;
-  adapter_type: string;
-  base_url: string;
-  secret_ref: string | null;
-  scope: string;
-  status: ModelStatus;
-  created_at: string;
-  updated_at: string;
-};
-
-export type LogicalModelView = {
-  id: string;
-  alias: string;
+  scope: "system" | "organization";
+  organization_id: string | null;
   display_name: string;
-  capability: ModelCapability;
-  revision: number;
-  status: ModelStatus;
+  source: ProviderSource;
+  base_url: string;
+  protocol: string;
+  status: ResourceStatus;
+  connection_status: string;
+  credential_configured: boolean;
+  credential_source: "database" | "environment" | "none";
   created_at: string;
   updated_at: string;
 };
 
-export type DeploymentView = {
-  id: string;
-  model_id: string;
+export type ProviderModelView = {
+  resource_id: string;
   provider_id: string;
-  upstream_model_id: string;
-  priority: number;
-  weight: number;
-  timeout_ms: number;
-  max_attempts: number;
-  status: ModelStatus;
+  provider_scope: "system" | "organization";
+  organization_id: string | null;
+  model_id: string;
+  name: string;
+  capability: ModelCapability;
+  max_tokens: number | null;
+  max_context_length: number | null;
+  status: ResourceStatus;
+  connection_status: string;
+  is_default: boolean;
   created_at: string;
   updated_at: string;
 };
 
-export type ModelRegistrationRequest = {
-  provider: {
-    name: string;
-    adapter_type: string;
-    base_url: string;
-    secret_ref: string | null;
-    scope: "platform" | "tenant";
-  };
-  model: {
-    alias: string;
-    display_name: string;
-    capability: ModelCapability;
-    upstream_model_id: string;
-  };
-  deployment: {
-    priority: number;
-    weight: number;
-    timeout_ms: number;
-    max_attempts: number;
-  };
-  activate: boolean;
-};
-
-export type ModelRegistrationResponse = {
-  provider: {
-    id: string;
-    name: string;
-    status: ModelStatus;
-    created: boolean;
-  };
-  model: {
-    id: string;
-    alias: string;
-    capability: ModelCapability;
-    status: ModelStatus;
-    created: boolean;
-  };
-  deployment: {
-    id: string;
-    upstream_model_id: string;
-    status: ModelStatus;
-    created: boolean;
-  };
-  ready: boolean;
-};
-
-export type Timing = {
-  total_ms: number;
-  provider_ms: number | null;
-};
-
-export type Usage = {
-  input_tokens: number;
-  output_tokens: number;
-  total_tokens: number;
-  source: string;
-};
-
-export type EmbeddingResponse = {
+export type ProviderCreateInput = {
   id: string;
-  trace_id: string;
-  model: string;
-  model_revision: number;
-  dimensions: number;
-  data: Array<{
-    id: string;
-    index: number;
-    embedding: number[];
-  }>;
-  usage: Usage;
-  timing: Timing;
-  attempt_count: number;
+  display_name: string;
+  source: ProviderSource;
+  base_url: string;
+  protocol: string;
+  status?: ResourceStatus;
 };
 
-export type LlmResponse = {
-  id: string;
-  trace_id: string;
-  model: string;
-  model_revision: number;
-  output: {
-    type: string;
-    content: string;
-    tool_calls: Array<Record<string, unknown>>;
-  };
-  finish_reason: string;
-  usage: Usage;
-  timing: Timing;
-  attempt_count: number;
-};
-
-export type RerankResponse = {
-  id: string;
-  trace_id: string;
-  model: string;
-  model_revision: number;
-  results: Array<{
-    document_id: string;
-    index: number;
-    relevance_score: number;
-  }>;
-  usage: Usage;
-  timing: Timing;
-  attempt_count: number;
-};
-
-export type ModelTestResult = {
-  status: "success" | "error";
-  title: string;
-  detail: string;
-  traceId?: string;
-  latencyMs?: number;
+export type ProviderModelCreateInput = {
+  model_id: string;
+  name: string;
+  capability: ModelCapability;
+  max_tokens?: number;
+  max_context_length?: number;
+  status?: ResourceStatus;
+  is_default?: boolean;
 };

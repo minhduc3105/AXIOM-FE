@@ -1,222 +1,134 @@
+import { authFetch } from "@/features/auth/model/authFetch";
 import type {
-  DeploymentView,
-  EmbeddingResponse,
-  LlmResponse,
-  LogicalModelView,
-  ModelCapability,
-  ModelRegistrationRequest,
-  ModelRegistrationResponse,
-  ModelTestResult,
+  ProviderCatalogItem,
+  ProviderCreateInput,
+  ProviderModelCreateInput,
+  ProviderModelView,
   ProviderView,
-  RerankResponse,
+  ResourceStatus,
 } from "../model/registryTypes";
 
 export const modelServiceApiBaseUrl =
   import.meta.env.VITE_MODEL_SERVICE_API_BASE_URL ?? "/model-service";
+const modelServiceApiVersion = "/api/v2";
+
+export type ModelRegistryContext = {
+  userId: string;
+  organizationId: string;
+  orgRole: "org_admin" | "org_member";
+};
 
 class ModelServiceApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
+  constructor(message: string, readonly status: number) {
     super(message);
     this.name = "ModelServiceApiError";
   }
 }
 
-async function readErrorDetail(response: Response) {
-  try {
-    const body = (await response.json()) as {
-      detail?: string;
-      message?: string;
-      code?: string;
-    };
-    const message = body.message || body.detail || "";
-    return body.code ? `${body.code}: ${message}` : message;
-  } catch {
-    return "";
-  }
-}
-
 async function requestJson<T>(
+  context: ModelRegistryContext,
   path: string,
   options: RequestInit = {},
   signal?: AbortSignal,
 ): Promise<T> {
-  const response = await fetch(`${modelServiceApiBaseUrl}${path}`, {
+  const response = await authFetch(`${modelServiceApiBaseUrl}${path}`, {
     ...options,
     signal,
     headers: {
       Accept: "application/json",
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       "X-Consumer-Service": "axiom-fe",
+      "X-User-ID": context.userId,
+      "X-Org-ID": context.organizationId,
+      "X-Org-Role": context.orgRole,
       ...options.headers,
     },
   });
-
   if (!response.ok) {
-    const detail = await readErrorDetail(response);
+    const text = await response.text();
+    let detail = text;
+    try {
+      const body = JSON.parse(text) as { detail?: string; message?: string };
+      detail = body.message ?? body.detail ?? text;
+    } catch {
+      // Preserve a non-JSON upstream error.
+    }
     throw new ModelServiceApiError(
-      `Model Service request failed (${response.status}).${detail ? ` ${detail}` : ""}`,
+      detail || `Model Service request failed (${response.status}).`,
       response.status,
     );
   }
-
-  return response.json() as Promise<T>;
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
 }
 
-export function listProviders(signal?: AbortSignal) {
-  return requestJson<ProviderView[]>(
-    "/api/v1/model-registry/providers",
-    {},
-    signal,
-  );
+export function listProviderCatalog(context: ModelRegistryContext, signal?: AbortSignal) {
+  return requestJson<ProviderCatalogItem[]>(context, `${modelServiceApiVersion}/provider-catalog`, {}, signal);
 }
 
-export function listModels(signal?: AbortSignal, capability?: ModelCapability) {
-  const params = new URLSearchParams();
-  if (capability) params.set("capability", capability);
-  const query = params.toString();
-  return requestJson<LogicalModelView[]>(
-    `/api/v1/model-registry/models${query ? `?${query}` : ""}`,
-    {},
-    signal,
-  );
+export function listProviders(context: ModelRegistryContext, signal?: AbortSignal) {
+  return requestJson<ProviderView[]>(context, `${modelServiceApiVersion}/providers`, {}, signal);
 }
 
-export function listDeployments(modelId: string, signal?: AbortSignal) {
-  return requestJson<DeploymentView[]>(
-    `/api/v1/model-registry/models/${encodeURIComponent(modelId)}/deployments`,
-    {},
-    signal,
-  );
+export function createProvider(context: ModelRegistryContext, input: ProviderCreateInput) {
+  return requestJson<ProviderView>(context, `${modelServiceApiVersion}/providers`, {
+    method: "POST",
+    body: JSON.stringify({ ...input, status: input.status ?? "inactive" }),
+  });
 }
 
-export function registerModel(body: ModelRegistrationRequest) {
-  return requestJson<ModelRegistrationResponse>(
-    "/api/v1/model-registry/registrations",
-    {
-      method: "POST",
-      body: JSON.stringify(body),
-    },
-  );
+export function updateProvider(
+  context: ModelRegistryContext,
+  providerId: string,
+  input: Partial<Pick<ProviderCreateInput, "display_name" | "source" | "base_url" | "protocol">> & { status?: ResourceStatus },
+) {
+  return requestJson<ProviderView>(context, `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
 }
 
-export function activateModel(modelId: string) {
-  return requestJson<LogicalModelView>(
-    `/api/v1/model-registry/models/${encodeURIComponent(modelId)}/activate`,
-    { method: "POST" },
-  );
+export function deleteProvider(context: ModelRegistryContext, providerId: string) {
+  return requestJson<{ id: string }>(context, `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}`, { method: "DELETE" });
 }
 
-export function activateDeployment(modelId: string, deploymentId: string) {
-  return requestJson<DeploymentView>(
-    `/api/v1/model-registry/models/${encodeURIComponent(modelId)}/deployments/${encodeURIComponent(deploymentId)}/activate`,
-    { method: "POST" },
-  );
+export function upsertProviderCredential(context: ModelRegistryContext, providerId: string, apiKey: string) {
+  return requestJson(context, `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}/credential`, {
+    method: "PUT",
+    body: JSON.stringify({ api_key: apiKey }),
+  });
 }
 
-export async function testModel(
-  model: LogicalModelView,
-): Promise<ModelTestResult> {
-  const startedAt = performance.now();
-  try {
-    if (model.capability === "embedding") {
-      const response = await requestJson<EmbeddingResponse>(
-        "/api/v1/inference/embeddings",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            model: model.alias,
-            input: [
-              {
-                id: "settings-smoke-test",
-                text: "AXIOM Model Service embedding smoke test.",
-              },
-            ],
-            input_type: "query",
-          }),
-        },
-      );
-      return {
-        status: "success",
-        title: "Embedding request succeeded",
-        detail: `${response.dimensions} dimensions returned in ${Math.round(response.timing.total_ms)} ms.`,
-        traceId: response.trace_id,
-        latencyMs: Math.round(performance.now() - startedAt),
-      };
-    }
+export function testProvider(context: ModelRegistryContext, providerId: string) {
+  return requestJson<ProviderView>(context, `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}:test-connection`, { method: "POST" });
+}
 
-    if (model.capability === "reranker") {
-      const response = await requestJson<RerankResponse>(
-        "/api/v1/inference/reranks",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            model: model.alias,
-            query: "model service smoke test",
-            documents: [
-              { id: "a", text: "AXIOM model registry smoke test." },
-              { id: "b", text: "Unrelated document." },
-            ],
-            top_n: 1,
-          }),
-        },
-      );
-      return {
-        status: "success",
-        title: "Rerank request succeeded",
-        detail: `${response.results.length} result returned in ${Math.round(response.timing.total_ms)} ms.`,
-        traceId: response.trace_id,
-        latencyMs: Math.round(performance.now() - startedAt),
-      };
-    }
+export function listProviderModels(context: ModelRegistryContext, providerId: string, signal?: AbortSignal) {
+  return requestJson<ProviderModelView[]>(context, `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}/models`, {}, signal);
+}
 
-    if (model.capability === "vlm") {
-      return {
-        status: "error",
-        title: "Vision smoke test needs an image",
-        detail:
-          "The configured VLM endpoint requires an image URL or data URI. Use registry activation here, then test VLMs from an image-aware flow.",
-      };
-    }
+export function createProviderModel(context: ModelRegistryContext, providerId: string, input: ProviderModelCreateInput) {
+  return requestJson<ProviderModelView>(context, `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}/models`, {
+    method: "POST",
+    body: JSON.stringify({ ...input, status: input.status ?? "inactive" }),
+  });
+}
 
-    const response = await requestJson<LlmResponse>(
-      "/api/v1/inference/responses",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          model: model.alias,
-          messages: [
-            {
-              role: "user",
-              content: "Reply with exactly: AXIOM model ready",
-            },
-          ],
-          temperature: 0,
-          max_output_tokens: 32,
-          stream: false,
-        }),
-      },
-    );
-    return {
-      status: "success",
-      title: "LLM request succeeded",
-      detail:
-        response.output.content.trim() ||
-        `Finished with reason ${response.finish_reason}.`,
-      traceId: response.trace_id,
-      latencyMs: Math.round(performance.now() - startedAt),
-    };
-  } catch (error) {
-    return {
-      status: "error",
-      title: "Smoke test failed",
-      detail:
-        error instanceof Error
-          ? error.message
-          : "The model test request failed.",
-      latencyMs: Math.round(performance.now() - startedAt),
-    };
-  }
+export function updateProviderModel(
+  context: ModelRegistryContext,
+  resourceId: string,
+  input: Partial<Pick<ProviderModelCreateInput, "name" | "capability" | "max_tokens" | "max_context_length" | "status" | "is_default">>,
+) {
+  return requestJson<ProviderModelView>(context, `${modelServiceApiVersion}/models/${encodeURIComponent(resourceId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteProviderModel(context: ModelRegistryContext, resourceId: string) {
+  return requestJson<{ id: string }>(context, `${modelServiceApiVersion}/models/${encodeURIComponent(resourceId)}`, { method: "DELETE" });
+}
+
+export function testProviderModel(context: ModelRegistryContext, resourceId: string) {
+  return requestJson<ProviderModelView>(context, `${modelServiceApiVersion}/models/${encodeURIComponent(resourceId)}:test`, { method: "POST" });
 }

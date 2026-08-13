@@ -1,232 +1,226 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Building2Icon,
+  CheckIcon,
   CircleAlertIcon,
   FolderKanbanIcon,
+  KeyRoundIcon,
   LoaderCircleIcon,
+  MailPlusIcon,
   PlusIcon,
-  RefreshCwIcon,
   ShieldCheckIcon,
-  UserRoundPlusIcon,
+  ShieldAlertIcon,
   UsersRoundIcon,
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  createOrganizationUser,
-  listOrganizationUsers,
-} from '@/features/auth/api/authApi'
-import {
-  createWorkspace,
-  deleteWorkspaceMembership,
-  listWorkspaceMemberships,
-  listWorkspaces,
-  type Workspace,
-  type WorkspaceMembership,
-  type WorkspaceRole,
-  upsertWorkspaceMembership,
-} from '@/features/auth/api/authzApi'
-import { useAuth } from '@/features/auth/model/AuthProvider'
-import type { AuthUser } from '@/features/auth/model/types'
-import { cn } from '@/shared/lib/utils'
+} from "lucide-react";
+import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { createOrganizationUser, listOrganizationUsers, updateOrganizationUser } from "@/features/auth/api/authApi";
+import { createWorkspace, deleteWorkspaceMembership, listWorkspaceMemberships, listWorkspaces, upsertWorkspaceMembership, type Workspace, type WorkspaceMembership, type WorkspaceRole } from "@/features/auth/api/authzApi";
+import { OrganizationModelRegistry } from "@/features/models/components/OrganizationModelRegistry";
+import { useAuth } from "@/features/auth/model/AuthProvider";
+import type { AuthUser } from "@/features/auth/model/types";
+import { cn } from "@/shared/lib/utils";
 
-const panelClass = 'rounded-[22px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 shadow-[0_16px_46px_rgba(24,24,18,0.055)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88'
-const inputClass = 'h-10 border-[#d8d0c2]/80 bg-[#f7f3eb] shadow-none dark:border-[#49483f] dark:bg-[#20201c]'
+const panelClass = "rounded-2xl border border-[#d8d0c2]/90 bg-[#fffdf8]/88 shadow-[0_16px_46px_rgba(24,24,18,0.055)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88";
+const inputClass = "h-10 border-[#d8d0c2]/80 bg-[#f7f3eb] shadow-none dark:border-[#49483f] dark:bg-[#20201c]";
+type OrganizationTab = "overview" | "workspaces" | "members" | "models";
 
-function roleLabel(role: AuthUser['org_role']) {
-  return role === 'org_admin' ? 'Org Admin' : 'Org Member'
-}
-
-function workspaceRoleLabel(role: WorkspaceRole) {
-  if (role === 'workspace_admin') return 'Workspace Admin'
-  return role === 'editor' ? 'Editor' : 'Viewer'
+function initials(value: string) {
+  return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "AX";
 }
 
 function slugify(value: string) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-export function OrganizationUsersPage() {
-  const { accessToken, user } = useAuth()
-  const organizationId = user?.organization_id ?? ''
-  const canManage = user?.org_role === 'org_admin'
-  const [view, setView] = useState<'members' | 'workspaces'>('members')
-  const [users, setUsers] = useState<AuthUser[]>([])
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null)
-  const [memberships, setMemberships] = useState<WorkspaceMembership[]>([])
-  const [loading, setLoading] = useState(true)
-  const [workspaceLoading, setWorkspaceLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+function errorText(cause: unknown, fallback: string) {
+  return cause instanceof Error ? cause.message : fallback;
+}
 
-  const [displayName, setDisplayName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [role, setRole] = useState<AuthUser['org_role']>('org_member')
-  const [workspaceName, setWorkspaceName] = useState('')
-  const [workspaceSlug, setWorkspaceSlug] = useState('')
-  const [workspaceDescription, setWorkspaceDescription] = useState('')
+export function OrganizationUsersPage({ initialTab = "overview" }: { initialTab?: OrganizationTab }) {
+  const { user, accessToken } = useAuth();
+  const [tab, setTab] = useState<OrganizationTab>(initialTab);
+  const [users, setUsers] = useState<AuthUser[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
+  const [memberships, setMemberships] = useState<WorkspaceMembership[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [membershipsLoading, setMembershipsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [memberOpen, setMemberOpen] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
 
-  const selectedWorkspace = workspaces.find((item) => item.id === selectedWorkspaceId) ?? null
-  const membershipByUser = useMemo(
-    () => new Map(memberships.map((membership) => [membership.user_id, membership.role])),
-    [memberships],
-  )
+  const canManage = user?.org_role === "org_admin";
+  const organizationId = user?.organization_id ?? "";
+  const selectedWorkspace = workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? workspaces[0] ?? null;
+  const membershipByUser = useMemo(() => new Map(memberships.map((membership) => [membership.user_id, membership])), [memberships]);
 
-  const loadUsers = useCallback(async () => {
-    if (!accessToken || !organizationId || !canManage) return
-    setLoading(true)
-    setError(null)
+  async function loadAdminData() {
+    if (!canManage || !organizationId || !accessToken) return;
+    setLoading(true);
+    setError(null);
     try {
-      setUsers(await listOrganizationUsers(organizationId, accessToken))
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load organization users.')
+      const [nextUsers, nextWorkspaces] = await Promise.all([
+        listOrganizationUsers(organizationId, accessToken),
+        listWorkspaces(organizationId, accessToken),
+      ]);
+      setUsers(nextUsers);
+      setWorkspaces(nextWorkspaces.filter((workspace) => workspace.status !== "archived"));
+      setSelectedWorkspaceId((current) => current && nextWorkspaces.some((workspace) => workspace.id === current) ? current : nextWorkspaces[0]?.id ?? null);
+    } catch (cause) {
+      setError(errorText(cause, "Unable to load organization settings."));
     } finally {
-      setLoading(false)
-    }
-  }, [accessToken, canManage, organizationId])
-
-  const loadWorkspaces = useCallback(async () => {
-    if (!accessToken || !organizationId || !canManage) return
-    setWorkspaceLoading(true)
-    setError(null)
-    try {
-      const next = await listWorkspaces(organizationId, accessToken)
-      setWorkspaces(next)
-      setSelectedWorkspaceId((current) => current && next.some((item) => item.id === current) ? current : next[0]?.id ?? null)
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load workspaces.')
-    } finally {
-      setWorkspaceLoading(false)
-    }
-  }, [accessToken, canManage, organizationId])
-
-  const loadMemberships = useCallback(async () => {
-    if (!accessToken || !organizationId || !selectedWorkspaceId || !canManage) {
-      setMemberships([])
-      return
-    }
-    setWorkspaceLoading(true)
-    try {
-      setMemberships(await listWorkspaceMemberships(organizationId, selectedWorkspaceId, accessToken))
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load workspace members.')
-    } finally {
-      setWorkspaceLoading(false)
-    }
-  }, [accessToken, canManage, organizationId, selectedWorkspaceId])
-
-  useEffect(() => { void loadUsers(); void loadWorkspaces() }, [loadUsers, loadWorkspaces])
-  useEffect(() => { void loadMemberships() }, [loadMemberships])
-
-  async function handleCreateUser(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!accessToken || !organizationId) return
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.')
-      return
-    }
-    setSaving(true)
-    setError(null)
-    try {
-      const created = await createOrganizationUser(organizationId, { displayName: displayName.trim(), email: email.trim(), password, orgRole: role }, accessToken)
-      setUsers((current) => [...current, created].sort((left, right) => left.email.localeCompare(right.email)))
-      setDisplayName(''); setEmail(''); setPassword(''); setConfirmPassword(''); setRole('org_member')
-      toast.success(`${created.display_name || created.email} was added to the organization.`)
-    } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Unable to create organization user.')
-    } finally {
-      setSaving(false)
+      setLoading(false);
     }
   }
 
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!accessToken || !organizationId) return
-    setSaving(true)
-    setError(null)
+  useEffect(() => { void loadAdminData(); }, [accessToken, canManage, organizationId]);
+
+  useEffect(() => { setTab(initialTab); }, [initialTab]);
+
+  useEffect(() => {
+    if (!canManage || !selectedWorkspace || !accessToken) {
+      setMemberships([]);
+      return;
+    }
+    const controller = new AbortController();
+    setMembershipsLoading(true);
+    listWorkspaceMemberships(organizationId, selectedWorkspace.id, accessToken)
+      .then((nextMemberships) => { if (!controller.signal.aborted) setMemberships(nextMemberships); })
+      .catch((cause) => { if (!controller.signal.aborted) setError(errorText(cause, "Unable to load workspace membership.")); })
+      .finally(() => { if (!controller.signal.aborted) setMembershipsLoading(false); });
+    return () => controller.abort();
+  }, [accessToken, canManage, organizationId, selectedWorkspace?.id]);
+
+  async function addMember(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accessToken || !canManage) return;
+    const form = new FormData(event.currentTarget);
+    setSaving(true);
     try {
-      const created = await createWorkspace(organizationId, accessToken, { name: workspaceName.trim(), slug: workspaceSlug.trim() || slugify(workspaceName), description: workspaceDescription.trim() || null })
-      setWorkspaces((current) => [...current, created])
-      setSelectedWorkspaceId(created.id)
-      setWorkspaceName(''); setWorkspaceSlug(''); setWorkspaceDescription('')
-      toast.success(`${created.name} workspace was created.`)
-    } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Unable to create workspace.')
+      const created = await createOrganizationUser(organizationId, {
+        displayName: String(form.get("member-name") ?? "").trim(),
+        email: String(form.get("member-email") ?? "").trim(),
+        password: String(form.get("member-password") ?? ""),
+        orgRole: String(form.get("member-role")) as AuthUser["org_role"],
+      }, accessToken);
+      setUsers((current) => [...current, created].sort((left, right) => left.email.localeCompare(right.email)));
+      setMemberOpen(false);
+      toast.success(`${created.email} was added to the organization.`);
+    } catch (cause) {
+      toast.error(errorText(cause, "Unable to add member."));
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
-  async function handleMembershipChange(userId: string, value: string) {
-    if (!accessToken || !organizationId || !selectedWorkspaceId) return
-    setSaving(true)
-    setError(null)
+  async function addWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accessToken || !canManage) return;
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get("workspace-name") ?? "").trim();
+    const slug = slugify(String(form.get("workspace-slug") ?? name));
+    setSaving(true);
     try {
-      if (value === 'none') {
-        await deleteWorkspaceMembership(organizationId, selectedWorkspaceId, userId, accessToken)
-        setMemberships((current) => current.filter((membership) => membership.user_id !== userId))
+      const workspace = await createWorkspace(organizationId, accessToken, { name, slug, description: String(form.get("workspace-description") ?? "").trim() || null });
+      setWorkspaces((current) => [...current, workspace]);
+      setSelectedWorkspaceId(workspace.id);
+      setWorkspaceOpen(false);
+      toast.success(`${workspace.name} was created. Assign its workspace admin next.`);
+    } catch (cause) {
+      toast.error(errorText(cause, "Unable to create workspace."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function changeMembership(member: AuthUser, value: string) {
+    if (!accessToken || !canManage || !selectedWorkspace) return;
+    setSaving(true);
+    try {
+      if (value === "none") {
+        await deleteWorkspaceMembership(organizationId, selectedWorkspace.id, member.id, accessToken);
+        setMemberships((current) => current.filter((membership) => membership.user_id !== member.id));
+        toast.success(`${member.email} no longer has workspace access.`);
       } else {
-        const membership = await upsertWorkspaceMembership(organizationId, selectedWorkspaceId, accessToken, { user_id: userId, role: value as WorkspaceRole })
-        setMemberships((current) => [...current.filter((item) => item.user_id !== userId), membership])
+        const membership = await upsertWorkspaceMembership(organizationId, selectedWorkspace.id, accessToken, { user_id: member.id, role: value as WorkspaceRole });
+        setMemberships((current) => [...current.filter((item) => item.user_id !== member.id), membership]);
+        toast.success(`Workspace role updated for ${member.email}.`);
       }
-      toast.success('Workspace access updated.')
-    } catch (membershipError) {
-      setError(membershipError instanceof Error ? membershipError.message : 'Unable to update workspace access.')
+    } catch (cause) {
+      toast.error(errorText(cause, "Unable to change workspace access."));
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
+
+  async function changeOrganizationRole(member: AuthUser, orgRole: AuthUser["org_role"]) {
+    if (!accessToken || !canManage || member.id === user?.id || member.org_role === orgRole) return;
+    setSaving(true);
+    try {
+      const updated = await updateOrganizationUser(organizationId, member.id, orgRole, accessToken);
+      setUsers((current) => current.map((item) => item.id === updated.id ? updated : item));
+      toast.success(`${updated.email} is now ${updated.org_role === "org_admin" ? "an organization admin" : "an organization member"}.`);
+    } catch (cause) {
+      toast.error(errorText(cause, "Unable to change organization role."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!user) return null;
 
   if (!canManage) {
-    return <section className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10"><div className="mx-auto grid w-full max-w-[720px] gap-5"><Alert className="border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100"><CircleAlertIcon /><AlertTitle>Org Admin access required</AlertTitle><AlertDescription>Only an Org Admin can manage organization members and workspaces.</AlertDescription></Alert></div></section>
+    return <main className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10"><section className="mx-auto grid max-w-3xl gap-5"><header className={cn(panelClass, "p-5 sm:p-6")}><p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">Settings</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Organization</h1><p className="mt-1.5 text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">Your membership is active, but this area is managed by organization administrators.</p></header><Alert className="border-[#d8d0c2] bg-[#f8f4eb] text-[#625d53] dark:border-[#49483f] dark:bg-white/5 dark:text-[#c5bcaf]"><ShieldAlertIcon /><AlertTitle>Read-only organization access</AlertTitle><AlertDescription><span className="block">Organization ID: <code>{organizationId}</code></span><span className="block">Role: Organization member</span><span className="mt-2 block">Ask an organization admin to manage people, workspaces, or the shared model registry.</span></AlertDescription></Alert></section></main>;
   }
 
-  return (
-    <section className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10" aria-label="Organization management">
-      <div className="mx-auto grid w-full max-w-[1280px] gap-6">
-        <header className={cn(panelClass, 'flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between')}>
-          <div className="flex min-w-0 items-start gap-3"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#edf2ff] text-[#2456e8] dark:bg-[#7895ff]/12 dark:text-[#9aafff]"><Building2Icon className="size-5" /></div><div className="min-w-0"><p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">Organization settings</p><h1 className="mt-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl">Members and workspaces</h1><p className="mt-1.5 text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">Control who belongs to the organization and what each member can access.</p></div></div>
-          <div className="flex items-center gap-2"><Badge variant="outline" className="h-8 rounded-full border-[#d8d0c2] bg-[#fffdf8]/70 px-3 text-xs text-[#625d53] dark:border-[#49483f] dark:bg-white/5 dark:text-[#c5bcaf]"><UsersRoundIcon className="size-3.5" /> {users.length} members</Badge><Badge variant="outline" className="h-8 rounded-full border-[#d8d0c2] bg-[#fffdf8]/70 px-3 text-xs text-[#625d53] dark:border-[#49483f] dark:bg-white/5 dark:text-[#c5bcaf]"><FolderKanbanIcon className="size-3.5" /> {workspaces.length} workspaces</Badge><Button variant="outline" size="icon-sm" className="rounded-lg border-[#d8d0c2] dark:border-[#49483f]" onClick={() => { void loadUsers(); void loadWorkspaces() }} disabled={loading || workspaceLoading} aria-label="Refresh organization"><RefreshCwIcon className={loading || workspaceLoading ? 'animate-spin' : ''} /></Button></div>
-        </header>
-
-        {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/70 dark:bg-red-950/35 dark:text-red-200">{error}</div>}
-
-        <Tabs value={view} onValueChange={(value) => setView(value as 'members' | 'workspaces')} className="gap-4">
-          <TabsList className="h-10 w-fit rounded-full border border-[#d8d0c2] bg-[#f4efe5]/70 p-1 dark:border-[#49483f] dark:bg-white/5" aria-label="Organization management views">
-            <TabsTrigger value="members" className="rounded-full px-4 text-xs"><UsersRoundIcon /> Members</TabsTrigger>
-            <TabsTrigger value="workspaces" className="rounded-full px-4 text-xs"><FolderKanbanIcon /> Workspaces</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="members" className="m-0">
-            <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-              <section className={cn(panelClass, 'overflow-hidden')} aria-labelledby="organization-members-title">
-                <div className="flex items-center justify-between gap-3 border-b border-[#e1dacc] p-4 sm:p-5 dark:border-[#38372f]"><div><h2 id="organization-members-title" className="text-base font-semibold">Organization members</h2><p className="mt-1 text-xs text-[#777064] dark:text-[#aaa397]">Accounts that can access organization-scoped AXIOM resources.</p></div><ShieldCheckIcon className="size-5 text-[#2456e8] dark:text-[#9aafff]" /></div>
-                {loading ? <div className="grid gap-2 p-5">{Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-16 rounded-xl" />)}</div> : users.length ? <div className="divide-y divide-[#e9e2d6] dark:divide-[#38372f]">{users.map((member) => <article key={member.id} className="flex min-w-0 items-center gap-3 px-4 py-4 sm:px-5"><div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f4efe5] text-xs font-semibold text-[#2456e8] dark:bg-white/5 dark:text-[#9aafff]">{member.display_name.slice(0, 1).toUpperCase() || member.email.slice(0, 1).toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{member.display_name || member.email}</p><p className="mt-0.5 truncate text-xs text-[#777064] dark:text-[#aaa397]">{member.email}</p></div><Badge variant="outline" className={cn('shrink-0 text-[10px]', member.org_role === 'org_admin' && 'border-[#b7c6ff] bg-[#eef3ff] text-[#1237b4] dark:border-[#7895ff]/30 dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]')}>{roleLabel(member.org_role)}</Badge></article>)}</div> : <div className="grid min-h-48 place-items-center p-5 text-center"><div><UsersRoundIcon className="mx-auto size-5 text-[#8a8377]" /><p className="mt-2 text-sm font-medium">No organization users yet</p><p className="mt-1 text-xs text-[#777064] dark:text-[#aaa397]">Create the first member from the form.</p></div></div>}
-              </section>
-              <section className={cn(panelClass, 'p-4 sm:p-5 xl:sticky xl:top-6')} aria-labelledby="create-organization-user-title"><div className="flex items-start gap-3"><div className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#edf2ff] text-[#2456e8] dark:bg-[#7895ff]/12 dark:text-[#9aafff]"><UserRoundPlusIcon className="size-4" /></div><div><h2 id="create-organization-user-title" className="text-base font-semibold">Create organization user</h2><p className="mt-1 text-xs leading-5 text-[#777064] dark:text-[#aaa397]">Assign the organization role before sharing credentials.</p></div></div><form className="mt-5 grid gap-4" onSubmit={handleCreateUser}><div className="grid gap-1.5"><Label htmlFor="org-user-name">Full name</Label><Input id="org-user-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} autoComplete="name" required placeholder="e.g. Linh Nguyen" className={inputClass} /></div><div className="grid gap-1.5"><Label htmlFor="org-user-email">Account email</Label><Input id="org-user-email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required type="email" placeholder="linh@company.com" className={inputClass} /></div><div className="grid gap-1.5"><Label htmlFor="org-user-role">Organization role</Label><select id="org-user-role" value={role} onChange={(event) => setRole(event.target.value as AuthUser['org_role'])} className={cn(inputClass, 'rounded-md px-3 text-sm')}><option value="org_member">Org Member — assigned workspace access</option><option value="org_admin">Org Admin — manages members and access</option></select></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1"><div className="grid gap-1.5"><Label htmlFor="org-user-password">Password</Label><Input id="org-user-password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required type="password" className={inputClass} /></div><div className="grid gap-1.5"><Label htmlFor="org-user-confirm-password">Confirm password</Label><Input id="org-user-confirm-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} required type="password" className={inputClass} /></div></div><Button type="submit" disabled={saving} className="h-10 rounded-lg bg-[#2456e8] text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c]"><UserRoundPlusIcon />{saving ? 'Creating account...' : 'Create user account'}</Button></form></section>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="workspaces" className="m-0">
-            <div className="grid items-start gap-6 xl:grid-cols-[300px_minmax(0,1fr)_340px]">
-              <section className={cn(panelClass, 'overflow-hidden')} aria-labelledby="workspace-list-title"><div className="flex items-center justify-between border-b border-[#e1dacc] p-4 dark:border-[#38372f]"><div><h2 id="workspace-list-title" className="text-sm font-semibold">Workspaces</h2><p className="mt-1 text-xs text-[#777064] dark:text-[#aaa397]">Select a workspace to manage access.</p></div><FolderKanbanIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" /></div><div className="grid gap-2 p-3">{workspaceLoading && !workspaces.length ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-16 rounded-xl" />) : workspaces.length ? workspaces.map((workspace) => <button key={workspace.id} type="button" onClick={() => setSelectedWorkspaceId(workspace.id)} className={cn('rounded-xl border p-3 text-left transition-colors', selectedWorkspaceId === workspace.id ? 'border-[#2456e8]/45 bg-[#edf2ff]/55 dark:border-[#7895ff]/45 dark:bg-[#7895ff]/8' : 'border-[#e1dacc] hover:border-[#2456e8]/30 dark:border-[#38372f]')}><span className="block truncate text-sm font-semibold">{workspace.name}</span><span className="mt-1 block truncate text-xs text-[#777064] dark:text-[#aaa397]">{workspace.slug}{workspace.is_default ? ' · Default' : ''}</span></button>) : <div className="px-3 py-8 text-center text-xs text-[#777064] dark:text-[#aaa397]">No workspaces yet.</div>}</div></section>
-
-              <section className={cn(panelClass, 'overflow-hidden')} aria-labelledby="workspace-access-title"><div className="flex items-start justify-between gap-3 border-b border-[#e1dacc] p-4 sm:p-5 dark:border-[#38372f]"><div className="min-w-0"><p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">Workspace access</p><h2 id="workspace-access-title" className="mt-1 truncate text-base font-semibold">{selectedWorkspace?.name ?? 'Select a workspace'}</h2><p className="mt-1 text-xs text-[#777064] dark:text-[#aaa397]">Choose a workspace role for every organization member.</p></div><Badge variant="outline" className="shrink-0 text-[10px]">{memberships.length} assigned</Badge></div>{selectedWorkspace ? <div className="divide-y divide-[#e9e2d6] dark:divide-[#38372f]">{users.map((member) => <div key={member.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"><div className="min-w-0"><p className="truncate text-sm font-medium">{member.display_name || member.email}</p><p className="truncate text-xs text-[#777064] dark:text-[#aaa397]">{member.email}</p></div><select aria-label={`Workspace role for ${member.email}`} value={membershipByUser.get(member.id) ?? 'none'} onChange={(event) => void handleMembershipChange(member.id, event.target.value)} disabled={saving} className={cn(inputClass, 'h-9 w-full rounded-lg px-2 text-xs sm:w-48')}><option value="none">No access</option><option value="viewer">Viewer</option><option value="editor">Editor</option><option value="workspace_admin">Workspace Admin</option></select></div>)}</div> : <div className="grid min-h-64 place-items-center p-5 text-center"><FolderKanbanIcon className="mx-auto size-5 text-[#8a8377]" /><p className="mt-2 text-sm font-medium">Select a workspace</p></div>}</section>
-
-              <section className={cn(panelClass, 'p-4 sm:p-5 xl:sticky xl:top-6')} aria-labelledby="create-workspace-title"><div className="flex items-start gap-3"><div className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#edf2ff] text-[#2456e8] dark:bg-[#7895ff]/12 dark:text-[#9aafff]"><PlusIcon className="size-4" /></div><div><h2 id="create-workspace-title" className="text-base font-semibold">Create workspace</h2><p className="mt-1 text-xs leading-5 text-[#777064] dark:text-[#aaa397]">Add a focused area for a team or investigation.</p></div></div><form className="mt-5 grid gap-4" onSubmit={handleCreateWorkspace}><div className="grid gap-1.5"><Label htmlFor="workspace-name">Workspace name</Label><Input id="workspace-name" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} required placeholder="e.g. Research" className={inputClass} /></div><div className="grid gap-1.5"><Label htmlFor="workspace-slug">Workspace ID</Label><Input id="workspace-slug" value={workspaceSlug} onChange={(event) => setWorkspaceSlug(slugify(event.target.value))} placeholder="research" className={inputClass} /></div><div className="grid gap-1.5"><Label htmlFor="workspace-description">Description</Label><textarea id="workspace-description" value={workspaceDescription} onChange={(event) => setWorkspaceDescription(event.target.value)} placeholder="What belongs in this workspace?" className={cn(inputClass, 'min-h-24 resize-y rounded-md px-3 py-2 text-sm')} /></div><Button type="submit" disabled={saving} className="h-10 rounded-lg bg-[#2456e8] text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c]"><PlusIcon />{saving ? 'Creating workspace...' : 'Create workspace'}</Button></form></section>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </section>
-  )
+  return <main className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10"><div className="mx-auto grid w-full max-w-[1320px] gap-5"><header className={cn(panelClass, "flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between")}><div className="flex min-w-0 items-start gap-3.5"><Avatar size="lg" className="size-12 rounded-xl border border-[#d8d0c2] bg-[#edf2ff] text-[#2456e8] dark:border-[#49483f] dark:bg-[#7895ff]/12 dark:text-[#9aafff]"><AvatarFallback className="rounded-xl bg-transparent text-sm font-semibold">{initials(user.display_name || user.email)}</AvatarFallback></Avatar><div className="min-w-0"><p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">Settings · Organization</p><h1 className="mt-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl">Organization administration</h1><p className="mt-1.5 text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">Configure people, workspace access, and organization-wide models.</p></div></div><Badge variant="outline" className="h-8 w-fit rounded-full border-[#b7c6ff] bg-[#eef3ff] px-3 text-xs text-[#1237b4] dark:border-[#7895ff]/30 dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]"><ShieldCheckIcon className="size-3.5" /> Organization admin</Badge></header>{error && <Alert variant="destructive"><CircleAlertIcon /><AlertTitle>Settings could not be loaded</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}<Tabs value={tab} onValueChange={(value) => setTab(value as OrganizationTab)} className="gap-5"><TabsList variant="line" className="h-auto w-full flex-wrap justify-start gap-1 border-b border-[#d8d0c2] p-0 dark:border-[#38372f]"><TabsTrigger value="overview" className="h-10 flex-none px-3">Overview</TabsTrigger><TabsTrigger value="workspaces" className="h-10 flex-none px-3">Workspaces</TabsTrigger><TabsTrigger value="members" className="h-10 flex-none px-3">Members</TabsTrigger><TabsTrigger value="models" className="h-10 flex-none px-3">Models</TabsTrigger></TabsList>
+    <TabsContent value="overview"><Overview user={user} workspaceCount={workspaces.length} memberCount={users.length} loading={loading} onMembers={() => setTab("members")} onWorkspaces={() => setTab("workspaces")} /></TabsContent>
+    <TabsContent value="members"><section className={cn(panelClass, "overflow-hidden")}><div className="flex flex-col gap-3 border-b border-[#e1dacc] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5 dark:border-[#38372f]"><div><p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">Organization members</p><h2 className="mt-1 text-lg font-semibold">People and organization roles</h2><p className="mt-1 text-xs text-[#777064] dark:text-[#aaa397]">Organization roles control admin access. Workspace access is assigned separately.</p></div><Button className="h-9 rounded-lg bg-[#2456e8] text-white hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c]" onClick={() => setMemberOpen(true)}><PlusIcon /> Add member</Button></div><MemberList users={users} loading={loading} saving={saving} currentUserId={user.id} onRoleChange={changeOrganizationRole} /></section></TabsContent>
+    <TabsContent value="workspaces"><div className="grid items-start gap-5 xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.5fr)]"><section className={cn(panelClass, "overflow-hidden")}><div className="flex items-center justify-between border-b border-[#e1dacc] px-4 py-3 dark:border-[#38372f]"><div><p className="text-sm font-semibold">Workspaces</p><p className="mt-0.5 text-xs text-[#777064] dark:text-[#aaa397]">Each workspace has its own member roles.</p></div><Button size="icon-sm" variant="ghost" onClick={() => setWorkspaceOpen(true)} aria-label="Create workspace"><PlusIcon /></Button></div>{loading ? <div className="grid gap-2 p-3">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-16 rounded-xl" />)}</div> : workspaces.length ? <div className="grid gap-1.5 p-2.5">{workspaces.map((workspace) => <button key={workspace.id} type="button" onClick={() => setSelectedWorkspaceId(workspace.id)} className={cn("rounded-xl border p-3 text-left transition-colors", selectedWorkspace?.id === workspace.id ? "border-[#2456e8]/40 bg-[#edf2ff]/70 dark:border-[#7895ff]/45 dark:bg-[#7895ff]/10" : "border-transparent hover:border-[#d8d0c2] hover:bg-[#f8f4eb] dark:hover:border-[#49483f] dark:hover:bg-white/5")}><span className="flex items-center justify-between gap-2"><strong className="truncate text-sm">{workspace.name}</strong>{workspace.is_default && <Badge variant="outline" className="h-5 px-1.5 text-[9px]">DEFAULT</Badge>}</span><span className="mt-1 block truncate text-xs text-[#777064] dark:text-[#aaa397]">{workspace.description || workspace.slug}</span></button>)}</div> : <Empty icon={FolderKanbanIcon} title="No workspaces yet" detail="Create a workspace, then assign its admins and members." />}</section><WorkspaceInspector workspace={selectedWorkspace} users={users} memberships={memberships} loading={membershipsLoading} saving={saving} onRoleChange={changeMembership} /></div></TabsContent>
+    <TabsContent value="models"><OrganizationModelRegistry user={user} /></TabsContent>
+  </Tabs>
+  <MemberDialog open={memberOpen} onOpenChange={setMemberOpen} saving={saving} onSubmit={addMember} />
+  <WorkspaceDialog open={workspaceOpen} onOpenChange={setWorkspaceOpen} saving={saving} onSubmit={addWorkspace} />
+  </div></main>;
 }
+
+function Overview({ user, workspaceCount, memberCount, loading, onMembers, onWorkspaces }: { user: AuthUser; workspaceCount: number; memberCount: number; loading: boolean; onMembers: () => void; onWorkspaces: () => void }) {
+  return <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]"><section className={cn(panelClass, "p-5 sm:p-6")}><p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">Organization scope</p><h2 className="mt-1 text-xl font-semibold tracking-tight">A shared control plane for your workspaces</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">Members belong to the organization first. Workspace roles then grant the least access each person needs. Providers and models are shared across every workspace.</p><div className="mt-5 flex flex-wrap gap-2"><Button variant="outline" className="rounded-lg" onClick={onMembers}><UsersRoundIcon /> Manage members</Button><Button variant="outline" className="rounded-lg" onClick={onWorkspaces}><FolderKanbanIcon /> Manage workspaces</Button></div></section><aside className={cn(panelClass, "p-5")}><p className="text-sm font-semibold">Current context</p><dl className="mt-4 grid gap-3 text-sm"><Summary label="Organization ID" value={user.organization_id} /><Summary label="Your role" value="Organization admin" /><Summary label="Members" value={loading ? "Loading…" : String(memberCount)} /><Summary label="Workspaces" value={loading ? "Loading…" : String(workspaceCount)} /></dl></aside></div>;
+}
+
+function Summary({ label, value }: { label: string; value: string }) { return <div className="flex items-center justify-between gap-3"><dt className="text-[#777064] dark:text-[#aaa397]">{label}</dt><dd className="max-w-[65%] truncate font-medium" title={value}>{value}</dd></div>; }
+
+function MemberList({ users, loading, saving, currentUserId, onRoleChange }: { users: AuthUser[]; loading: boolean; saving: boolean; currentUserId: string; onRoleChange: (member: AuthUser, role: AuthUser["org_role"]) => void }) {
+  if (loading) return <div className="grid gap-2 p-4">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-14 rounded-xl" />)}</div>;
+  if (!users.length) return <Empty icon={UsersRoundIcon} title="No members returned" detail="Try refreshing the page, or add the first organization member." />;
+  return <div className="divide-y divide-[#e9e2d6] dark:divide-[#38372f]">{users.map((member) => {
+    const isCurrentUser = member.id === currentUserId;
+    return <article key={member.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5"><Avatar className="size-9 shrink-0"><AvatarFallback className="bg-[#f4efe5] text-xs font-semibold text-[#2456e8] dark:bg-white/6 dark:text-[#9aafff]">{initials(member.display_name || member.email)}</AvatarFallback></Avatar><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{member.display_name || member.email} {isCurrentUser && <span className="font-normal text-[#777064] dark:text-[#aaa397]">(you)</span>}</p><p className="mt-0.5 truncate text-xs text-[#777064] dark:text-[#aaa397]">{member.email}</p></div>{isCurrentUser ? <Badge variant="outline" className="h-7 w-fit shrink-0 rounded-full border-[#b7c6ff] bg-[#eef3ff] px-2.5 text-[10px] text-[#1237b4] dark:border-[#7895ff]/30 dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]">Org admin</Badge> : <select aria-label={`Organization role for ${member.email}`} value={member.org_role} onChange={(event) => onRoleChange(member, event.target.value as AuthUser["org_role"])} disabled={saving} className={cn(inputClass, "w-full rounded-lg px-2 text-xs sm:w-48")}><option value="org_member">Organization member</option><option value="org_admin">Organization admin</option></select>}</article>;
+  })}</div>;
+}
+
+function WorkspaceInspector({ workspace, users, memberships, loading, saving, onRoleChange }: { workspace: Workspace | null; users: AuthUser[]; memberships: WorkspaceMembership[]; loading: boolean; saving: boolean; onRoleChange: (member: AuthUser, value: string) => void }) {
+  if (!workspace) return <section className={cn(panelClass, "overflow-hidden")}><Empty icon={FolderKanbanIcon} title="Select a workspace" detail="Select one to review and configure member access." /></section>;
+  const roles = new Map(memberships.map((membership) => [membership.user_id, membership.role]));
+  return <section className={cn(panelClass, "overflow-hidden")} aria-labelledby="workspace-members-title"><div className="border-b border-[#e1dacc] p-4 sm:p-5 dark:border-[#38372f]"><p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">Workspace access</p><h2 id="workspace-members-title" className="mt-1 text-lg font-semibold">{workspace.name}</h2><p className="mt-1 text-xs text-[#777064] dark:text-[#aaa397]">Organization admins choose a workspace role per member.</p></div>{loading ? <div className="grid gap-2 p-4">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-14 rounded-xl" />)}</div> : <div className="divide-y divide-[#e9e2d6] dark:divide-[#38372f]">{users.map((member) => <div key={member.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"><div className="min-w-0"><p className="truncate text-sm font-medium">{member.display_name || member.email}</p><p className="truncate text-xs text-[#777064] dark:text-[#aaa397]">{member.email}</p></div><select aria-label={`Workspace role for ${member.email}`} value={roles.get(member.id) ?? "none"} onChange={(event) => onRoleChange(member, event.target.value)} disabled={saving} className={cn(inputClass, "w-full rounded-lg px-2 text-xs sm:w-48")}><option value="none">No access</option><option value="viewer">Viewer</option><option value="editor">Editor</option><option value="workspace_admin">Workspace admin</option></select></div>)}</div>}</section>;
+}
+
+function Empty({ icon: Icon, title, detail }: { icon: typeof FolderKanbanIcon; title: string; detail: string }) { return <div className="grid min-h-44 place-items-center p-5 text-center"><div><Icon className="mx-auto size-5 text-[#8a8377]" /><p className="mt-2 text-sm font-medium">{title}</p><p className="mt-1 text-xs text-[#777064] dark:text-[#aaa397]">{detail}</p></div></div>; }
+
+function MemberDialog({ open, onOpenChange, saving, onSubmit }: { open: boolean; onOpenChange: (open: boolean) => void; saving: boolean; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) { return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-lg border-[#d8d0c2] bg-[#fffdf8] dark:border-[#38372f] dark:bg-[#1a1a17]"><form className="grid gap-4" onSubmit={onSubmit}><DialogHeader><DialogTitle>Add organization member</DialogTitle><DialogDescription>Create an active user with a temporary password. Workspace access is assigned separately.</DialogDescription></DialogHeader><div className="grid gap-3"><FormField id="member-name" label="Name" placeholder="e.g. Linh Nguyen" /><FormField id="member-email" label="Work email" type="email" placeholder="linh@company.com" /><FormField id="member-password" label="Temporary password" type="password" minLength={8} /><label className="grid gap-1.5"><Label htmlFor="member-role">Organization role</Label><select id="member-role" name="member-role" defaultValue="org_member" className={cn(inputClass, "rounded-lg px-3 text-sm")}><option value="org_member">Member</option><option value="org_admin">Organization admin</option></select></label></div><DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving && <LoaderCircleIcon className="animate-spin" />}Add member</Button></DialogFooter></form></DialogContent></Dialog>; }
+
+function WorkspaceDialog({ open, onOpenChange, saving, onSubmit }: { open: boolean; onOpenChange: (open: boolean) => void; saving: boolean; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) { return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-lg border-[#d8d0c2] bg-[#fffdf8] dark:border-[#38372f] dark:bg-[#1a1a17]"><form className="grid gap-4" onSubmit={onSubmit}><DialogHeader><DialogTitle>Create workspace</DialogTitle><DialogDescription>Create a scoped place for a team or investigation, then assign its members.</DialogDescription></DialogHeader><div className="grid gap-3"><FormField id="workspace-name" label="Workspace name" placeholder="e.g. Research" /><FormField id="workspace-slug" label="Workspace slug" placeholder="e.g. research" required={false} /><div className="grid gap-1.5"><Label htmlFor="workspace-description">Description</Label><Textarea id="workspace-description" name="workspace-description" placeholder="What belongs in this workspace?" className="border-[#d8d0c2]/80 bg-[#f7f3eb] shadow-none dark:border-[#49483f] dark:bg-[#20201c]" /></div></div><DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving && <LoaderCircleIcon className="animate-spin" />}Create workspace</Button></DialogFooter></form></DialogContent></Dialog>; }
+
+function FormField({ id, label, type = "text", placeholder, minLength, required = true }: { id: string; label: string; type?: string; placeholder?: string; minLength?: number; required?: boolean }) { return <div className="grid gap-1.5"><Label htmlFor={id}>{label}</Label><Input id={id} name={id} type={type} placeholder={placeholder} minLength={minLength} required={required} className={inputClass} /></div>; }

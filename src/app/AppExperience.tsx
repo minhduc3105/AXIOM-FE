@@ -6,7 +6,6 @@ import { IngestionPage } from "@/features/ingestion/IngestionPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
-import { ModelsPage } from "@/features/models/ModelsPage";
 import { MemoryPage } from "@/features/memory/MemoryPage";
 import { LoginPage } from "@/features/auth/components/LoginPage";
 import { OrganizationUsersPage } from "@/features/auth/components/OrganizationUsersPage";
@@ -18,7 +17,6 @@ import {
   createDataIngestionRoute,
   createDataRoute,
   createReportsRoute,
-  createModelsRoute,
   createMemoryRoute,
   createOrganizationRoute,
   createToolDetailRoute,
@@ -27,6 +25,8 @@ import {
 import { useAppRoute } from "./routing/useAppRoute";
 import { createConversation } from "@/shared/lib/intelligence-api";
 import type { ChatEngine } from "@/features/chat/model/types";
+import { useAppScope } from "@/shared/hooks/use-app-scope";
+import { getRouteWorkspaceScope } from "./scope";
 
 export function AppExperience() {
   const auth = useAuth();
@@ -34,6 +34,13 @@ export function AppExperience() {
   const chat = useChatWorkflow();
   const [chatEngine, setChatEngine] = useState<ChatEngine>("auto");
   const skipNextHydrationRef = useRef<string | null>(null);
+  const { showWorkspace, workspaceId } = getRouteWorkspaceScope(route);
+  const scope = useAppScope({
+    user: auth.user,
+    accessToken: auth.accessToken,
+    showWorkspace,
+    workspaceId,
+  });
 
   useEffect(() => {
     if (route.surface !== "chat" || !route.sessionId) {
@@ -87,10 +94,6 @@ export function AppExperience() {
 
   const openTools = useCallback(() => {
     navigate(createToolsRoute());
-  }, [navigate]);
-
-  const openModels = useCallback(() => {
-    navigate(createModelsRoute());
   }, [navigate]);
 
   const openMemory = useCallback(() => {
@@ -150,11 +153,11 @@ export function AppExperience() {
       onConversationOpen={openConversation}
       onData={openData}
       onReports={openReports}
-      onModels={openModels}
       onMemory={openMemory}
       onTools={openTools}
       onSettings={openSettings}
       user={auth.user}
+      scope={scope}
       onLogout={auth.logout}
     >
       {route.surface === "chat" ? (
@@ -193,12 +196,10 @@ export function AppExperience() {
         <DataPage onCreateIngestion={openDataIngestion} />
       ) : route.surface === "reports" ? (
         <ReportsPage onData={openData} />
-      ) : route.surface === "models" ? (
-        <ModelsPage />
       ) : route.surface === "memory" ? (
         <MemoryPage />
       ) : route.surface === "organization" ? (
-        <OrganizationUsersPage />
+        <OrganizationUsersPage initialTab={route.tab} />
       ) : route.page === "detail" && route.toolName ? (
         <ToolDetailPage toolName={route.toolName} onBack={openTools} />
       ) : (
