@@ -17,9 +17,7 @@ describe("createInvestigation", () => {
   });
 
   it("returns a completed outcome when the orchestrator answers directly", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
+    const fetchMock = vi.fn(async () =>
         sseResponse([
           {
             type: "response.output_text.delta",
@@ -42,8 +40,8 @@ describe("createInvestigation", () => {
             metadata: { route: "general_direct" },
           },
         ]),
-      ),
-    );
+      );
+    vi.stubGlobal("fetch", fetchMock);
     const onOutputText = vi.fn();
 
     const outcome = await createInvestigation(
@@ -51,7 +49,10 @@ describe("createInvestigation", () => {
       "conversation-1",
       "auto",
       undefined,
-      onOutputText,
+      {
+        workspaceId: "workspace-b",
+        onOutputText,
+      },
     );
 
     expect(outcome).toMatchObject({
@@ -64,6 +65,12 @@ describe("createInvestigation", () => {
     expect(onOutputText).toHaveBeenLastCalledWith(
       expect.objectContaining({
         markdown: "PostgreSQL is an open-source relational database.",
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: expect.stringContaining('"workspace_id":"workspace-b"'),
       }),
     );
   });
