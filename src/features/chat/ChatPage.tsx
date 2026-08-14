@@ -20,6 +20,7 @@ import type {
 import { cn } from "@/shared/lib/utils";
 
 type ChatPageProps = {
+  conversationId: string | null;
   stage: ChatStage;
   evidenceOpen: boolean;
   investigation: Investigation | null;
@@ -51,6 +52,7 @@ type ChatPageProps = {
 };
 
 export function ChatPage({
+  conversationId,
   stage,
   evidenceOpen,
   investigation,
@@ -308,6 +310,7 @@ export function ChatPage({
             <div className="sticky top-10 h-[calc(100dvh-4.5rem)] min-h-0 min-w-0 max-w-full md:top-14">
               <ProcessInspectorAside
                 items={inspectableProcessEvents}
+                conversationId={conversationId}
                 activeProcessEventKey={inspectedProcessStep.key}
                 onProcessEventSelect={handleProcessEventSelect}
                 onClose={() => setInspectedProcessStep(null)}

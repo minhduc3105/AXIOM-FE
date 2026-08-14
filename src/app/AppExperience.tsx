@@ -230,6 +230,7 @@ export function AppExperience() {
     >
       {route.surface === "chat" ? (
         <ChatPage
+          conversationId={route.sessionId}
           stage={chat.stage}
           evidenceOpen={chat.evidenceOpen}
           investigation={chat.investigation}

@@ -24,16 +24,19 @@ import { formatJson, hasDisplayValue, isRecord } from "./processValueUtils";
 import {
   downloadWorkspaceFilesPackage,
   extractWorkspaceFiles,
+  workspaceFilesPackageFilename,
   WorkspaceFileList,
 } from "./workspaceFiles";
 
 export function ProcessInspectorAside({
   items,
+  conversationId,
   activeProcessEventKey,
   onProcessEventSelect,
   onClose,
 }: {
   items: ProcessInspectorItem[];
+  conversationId?: string | null;
   activeProcessEventKey?: string | null;
   onProcessEventSelect?: ProcessStepSelectionHandler;
   onClose?: () => void;
@@ -42,7 +45,8 @@ export function ProcessInspectorAside({
     (item) => item.event.status !== "waiting" && isToolProcessEvent(item.event),
   );
   const files = extractWorkspaceFiles(visibleItems.map((item) => item.event));
-  const sessionId = sessionIdFromItems(visibleItems);
+  const packageId = conversationId?.trim() || sessionIdFromItems(visibleItems);
+  const packageFilename = workspaceFilesPackageFilename(packageId);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(
     () => new Set(activeProcessEventKey ? [activeProcessEventKey] : []),
   );
@@ -110,7 +114,7 @@ export function ProcessInspectorAside({
     if (files.length === 0 || downloading) return;
     setDownloading(true);
     try {
-      await downloadWorkspaceFilesPackage(files, sessionId);
+      await downloadWorkspaceFilesPackage(files, packageId);
     } finally {
       setDownloading(false);
     }
@@ -142,7 +146,7 @@ export function ProcessInspectorAside({
                 type="button"
                 size="icon-sm"
                 variant="ghost"
-                aria-label={`Download all files as package_${sessionId}.zip`}
+                aria-label={`Download all files as ${packageFilename}`}
                 disabled={files.length === 0 || downloading}
                 onClick={() => void handleDownloadPackage()}
               >
