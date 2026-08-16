@@ -260,6 +260,7 @@ export function ChatPage({
                       processEventKeyPrefix="current"
                       onProcessEventSelect={handleProcessEventSelect}
                       result={result}
+                      responseComplete={!loading}
                     />
                     {evidenceOpen && !processInspectorOpen && (
                       <EvidencePanel
@@ -411,6 +412,7 @@ function HistoryTurn({
         processEventKeyPrefix={processEventKeyPrefix}
         onProcessEventSelect={onProcessEventSelect}
         result={turn.result}
+        responseComplete
       />
     </section>
   );
