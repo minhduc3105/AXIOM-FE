@@ -4,9 +4,10 @@ export type AppSurface =
   | "reports"
   | "tools"
   | "memory"
+  | "models"
   | "organization";
 
-export type OrganizationSettingsTab = "overview" | "workspaces" | "members" | "models";
+export type OrganizationSettingsTab = "overview" | "workspaces" | "members";
 
 export type DataIngestionLaunchContext = {
   connector: "s3" | "snowflake" | null;
@@ -30,4 +31,5 @@ export type AppRoute =
       sessionId: null;
     }
   | { surface: "memory"; sessionId: null }
+  | { surface: "models"; sessionId: null }
   | { surface: "organization"; tab: OrganizationSettingsTab; sessionId: null };

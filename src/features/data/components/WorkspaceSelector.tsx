@@ -56,7 +56,7 @@ export function WorkspaceSelector({
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{workspace.name}</span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {workspace.role.split("_").join(" ")}
+                  {workspace.role?.split("_").join(" ") ?? "organization workspace"}
                 </span>
               </span>
               {workspace.id === selected?.id && <CheckIcon aria-label="Selected" />}

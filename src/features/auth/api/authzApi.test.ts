@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { listWorkspaces } from '@/features/auth/api/authzApi'
+import { listMyWorkspaces, listWorkspaces } from '@/features/auth/api/authzApi'
 
 describe('authzApi', () => {
   afterEach(() => {
@@ -20,6 +20,20 @@ describe('authzApi', () => {
       expect.objectContaining({
         headers: expect.objectContaining({ Authorization: 'Bearer token-1' }),
       }),
+    )
+  })
+
+  it('uses the deployed organization route for the current user workspaces', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ workspaces: [] }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(listMyWorkspaces('org-1', 'token-1')).resolves.toEqual([])
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/authz-service/api/v1/orgs/org-1/workspaces',
     )
   })
 

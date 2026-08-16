@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { listMyOrganizations } from "@/features/auth/api/authApi";
 import { listWorkspaces } from "@/features/auth/api/authzApi";
 import type { AuthUser } from "@/features/auth/model/types";
 import type { AppScopeContext } from "@/shared/types/appScope";
@@ -49,27 +48,16 @@ export function useAppScope({
     if (!accessToken) return;
 
     const controller = new AbortController();
-    void Promise.allSettled([
-      listMyOrganizations(accessToken, controller.signal),
-      showWorkspace && workspaceId
-        ? listWorkspaces(organizationId, accessToken)
-        : Promise.resolve([]),
-    ]).then(([organizationResult, workspaceResult]) => {
+    void (showWorkspace && workspaceId
+      ? listWorkspaces(organizationId, accessToken, controller.signal)
+      : Promise.resolve([])
+    ).then((workspaces) => {
       if (controller.signal.aborted) return;
-      const organization =
-        organizationResult.status === "fulfilled"
-          ? organizationResult.value.find(
-              (membership) => membership.organization.id === organizationId,
-            )?.organization
-          : null;
-      const workspace =
-        workspaceResult.status === "fulfilled"
-          ? workspaceResult.value.find((item) => item.id === workspaceId)
-          : null;
+      const workspace = workspaces.find((item) => item.id === workspaceId);
       setScope({
         organization: {
           id: organizationId,
-          name: organization?.display_name || organizationId,
+          name: organizationId,
         },
         workspace: showWorkspace
           ? workspaceId
@@ -77,6 +65,8 @@ export function useAppScope({
             : { id: null, name: "Organization-wide" }
           : null,
       });
+    }).catch(() => {
+      // Keep the initial scope when the workspace API cannot be reached.
     });
 
     return () => controller.abort();

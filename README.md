@@ -48,6 +48,33 @@ for mutations. For local Vite development, set `METHOD_HUB_ADMIN_TOKEN` (without
 the `VITE_` prefix) so the Vite proxy adds the bearer header server-side. Use an
 authenticated BFF for deployed browser apps.
 
+### Model Service v1
+
+The Model Service page uses AXIOM's published `/api/v1` contract through the
+relative `/model-service` Vite proxy. Keep the base URL free of an API version:
+
+```dotenv
+VITE_MODEL_SERVICE_API_BASE_URL=/model-service
+VITE_MODEL_SERVICE_PROXY_TARGET=http://localhost:38006
+```
+
+Model Service code is split by responsibility:
+
+- `api/modelServiceContract.ts` owns the v1 prefix, every published route, and
+  small wire response types.
+- `api/modelServiceMappers.ts` validates service responses before they reach UI
+  state.
+- `api/modelServiceApi.ts` owns authenticated HTTP operations only.
+- `model/registryTypes.ts` owns the UI domain types.
+- `model/registryForm.ts` converts form values to the v1 contract enums.
+
+Run the read-only live contract check against a rebuilt v1 service with:
+
+```powershell
+$env:VITE_MODEL_SERVICE_E2E_URL="http://localhost:38006"
+npm.cmd test -- --run src/features/models/api/modelServiceApi.integration.test.ts
+```
+
 Build and preview production output:
 
 ```bash

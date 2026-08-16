@@ -17,7 +17,8 @@ export type WorkspaceMembership = {
 }
 
 export type AssignedWorkspace = Workspace & {
-  role: WorkspaceRole
+  // The deployed organization list route does not include membership role.
+  role?: WorkspaceRole
 }
 
 const gatewayApiBaseUrl = (import.meta.env.VITE_AXIOM_GATEWAY_API_URL || '').replace(/\/$/, '')
@@ -58,24 +59,27 @@ async function request<T>(path: string, accessToken: string, init: RequestInit =
   return parseJsonResponse<T>(response)
 }
 
-export async function listWorkspaces(organizationId: string, accessToken: string) {
+export async function listWorkspaces(
+  organizationId: string,
+  accessToken: string,
+  signal?: AbortSignal,
+) {
   const payload = await request<{ workspaces: Workspace[] }>(
     `/api/v1/orgs/${encodeURIComponent(organizationId)}/workspaces`,
     accessToken,
+    { signal },
   )
   return payload.workspaces
 }
 
 export async function listMyWorkspaces(
+  organizationId: string,
   accessToken: string,
   signal?: AbortSignal,
 ) {
-  const payload = await request<{ workspaces: AssignedWorkspace[] }>(
-    '/api/v1/authz/me/workspaces',
-    accessToken,
-    { signal },
-  )
-  return payload.workspaces
+  // The deployed AuthZ contract exposes the organization collection. The
+  // newer `/authz/me/workspaces` route is not available in every deployment.
+  return listWorkspaces(organizationId, accessToken, signal)
 }
 
 export async function createWorkspace(

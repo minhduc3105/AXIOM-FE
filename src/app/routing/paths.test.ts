@@ -4,6 +4,7 @@ import {
   createDataRoute,
   createReportsRoute,
   createMemoryRoute,
+  createModelsRoute,
   createOrganizationRoute,
   createToolDetailRoute,
   createToolsRoute,
@@ -116,12 +117,12 @@ describe("tools routing", () => {
 });
 
 describe("settings routing", () => {
-  it("keeps the former models path inside organization settings", () => {
+  it("parses the models path as its own surface", () => {
     expect(parseAppRoute("/models")).toEqual({
-      surface: "organization",
-      tab: "models",
+      surface: "models",
       sessionId: null,
     });
+    expect(getAppRoutePath(createModelsRoute())).toBe("/models");
   });
 
   it("parses the memory path", () => {
@@ -151,12 +152,10 @@ describe("settings routing", () => {
     });
   });
 
-  it("keeps models nested under organization settings", () => {
+  it("redirects the former nested models settings path to the models service", () => {
     expect(parseAppRoute("/settings/models")).toEqual({
-      surface: "organization",
-      tab: "models",
+      surface: "models",
       sessionId: null,
     });
-    expect(getAppRoutePath(createOrganizationRoute("models"))).toBe("/settings/models");
   });
 });

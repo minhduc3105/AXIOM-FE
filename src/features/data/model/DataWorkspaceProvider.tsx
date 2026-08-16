@@ -50,7 +50,7 @@ export function DataWorkspaceProvider({ children }: { children: ReactNode }) {
     );
     setLoading(true);
     setError(null);
-    void listMyWorkspaces(auth.accessToken, controller.signal)
+    void listMyWorkspaces(auth.user.organization_id, auth.accessToken, controller.signal)
       .then((assigned) => {
         const selected = resolveSelectedWorkspace(
           assigned,

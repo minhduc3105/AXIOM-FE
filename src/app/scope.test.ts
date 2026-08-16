@@ -17,8 +17,7 @@ describe("getRouteWorkspaceScope", () => {
     ).toBe(true);
     expect(
       getRouteWorkspaceScope({
-        surface: "organization",
-        tab: "models",
+        surface: "models",
         sessionId: null,
       }),
     ).toEqual({ showWorkspace: false, workspaceId: null });

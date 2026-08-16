@@ -7,10 +7,15 @@ import type {
   ProviderView,
   ResourceStatus,
 } from "../model/registryTypes";
+import {
+  modelServiceRoutes,
+  type DeleteResult,
+  type ProviderCredentialView,
+} from "./modelServiceContract";
+import { normalizeProvider, normalizeProviderModel } from "./modelServiceMappers";
 
 export const modelServiceApiBaseUrl =
   import.meta.env.VITE_MODEL_SERVICE_API_BASE_URL ?? "/model-service";
-const modelServiceApiVersion = "/api/v2";
 
 export type ModelRegistryContext = {
   userId: string;
@@ -18,13 +23,24 @@ export type ModelRegistryContext = {
   orgRole: "org_admin" | "org_member";
 };
 
-class ModelServiceApiError extends Error {
+export class ModelServiceApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
   ) {
     super(message);
     this.name = "ModelServiceApiError";
+  }
+}
+
+function requireRegistryAdmin(context: ModelRegistryContext) {
+  // UX/defense-in-depth only. Model Service and Gateway must independently
+  // authorize every mutation from the authenticated server-side identity.
+  if (context.orgRole !== "org_admin") {
+    throw new ModelServiceApiError(
+      "Only organization admins can change Model Service configuration.",
+      403,
+    );
   }
 }
 
@@ -71,7 +87,7 @@ export function listProviderCatalog(
 ) {
   return requestJson<ProviderCatalogItem[]>(
     context,
-    `${modelServiceApiVersion}/provider-catalog`,
+    modelServiceRoutes.providerCatalog,
     {},
     signal,
   );
@@ -81,26 +97,35 @@ export function listProviders(
   context: ModelRegistryContext,
   signal?: AbortSignal,
 ) {
-  return requestJson<ProviderView[]>(
+  return requestJson<unknown[]>(
     context,
-    `${modelServiceApiVersion}/providers`,
+    modelServiceRoutes.providers,
     {},
     signal,
-  );
+  ).then((providers) => providers.map((provider) => normalizeProvider(provider, context.organizationId)));
+}
+
+export function getProvider(
+  context: ModelRegistryContext,
+  providerId: string,
+) {
+  return requestJson<unknown>(context, modelServiceRoutes.provider(providerId))
+    .then((provider) => normalizeProvider(provider, context.organizationId));
 }
 
 export function createProvider(
   context: ModelRegistryContext,
   input: ProviderCreateInput,
 ) {
-  return requestJson<ProviderView>(
+  requireRegistryAdmin(context);
+  return requestJson<unknown>(
     context,
-    `${modelServiceApiVersion}/providers`,
+    modelServiceRoutes.providers,
     {
       method: "POST",
       body: JSON.stringify({ ...input, status: input.status ?? "inactive" }),
     },
-  );
+  ).then((provider) => normalizeProvider(provider, context.organizationId));
 }
 
 export function updateProvider(
@@ -113,20 +138,22 @@ export function updateProvider(
     >
   > & { status?: ResourceStatus },
 ) {
-  return requestJson<ProviderView>(
+  requireRegistryAdmin(context);
+  return requestJson<unknown>(
     context,
-    `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}`,
+    modelServiceRoutes.provider(providerId),
     { method: "PATCH", body: JSON.stringify(input) },
-  );
+  ).then((provider) => normalizeProvider(provider, context.organizationId));
 }
 
 export function deleteProvider(
   context: ModelRegistryContext,
   providerId: string,
 ) {
-  return requestJson<{ id: string }>(
+  requireRegistryAdmin(context);
+  return requestJson<DeleteResult>(
     context,
-    `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}`,
+    modelServiceRoutes.provider(providerId),
     { method: "DELETE" },
   );
 }
@@ -136,10 +163,23 @@ export function upsertProviderCredential(
   providerId: string,
   apiKey: string,
 ) {
-  return requestJson(
+  requireRegistryAdmin(context);
+  return requestJson<ProviderCredentialView>(
     context,
-    `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}/credential`,
+    modelServiceRoutes.providerCredential(providerId),
     { method: "PUT", body: JSON.stringify({ api_key: apiKey }) },
+  );
+}
+
+export function deleteProviderCredential(
+  context: ModelRegistryContext,
+  providerId: string,
+) {
+  requireRegistryAdmin(context);
+  return requestJson<ProviderCredentialView>(
+    context,
+    modelServiceRoutes.providerCredential(providerId),
+    { method: "DELETE" },
   );
 }
 
@@ -147,11 +187,12 @@ export function testProvider(
   context: ModelRegistryContext,
   providerId: string,
 ) {
-  return requestJson<ProviderView>(
+  requireRegistryAdmin(context);
+  return requestJson<unknown>(
     context,
-    `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}:test-connection`,
+    modelServiceRoutes.providerTest(providerId),
     { method: "POST" },
-  );
+  ).then((provider) => normalizeProvider(provider, context.organizationId));
 }
 
 export function listProviderModels(
@@ -159,12 +200,12 @@ export function listProviderModels(
   providerId: string,
   signal?: AbortSignal,
 ) {
-  return requestJson<ProviderModelView[]>(
+  return requestJson<unknown[]>(
     context,
-    `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}/models`,
+    modelServiceRoutes.providerModels(providerId),
     {},
     signal,
-  );
+  ).then((models) => models.map((model) => normalizeProviderModel(model, context.organizationId)));
 }
 
 export function createProviderModel(
@@ -172,14 +213,23 @@ export function createProviderModel(
   providerId: string,
   input: ProviderModelCreateInput,
 ) {
-  return requestJson<ProviderModelView>(
+  requireRegistryAdmin(context);
+  return requestJson<unknown>(
     context,
-    `${modelServiceApiVersion}/providers/${encodeURIComponent(providerId)}/models`,
+    modelServiceRoutes.providerModels(providerId),
     {
       method: "POST",
       body: JSON.stringify({ ...input, status: input.status ?? "inactive" }),
     },
-  );
+  ).then((model) => normalizeProviderModel(model, context.organizationId));
+}
+
+export function getProviderModel(
+  context: ModelRegistryContext,
+  resourceId: string,
+) {
+  return requestJson<unknown>(context, modelServiceRoutes.model(resourceId))
+    .then((model) => normalizeProviderModel(model, context.organizationId));
 }
 
 export function updateProviderModel(
@@ -195,22 +245,24 @@ export function updateProviderModel(
       | "status"
       | "is_default"
     >
-  >,
+  > & { status?: ResourceStatus },
 ) {
-  return requestJson<ProviderModelView>(
+  requireRegistryAdmin(context);
+  return requestJson<unknown>(
     context,
-    `${modelServiceApiVersion}/models/${encodeURIComponent(resourceId)}`,
+    modelServiceRoutes.model(resourceId),
     { method: "PATCH", body: JSON.stringify(input) },
-  );
+  ).then((model) => normalizeProviderModel(model, context.organizationId));
 }
 
 export function deleteProviderModel(
   context: ModelRegistryContext,
   resourceId: string,
 ) {
-  return requestJson<{ id: string }>(
+  requireRegistryAdmin(context);
+  return requestJson<DeleteResult>(
     context,
-    `${modelServiceApiVersion}/models/${encodeURIComponent(resourceId)}`,
+    modelServiceRoutes.model(resourceId),
     { method: "DELETE" },
   );
 }
@@ -219,9 +271,10 @@ export function testProviderModel(
   context: ModelRegistryContext,
   resourceId: string,
 ) {
-  return requestJson<ProviderModelView>(
+  requireRegistryAdmin(context);
+  return requestJson<unknown>(
     context,
-    `${modelServiceApiVersion}/models/${encodeURIComponent(resourceId)}:test`,
+    modelServiceRoutes.modelTest(resourceId),
     { method: "POST" },
-  );
+  ).then((model) => normalizeProviderModel(model, context.organizationId));
 }
