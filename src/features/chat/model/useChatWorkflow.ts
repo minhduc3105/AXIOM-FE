@@ -431,6 +431,7 @@ export function useChatWorkflow() {
       engine: ChatEngine = "auto",
       files: File[] = [],
       organizationId?: string | null,
+      workspaceId?: string | null,
       modelAlias?: string | null,
     ) => {
       cancelCurrentRequest();
@@ -452,6 +453,7 @@ export function useChatWorkflow() {
           {
             files,
             organizationId,
+            workspaceId,
             modelAlias,
             onOutputText: (result) =>
               dispatch({

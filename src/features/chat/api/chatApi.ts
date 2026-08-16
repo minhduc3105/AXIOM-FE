@@ -75,6 +75,7 @@ type StreamCallbacks = {
 type CreateInvestigationOptions = {
   files?: File[];
   organizationId?: string | null;
+  workspaceId?: string | null;
   modelAlias?: string | null;
   onProcessEvents?: (events: ProcessEvent[]) => void;
   onOutputText?: (result: MockResult) => void;
@@ -131,11 +132,13 @@ export async function createInvestigation(
   const sessionId = conversationId ?? crypto.randomUUID();
   const resolvedOptions =
     typeof options === "function" ? { onOutputText: options } : options;
+  const workspaceId = resolvedOptions.workspaceId?.trim() || defaultWorkspaceId;
   const uploadedFiles =
     conversationId && resolvedOptions.files?.length
       ? await uploadCorpusFiles(
           conversationId,
           resolvedOptions.organizationId,
+          workspaceId,
           resolvedOptions.files,
           signal,
         )
@@ -146,6 +149,7 @@ export async function createInvestigation(
       input: question,
       session_id: sessionId,
       conversation_id: conversationId,
+      workspace_id: workspaceId,
       uploaded_files: uploadedFiles.map((file) => ({
         filename: file.filename,
         size: file.size,
@@ -189,6 +193,7 @@ export async function createInvestigation(
 export async function uploadCorpusFiles(
   conversationId: string,
   organizationId: string | null | undefined,
+  workspaceId: string,
   files: File[],
   signal?: AbortSignal,
 ): Promise<UploadedCorpusFile[]> {
@@ -199,7 +204,7 @@ export async function uploadCorpusFiles(
     );
   }
   const formData = new FormData();
-  formData.append("workspace_id", defaultWorkspaceId);
+  formData.append("workspace_id", workspaceId);
   files.forEach((file) => formData.append("files", file));
 
   const response = await authFetch(
