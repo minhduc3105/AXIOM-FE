@@ -6,7 +6,7 @@ import {
   parseProviderSource,
 } from "./registryForm";
 
-describe("Model Service v1 form parsing", () => {
+describe("Model Service v2 form parsing", () => {
   it("maps provider form values to the v1 enums", () => {
     expect(parseProviderSource("self_hosted")).toBe("self_hosted");
     expect(parseProviderSource("local")).toBe("self_hosted");

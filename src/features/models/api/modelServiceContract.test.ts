@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { MODEL_SERVICE_API_VERSION, modelServiceRoutes } from "./modelServiceContract";
 
-describe("Model Service v1 routes", () => {
-  it("keeps every published endpoint under one v1 prefix", () => {
+describe("Model Service v2 routes", () => {
+  it("keeps every published endpoint under one v2 prefix", () => {
     const routes = [
       modelServiceRoutes.healthReady,
       modelServiceRoutes.providerCatalog,
@@ -22,20 +22,20 @@ describe("Model Service v1 routes", () => {
       modelServiceRoutes.auditOutbox,
     ];
 
-    expect(MODEL_SERVICE_API_VERSION).toBe("/api/v1");
-    expect(routes.every((route) => route.startsWith("/api/v1/"))).toBe(true);
-    expect(routes.some((route) => route.includes("/api/v2"))).toBe(false);
+    expect(MODEL_SERVICE_API_VERSION).toBe("/api/v2");
+    expect(routes.every((route) => route.startsWith("/api/v2/"))).toBe(true);
+    expect(routes.some((route) => route.includes("/api/v1"))).toBe(false);
   });
 
   it("encodes all dynamic identifiers", () => {
     expect(modelServiceRoutes.provider("provider/id")).toBe(
-      "/api/v1/providers/provider%2Fid",
+      "/api/v2/providers/provider%2Fid",
     );
     expect(modelServiceRoutes.providerCredential("provider/id")).toBe(
-      "/api/v1/providers/provider%2Fid/credential",
+      "/api/v2/providers/provider%2Fid/credential",
     );
     expect(modelServiceRoutes.modelTest("model/id")).toBe(
-      "/api/v1/models/model%2Fid:test",
+      "/api/v2/models/model%2Fid:test",
     );
   });
 });

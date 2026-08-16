@@ -6,7 +6,7 @@ const liveIt = baseUrl ? it : it.skip;
 
 describe("Model Service live contract", () => {
   liveIt("loads the deployed provider registry and adapts it to the UI contract", async () => {
-    const response = await fetch(`${baseUrl}/api/v1/providers`, {
+    const response = await fetch(`${baseUrl}/api/v2/providers`, {
       headers: {
         "X-Consumer-Service": "axiom-fe-e2e",
         "X-User-ID": "axiom-fe-e2e",

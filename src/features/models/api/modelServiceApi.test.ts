@@ -16,16 +16,16 @@ import { normalizeProvider, normalizeProviderModel } from "./modelServiceMappers
 describe("modelServiceApi", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("uses the Model Service v1 registry endpoint", async () => {
+  it("uses the Model Service v2 registry endpoint", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("[]", { headers: { "Content-Type": "application/json" } }));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(listProviders({ userId: "user-1", organizationId: "org-1", orgRole: "org_admin" })).resolves.toEqual([]);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/model-service/api/v1/providers");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/model-service/api/v2/providers");
     expect((fetchMock.mock.calls[0]?.[1]?.headers as Headers).get("X-Org-ID")).toBe("org-1");
   });
 
-  it("stores credentials through the v1 credential contract", async () => {
+  it("stores credentials through the v2 credential contract", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       provider_id: "openrouter",
       credential_configured: true,
@@ -36,7 +36,7 @@ describe("modelServiceApi", () => {
     await upsertProviderCredential(adminContext, "openrouter", "secret-value");
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "/model-service/api/v1/providers/openrouter/credential",
+      "/model-service/api/v2/providers/openrouter/credential",
     );
     expect(fetchMock.mock.calls[0]?.[1]).toEqual(expect.objectContaining({
       method: "PUT",
@@ -44,7 +44,7 @@ describe("modelServiceApi", () => {
     }));
   });
 
-  it("normalizes registry responses into the Model Service v1 UI domain", () => {
+  it("normalizes registry responses into the Model Service v2 UI domain", () => {
     expect(normalizeProvider({
       id: "openai", display_name: "OpenAI", source: "cloud",
       base_url: "https://api.openai.com/v1", protocol: "openai_compatible",

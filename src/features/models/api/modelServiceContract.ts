@@ -1,4 +1,4 @@
-export const MODEL_SERVICE_API_VERSION = "/api/v1";
+export const MODEL_SERVICE_API_VERSION = "/api/v2";
 
 const encode = encodeURIComponent;
 
