@@ -144,7 +144,7 @@ async function downloadWorkspaceFile(file: WorkspaceFile) {
 
 export async function downloadWorkspaceFilesPackage(
   files: WorkspaceFile[],
-  sessionId: string,
+  packageId: string,
 ) {
   if (files.length === 0) return;
   const entries = await Promise.all(
@@ -161,7 +161,7 @@ export async function downloadWorkspaceFilesPackage(
   const objectUrl = URL.createObjectURL(
     new Blob([zip], { type: "application/zip" }),
   );
-  triggerBrowserDownload(objectUrl, `package_${safePackageId(sessionId)}.zip`);
+  triggerBrowserDownload(objectUrl, workspaceFilesPackageFilename(packageId));
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
@@ -436,4 +436,8 @@ function uniqueZipName(name: string, emittedNames: Set<string>) {
 
 function safePackageId(value: string) {
   return (value || "session").replace(/[^a-zA-Z0-9._-]+/g, "_");
+}
+
+export function workspaceFilesPackageFilename(packageId: string) {
+  return `package-session-${safePackageId(packageId)}.zip`;
 }

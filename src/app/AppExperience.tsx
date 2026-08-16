@@ -198,10 +198,17 @@ export function AppExperience() {
         engine,
         files,
         auth.user?.organization_id,
+        dataWorkspace.selectedWorkspace?.id,
         modelAlias,
       );
     },
-    [auth.user?.organization_id, chat.submitQuestion, navigate, route],
+    [
+      auth.user?.organization_id,
+      chat.submitQuestion,
+      dataWorkspace.selectedWorkspace?.id,
+      navigate,
+      route,
+    ],
   );
 
   if (auth.status === "restoring") {
@@ -237,6 +244,7 @@ export function AppExperience() {
     >
       {route.surface === "chat" ? (
         <ChatPage
+          conversationId={route.sessionId}
           stage={chat.stage}
           evidenceOpen={chat.evidenceOpen}
           investigation={chat.investigation}

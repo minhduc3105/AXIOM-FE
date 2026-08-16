@@ -62,6 +62,7 @@ type ReviewCardProps =
       processEventKeyPrefix?: string;
       onProcessEventSelect?: ProcessStepSelectionHandler;
       result: MockResult;
+      responseComplete: boolean;
     };
 
 export function ReviewCard(props: ReviewCardProps) {
@@ -297,6 +298,7 @@ function CompletedResponseCard({
   processEventKeyPrefix,
   onProcessEventSelect,
   result,
+  responseComplete,
 }: Extract<ReviewCardProps, { stage: "result" }>) {
   const presentation = getProcessPresentation(events);
 
@@ -317,11 +319,13 @@ function CompletedResponseCard({
 
         <section className="dark:border-[#38372f]" aria-label="Final answer">
           <MarkdownContent markdown={result.markdown} />
-          <AnswerActions
-            markdown={result.markdown}
-            events={presentation.transcriptEvents}
-            artifacts={result.artifacts}
-          />
+          {responseComplete && (
+            <AnswerActions
+              markdown={result.markdown}
+              events={presentation.transcriptEvents}
+              artifacts={result.artifacts}
+            />
+          )}
         </section>
       </CardContent>
     </Card>
