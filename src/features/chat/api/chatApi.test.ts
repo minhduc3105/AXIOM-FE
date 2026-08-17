@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createInvestigation } from "./chatApi";
+import { createInvestigation, loadConversationHistory } from "./chatApi";
 
 function sseResponse(events: Record<string, unknown>[]) {
   const body = events
@@ -48,6 +48,7 @@ describe("createInvestigation", () => {
       "What is PostgreSQL?",
       "conversation-1",
       "auto",
+      "thinking",
       undefined,
       {
         workspaceId: "workspace-b",
@@ -96,6 +97,7 @@ describe("createInvestigation", () => {
       "Create a report from my files",
       null,
       "report",
+      "thinking",
     );
 
     expect(outcome).toMatchObject({
@@ -106,4 +108,143 @@ describe("createInvestigation", () => {
       },
     });
   });
+
+  it("posts Instant mode and returns a report-direct investigation", async () => {
+    let postedBody = "";
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        postedBody = String(init?.body ?? "");
+        return sseResponse([
+          {
+            type: "response.output_text.delta",
+            response_id: "resp-instant",
+            delta: "# NAPH report",
+          },
+          {
+            type: "response.completed",
+            response_id: "resp-instant",
+            response: { id: "resp-instant", status: "completed" },
+            metadata: { engine_name: "report" },
+          },
+        ]);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const outcome = await createInvestigation(
+      "Create a report about NAPH",
+      "conversation-1",
+      "report",
+      "instant",
+    );
+
+    expect(JSON.parse(postedBody)).toMatchObject({
+      execution_mode: "instant",
+      runtime_options: { engine: "report" },
+    });
+    expect(outcome).toMatchObject({
+      kind: "completed",
+      investigation: {
+        intent: "report_direct",
+        specMarkdown: "",
+      },
+    });
+  });
+
+  it("rejects confirmation events during Instant execution", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        sseResponse([
+          {
+            type: "response.requires_confirmation",
+            response_id: "resp-invalid-instant",
+            confirmation_token: "token",
+            revision: 1,
+            intent: { value: "report" },
+            spec_markdown: "# Plan",
+          },
+        ]),
+      ),
+    );
+
+    await expect(
+      createInvestigation(
+        "Create a report",
+        "conversation-1",
+        "report",
+        "instant",
+      ),
+    ).rejects.toThrow("Instant execution unexpectedly requested confirmation.");
+  });
+
+  it("reconstructs Instant report turns without a synthetic stored plan", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            items: [
+              storedMessage({
+                message_id: "message-user",
+                role: "user",
+                status: "created",
+                content: {
+                  type: "response.request",
+                  input: "Create a report about NAPH",
+                  execution_mode: "instant",
+                },
+              }),
+              storedMessage({
+                message_id: "message-assistant",
+                role: "assistant",
+                status: "completed",
+                content: {
+                  type: "response.completed",
+                  output_text: "# NAPH report",
+                },
+              }),
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const snapshot = await loadConversationHistory("conversation-1");
+
+    expect(snapshot.turns[0]).toMatchObject({
+      executionMode: "instant",
+      investigation: {
+        intent: "report_direct",
+        specMarkdown: "",
+      },
+    });
+  });
 });
+
+function storedMessage(
+  overrides: Partial<{
+    message_id: string;
+    role: string;
+    status: string;
+    content: unknown;
+  }>,
+) {
+  return {
+    message_id: "message-1",
+    conversation_id: "conversation-1",
+    role: "user",
+    content: {},
+    response_id: "response-1",
+    artifact_ref: null,
+    status: "created",
+    metadata: {},
+    created_at:
+      overrides.role === "assistant"
+        ? "2026-08-16T00:00:01Z"
+        : "2026-08-16T00:00:00Z",
+    updated_at: "2026-08-16T00:00:00Z",
+    ...overrides,
+  };
+}

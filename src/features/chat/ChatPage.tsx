@@ -10,6 +10,7 @@ import { PanelRightOpenIcon } from "lucide-react";
 import type {
   ChatStage,
   ChatEngine,
+  ChatExecutionMode,
   ChatModelOption,
   ChatTurn,
   EditableSpecification,
@@ -32,6 +33,7 @@ type ChatPageProps = {
   loading: boolean;
   mode: "home" | "chat";
   engine: ChatEngine;
+  executionMode: ChatExecutionMode;
   models: ChatModelOption[];
   selectedModelAlias: string | null;
   onSubmit: (
@@ -39,8 +41,10 @@ type ChatPageProps = {
     engine: ChatEngine,
     files: File[],
     modelAlias?: string | null,
+    executionMode?: ChatExecutionMode,
   ) => void;
   onEngineChange: (engine: ChatEngine) => void;
+  onExecutionModeChange: (mode: ChatExecutionMode) => void;
   onModelChange: (modelAlias: string | null) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
   onSpecificationRevise: (feedback: string) => void;
@@ -64,10 +68,12 @@ export function ChatPage({
   loading,
   mode,
   engine,
+  executionMode,
   models,
   selectedModelAlias,
   onSubmit,
   onEngineChange,
+  onExecutionModeChange,
   onModelChange,
   onSpecificationChange,
   onSpecificationRevise,
@@ -152,9 +158,11 @@ export function ChatPage({
       >
         <WelcomeWorkspace
           engine={engine}
+          executionMode={executionMode}
           models={models}
           selectedModelAlias={selectedModelAlias}
           onEngineChange={onEngineChange}
+          onExecutionModeChange={onExecutionModeChange}
           onModelChange={onModelChange}
           onSubmit={onSubmit}
           onData={onData}
@@ -167,10 +175,12 @@ export function ChatPage({
     return (
       <EmptyChatWorkspace
         engine={engine}
+        executionMode={executionMode}
         models={models}
         selectedModelAlias={selectedModelAlias}
         loading={loading}
         onEngineChange={onEngineChange}
+        onExecutionModeChange={onExecutionModeChange}
         onModelChange={onModelChange}
         onSubmit={onSubmit}
       />
@@ -286,10 +296,12 @@ export function ChatPage({
           <ChatComposer
             className="sticky bottom-4 z-20 shrink-0"
             engine={engine}
+            executionMode={executionMode}
             models={models}
             selectedModelAlias={selectedModelAlias}
             sendDisabled={loading}
             onEngineChange={onEngineChange}
+            onExecutionModeChange={onExecutionModeChange}
             onModelChange={onModelChange}
             onSubmit={onSubmit}
             placeholder={
@@ -337,14 +349,17 @@ export function ChatPage({
 
 function EmptyChatWorkspace({
   engine,
+  executionMode,
   onSubmit,
   onEngineChange,
+  onExecutionModeChange,
   models,
   selectedModelAlias,
   onModelChange,
   loading,
 }: {
   engine: ChatEngine;
+  executionMode: ChatExecutionMode;
   models: ChatModelOption[];
   selectedModelAlias: string | null;
   onSubmit: (
@@ -352,8 +367,10 @@ function EmptyChatWorkspace({
     engine: ChatEngine,
     files: File[],
     modelAlias?: string | null,
+    executionMode?: ChatExecutionMode,
   ) => void;
   onEngineChange: (engine: ChatEngine) => void;
+  onExecutionModeChange: (mode: ChatExecutionMode) => void;
   onModelChange: (modelAlias: string | null) => void;
   loading: boolean;
 }) {
@@ -374,10 +391,12 @@ function EmptyChatWorkspace({
         </div>
         <ChatComposer
           engine={engine}
+          executionMode={executionMode}
           models={models}
           selectedModelAlias={selectedModelAlias}
           onSubmit={onSubmit}
           onEngineChange={onEngineChange}
+          onExecutionModeChange={onExecutionModeChange}
           onModelChange={onModelChange}
           disabled={loading}
           placeholder="Message AXIOM..."

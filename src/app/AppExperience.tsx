@@ -33,7 +33,16 @@ import {
 } from "./routing/paths";
 import { useAppRoute } from "./routing/useAppRoute";
 import { createConversation } from "@/shared/lib/intelligence-api";
-import type { ChatEngine, ChatModelOption } from "@/features/chat/model/types";
+import type {
+  ChatEngine,
+  ChatExecutionMode,
+  ChatModelOption,
+} from "@/features/chat/model/types";
+import {
+  DEFAULT_CHAT_ENGINE,
+  DEFAULT_CHAT_EXECUTION_MODE,
+  normalizeExecutionMode,
+} from "@/features/chat/model/executionMode";
 import { useAppScope } from "@/shared/hooks/use-app-scope";
 import { useDataWorkspace } from "@/features/data/model/DataWorkspaceProvider";
 import { getRouteWorkspaceScope } from "./scope";
@@ -55,7 +64,9 @@ export function AppExperience() {
     [auth.user],
   );
   const llmRegistry = useModelRegistry(modelRegistryContext);
-  const [chatEngine, setChatEngine] = useState<ChatEngine>("auto");
+  const [chatEngine, setChatEngine] = useState<ChatEngine>(DEFAULT_CHAT_ENGINE);
+  const [chatExecutionMode, setChatExecutionMode] =
+    useState<ChatExecutionMode>(DEFAULT_CHAT_EXECUTION_MODE);
   const [selectedModelAlias, setSelectedModelAlias] = useState<string | null>(
     null,
   );
@@ -190,12 +201,18 @@ export function AppExperience() {
     [navigate],
   );
 
+  const changeChatEngine = useCallback((engine: ChatEngine) => {
+    setChatEngine(engine);
+    setChatExecutionMode((mode) => normalizeExecutionMode(engine, mode));
+  }, []);
+
   const submitQuestion = useCallback(
     async (
       question: string,
       engine: ChatEngine,
       files: File[] = [],
       modelAlias?: string | null,
+      executionMode?: ChatExecutionMode,
     ) => {
       let conversationId = route.surface === "chat" ? route.sessionId : null;
 
@@ -214,11 +231,13 @@ export function AppExperience() {
         auth.user?.organization_id,
         dataWorkspace.selectedWorkspace?.id,
         modelAlias,
+        executionMode ?? chatExecutionMode,
       );
     },
     [
       auth.user?.organization_id,
       chat.submitQuestion,
+      chatExecutionMode,
       dataWorkspace.selectedWorkspace?.id,
       navigate,
       route,
@@ -271,10 +290,12 @@ export function AppExperience() {
           loading={chat.loading}
           mode={route.page === "home" ? "home" : "chat"}
           engine={chatEngine}
+          executionMode={chatExecutionMode}
           models={llmModelOptions}
           selectedModelAlias={selectedModelAlias}
           onSubmit={submitQuestion}
-          onEngineChange={setChatEngine}
+          onEngineChange={changeChatEngine}
+          onExecutionModeChange={setChatExecutionMode}
           onModelChange={setSelectedModelAlias}
           onSpecificationChange={chat.updateSpecification}
           onSpecificationRevise={chat.reviseSpecification}
