@@ -4,6 +4,7 @@ import {
   FileTextIcon,
   WrenchIcon,
   BotIcon,
+  Building2Icon,
   MenuIcon,
   MessageSquarePlusIcon,
   MoonIcon,
@@ -64,6 +65,7 @@ type WorkspaceRailProps = {
   onModels: () => void;
   onTools: () => void;
   onSettings: () => void;
+  onOrganizationAdministration: () => void;
   user: AuthUser | null;
   onLogout: () => void;
 };
@@ -103,6 +105,7 @@ function RailContent({
   onModels,
   onTools,
   onSettings,
+  onOrganizationAdministration,
   user,
   onLogout,
 }: WorkspaceRailProps) {
@@ -221,7 +224,7 @@ function RailContent({
         "h-full min-h-0 text-[#191915] dark:text-[#eee8dc]",
         expanded
           ? "grid min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] gap-4 px-4 py-4"
-          : "flex w-full flex-col items-center gap-3 px-2.5 py-4",
+          : "flex w-full flex-col items-center gap-3 py-4",
       )}
     >
       <div
@@ -307,10 +310,10 @@ function RailContent({
       <Button
         className={cn(
           "h-11 gap-3 rounded-xl bg-[#2456e8] text-white shadow-[0_14px_30px_rgba(36,86,232,0.18)] hover:bg-[#1d48c7] dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]",
-          sidebarButtonIconPadding,
+          expanded && sidebarButtonIconPadding,
           expanded
             ? "w-full justify-start px-4"
-            : "size-11 justify-center pl-5 pr-0",
+            : "size-11 justify-center gap-0 !p-0",
         )}
         onClick={onNewChat}
         aria-label="+ New chat"
@@ -405,7 +408,11 @@ function RailContent({
         />
       )}
 
-      <div className={cn(expanded ? "grid gap-3" : "grid w-full gap-3")}>
+      <div
+        className={cn(
+          expanded ? "grid gap-3" : "grid w-full justify-items-center gap-3",
+        )}
+      >
         {expanded && (
           <Separator
             className="bg-[#d8d0c2]/85 dark:bg-white/10"
@@ -431,10 +438,10 @@ function RailContent({
               variant="ghost"
               className={cn(
                 workspaceNavButtonClass,
-                sidebarButtonIconPadding,
+                expanded && sidebarButtonIconPadding,
                 expanded
                   ? "w-full justify-start px-3"
-                  : "size-11 justify-center px-0",
+                  : "size-11 justify-center gap-0 !p-0",
                 "rounded-xl",
               )}
               data-active={surface === "data"}
@@ -457,10 +464,10 @@ function RailContent({
               variant="ghost"
               className={cn(
                 workspaceNavButtonClass,
-                sidebarButtonIconPadding,
+                expanded && sidebarButtonIconPadding,
                 expanded
                   ? "w-full justify-start px-3"
-                  : "size-11 justify-center px-0",
+                  : "size-11 justify-center gap-0 !p-0",
                 "rounded-xl",
               )}
               data-active={surface === "models"}
@@ -483,10 +490,10 @@ function RailContent({
               variant="ghost"
               className={cn(
                 workspaceNavButtonClass,
-                sidebarButtonIconPadding,
+                expanded && sidebarButtonIconPadding,
                 expanded
                   ? "w-full justify-start px-3"
-                  : "size-11 justify-center px-0",
+                  : "size-11 justify-center gap-0 !p-0",
                 "rounded-xl",
               )}
               data-active={surface === "memory"}
@@ -509,10 +516,10 @@ function RailContent({
               variant="ghost"
               className={cn(
                 workspaceNavButtonClass,
-                sidebarButtonIconPadding,
+                expanded && sidebarButtonIconPadding,
                 expanded
                   ? "w-full justify-start px-3"
-                  : "size-11 justify-center px-0",
+                  : "size-11 justify-center gap-0 !p-0",
                 "rounded-xl",
               )}
               data-active={surface === "tools"}
@@ -535,10 +542,10 @@ function RailContent({
               variant="ghost"
               className={cn(
                 workspaceNavButtonClass,
-                sidebarButtonIconPadding,
+                expanded && sidebarButtonIconPadding,
                 expanded
                   ? "w-full justify-start px-3"
-                  : "size-11 justify-center px-0",
+                  : "size-11 justify-center gap-0 !p-0",
                 "rounded-xl",
               )}
               data-active={surface === "reports"}
@@ -557,32 +564,34 @@ function RailContent({
                 Report
               </span>
             </Button>
-            <Button
-              variant="ghost"
-              className={cn(
-                workspaceNavButtonClass,
-                sidebarButtonIconPadding,
-                expanded
-                  ? "w-full justify-start px-3"
-                  : "size-11 justify-center px-0",
-                "rounded-xl",
-              )}
-              data-active={surface === "organization"}
-              onClick={onSettings}
-              aria-label="Settings"
-            >
-              <SettingsIcon data-icon="inline-start" />
-              <span
+            {user?.org_role === "org_admin" && (
+              <Button
+                variant="ghost"
                 className={cn(
-                  "transition-opacity duration-300",
+                  workspaceNavButtonClass,
+                  expanded && sidebarButtonIconPadding,
                   expanded
-                    ? "opacity-100"
-                    : "pointer-events-none w-0 overflow-hidden opacity-0",
+                    ? "w-full justify-start px-3"
+                    : "size-11 justify-center gap-0 !p-0",
+                  "rounded-xl",
                 )}
+                data-active={surface === "organization"}
+                onClick={onOrganizationAdministration}
+                aria-label="Organization administration"
               >
-                Settings
-              </span>
-            </Button>
+                <Building2Icon data-icon="inline-start" />
+                <span
+                  className={cn(
+                    "transition-opacity duration-300",
+                    expanded
+                      ? "opacity-100"
+                      : "pointer-events-none w-0 overflow-hidden opacity-0",
+                  )}
+                >
+                  Organization administration
+                </span>
+              </Button>
+            )}
           </div>
         </nav>
 
@@ -592,6 +601,33 @@ function RailContent({
             aria-hidden="true"
           />
         )}
+
+        <Button
+          variant="ghost"
+          className={cn(
+            workspaceNavButtonClass,
+            expanded && sidebarButtonIconPadding,
+            expanded
+              ? "w-full justify-start px-3"
+              : "size-11 justify-center gap-0 !p-0",
+            "rounded-xl",
+          )}
+          data-active={surface === "settings"}
+          onClick={onSettings}
+          aria-label="Settings"
+        >
+          <SettingsIcon data-icon="inline-start" />
+          <span
+            className={cn(
+              "transition-opacity duration-300",
+              expanded
+                ? "opacity-100"
+                : "pointer-events-none w-0 overflow-hidden opacity-0",
+            )}
+          >
+            Settings
+          </span>
+        </Button>
 
         <UserSessionMenu
           expanded={expanded}
@@ -673,7 +709,7 @@ function UserSessionMenu({
           onClick={onSettings}
         >
           <SettingsIcon className="size-4" />
-          Manage organizations
+          Settings
         </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer gap-2 px-2 py-2 text-[#9d2f2f] focus:bg-[#fff1f1] focus:text-[#9d2f2f] dark:text-[#ff9a9a] dark:focus:bg-[#351b1b] dark:focus:text-[#ffb3b3]"
@@ -770,6 +806,10 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
             }}
             onSettings={() => {
               props.onSettings();
+              setMobileOpen(false);
+            }}
+            onOrganizationAdministration={() => {
+              props.onOrganizationAdministration();
               setMobileOpen(false);
             }}
           />

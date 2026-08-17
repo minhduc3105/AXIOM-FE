@@ -6,6 +6,7 @@ const ROUTE_SEGMENTS = {
   reports: "reports",
   memory: "memory",
   settings: "settings",
+  organization: "organization",
   tools: "tools",
   models: "models",
 } as const;
@@ -70,16 +71,13 @@ export function parseAppRoute(pathname: string, search = ""): AppRoute {
   }
 
   if (segments[0] === ROUTE_SEGMENTS.settings) {
-    if (segments[1] === "memory") return { surface: "memory", sessionId: null };
+    return { surface: "settings", sessionId: null };
+  }
+
+  if (segments[0] === ROUTE_SEGMENTS.organization) {
     if (!segments[1]) return { surface: "organization", tab: "overview", sessionId: null };
     if (["overview", "workspaces", "members"].includes(segments[1])) {
       return { surface: "organization", tab: segments[1] as "overview" | "workspaces" | "members", sessionId: null };
-    }
-    if (segments[1] === ROUTE_SEGMENTS.models) {
-      return { surface: "models", sessionId: null };
-    }
-    if (segments[1]) {
-      return { surface: "chat", page: "home", sessionId: null };
     }
   }
 
@@ -104,7 +102,8 @@ export function getAppRoutePath(route: AppRoute) {
   if (route.surface === "reports") return `/${ROUTE_SEGMENTS.reports}`;
   if (route.surface === "memory") return `/${ROUTE_SEGMENTS.memory}`;
   if (route.surface === "models") return `/${ROUTE_SEGMENTS.models}`;
-  if (route.surface === "organization") return route.tab === "overview" ? `/${ROUTE_SEGMENTS.settings}` : `/${ROUTE_SEGMENTS.settings}/${route.tab}`;
+  if (route.surface === "settings") return `/${ROUTE_SEGMENTS.settings}`;
+  if (route.surface === "organization") return route.tab === "overview" ? `/${ROUTE_SEGMENTS.organization}` : `/${ROUTE_SEGMENTS.organization}/${route.tab}`;
   if (route.surface === "tools") {
     return route.page === "detail" && route.toolName
       ? `/${ROUTE_SEGMENTS.tools}/${encodeURIComponent(route.toolName)}`
@@ -156,6 +155,10 @@ export function createMemoryRoute(): AppRoute {
 
 export function createModelsRoute(): AppRoute {
   return { surface: "models", sessionId: null };
+}
+
+export function createSettingsRoute(): AppRoute {
+  return { surface: "settings", sessionId: null };
 }
 
 export function createOrganizationRoute(tab: "overview" | "workspaces" | "members" = "overview"): AppRoute {

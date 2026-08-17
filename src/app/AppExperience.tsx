@@ -6,10 +6,15 @@ import { IngestionPage } from "@/features/ingestion/IngestionPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
+import {
+  defaultToolCatalogViewState,
+  type ToolCatalogViewState,
+} from "@/features/tools/model/types";
 import { useModelRegistry } from "@/features/models/model/useModelRegistry";
 import { ModelsPage } from "@/features/models/ModelsPage";
 import { MemoryPage } from "@/features/memory/MemoryPage";
 import { OrganizationUsersPage } from "@/features/auth/components/OrganizationUsersPage";
+import { SettingsPage } from "@/features/auth/components/SettingsPage";
 import { useAuth } from "@/features/auth/model/AuthProvider";
 import { AppShell } from "./AppShell";
 import {
@@ -21,6 +26,7 @@ import {
   createReportsRoute,
   createMemoryRoute,
   createOrganizationRoute,
+  createSettingsRoute,
   createToolDetailRoute,
   createToolsRoute,
 } from "./routing/paths";
@@ -66,6 +72,9 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
     useState<ChatExecutionMode>(DEFAULT_CHAT_EXECUTION_MODE);
   const [selectedModelAlias, setSelectedModelAlias] = useState<string | null>(
     null,
+  );
+  const [toolsViewState, setToolsViewState] = useState<ToolCatalogViewState>(
+    defaultToolCatalogViewState,
   );
   const skipNextHydrationRef = useRef<string | null>(null);
   const llmModelOptions: ChatModelOption[] = useMemo(
@@ -172,12 +181,17 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
     navigate(createModelsRoute());
   }, [navigate]);
 
-  const openSettings = useCallback(() => {
+  const openOrganizationAdministration = useCallback(() => {
     navigate(createOrganizationRoute());
   }, [navigate]);
 
+  const openSettings = useCallback(() => {
+    navigate(createSettingsRoute());
+  }, [navigate]);
+
   const openToolDetail = useCallback(
-    (toolName: string) => {
+    (toolName: string, returnViewState: ToolCatalogViewState) => {
+      setToolsViewState(returnViewState);
       navigate(createToolDetailRoute(toolName));
     },
     [navigate],
@@ -251,8 +265,13 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
       onModels={openModels}
       onTools={openTools}
       onSettings={openSettings}
+      onOrganizationAdministration={openOrganizationAdministration}
       user={user}
       scope={scope}
+      workspaces={dataWorkspace.workspaces}
+      selectedWorkspace={dataWorkspace.selectedWorkspace}
+      workspacesLoading={dataWorkspace.loading}
+      onWorkspaceSelect={dataWorkspace.selectWorkspace}
       onLogout={auth.logout}
     >
       {route.surface === "chat" ? (
@@ -305,12 +324,33 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
         <MemoryPage />
       ) : route.surface === "models" ? (
         <ModelsPage />
+      ) : route.surface === "settings" ? (
+        <SettingsPage />
       ) : route.surface === "organization" ? (
-        <OrganizationUsersPage initialTab={route.tab} />
+        <OrganizationUsersPage
+          initialTab={route.tab}
+          onBack={openHome}
+          organizationName={scope?.organization.name ?? user.organization_id}
+        />
       ) : route.page === "detail" && route.toolName ? (
-        <ToolDetailPage toolName={route.toolName} onBack={openTools} />
+        <ToolDetailPage
+          toolName={route.toolName}
+          onBack={openTools}
+          availabilityScope={{
+            organizationName: scope?.organization.name ?? user.organization_id,
+            workspaceName: scope?.workspace?.name ?? "All workspaces",
+          }}
+        />
       ) : (
-        <ToolsPage onOpenTool={openToolDetail} />
+        <ToolsPage
+          onOpenTool={openToolDetail}
+          viewState={toolsViewState}
+          onViewStateChange={setToolsViewState}
+          availabilityScope={{
+            organizationName: scope?.organization.name ?? user.organization_id,
+            workspaceName: scope?.workspace?.name ?? "All workspaces",
+          }}
+        />
       )}
     </AppShell>
   );

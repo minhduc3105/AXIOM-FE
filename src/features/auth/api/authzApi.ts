@@ -1,3 +1,5 @@
+import { authFetch } from '@/features/auth/model/authFetch'
+
 export type WorkspaceRole = 'workspace_admin' | 'editor' | 'viewer'
 
 export type Workspace = {
@@ -21,6 +23,16 @@ export type AssignedWorkspace = Workspace & {
   role?: WorkspaceRole
 }
 
+export class AuthzApiError extends Error {
+  readonly status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'AuthzApiError'
+    this.status = status
+  }
+}
+
 const gatewayApiBaseUrl = (import.meta.env.VITE_AXIOM_GATEWAY_API_URL || '').replace(/\/$/, '')
 const authzApiBaseUrl = `${gatewayApiBaseUrl}/authz-service`.replace(/\/$/, '')
 
@@ -36,7 +48,7 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
 }
 
 async function request<T>(path: string, accessToken: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${authzApiBaseUrl}${path}`, {
+  const response = await authFetch(`${authzApiBaseUrl}${path}`, {
     ...init,
     headers: {
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
@@ -53,7 +65,10 @@ async function request<T>(path: string, accessToken: string, init: RequestInit =
     } catch {
       // Keep the response text when it is not JSON.
     }
-    throw new Error(detail || `Authorization service request failed (${response.status}).`)
+    throw new AuthzApiError(
+      response.status,
+      detail || `Authorization service request failed (${response.status}).`,
+    )
   }
   if (response.status === 204) return undefined as T
   return parseJsonResponse<T>(response)
@@ -91,6 +106,34 @@ export async function createWorkspace(
     `/api/v1/orgs/${encodeURIComponent(organizationId)}/workspaces`,
     accessToken,
     { method: 'POST', body: JSON.stringify(input) },
+  )
+}
+
+export async function updateWorkspace(
+  organizationId: string,
+  workspaceId: string,
+  accessToken: string,
+  input: Pick<Workspace, 'name' | 'slug' | 'description'>,
+) {
+  return request<Workspace>(
+    `/api/v1/orgs/${encodeURIComponent(organizationId)}/workspaces/${encodeURIComponent(workspaceId)}`,
+    accessToken,
+    { method: 'PATCH', body: JSON.stringify(input) },
+  )
+}
+
+// The current service implements DELETE as a recoverable archive operation.
+// A permanent-delete endpoint and dependency preflight are intentionally not
+// exposed here until the backend provides both safeguards.
+export async function archiveWorkspace(
+  organizationId: string,
+  workspaceId: string,
+  accessToken: string,
+) {
+  return request<void>(
+    `/api/v1/orgs/${encodeURIComponent(organizationId)}/workspaces/${encodeURIComponent(workspaceId)}`,
+    accessToken,
+    { method: 'DELETE' },
   )
 }
 

@@ -4,6 +4,8 @@ import {
   FolderKanbanIcon,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { GlobalWorkspaceSwitcher } from "@/shared/components/GlobalWorkspaceSwitcher";
+import type { AssignedWorkspace } from "@/features/auth/api/authzApi";
 import type { AppScopeContext } from "@/shared/types/appScope";
 
 function ScopeItem({
@@ -38,11 +40,11 @@ function ScopeItem({
   );
 }
 
-export function AppScopeBar({ scope }: { scope: AppScopeContext | null }) {
+export function AppScopeBar({ scope, workspaces = [], selectedWorkspace = null, workspacesLoading = false, onWorkspaceSelect }: { scope: AppScopeContext | null; workspaces?: AssignedWorkspace[]; selectedWorkspace?: AssignedWorkspace | null; workspacesLoading?: boolean; onWorkspaceSelect?: (workspaceId: string) => void }) {
   if (!scope) return null;
   return (
     <div
-      className="fixed right-3 top-2 z-30 flex h-8 max-w-[calc(100vw-76px)] items-center gap-1.5 rounded-lg border border-[#d8d0c2]/90 bg-[#fffdf8]/92 px-2.5 text-[#191915] shadow-[0_8px_24px_rgba(24,24,18,0.09)] backdrop-blur-xl sm:right-4 dark:border-[#38372f]/90 dark:bg-[#171714]/92 dark:text-[#eee8dc]"
+      className="fixed right-3 top-2 z-30 flex max-w-[calc(100vw-1.5rem)] items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-card-foreground shadow-sm sm:right-4 md:max-w-[calc(100vw-92px)]"
       aria-label="Current application scope"
     >
       <ScopeItem
@@ -59,6 +61,9 @@ export function AppScopeBar({ scope }: { scope: AppScopeContext | null }) {
             id={scope.workspace.id}
           />
         </>
+      )}
+      {!scope.workspace && onWorkspaceSelect && (workspaces.length > 0 || workspacesLoading) && (
+        <><ChevronRightIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" /><div className="min-w-0"><GlobalWorkspaceSwitcher workspaces={workspaces} selected={selectedWorkspace} loading={workspacesLoading} onSelect={onWorkspaceSelect} /></div></>
       )}
     </div>
   );

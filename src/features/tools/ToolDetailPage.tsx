@@ -1,19 +1,22 @@
 import {
   ArrowLeftIcon,
+  ActivityIcon,
   BoxIcon,
   BracesIcon,
   CircleAlertIcon,
   CodeXmlIcon,
-  LoaderCircleIcon,
   LockKeyholeIcon,
   PowerIcon,
-  PowerOffIcon,
   RefreshCwIcon,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToolKindIcon } from "./components/ToolKindIcon";
+import { ToolStatusSwitch } from "./components/ToolStatusSwitch";
 import { useToolsState } from "./model/ToolsProvider";
 import {
   formatToolKind,
@@ -24,7 +27,20 @@ import { useToolDetail } from "./model/useToolDetail";
 type ToolDetailPageProps = {
   toolName: string;
   onBack: () => void;
+  availabilityScope: {
+    organizationName: string;
+    workspaceName: string;
+  };
 };
+
+function formatDefaultValue(value: unknown) {
+  if (value === null || value === undefined) return "—";
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
 
 function ToolDetailSkeleton() {
   return (
@@ -42,9 +58,9 @@ function ToolDetailSkeleton() {
   );
 }
 
-export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
-  const { tool, loading, error, refresh } = useToolDetail(toolName);
-  const { isToolEnabled, isToolUpdating, setToolEnabled } = useToolsState();
+export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDetailPageProps) {
+  const { tool, loading, error, errorKind, refresh } = useToolDetail(toolName);
+  const { isToolEnabled, isToolUpdating, getToolUpdateError, retryToolUpdate, setToolEnabled } = useToolsState();
 
   if (loading && !tool) {
     return (
@@ -55,19 +71,27 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
   }
 
   if (!tool) {
+    const toolNotFound = errorKind === "tool_not_found" || !error;
+    const methodsHubUnavailable = errorKind === "methods_hub_unavailable";
     return (
       <section className="grid min-h-screen place-items-center px-5 py-20">
         <div className="max-w-md text-center">
-          <CircleAlertIcon className="mx-auto size-8 text-[#8a8377]" />
+          <CircleAlertIcon className="mx-auto size-8 text-muted-foreground" />
           <h1 className="mt-4 text-xl font-semibold">
-            {error ? "Methods-Hub is unavailable" : "Tool not found"}
+            {toolNotFound
+              ? "Tool not found"
+              : methodsHubUnavailable
+                ? "Methods-Hub is unavailable"
+                : "Tool details could not be loaded"}
           </h1>
-          <p className="mt-2 text-sm text-[#6d685e] dark:text-[#aaa397]">
-            {error
-              ? "The live tool detail could not be loaded. Check the Methods-Hub URL and service configuration."
-              : <>The catalog does not contain <code>{toolName}</code>.</>}
+          <p className="mt-2 text-sm text-muted-foreground">
+            {toolNotFound
+              ? <>The catalog does not contain <code>{toolName}</code>.</>
+              : methodsHubUnavailable
+                ? "The live tool detail could not be loaded. Check the Methods-Hub URL and service configuration."
+                : "Methods-Hub rejected the request. Check your access and service configuration, then try again."}
           </p>
-          {error ? (
+          {!toolNotFound ? (
             <Button variant="outline" className="mt-5" onClick={refresh}>
               <RefreshCwIcon />
               Retry
@@ -85,6 +109,7 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
   const displayName = formatToolName(tool.name);
   const enabled = isToolEnabled(tool.name, tool.enabled);
   const updating = isToolUpdating(tool.name);
+  const updateError = getToolUpdateError(tool.name);
   const implementation = tool.implementation ?? tool.implementations?.[0];
 
   return (
@@ -92,130 +117,125 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
       className="relative min-h-screen w-full overflow-x-hidden px-5 pb-12 pt-20 sm:px-8 md:pt-10"
       aria-label={`${displayName} details`}
     >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_78%_8%,rgba(36,86,232,0.12),transparent_34%),radial-gradient(circle_at_10%_38%,rgba(120,75,18,0.10),transparent_36%)] dark:bg-[radial-gradient(circle_at_78%_8%,rgba(120,149,255,0.12),transparent_34%)]"
-        aria-hidden="true"
-      />
       <div className="mx-auto grid w-full min-w-0 max-w-[1360px] gap-6">
         <Button
           variant="ghost"
-          className="h-9 w-fit rounded-full px-3 text-[#625d53] hover:bg-[#e9e2d5] hover:text-[#191915] dark:text-[#c5bcaf] dark:hover:bg-[#292923] dark:hover:text-[#f4efe5]"
+          className="h-9 w-fit rounded-full px-3 text-text-secondary"
           onClick={onBack}
         >
           <ArrowLeftIcon />
           Back to Tools
         </Button>
 
-        <header className="flex min-w-0 max-w-full flex-col gap-5 overflow-hidden rounded-[28px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 p-5 shadow-[0_24px_70px_rgba(24,24,18,0.09)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88 sm:flex-row sm:items-start sm:justify-between sm:p-6 lg:p-7">
+        <Card className="gap-0 rounded-xl border border-line bg-card p-0 shadow-sm">
+        <header className="grid min-w-0 gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div className="flex w-full min-w-0 max-w-full items-start gap-3 sm:gap-4">
             <ToolKindIcon
               kind={tool.kind}
               className="size-12 rounded-xl sm:size-14 [&_svg]:size-6"
             />
             <div className="min-w-0">
+              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Tool catalog</p>
               <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-                <h1 className="min-w-0 max-w-full break-words text-xl font-semibold leading-tight text-[#191915] dark:text-[#f4efe5] sm:text-3xl">
+                <h1 className="min-w-0 max-w-full break-words text-xl font-semibold leading-tight text-foreground sm:text-3xl">
                   {displayName}
                 </h1>
                 <Badge
                   variant="outline"
-                  className="h-6 max-w-full rounded-full border-[#2456e8]/30 bg-[#edf2ff] px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#1237b4] dark:border-[#7895ff]/30 dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]"
+                  className="h-6 max-w-full rounded-full border-line bg-soft px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-secondary"
                 >
                   {formatToolKind(tool.kind)}
                 </Badge>
               </div>
-              <code className="mt-1.5 block break-all text-xs text-[#777064] dark:text-[#aaa397]">
+              <code className="mt-1.5 block break-all text-xs text-muted-foreground">
                 {tool.name}
               </code>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-text-secondary">
                 {tool.description}
               </p>
             </div>
           </div>
-          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
+          <div className="flex w-full shrink-0 flex-col gap-2 border-t border-line pt-4 sm:w-auto sm:min-w-52 sm:border-t-0 sm:pt-0 lg:self-start lg:justify-self-end">
             <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant="outline"
-                className="h-7 rounded-full border-[#d8d0c2] bg-[#f4efe5]/72 px-3 text-[10px] font-medium text-[#625d53] dark:border-[#49483f] dark:bg-white/5 dark:text-[#c5bcaf]"
+                className="h-7 rounded-full border-line bg-soft px-3 text-[10px] font-medium text-text-secondary"
               >
                 <LockKeyholeIcon className="mr-1.5 size-3" />
                 Live catalog
               </Badge>
-              <Badge
-                className={
-                  enabled
-                    ? "h-7 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-[10px] font-semibold text-emerald-700 shadow-none dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300"
-                    : "h-7 rounded-full border border-[#d8d0c2] bg-[#ece6da] px-3 text-[10px] font-semibold text-[#625d53] shadow-none dark:border-[#49483f] dark:bg-white/5 dark:text-[#aaa397]"
-                }
-              >
-                <span
-                  className={
-                    enabled
-                      ? "mr-1.5 size-1.5 rounded-full bg-emerald-500"
-                      : "mr-1.5 size-1.5 rounded-full bg-[#9b9488]"
-                  }
-                />
-                {enabled ? "Active" : "Disabled"}
-              </Badge>
             </div>
-            <Button
-              type="button"
-              variant={enabled ? "destructive" : "default"}
-              className={
-                enabled
-                  ? "h-9 w-full rounded-full px-4 sm:w-auto"
-                  : "h-9 w-full rounded-full bg-[#2456e8] px-4 text-white hover:bg-[#1d48c7] sm:w-auto dark:bg-[#7895ff] dark:text-[#0e142c] dark:hover:bg-[#9aafff]"
-              }
+            <ToolStatusSwitch
+              checked={enabled}
+              label={displayName}
               disabled={updating}
-              aria-busy={updating || undefined}
-              onClick={() => setToolEnabled(tool.name, !enabled)}
-            >
-              {updating ? (
-                <LoaderCircleIcon className="animate-spin" />
-              ) : enabled ? (
-                <PowerOffIcon />
-              ) : (
-                <PowerIcon />
-              )}
-              {updating ? "Updating" : enabled ? "Disable tool" : "Enable tool"}
-            </Button>
+              onCheckedChange={(nextEnabled) => setToolEnabled(tool.name, nextEnabled)}
+            />
+            <p className="max-w-xs text-xs leading-5 text-muted-foreground sm:text-right">
+              Available to <span className="font-medium text-text-secondary">{availabilityScope.organizationName}</span> · {availabilityScope.workspaceName}
+            </p>
+            {updateError ? (
+              <div role="alert" className="max-w-xs text-right text-xs leading-5 text-destructive">
+                <p>Update failed. Previous status restored: {updateError}</p>
+                <Button type="button" variant="link" size="xs" className="mt-1 h-auto px-0 text-destructive" onClick={() => void retryToolUpdate(tool.name)}>
+                  <RefreshCwIcon /> Retry update
+                </Button>
+              </div>
+            ) : null}
           </div>
         </header>
+        </Card>
+
+        <Alert className="border-status-warning/40 bg-status-warning/10 text-status-warning">
+          <CircleAlertIcon />
+          <AlertTitle>Process-scoped visibility</AlertTitle>
+          <AlertDescription className="text-status-warning">
+            Active means this tool is exposed by the current Methods-Hub process only. It does not confirm service health and resets when Methods-Hub restarts.
+          </AlertDescription>
+        </Alert>
 
         <div className="grid items-start gap-7">
           <main className="min-w-0">
-            <section className="overflow-hidden rounded-[24px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 p-5 shadow-[0_18px_52px_rgba(24,24,18,0.07)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88">
+            <section className="overflow-hidden rounded-xl border border-line bg-card p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
-                <BoxIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
+                <BoxIcon className="size-4 text-brand" />
                 <h2 className="text-sm font-semibold">Overview</h2>
               </div>
-              <dl className="grid gap-px overflow-hidden rounded-[18px] border border-[#d8d0c2]/80 bg-[#d8d0c2]/80 sm:grid-cols-3 dark:border-[#38372f] dark:bg-[#38372f]">
-                <div className="bg-[#f4efe5]/72 p-3.5 dark:bg-white/5">
-                  <dt className="flex items-center gap-1.5 text-[11px] text-[#777064] dark:text-[#aaa397]">
+              <dl className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
+                <div className="bg-soft p-3.5">
+                  <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <BracesIcon className="size-3.5" /> Kind
                   </dt>
                   <dd className="mt-1.5 text-sm font-semibold">
                     {formatToolKind(tool.kind)}
                   </dd>
                 </div>
-                <div className="bg-[#f4efe5]/72 p-3.5 dark:bg-white/5">
-                  <dt className="flex items-center gap-1.5 text-[11px] text-[#777064] dark:text-[#aaa397]">
-                    <CodeXmlIcon className="size-3.5" /> Parameters
-                  </dt>
-                  <dd className="mt-1.5 text-sm font-semibold tabular-nums">
-                    {tool.params.length}
-                  </dd>
-                </div>
-                <div className="bg-[#f4efe5]/72 p-3.5 dark:bg-white/5">
-                  <dt className="flex items-center gap-1.5 text-[11px] text-[#777064] dark:text-[#aaa397]">
-                    <PowerIcon className="size-3.5" /> Visibility
+                <div className="bg-soft p-3.5">
+                  <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <ActivityIcon className="size-3.5" /> Status
                   </dt>
                   <dd className="mt-1.5 text-sm font-semibold">
-                    Process-scoped
+                    {enabled ? "Active" : "Disabled"}
+                  </dd>
+                </div>
+                <div className="bg-soft p-3.5">
+                  <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <PowerIcon className="size-3.5" /> Availability
+                  </dt>
+                  <dd className="mt-1.5 text-sm font-semibold tabular-nums">
+                    {availabilityScope.workspaceName}
+                  </dd>
+                </div>
+                <div className="bg-soft p-3.5">
+                  <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <CodeXmlIcon className="size-3.5" /> Scope
+                  </dt>
+                  <dd className="mt-1.5 text-sm font-semibold">
+                    {availabilityScope.organizationName}
                   </dd>
                 </div>
               </dl>
-              <p className="mt-3 text-xs leading-5 text-[#777064] dark:text-[#aaa397]">
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
                 Enabling or disabling a tool updates the current Methods-Hub process only; the setting resets when it restarts.
               </p>
 
@@ -223,10 +243,10 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
                 <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
                   {implementation && (
                     <div>
-                      <span className="text-[11px] text-[#777064] dark:text-[#aaa397]">
+                      <span className="text-[11px] text-muted-foreground">
                         Implementation
                       </span>
-                      <code className="mt-1 block break-all text-xs text-[#25241f] dark:text-[#eee8dc]">
+                      <code className="mt-1 block break-all text-xs text-foreground">
                         {implementation.module ?? "runtime"}.
                         {implementation.class ?? "method"}
                       </code>
@@ -234,7 +254,7 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
                   )}
                   {tool.supported_dataset_types?.length ? (
                     <div>
-                      <span className="text-[11px] text-[#777064] dark:text-[#aaa397]">
+                      <span className="text-[11px] text-muted-foreground">
                         Supported datasets
                       </span>
                       <div className="mt-1 flex flex-wrap gap-1.5">
@@ -254,58 +274,43 @@ export function ToolDetailPage({ toolName, onBack }: ToolDetailPageProps) {
               )}
             </section>
 
-            <section className="mt-6 overflow-hidden rounded-[24px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 p-5 shadow-[0_18px_52px_rgba(24,24,18,0.07)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88">
+            <section className="mt-6 overflow-hidden rounded-xl border border-line bg-card p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <CodeXmlIcon className="size-4 text-[#2456e8] dark:text-[#9aafff]" />
+                  <CodeXmlIcon className="size-4 text-brand" />
                   <h2 className="text-sm font-semibold">Input parameters</h2>
                 </div>
-                <span className="text-xs tabular-nums text-[#777064] dark:text-[#aaa397]">
+                <span className="text-xs tabular-nums text-muted-foreground">
                   {tool.params.length} total
                 </span>
               </div>
               {tool.params.length > 0 ? (
-                <div className="overflow-hidden rounded-[18px] border border-[#d8d0c2]/80 bg-[#f4efe5]/55 dark:border-[#38372f] dark:bg-white/5">
-                  {tool.params.map((parameter) => (
-                    <div
-                      key={parameter.name}
-                      className="grid gap-2 border-b border-[#e1dacc] px-4 py-3.5 last:border-b-0 sm:grid-cols-[minmax(150px,0.42fr)_1fr] dark:border-[#38372f]"
-                    >
-                      <div className="min-w-0">
-                        <code className="break-all text-xs font-semibold text-[#25241f] dark:text-[#eee8dc]">
-                          {parameter.name}
-                        </code>
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          <Badge
-                            variant="outline"
-                            className="h-5 rounded-md px-1.5 text-[9px] uppercase"
-                          >
-                            {parameter.type}
-                          </Badge>
-                          {parameter.required && (
-                            <Badge className="h-5 rounded-md bg-rose-100 px-1.5 text-[9px] text-rose-700 dark:bg-rose-400/15 dark:text-rose-200">
-                              Required
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs leading-5 text-[#625d53] dark:text-[#c5bcaf]">
-                          {parameter.description || "No parameter description."}
-                        </p>
-                        {parameter.default !== null &&
-                          parameter.default !== undefined && (
-                            <p className="mt-1 text-[11px] text-[#777064] dark:text-[#aaa397]">
-                              Default:{" "}
-                              <code>{JSON.stringify(parameter.default)}</code>
-                            </p>
-                          )}
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-hidden rounded-lg border border-line">
+                  <Table className="min-w-[760px] text-xs">
+                    <TableHeader className="bg-soft/70">
+                      <TableRow>
+                        <TableHead className="px-3">Name</TableHead>
+                        <TableHead className="px-3">Type</TableHead>
+                        <TableHead className="px-3">Required</TableHead>
+                        <TableHead className="px-3">Default value</TableHead>
+                        <TableHead className="px-3">Description</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tool.params.map((parameter) => (
+                        <TableRow key={parameter.name}>
+                          <TableCell className="px-3 align-top whitespace-normal"><code className="break-all font-semibold text-foreground">{parameter.name}</code></TableCell>
+                          <TableCell className="px-3 align-top"><Badge variant="outline" className="h-5 rounded-md px-1.5 text-[9px] uppercase">{parameter.type}</Badge></TableCell>
+                          <TableCell className="px-3 align-top"><Badge variant={parameter.required ? "secondary" : "outline"} className="h-5 rounded-md px-1.5 text-[9px]">{parameter.required ? "Required" : "Optional"}</Badge></TableCell>
+                          <TableCell className="max-w-52 px-3 align-top whitespace-normal"><code className="break-all text-[11px] text-text-secondary">{formatDefaultValue(parameter.default)}</code></TableCell>
+                          <TableCell className="min-w-56 px-3 align-top whitespace-normal text-text-secondary">{parameter.description || "No parameter description."}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
-                <div className="rounded-lg border border-dashed border-[#cfc6b8] px-4 py-8 text-center text-sm text-[#777064] dark:border-[#49483f] dark:text-[#aaa397]">
+                <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center text-sm text-muted-foreground">
                   This tool does not require input parameters.
                 </div>
               )}

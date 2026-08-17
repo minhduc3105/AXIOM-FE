@@ -82,3 +82,23 @@ export type ToolCatalogFilters = {
   kind?: ToolKind;
   query?: string;
 };
+
+export type ToolStatusFilter = "all" | "active" | "disabled";
+
+export type ToolCatalogSort = "name" | "kind";
+
+export type ToolCatalogViewState = {
+  query: string;
+  kind?: ToolKind;
+  status: ToolStatusFilter;
+  sort: ToolCatalogSort;
+  scrollY: number;
+};
+
+export const defaultToolCatalogViewState: ToolCatalogViewState = {
+  query: "",
+  kind: undefined,
+  status: "all",
+  sort: "name",
+  scrollY: 0,
+};

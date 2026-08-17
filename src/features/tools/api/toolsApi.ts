@@ -8,17 +8,36 @@ import type {
 export const methodsHubApiBaseUrl =
   import.meta.env.VITE_METHODS_HUB_API_BASE_URL ?? "/methods-hub";
 
-class ToolsApiError extends Error {
+type ToolsRequestOperation = "catalog" | "tool_detail" | "tool_status";
+
+export type ToolsErrorKind =
+  | "methods_hub_unavailable"
+  | "tool_not_found"
+  | "request_failed";
+
+export class ToolsApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly operation: ToolsRequestOperation,
   ) {
     super(message);
     this.name = "ToolsApiError";
   }
 }
 
-async function getJson<T>(url: string, signal: AbortSignal): Promise<T> {
+export function getToolsErrorKind(error: unknown): ToolsErrorKind {
+  if (!(error instanceof ToolsApiError)) return "methods_hub_unavailable";
+  if (error.operation === "tool_detail" && error.status === 404) return "tool_not_found";
+  if (error.status >= 500) return "methods_hub_unavailable";
+  return "request_failed";
+}
+
+async function getJson<T>(
+  url: string,
+  signal: AbortSignal,
+  operation: Exclude<ToolsRequestOperation, "tool_status">,
+): Promise<T> {
   const response = await fetch(url, {
     signal,
     headers: { Accept: "application/json" },
@@ -35,6 +54,7 @@ async function getJson<T>(url: string, signal: AbortSignal): Promise<T> {
     throw new ToolsApiError(
       `Methods-Hub request failed (${response.status}).${detail}`,
       response.status,
+      operation,
     );
   }
 
@@ -66,6 +86,7 @@ async function patchJson<T>(url: string, body: unknown): Promise<T> {
     throw new ToolsApiError(
       `Methods-Hub request failed (${response.status}).${detail ? ` ${detail}` : ""}`,
       response.status,
+      "tool_status",
     );
   }
 
@@ -83,6 +104,7 @@ export function listTools(
   return getJson<ToolCatalogResponse>(
     `${methodsHubApiBaseUrl}/api/v1/tools${queryString ? `?${queryString}` : ""}`,
     signal,
+    "catalog",
   );
 }
 
@@ -90,6 +112,7 @@ export function getTool(toolName: string, signal: AbortSignal) {
   return getJson<ToolDetailResponse>(
     `${methodsHubApiBaseUrl}/api/v1/tools/${encodeURIComponent(toolName)}`,
     signal,
+    "tool_detail",
   );
 }
 

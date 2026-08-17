@@ -8,6 +8,7 @@ import { WorkspaceRail } from "@/shared/components/WorkspaceRail";
 import { AppScopeBar } from "@/shared/components/AppScopeBar";
 import { cn } from "@/shared/lib/utils";
 import type { AppScopeContext } from "@/shared/types/appScope";
+import type { AssignedWorkspace } from "@/features/auth/api/authzApi";
 
 type AppShellProps = {
   activeStage: ChatStage;
@@ -23,8 +24,13 @@ type AppShellProps = {
   showCommandBar?: boolean;
   onTools: () => void;
   onSettings: () => void;
+  onOrganizationAdministration: () => void;
   user: AuthUser | null;
   scope: AppScopeContext | null;
+  workspaces: AssignedWorkspace[];
+  selectedWorkspace: AssignedWorkspace | null;
+  workspacesLoading: boolean;
+  onWorkspaceSelect: (workspaceId: string) => void;
   onLogout: () => void;
   children: React.ReactNode;
 };
@@ -43,8 +49,13 @@ export function AppShell({
   showCommandBar = false,
   onTools,
   onSettings,
+  onOrganizationAdministration,
   user,
   scope,
+  workspaces,
+  selectedWorkspace,
+  workspacesLoading,
+  onWorkspaceSelect,
   onLogout,
   children,
 }: AppShellProps) {
@@ -79,6 +90,7 @@ export function AppShell({
           onModels={onModels}
           onTools={onTools}
           onSettings={onSettings}
+          onOrganizationAdministration={onOrganizationAdministration}
           user={user}
           onLogout={onLogout}
         />
@@ -88,7 +100,7 @@ export function AppShell({
             expanded && "md:ml-[304px]",
           )}
         >
-          <AppScopeBar scope={scope} />
+          <AppScopeBar scope={scope} workspaces={workspaces} selectedWorkspace={selectedWorkspace} workspacesLoading={workspacesLoading} onWorkspaceSelect={onWorkspaceSelect} />
           {showCommandBar && (
             <WorkspaceCommandBar
               onHome={onHome}
