@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
-import { LogInIcon } from 'lucide-react'
+import { LoaderCircleIcon, LogInIcon } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/model/AuthProvider'
@@ -32,6 +32,7 @@ export function LoginPage({
   const [error, setError] = useState<AuthError | null>(null)
   const [showSessionExpired, setShowSessionExpired] = useState(sessionExpired)
   const alertRef = useRef<HTMLDivElement>(null)
+  const submittingRef = useRef(false)
 
   const emailError = error?.field === 'email' ? error.userMessage : null
   const passwordError = error?.field === 'password' ? error.userMessage : null
@@ -66,6 +67,8 @@ export function LoginPage({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (submittingRef.current) return
+    submittingRef.current = true
     setSubmitting(true)
     setError(null)
     setShowSessionExpired(false)
@@ -75,6 +78,7 @@ export function LoginPage({
     } catch (cause) {
       setError(getAuthError(cause, 'login'))
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }
@@ -136,7 +140,11 @@ export function LoginPage({
         />
 
         <Button className="h-10" disabled={submitting} type="submit">
-          <LogInIcon data-icon="inline-start" aria-hidden="true" />
+          {submitting ? (
+            <LoaderCircleIcon className="animate-spin" data-icon="inline-start" aria-hidden="true" />
+          ) : (
+            <LogInIcon data-icon="inline-start" aria-hidden="true" />
+          )}
           {submitting ? 'Signing in…' : 'Sign in'}
         </Button>
 

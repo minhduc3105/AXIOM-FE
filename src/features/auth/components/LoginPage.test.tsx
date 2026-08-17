@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthRequestError } from '../model/authErrors'
 import { LoginPage } from './LoginPage'
@@ -59,5 +59,30 @@ describe('LoginPage', () => {
 
     expect(screen.getByRole('button', { name: 'Show password' })).toBeTruthy()
     expect(screen.queryByText(/Default local account/)).toBeNull()
+  })
+
+  it('blocks duplicate submissions while the login request is pending', async () => {
+    let resolveLogin: (() => void) | undefined
+    mocks.login.mockImplementation(
+      () => new Promise<void>((resolve) => {
+        resolveLogin = resolve
+      }),
+    )
+    render(<LoginPage />)
+
+    const form = screen.getByRole('button', { name: 'Sign in' }).closest('form')
+    expect(form).not.toBeNull()
+
+    fireEvent.submit(form!)
+    fireEvent.submit(form!)
+
+    expect(mocks.login).toHaveBeenCalledTimes(1)
+    expect(form?.getAttribute('aria-busy')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Signing in…' }).hasAttribute('disabled')).toBe(true)
+
+    resolveLogin?.()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Sign in' }).hasAttribute('disabled')).toBe(false)
+    })
   })
 })
