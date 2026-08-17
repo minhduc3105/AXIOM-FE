@@ -9,6 +9,7 @@ import {
 import { ArrowLeftIcon, LoaderCircleIcon, UserPlusIcon } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
 import { useAuth } from '@/features/auth/model/AuthProvider'
 import { getAuthError } from '@/features/auth/model/authErrors'
 import {
@@ -70,6 +71,7 @@ export function RegisterPage({
     confirmPassword: confirmPasswordRef,
   }
   const formError = requestError?.field ? null : requestError
+  const headingId = `axiom-register-step-${step}-heading`
 
   useEffect(() => {
     if (!pendingFocus) return
@@ -189,10 +191,11 @@ export function RegisterPage({
         className="grid gap-5"
         onSubmit={step === 1 ? handleOrganizationContinue : handleSubmit}
         aria-busy={submitting}
+        aria-labelledby={headingId}
         noValidate
       >
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">
+          <h1 id={headingId} className="text-2xl font-semibold tracking-tight">
             {step === 1 ? 'Set up your organization' : 'Create your admin account'}
           </h1>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -208,9 +211,15 @@ export function RegisterPage({
           </Alert>
         ) : null}
 
-        <p className="text-xs font-medium text-muted-foreground" aria-live="polite">
-          Step {step} of 2
-        </p>
+        <div className="grid gap-2">
+          <p className="text-xs font-medium text-muted-foreground" aria-live="polite">
+            Step {step} of 2
+          </p>
+          <Progress
+            aria-label={`Registration progress: step ${step} of 2`}
+            value={step * 50}
+          />
+        </div>
 
         {step === 1 ? (
           <>
@@ -329,23 +338,32 @@ export function RegisterPage({
               </Button>
               <Button className="h-10" type="submit" disabled={submitting}>
                 {submitting ? (
-                  <LoaderCircleIcon className="animate-spin" data-icon="inline-start" aria-hidden="true" />
+                  <LoaderCircleIcon
+                    className="animate-spin motion-reduce:animate-none"
+                    data-icon="inline-start"
+                    aria-hidden="true"
+                  />
                 ) : (
                   <UserPlusIcon data-icon="inline-start" aria-hidden="true" />
                 )}
                 {submitting ? 'Creating account…' : 'Create account'}
               </Button>
             </div>
+            {submitting ? (
+              <span className="sr-only" role="status">Creating account…</span>
+            ) : null}
           </>
         )}
 
-        <a
-          className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          href={loginHref}
-          onClick={handleSignIn}
-        >
-          Sign in instead
-        </a>
+        <div className="border-t border-border pt-4">
+          <a
+            className="w-fit rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            href={loginHref}
+            onClick={handleSignIn}
+          >
+            Sign in instead
+          </a>
+        </div>
       </form>
     </AuthShell>
   )

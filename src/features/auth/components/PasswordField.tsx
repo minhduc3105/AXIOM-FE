@@ -25,6 +25,7 @@ export function PasswordField({ className, inputRef, ...props }: PasswordFieldPr
           size="icon"
           className="size-10 text-muted-foreground hover:text-foreground"
           aria-label={accessibleLabel}
+          aria-pressed={visible}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setVisible((current) => !current)}
         >

@@ -11,6 +11,7 @@ import { PasswordField } from './PasswordField'
 
 const defaultEmail = 'admin@axiom.local'
 const defaultPassword = 'password'
+const loginHeadingId = 'axiom-login-heading'
 
 type LoginPageProps = {
   sessionExpired?: boolean
@@ -94,9 +95,16 @@ export function LoginPage({
 
   return (
     <AuthShell>
-      <form className="grid gap-5" onSubmit={handleSubmit} aria-busy={submitting}>
+      <form
+        className="grid gap-5"
+        onSubmit={handleSubmit}
+        aria-busy={submitting}
+        aria-labelledby={loginHeadingId}
+      >
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Sign in to AXIOM</h1>
+          <h1 id={loginHeadingId} className="text-2xl font-semibold tracking-tight">
+            Sign in to AXIOM
+          </h1>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             Use your account to access its organizations.
           </p>
@@ -141,20 +149,28 @@ export function LoginPage({
 
         <Button className="h-10" disabled={submitting} type="submit">
           {submitting ? (
-            <LoaderCircleIcon className="animate-spin" data-icon="inline-start" aria-hidden="true" />
+            <LoaderCircleIcon
+              className="animate-spin motion-reduce:animate-none"
+              data-icon="inline-start"
+              aria-hidden="true"
+            />
           ) : (
             <LogInIcon data-icon="inline-start" aria-hidden="true" />
           )}
           {submitting ? 'Signing in…' : 'Sign in'}
         </Button>
 
-        <a
-          className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          href={registerHref}
-          onClick={handleRegister}
-        >
-          Create an account
-        </a>
+        {submitting ? <span className="sr-only" role="status">Signing in…</span> : null}
+
+        <div className="border-t border-border pt-4">
+          <a
+            className="w-fit rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            href={registerHref}
+            onClick={handleRegister}
+          >
+            Create an account
+          </a>
+        </div>
       </form>
     </AuthShell>
   )

@@ -23,25 +23,27 @@ function AxiomBrand({ compact = false }: { compact?: boolean }) {
 
 export function AuthShell({ children }: AuthShellProps) {
   return (
-    <main className="min-h-[100dvh] overflow-y-auto bg-background px-4 py-4 text-foreground sm:px-6 md:grid md:place-items-center md:py-8">
-      <section className="mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card shadow-sm md:grid md:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
-        <aside className="hidden min-h-[30rem] flex-col border-r border-border bg-muted/50 p-8 md:flex">
-          <AxiomBrand />
-          <div className="my-auto max-w-sm">
-            <div className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              <ShieldCheckIcon className="size-4 text-primary" aria-hidden="true" />
-              Organization-scoped access
+    <main className="min-h-[100dvh] overflow-x-hidden bg-background px-4 py-4 text-foreground sm:px-6 sm:py-6 md:grid md:place-items-center md:py-8">
+      <section className="mx-auto w-full max-w-[440px] overflow-hidden rounded-lg border border-border bg-card shadow-sm md:grid md:max-w-5xl md:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
+        <aside className="hidden min-w-0 flex-col justify-center border-r border-border bg-muted/50 p-8 md:flex lg:p-10">
+          <div className="mx-auto grid w-full max-w-md gap-8">
+            <AxiomBrand />
+            <div className="grid gap-4">
+              <p className="text-lg font-semibold tracking-tight">
+                Work within your organization&apos;s intelligence workspace.
+              </p>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Your account and active organization determine the data, tools, and workspaces you can access.
+              </p>
+              <div className="flex items-center gap-2 border-t border-border pt-4 text-xs font-medium text-muted-foreground">
+                <ShieldCheckIcon className="size-4 text-primary" aria-hidden="true" />
+                <span>Organization-scoped access</span>
+              </div>
             </div>
-            <p className="mt-6 text-2xl font-semibold tracking-tight">
-              Work within your organization&apos;s intelligence workspace.
-            </p>
-            <p className="mt-4 text-sm leading-6 text-muted-foreground">
-              Your account and active organization determine the data, tools, and workspaces you can access.
-            </p>
           </div>
         </aside>
         <div className="min-w-0 p-6 sm:p-8">
-          <div className="mb-8 md:hidden">
+          <div className="mb-6 md:hidden">
             <AxiomBrand compact />
           </div>
           {children}
