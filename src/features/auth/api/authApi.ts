@@ -23,6 +23,13 @@ function authApiUrl(path: string) {
   return `${AUTH_API_BASE_URL}${normalizedPath}`
 }
 
+function isAbortError(cause: unknown) {
+  return typeof cause === 'object'
+    && cause !== null
+    && 'name' in cause
+    && cause.name === 'AbortError'
+}
+
 async function requestAuth(
   path: string,
   init: RequestInit,
@@ -34,7 +41,7 @@ async function requestAuth(
   try {
     response = await fetch(authApiUrl(path), init)
   } catch (cause) {
-    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause
+    if (isAbortError(cause)) throw cause
     throw createAuthTransportError(cause, operation)
   }
 

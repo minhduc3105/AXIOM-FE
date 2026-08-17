@@ -1,16 +1,15 @@
 import { EyeIcon, EyeOffIcon } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { AuthFormField, type AuthFormFieldProps } from './AuthFormField'
 
 export type PasswordFieldProps = Omit<
   AuthFormFieldProps,
-  'endAdornment' | 'inputRef' | 'type'
+  'endAdornment' | 'type'
 >
 
-export function PasswordField({ className, ...props }: PasswordFieldProps) {
+export function PasswordField({ className, inputRef, ...props }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
   const accessibleLabel = visible ? 'Hide password' : 'Show password'
 
   return (

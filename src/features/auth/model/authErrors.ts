@@ -46,6 +46,10 @@ function readCode(payload: unknown): string | null {
 }
 
 function mapAuthError({ code, status, operation }: ErrorDetails): AuthRequestError {
+  if (status === 502 || status === 503 || status === 504) {
+    return createError('service', code, status, null, 'AXIOM Auth is temporarily unavailable. Try again in a moment.')
+  }
+
   if (code === 'ORGANIZATION_SLUG_EXISTS') {
     return createError('field', code, status, 'organizationSlug', 'This organization slug is already in use.')
   }
@@ -58,20 +62,16 @@ function mapAuthError({ code, status, operation }: ErrorDetails): AuthRequestErr
     return createError('account', code, status, null, 'Review the organization slug and email, then try again.')
   }
 
-  if (code === 'INVALID_CREDENTIALS' || (operation === 'login' && status === 401)) {
-    return createError('credentials', code, status, null, "We couldn't sign you in. Check your details and try again.")
-  }
-
   if (code === 'USER_DISABLED') {
     return createError('account', code, status, null, 'This account is unavailable. Contact your organization administrator.')
   }
 
-  if (sessionCodes.has(code ?? '') || (operation === 'session' && status === 401)) {
-    return createError('session', code, status, null, 'Your session expired. Sign in again to continue.')
+  if (code === 'INVALID_CREDENTIALS' || (operation === 'login' && status === 401)) {
+    return createError('credentials', code, status, null, "We couldn't sign you in. Check your details and try again.")
   }
 
-  if (status === 502 || status === 503 || status === 504) {
-    return createError('service', code, status, null, 'AXIOM Auth is temporarily unavailable. Try again in a moment.')
+  if (sessionCodes.has(code ?? '') || (operation === 'session' && status === 401)) {
+    return createError('session', code, status, null, 'Your session expired. Sign in again to continue.')
   }
 
   return createError('unknown', code, status, null, 'Something went wrong. Try again in a moment.')

@@ -36,4 +36,12 @@ describe('loginWithPassword', () => {
       },
     })
   })
+
+  it('preserves an Error-shaped AbortError instead of presenting a connection failure', async () => {
+    const abortError = new Error('The operation was aborted.')
+    abortError.name = 'AbortError'
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError))
+
+    await expect(loginWithPassword('admin@example.com', 'secret')).rejects.toBe(abortError)
+  })
 })

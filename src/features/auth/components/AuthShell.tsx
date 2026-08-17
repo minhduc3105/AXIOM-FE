@@ -32,9 +32,9 @@ export function AuthShell({ children }: AuthShellProps) {
               <ShieldCheckIcon className="size-4 text-primary" aria-hidden="true" />
               Organization-scoped access
             </div>
-            <h1 className="mt-6 text-2xl font-semibold tracking-tight">
+            <p className="mt-6 text-2xl font-semibold tracking-tight">
               Work within your organization&apos;s intelligence workspace.
-            </h1>
+            </p>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">
               Your account and active organization determine the data, tools, and workspaces you can access.
             </p>

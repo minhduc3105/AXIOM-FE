@@ -6,6 +6,27 @@ import {
 } from './authErrors'
 
 describe('auth error normalization', () => {
+  it('maps a top-level slug-conflict envelope to the organization slug field', async () => {
+    const cause = await parseAuthErrorResponse(
+      new Response(
+        JSON.stringify({
+          code: 'ORGANIZATION_SLUG_EXISTS',
+          message: 'Organization slug already exists.',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } },
+      ),
+      'registration',
+    )
+
+    expect(cause.details).toEqual({
+      kind: 'field',
+      code: 'ORGANIZATION_SLUG_EXISTS',
+      status: 409,
+      field: 'organizationSlug',
+      userMessage: 'This organization slug is already in use.',
+    })
+  })
+
   it('maps a nested email-conflict envelope to the admin email field', async () => {
     const cause = await parseAuthErrorResponse(
       new Response(
@@ -45,6 +66,48 @@ describe('auth error normalization', () => {
       status: 401,
       field: null,
       userMessage: "We couldn't sign you in. Check your details and try again.",
+    })
+  })
+
+  it('keeps the disabled-account message for a top-level login 401 envelope', async () => {
+    const cause = await parseAuthErrorResponse(
+      new Response(
+        JSON.stringify({
+          code: 'USER_DISABLED',
+          message: 'User is disabled.',
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      ),
+      'login',
+    )
+
+    expect(cause.details).toEqual({
+      kind: 'account',
+      code: 'USER_DISABLED',
+      status: 401,
+      field: null,
+      userMessage: 'This account is unavailable. Contact your organization administrator.',
+    })
+  })
+
+  it('gives an unavailable service status precedence over a stale business code', async () => {
+    const cause = await parseAuthErrorResponse(
+      new Response(
+        JSON.stringify({
+          code: 'USER_DISABLED',
+          message: 'Stale upstream payload.',
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } },
+      ),
+      'login',
+    )
+
+    expect(cause.details).toEqual({
+      kind: 'service',
+      code: 'USER_DISABLED',
+      status: 503,
+      field: null,
+      userMessage: 'AXIOM Auth is temporarily unavailable. Try again in a moment.',
     })
   })
 

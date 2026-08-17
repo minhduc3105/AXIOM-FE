@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { createRef } from 'react'
 import { AuthFormField } from './AuthFormField'
 import { AuthShell } from './AuthShell'
 import { PasswordField } from './PasswordField'
@@ -19,6 +20,16 @@ describe('shared Auth components', () => {
     expect(screen.getByText('Organization-scoped access')).toBeTruthy()
     expect(screen.getByText("Work within your organization's intelligence workspace.")).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Sign in to AXIOM' })).toBeTruthy()
+  })
+
+  it('leaves the route task as the only heading in the shell outline', () => {
+    render(
+      <AuthShell>
+        <h1>Sign in to AXIOM</h1>
+      </AuthShell>,
+    )
+
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
 
   it('associates its server error with the input it owns', () => {
@@ -61,5 +72,23 @@ describe('shared Auth components', () => {
     expect(input.selectionStart).toBe(2)
     expect(input.selectionEnd).toBe(6)
     expect(screen.getByRole('button', { name: 'Hide password' })).toBeTruthy()
+  })
+
+  it('exposes the password input ref so a form can focus its first invalid field', () => {
+    const inputRef = createRef<HTMLInputElement>()
+    render(
+      <PasswordField
+        id="registration-password"
+        label="Password"
+        inputRef={inputRef}
+        value="password"
+        onChange={() => undefined}
+      />,
+    )
+
+    inputRef.current?.focus()
+
+    expect(inputRef.current).toBe(screen.getByLabelText('Password'))
+    expect(document.activeElement).toBe(inputRef.current)
   })
 })
