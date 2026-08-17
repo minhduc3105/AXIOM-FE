@@ -60,3 +60,30 @@ export type AuthSession = {
 
 export type AuthStatus = 'restoring' | 'authenticated' | 'unauthenticated'
 
+export type AuthErrorKind =
+  | 'field'
+  | 'credentials'
+  | 'account'
+  | 'session'
+  | 'network'
+  | 'service'
+  | 'unknown'
+
+export type AuthField =
+  | 'email'
+  | 'password'
+  | 'organizationName'
+  | 'organizationSlug'
+  | 'adminDisplayName'
+  | 'adminEmail'
+  | 'adminPassword'
+  | 'confirmPassword'
+  | null
+
+export type AuthError = {
+  kind: AuthErrorKind
+  code: string | null
+  status: number | null
+  field: AuthField
+  userMessage: string
+}

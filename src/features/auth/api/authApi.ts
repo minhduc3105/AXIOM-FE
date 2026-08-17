@@ -7,6 +7,11 @@ import type {
   CreateOrganizationInput,
   RegisterOrganizationInput,
 } from '@/features/auth/model/types'
+import {
+  createAuthTransportError,
+  parseAuthErrorResponse,
+  type AuthErrorOperation,
+} from '@/features/auth/model/authErrors'
 
 const gatewayApiBaseUrl = (
   import.meta.env.VITE_AXIOM_GATEWAY_API_URL || ''
@@ -18,27 +23,26 @@ function authApiUrl(path: string) {
   return `${AUTH_API_BASE_URL}${normalizedPath}`
 }
 
-async function authErrorMessage(response: Response, fallback: string) {
-  const text = (await response.text()).trim()
-  if (!text) return fallback
+async function requestAuth(
+  path: string,
+  init: RequestInit,
+  operation: AuthErrorOperation,
+  acceptedErrorStatuses: readonly number[] = [],
+): Promise<Response> {
+  let response: Response
+
   try {
-    const payload: unknown = JSON.parse(text)
-    if (
-      typeof payload === 'object'
-      && payload !== null
-      && 'message' in payload
-      && typeof payload.message === 'string'
-    ) return payload.message
-    if (
-      typeof payload === 'object'
-      && payload !== null
-      && 'detail' in payload
-      && typeof payload.detail === 'string'
-    ) return payload.detail
-  } catch {
-    return text
+    response = await fetch(authApiUrl(path), init)
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause
+    throw createAuthTransportError(cause, operation)
   }
-  return fallback
+
+  if (!response.ok && !acceptedErrorStatuses.includes(response.status)) {
+    throw await parseAuthErrorResponse(response, operation)
+  }
+
+  return response
 }
 
 export async function loginWithPassword(
@@ -46,16 +50,12 @@ export async function loginWithPassword(
   password: string,
   signal?: AbortSignal,
 ): Promise<AuthTokenResponse> {
-  const response = await fetch(authApiUrl('/api/v1/auth/login'), {
+  const response = await requestAuth('/api/v1/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
     signal,
-  })
-  if (!response.ok) {
-    if (response.status === 401) throw new Error('Email or password is incorrect.')
-    throw new Error(await authErrorMessage(response, 'AXIOM Auth is unavailable.'))
-  }
+  }, 'login')
   return (await response.json()) as AuthTokenResponse
 }
 
@@ -63,7 +63,7 @@ export async function registerOrganization(
   input: RegisterOrganizationInput,
   signal?: AbortSignal,
 ): Promise<OrganizationRegistrationResponse> {
-  const response = await fetch(authApiUrl('/api/v1/orgs/register'), {
+  const response = await requestAuth('/api/v1/orgs/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -74,10 +74,7 @@ export async function registerOrganization(
       admin_password: input.adminPassword,
     }),
     signal,
-  })
-  if (!response.ok) {
-    throw new Error(await authErrorMessage(response, 'Unable to register organization.'))
-  }
+  }, 'registration')
   return (await response.json()) as OrganizationRegistrationResponse
 }
 
@@ -86,7 +83,7 @@ export async function createOrganization(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<OrganizationRegistrationResponse> {
-  const response = await fetch(authApiUrl('/api/v1/orgs'), {
+  const response = await requestAuth('/api/v1/orgs', {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -96,8 +93,7 @@ export async function createOrganization(
       admin_email: '', admin_display_name: '', admin_password: '',
     }),
     signal,
-  })
-  if (!response.ok) throw new Error(await authErrorMessage(response, 'Unable to create organization.'))
+  }, 'organization')
   return (await response.json()) as OrganizationRegistrationResponse
 }
 
@@ -106,13 +102,12 @@ export async function switchOrganization(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<AuthTokenResponse> {
-  const response = await fetch(authApiUrl('/api/v1/auth/switch-organization'), {
+  const response = await requestAuth('/api/v1/auth/switch-organization', {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ organization_id: organizationId }),
     signal,
-  })
-  if (!response.ok) throw new Error(await authErrorMessage(response, 'Unable to switch organization.'))
+  }, 'organization')
   return (await response.json()) as AuthTokenResponse
 }
 
@@ -121,16 +116,11 @@ export async function listOrganizationUsers(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<AuthUser[]> {
-  const response = await fetch(
-    authApiUrl(`/api/v1/orgs/${encodeURIComponent(organizationId)}/users`),
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal,
-    },
+  const response = await requestAuth(
+    `/api/v1/orgs/${encodeURIComponent(organizationId)}/users`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, signal },
+    'organization',
   )
-  if (!response.ok) {
-    throw new Error(await authErrorMessage(response, 'Unable to load organization users.'))
-  }
   const payload = (await response.json()) as { users: AuthUser[] }
   return payload.users
 }
@@ -141,8 +131,8 @@ export async function createOrganizationUser(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<AuthUser> {
-  const response = await fetch(
-    authApiUrl(`/api/v1/orgs/${encodeURIComponent(organizationId)}/users`),
+  const response = await requestAuth(
+    `/api/v1/orgs/${encodeURIComponent(organizationId)}/users`,
     {
       method: 'POST',
       headers: {
@@ -157,10 +147,8 @@ export async function createOrganizationUser(
       }),
       signal,
     },
+    'organization',
   )
-  if (!response.ok) {
-    throw new Error(await authErrorMessage(response, 'Unable to create organization user.'))
-  }
   return (await response.json()) as AuthUser
 }
 
@@ -170,12 +158,11 @@ export async function updateOrganizationUser(
   orgRole: AuthUser['org_role'],
   accessToken: string,
 ): Promise<AuthUser> {
-  const response = await fetch(authApiUrl(`/api/v1/orgs/${encodeURIComponent(organizationId)}/users/${encodeURIComponent(userId)}`), {
+  const response = await requestAuth(`/api/v1/orgs/${encodeURIComponent(organizationId)}/users/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ org_role: orgRole }),
-  })
-  if (!response.ok) throw new Error(await authErrorMessage(response, 'Unable to update organization member.'))
+  }, 'organization')
   return (await response.json()) as AuthUser
 }
 
@@ -184,25 +171,21 @@ export async function removeOrganizationUser(
   userId: string,
   accessToken: string,
 ): Promise<void> {
-  const response = await fetch(authApiUrl(`/api/v1/orgs/${encodeURIComponent(organizationId)}/users/${encodeURIComponent(userId)}`), {
+  await requestAuth(`/api/v1/orgs/${encodeURIComponent(organizationId)}/users/${encodeURIComponent(userId)}`, {
     method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  if (!response.ok) throw new Error(await authErrorMessage(response, 'Unable to remove organization member.'))
+  }, 'organization')
 }
 
 export async function refreshWithToken(
   refreshToken: string,
   signal?: AbortSignal,
 ): Promise<AuthTokenResponse> {
-  const response = await fetch(authApiUrl('/api/v1/auth/refresh'), {
+  const response = await requestAuth('/api/v1/auth/refresh', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token: refreshToken }),
     signal,
-  })
-  if (!response.ok) {
-    throw new Error(await authErrorMessage(response, 'Session refresh failed.'))
-  }
+  }, 'session')
   return (await response.json()) as AuthTokenResponse
 }
 
@@ -210,28 +193,22 @@ export async function logoutWithToken(
   refreshToken: string,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(authApiUrl('/api/v1/auth/logout'), {
+  await requestAuth('/api/v1/auth/logout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token: refreshToken }),
     signal,
-  })
-  if (!response.ok && response.status !== 401) {
-    throw new Error(await authErrorMessage(response, 'Logout failed.'))
-  }
+  }, 'session', [401])
 }
 
 export async function getCurrentUser(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<CurrentUserResponse> {
-  const response = await fetch(authApiUrl('/api/v1/auth/me'), {
+  const response = await requestAuth('/api/v1/auth/me', {
     method: 'GET',
     headers: { Authorization: `Bearer ${accessToken}` },
     signal,
-  })
-  if (!response.ok) {
-    throw new Error(await authErrorMessage(response, 'Session restore failed.'))
-  }
+  }, 'session')
   return (await response.json()) as CurrentUserResponse
 }
