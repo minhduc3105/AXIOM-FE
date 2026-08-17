@@ -41,6 +41,7 @@ export type AuthContextValue = {
   restoreError: AuthError | null
   sessionEndReason: 'session-expired' | null
   login: (email: string, password: string) => Promise<void>
+  register: (input: RegisterOrganizationInput) => Promise<void>
   createOrganization: (input: CreateOrganizationInput) => Promise<void>
   switchOrganization: (organizationId: string) => Promise<void>
   logout: () => Promise<void>
@@ -228,6 +229,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [updateSession],
   )
 
+  const register = useCallback(
+    async (input: RegisterOrganizationInput) => {
+      const tokenResponse = await registerOrganization(input)
+      updateSession({
+        accessToken: tokenResponse.access_token,
+        refreshToken: tokenResponse.refresh_token,
+        user: tokenResponse.user,
+      })
+    },
+    [updateSession],
+  )
+
   const createOrganizationForUser = useCallback(
     async (input: CreateOrganizationInput) => {
       const accessToken = sessionRef.current?.accessToken
@@ -270,13 +283,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       restoreError,
       sessionEndReason,
       login,
+      register,
       createOrganization: createOrganizationForUser,
       switchOrganization: switchOrganizationForUser,
       logout,
       refresh,
       retryRestore,
     }),
-    [createOrganizationForUser, login, logout, refresh, restoreError, retryRestore, session, sessionEndReason, status, switchOrganizationForUser],
+    [createOrganizationForUser, login, logout, refresh, register, restoreError, retryRestore, session, sessionEndReason, status, switchOrganizationForUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

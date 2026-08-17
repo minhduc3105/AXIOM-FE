@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect } from "react";
 import { AuthRestoreScreen } from "@/features/auth/components/AuthRestoreScreen";
 import { LoginPage } from "@/features/auth/components/LoginPage";
-import { RegisterUnavailablePage } from "@/features/auth/components/RegisterUnavailablePage";
+import { RegisterPage } from "@/features/auth/components/RegisterPage";
 import { useAuth } from "@/features/auth/model/AuthProvider";
 import {
   getAuthRoutePath,
@@ -72,9 +72,10 @@ export function AppRouter({ renderApp }: AppRouterProps) {
 
     if (authRoute.page === "register") {
       return (
-        <RegisterUnavailablePage
+        <RegisterPage
           loginHref={getAuthRoutePath(loginRoute)}
           onSignIn={() => navigate(loginRoute)}
+          onSuccess={() => navigatePath(registerRoute.returnTo, { replace: true })}
         />
       );
     }
