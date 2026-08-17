@@ -4,12 +4,7 @@ import type { AuthUser } from "@/features/auth/model/types";
 import { useAppScope } from "./use-app-scope";
 
 const mocks = vi.hoisted(() => ({
-  listMyOrganizations: vi.fn(),
   listWorkspaces: vi.fn(),
-}));
-
-vi.mock("@/features/auth/api/authApi", () => ({
-  listMyOrganizations: mocks.listMyOrganizations,
 }));
 
 vi.mock("@/features/auth/api/authzApi", () => ({
@@ -28,17 +23,6 @@ const user: AuthUser = {
 describe("useAppScope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.listMyOrganizations.mockResolvedValue([
-      {
-        organization: {
-          id: "org-1",
-          slug: "research",
-          display_name: "Research Operations",
-          status: "active",
-        },
-        org_role: "org_admin",
-      },
-    ]);
     mocks.listWorkspaces.mockResolvedValue([
       {
         id: "workspace-1",
@@ -54,7 +38,7 @@ describe("useAppScope", () => {
 
   afterEach(cleanup);
 
-  it("resolves friendly organization and workspace names", async () => {
+  it("uses the authenticated organization and resolves the workspace name", async () => {
     const { result } = renderHook(() =>
       useAppScope({
         user,
@@ -64,14 +48,12 @@ describe("useAppScope", () => {
       }),
     );
 
-    await waitFor(() =>
-      expect(result.current?.organization.name).toBe("Research Operations"),
-    );
+    await waitFor(() => expect(result.current?.workspace?.name).toBe("Evidence Review"));
+    expect(result.current?.organization.name).toBe("org-1");
     expect(result.current?.workspace?.name).toBe("Evidence Review");
   });
 
   it("falls back to identifiers and omits workspace outside its scope", async () => {
-    mocks.listMyOrganizations.mockRejectedValue(new Error("offline"));
     const { result } = renderHook(() =>
       useAppScope({
         user,
@@ -81,7 +63,6 @@ describe("useAppScope", () => {
       }),
     );
 
-    await waitFor(() => expect(mocks.listMyOrganizations).toHaveBeenCalled());
     expect(result.current?.organization.name).toBe("org-1");
     expect(result.current?.workspace).toBeNull();
     expect(mocks.listWorkspaces).not.toHaveBeenCalled();

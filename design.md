@@ -1,0 +1,27 @@
+# AXIOM Frontend Design System
+
+## Shared foundations
+
+- Use the semantic Tailwind tokens exposed by `src/styles/globals.css`: `background`, `foreground`, `card`, `muted`, `primary`, `destructive`, `border`, and `ring`.
+- Use shadcn primitives from `src/components/ui`. Feature code composes primitives; it does not modify them or introduce feature-local colour hex values.
+- Use the standard radius scale (`rounded-md`, `rounded-lg`, `rounded-xl`) and spacing scale. Avoid arbitrary visual values unless a layout constraint cannot be represented by the scale.
+- A standard operational surface is `rounded-xl border bg-card text-card-foreground shadow-sm`.
+
+## Actions
+
+- Primary action: `Button` default variant. One primary action per local decision area.
+- Secondary action: `Button variant="outline"`.
+- Destructive action: `DropdownMenuItem variant="destructive"` or `Button variant="destructive"` only after an explicit confirmation.
+- Icon-only action: `Button size="icon-sm" variant="ghost"` with an accessible `aria-label`.
+- Disabled actions must have a nearby explanation of the missing permission or prerequisite.
+
+## Model Service
+
+Model Service uses feature-owned components under `src/features/models/components`:
+
+- `OrganizationModelRegistry` owns data loading, authorization-aware mutations, and view/dialog state.
+- `ModelServiceAssignments`, `ModelServiceCatalog`, and `ModelServiceProviders` render their respective workspaces.
+- `ModelServiceDialogs` owns provider, credential, model, assignment-picker, and default-review dialogs.
+- `modelServiceUi` centralizes Model Service semantic presentation classes and capability/readiness vocabulary.
+
+The page header uses the shared operational surface and semantic status badges. Assignments, Model Catalog, and Providers share the same Tabs/Card treatment. Provider administration remains admin-only; members see only assignments and available models. API authorization remains server-side, while these UI guards communicate available actions.

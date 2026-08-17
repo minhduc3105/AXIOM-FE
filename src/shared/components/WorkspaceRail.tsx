@@ -3,6 +3,7 @@ import {
   DatabaseIcon,
   FileTextIcon,
   WrenchIcon,
+  BotIcon,
   MenuIcon,
   MessageSquarePlusIcon,
   MoonIcon,
@@ -60,6 +61,7 @@ type WorkspaceRailProps = {
   onData: () => void;
   onReports: () => void;
   onMemory: () => void;
+  onModels: () => void;
   onTools: () => void;
   onSettings: () => void;
   user: AuthUser | null;
@@ -98,6 +100,7 @@ function RailContent({
   onData,
   onReports,
   onMemory,
+  onModels,
   onTools,
   onSettings,
   user,
@@ -460,6 +463,32 @@ function RailContent({
                   : "size-11 justify-center px-0",
                 "rounded-xl",
               )}
+              data-active={surface === "models"}
+              onClick={onModels}
+              aria-label="Model Service"
+            >
+              <BotIcon data-icon="inline-start" />
+              <span
+                className={cn(
+                  "transition-opacity duration-300",
+                  expanded
+                    ? "opacity-100"
+                    : "pointer-events-none w-0 overflow-hidden opacity-0",
+                )}
+              >
+                Model Service
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              className={cn(
+                workspaceNavButtonClass,
+                sidebarButtonIconPadding,
+                expanded
+                  ? "w-full justify-start px-3"
+                  : "size-11 justify-center px-0",
+                "rounded-xl",
+              )}
               data-active={surface === "memory"}
               onClick={onMemory}
               aria-label="Memory settings"
@@ -729,6 +758,10 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
             }}
             onMemory={() => {
               props.onMemory();
+              setMobileOpen(false);
+            }}
+            onModels={() => {
+              props.onModels();
               setMobileOpen(false);
             }}
             onTools={() => {

@@ -44,19 +44,22 @@ describe("model readiness", () => {
     ).toBe("Inactive");
     expect(
       getProviderReadiness({ ...provider, connection_status: "unavailable" }).label,
-    ).toBe("Unavailable");
+    ).toBe("Connection failed");
+    expect(
+      getProviderReadiness({ ...provider, connection_status: "unknown" }),
+    ).toMatchObject({ level: "unknown", action: "test_provider" });
   });
 
   it("combines provider and model readiness", () => {
     expect(getModelReadiness(provider, model).level).toBe("ready");
     expect(
       getModelReadiness(provider, { ...model, connection_status: "unknown" }).label,
-    ).toBe("Test recommended");
+    ).toBe("Unknown");
     expect(
       getModelReadiness(
         { ...provider, status: "inactive" },
         model,
-      ).label,
-    ).toBe("Inactive");
+      ),
+    ).toMatchObject({ level: "blocked", action: "resolve_provider" });
   });
 });

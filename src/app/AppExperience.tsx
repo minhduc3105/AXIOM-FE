@@ -7,6 +7,7 @@ import { ReportsPage } from "@/features/reports/ReportsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
 import { useModelRegistry } from "@/features/models/model/useModelRegistry";
+import { ModelsPage } from "@/features/models/ModelsPage";
 import { MemoryPage } from "@/features/memory/MemoryPage";
 import { LoginPage } from "@/features/auth/components/LoginPage";
 import { OrganizationUsersPage } from "@/features/auth/components/OrganizationUsersPage";
@@ -17,6 +18,7 @@ import {
   createChatRoute,
   createDataIngestionRoute,
   createDataRoute,
+  createModelsRoute,
   createReportsRoute,
   createMemoryRoute,
   createOrganizationRoute,
@@ -163,6 +165,10 @@ export function AppExperience() {
     navigate(createMemoryRoute());
   }, [navigate]);
 
+  const openModels = useCallback(() => {
+    navigate(createModelsRoute());
+  }, [navigate]);
+
   const openSettings = useCallback(() => {
     navigate(createOrganizationRoute());
   }, [navigate]);
@@ -248,6 +254,7 @@ export function AppExperience() {
       onData={openData}
       onReports={openReports}
       onMemory={openMemory}
+      onModels={openModels}
       onTools={openTools}
       onSettings={openSettings}
       user={auth.user}
@@ -302,6 +309,8 @@ export function AppExperience() {
         <ReportsPage onData={openData} />
       ) : route.surface === "memory" ? (
         <MemoryPage />
+      ) : route.surface === "models" ? (
+        <ModelsPage />
       ) : route.surface === "organization" ? (
         <OrganizationUsersPage initialTab={route.tab} />
       ) : route.page === "detail" && route.toolName ? (

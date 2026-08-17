@@ -19,6 +19,7 @@ type AppShellProps = {
   onData: () => void;
   onReports: () => void;
   onMemory: () => void;
+  onModels: () => void;
   showCommandBar?: boolean;
   onTools: () => void;
   onSettings: () => void;
@@ -38,6 +39,7 @@ export function AppShell({
   onData,
   onReports,
   onMemory,
+  onModels,
   showCommandBar = false,
   onTools,
   onSettings,
@@ -74,6 +76,7 @@ export function AppShell({
           onData={onData}
           onReports={onReports}
           onMemory={onMemory}
+          onModels={onModels}
           onTools={onTools}
           onSettings={onSettings}
           user={user}

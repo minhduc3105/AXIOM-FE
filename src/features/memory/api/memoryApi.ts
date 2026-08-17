@@ -11,7 +11,7 @@ import type {
 } from "../model/types";
 
 const intentBase = (import.meta.env.VITE_MEMORY_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
-const remeBase = (import.meta.env.VITE_REME_API_BASE_URL ?? "http://127.0.0.1:2333").replace(/\/$/, "");
+const remeBase = import.meta.env.VITE_REME_API_BASE_URL?.replace(/\/$/, "");
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -87,7 +87,9 @@ function normalizeProcedure(value: unknown): ProcedureRecord {
 export async function getServiceStatus(): Promise<{ intent: ServiceStatus; reme: ServiceStatus }> {
   const [intent, reme] = await Promise.allSettled([
     request(intentBase, "/health"),
-    request(remeBase, "/health_check", { method: "POST", body: "{}" }),
+    remeBase
+      ? request(remeBase, "/health_check", { method: "POST", body: "{}" })
+      : Promise.reject(new Error("ReMe is not configured")),
   ]);
   return { intent: intent.status === "fulfilled" ? "online" : "offline", reme: reme.status === "fulfilled" ? "online" : "offline" };
 }
@@ -177,6 +179,7 @@ export async function feedbackProcedure(id: string, observed_result: Exclude<Fee
 }
 
 export async function remeOperation(operation: "capture" | "search" | "dream" | "reindex", input: string) {
+  if (!remeBase) throw new Error("ReMe API is not configured.");
   const actions = {
     capture: ["/auto_memory", { session_id: `${memoryScope.tenant_id}-${memoryScope.user_id ?? "user"}`, messages: [{ role: "user", name: memoryScope.user_id ?? "user", content: input, time_created: new Date().toISOString() }] }],
     search: ["/search", { query: input, limit: 5 }],

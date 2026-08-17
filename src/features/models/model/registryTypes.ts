@@ -1,13 +1,20 @@
 export type ModelCapability = "llm" | "embedding" | "vlm" | "reranker";
 export type ResourceStatus = "active" | "inactive";
-export type ProviderSource = "cloud" | "custom" | "local" | string;
+export type ConnectionStatus = "unknown" | "available" | "unavailable";
+export type CredentialSource = "database" | "environment" | "none" | "unknown";
+export type ProviderSource = "cloud" | "self_hosted" | "custom";
+export type ProviderProtocol =
+  | "builtin"
+  | "openrouter"
+  | "openai_compatible"
+  | "cohere_compatible";
 
 export type ProviderCatalogItem = {
   id: string;
   display_name: string;
   source: ProviderSource;
   default_base_url: string;
-  protocol: string;
+  protocol: ProviderProtocol;
   requires_api_key: boolean;
 };
 
@@ -19,11 +26,11 @@ export type ProviderView = {
   display_name: string;
   source: ProviderSource;
   base_url: string;
-  protocol: string;
+  protocol: ProviderProtocol;
   status: ResourceStatus;
-  connection_status: string;
-  credential_configured: boolean;
-  credential_source: "database" | "environment" | "none";
+  connection_status: ConnectionStatus;
+  credential_configured: boolean | null;
+  credential_source: CredentialSource;
   created_at: string;
   updated_at: string;
 };
@@ -39,7 +46,7 @@ export type ProviderModelView = {
   max_tokens: number | null;
   max_context_length: number | null;
   status: ResourceStatus;
-  connection_status: string;
+  connection_status: ConnectionStatus;
   is_default: boolean;
   created_at: string;
   updated_at: string;
@@ -50,7 +57,7 @@ export type ProviderCreateInput = {
   display_name: string;
   source: ProviderSource;
   base_url: string;
-  protocol: string;
+  protocol: ProviderProtocol;
   status?: ResourceStatus;
 };
 

@@ -4,7 +4,6 @@ import type {
   CreateOrganizationUserInput,
   CurrentUserResponse,
   OrganizationRegistrationResponse,
-  OrganizationMembership,
   CreateOrganizationInput,
   RegisterOrganizationInput,
 } from '@/features/auth/model/types'
@@ -80,18 +79,6 @@ export async function registerOrganization(
     throw new Error(await authErrorMessage(response, 'Unable to register organization.'))
   }
   return (await response.json()) as OrganizationRegistrationResponse
-}
-
-export async function listMyOrganizations(
-  accessToken: string,
-  signal?: AbortSignal,
-): Promise<OrganizationMembership[]> {
-  const response = await fetch(authApiUrl('/api/v1/orgs/mine'), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    signal,
-  })
-  if (!response.ok) throw new Error(await authErrorMessage(response, 'Unable to load organizations.'))
-  return ((await response.json()) as { organizations: OrganizationMembership[] }).organizations
 }
 
 export async function createOrganization(
