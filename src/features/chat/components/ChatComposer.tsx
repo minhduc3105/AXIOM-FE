@@ -18,7 +18,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
-import type { ChatEngine, ChatModelOption } from "../model/types";
+import type {
+  ChatEngine,
+  ChatExecutionMode,
+  ChatModelOption,
+} from "../model/types";
 
 const engineOptions: Array<{ value: ChatEngine; label: string }> = [
   { value: "auto", label: "Auto" },
@@ -27,10 +31,25 @@ const engineOptions: Array<{ value: ChatEngine; label: string }> = [
   { value: "report", label: "Report" },
 ];
 
+const executionModeOptions = [
+  { value: "instant", label: "Instant", description: "Run immediately" },
+  {
+    value: "thinking",
+    label: "Thinking",
+    description: "Review plan before running",
+  },
+] satisfies Array<{
+  value: ChatExecutionMode;
+  label: string;
+  description: string;
+}>;
+
 export function ChatComposer({
   onSubmit,
   engine,
+  executionMode,
   onEngineChange,
+  onExecutionModeChange,
   models,
   selectedModelAlias,
   onModelChange,
@@ -44,11 +63,14 @@ export function ChatComposer({
     engine: ChatEngine,
     files: File[],
     modelAlias?: string | null,
+    executionMode?: ChatExecutionMode,
   ) => void;
   engine: ChatEngine;
+  executionMode: ChatExecutionMode;
   models: ChatModelOption[];
   selectedModelAlias: string | null;
   onEngineChange: (engine: ChatEngine) => void;
+  onExecutionModeChange: (mode: ChatExecutionMode) => void;
   onModelChange: (modelAlias: string | null) => void;
   placeholder?: string;
   disabled?: boolean;
@@ -58,10 +80,14 @@ export function ChatComposer({
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [engineMenuOpen, setEngineMenuOpen] = useState(false);
+  const [executionModeMenuOpen, setExecutionModeMenuOpen] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const fileInputId = useId();
   const selectedEngineLabel =
     engineOptions.find((option) => option.value === engine)?.label || "Auto";
+  const selectedExecutionModeLabel =
+    executionModeOptions.find((option) => option.value === executionMode)
+      ?.label || "Thinking";
   const selectedModel =
     models.find((model) => model.alias === selectedModelAlias) ?? models[0];
   const selectedModelLabel = selectedModel?.label ?? "Model";
@@ -73,10 +99,20 @@ export function ChatComposer({
     onModelChange(modelAlias || null);
     setModelMenuOpen(false);
   };
+  const selectExecutionMode = (nextMode: string) => {
+    onExecutionModeChange(nextMode as ChatExecutionMode);
+    setExecutionModeMenuOpen(false);
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (value.trim() && !sendDisabled) {
-      onSubmit(value.trim(), engine, files, selectedModel?.alias ?? null);
+      onSubmit(
+        value.trim(),
+        engine,
+        files,
+        selectedModel?.alias ?? null,
+        executionMode,
+      );
       setValue("");
       setFiles([]);
     }
@@ -86,7 +122,13 @@ export function ChatComposer({
     if (event.key !== "Enter" || event.shiftKey || sendDisabled) return;
     event.preventDefault();
     if (value.trim()) {
-      onSubmit(value.trim(), engine, files, selectedModel?.alias ?? null);
+      onSubmit(
+        value.trim(),
+        engine,
+        files,
+        selectedModel?.alias ?? null,
+        executionMode,
+      );
       setValue("");
       setFiles([]);
     }
@@ -154,8 +196,8 @@ export function ChatComposer({
         rows={1}
         aria-label="Ask AXIOM"
       />
-      <div className="flex min-w-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <input
             id={fileInputId}
             type="file"
@@ -196,6 +238,53 @@ export function ChatComposer({
                     {option.label}
                   </DropdownMenuRadioItem>
                 ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu
+            open={executionModeMenuOpen}
+            onOpenChange={setExecutionModeMenuOpen}
+          >
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 min-w-[128px] justify-between rounded-full border-[#d8d0c2]/80 bg-[#f4efe5]/70 px-3 text-[#4f4a42] shadow-none hover:bg-[#ebe4d8] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1] dark:hover:bg-white/10"
+                  aria-label="Select execution mode"
+                  disabled={disabled}
+                />
+              }
+            >
+              {selectedExecutionModeLabel}
+              <ChevronDownIcon data-icon="inline-end" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-[220px]">
+              <DropdownMenuRadioGroup
+                value={executionMode}
+                onValueChange={selectExecutionMode}
+              >
+                {executionModeOptions.map((option) => {
+                  const instantUnavailable =
+                    option.value === "instant" && engine !== "report";
+                  return (
+                    <DropdownMenuRadioItem
+                      key={option.value}
+                      value={option.value}
+                      disabled={instantUnavailable}
+                      className="items-start py-2"
+                    >
+                      <span className="flex flex-col">
+                        <span>{option.label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {instantUnavailable
+                            ? "Instant currently supports Report"
+                            : option.description}
+                        </span>
+                      </span>
+                    </DropdownMenuRadioItem>
+                  );
+                })}
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>

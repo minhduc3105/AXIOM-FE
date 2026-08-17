@@ -2,6 +2,7 @@ import type {
   EditableSpecification,
   EvidenceItem,
   ChatEngine,
+  ChatExecutionMode,
   ChatTurn,
   Investigation,
   MockResult,
@@ -95,6 +96,7 @@ export type ConversationHistorySnapshot = {
   turns: ChatTurn[];
   pendingInvestigation: Investigation | null;
   pendingQuestion: string | null;
+  pendingExecutionMode: ChatExecutionMode;
   pendingResponse: boolean;
 };
 
@@ -125,6 +127,7 @@ export async function createInvestigation(
   question: string,
   conversationId: string | null = null,
   engine: ChatEngine = "auto",
+  executionMode: ChatExecutionMode = "thinking",
   signal?: AbortSignal,
   options: CreateInvestigationOptions | ((result: MockResult) => void) = {},
 ): Promise<InitialChatOutcome> {
@@ -157,6 +160,7 @@ export async function createInvestigation(
         metadata: { file_ref: file.fileRef },
       })),
       input_artifact_ids: uploadedFiles.map((file) => file.artifactId),
+      execution_mode: executionMode,
       runtime_options: {
         engine,
         ...(resolvedOptions.modelAlias
@@ -171,10 +175,17 @@ export async function createInvestigation(
     onProcessEvents: resolvedOptions.onProcessEvents,
   });
 
+  if (executionMode === "instant" && outcome.confirmation) {
+    throw new Error("Instant execution unexpectedly requested confirmation.");
+  }
+
   if (outcome.completed) {
     return {
       kind: "completed",
-      investigation: directAnswerInvestigation(question),
+      investigation:
+        executionMode === "instant"
+          ? instantReportInvestigation(question)
+          : directAnswerInvestigation(question),
       result: completedToResult(outcome.completed),
       processEvents: outcome.processEvents,
     };
@@ -654,6 +665,18 @@ function directAnswerInvestigation(question: string): Investigation {
   };
 }
 
+export function instantReportInvestigation(question: string): Investigation {
+  return {
+    question,
+    confidence: 100,
+    intent: "report_direct",
+    scope: "Executed immediately with the Report engine.",
+    specMarkdown: "",
+    policy: "AXIOM-scoped sandbox and workspace authorization.",
+    output: "Generated report and AXIOM artifact references",
+  };
+}
+
 function completedToResult(completed: CompletedResponse): MockResult {
   const markdown =
     completed.outputText.trim() || "No response text was returned.";
@@ -935,6 +958,7 @@ function messagesToChatTurns(
   );
   const turns: ChatTurn[] = [];
   let pendingQuestion: string | null = null;
+  let pendingExecutionMode: ChatExecutionMode = "thinking";
   let pendingInvestigation: Investigation | null = null;
   let historyConfirmation: PendingConfirmation | null = null;
   let pendingResponse = false;
@@ -942,6 +966,7 @@ function messagesToChatTurns(
   for (const message of orderedMessages) {
     if (message.role === "user") {
       pendingQuestion = userQuestionFromMessage(message) || pendingQuestion;
+      pendingExecutionMode = executionModeFromMessage(message);
       pendingInvestigation = null;
       historyConfirmation = null;
       continue;
@@ -971,18 +996,36 @@ function messagesToChatTurns(
       "Conversation response";
     pendingResponse = Boolean(completed.pending);
     turns.push({
-      investigation: pendingInvestigation || storedInvestigation(question),
+      executionMode: pendingExecutionMode,
+      investigation:
+        pendingExecutionMode === "instant"
+          ? instantReportInvestigation(question)
+          : pendingInvestigation || storedInvestigation(question),
       result: completedToResult(completed),
       processEvents: completed.processEvents,
     });
     pendingQuestion = null;
     pendingInvestigation = null;
     historyConfirmation = null;
+    pendingExecutionMode = "thinking";
   }
 
   pendingConfirmation = historyConfirmation;
 
-  return { turns, pendingInvestigation, pendingQuestion, pendingResponse };
+  return {
+    turns,
+    pendingInvestigation,
+    pendingQuestion,
+    pendingExecutionMode,
+    pendingResponse,
+  };
+}
+
+function executionModeFromMessage(
+  message: IntelligenceMessage,
+): ChatExecutionMode {
+  const mode = stringValue(asRecord(message.content).execution_mode);
+  return mode === "instant" ? "instant" : "thinking";
 }
 
 function userQuestionFromMessage(message: IntelligenceMessage) {
@@ -1011,7 +1054,11 @@ function completedResponseFromMessage(
   const outputText =
     stringValue(record.output_text) ||
     stringValue(response.output_text) ||
-    (message.status === "failed" ? failedMessage : "") ||
+    (["failed", "cancelled", "canceled"].includes(
+      message.status.toLowerCase(),
+    )
+      ? failedMessage
+      : "") ||
     (typeof content === "string" ? content : "");
 
   if (!outputText) return null;
@@ -1044,6 +1091,8 @@ function isTerminalAssistantStatus(status: string) {
     "success",
     "failed",
     "error",
+    "cancelled",
+    "canceled",
   ].includes(normalized);
 }
 

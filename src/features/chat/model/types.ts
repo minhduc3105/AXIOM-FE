@@ -2,6 +2,7 @@ export type ChatStage = "welcome" | "pending" | "intent" | "process" | "result";
 export type WorkflowStage = Exclude<ChatStage, "welcome" | "pending">;
 export type ProcessStatus = "waiting" | "running" | "done" | "failed";
 export type ChatEngine = "auto" | "general" | "reason" | "report";
+export type ChatExecutionMode = "instant" | "thinking";
 
 export type ChatModelOption = {
   id: string;
@@ -76,6 +77,7 @@ export type MockResult = {
 };
 
 export type ChatTurn = {
+  executionMode: ChatExecutionMode;
   investigation: Investigation;
   result: MockResult;
   processEvents?: ProcessEvent[];
@@ -83,6 +85,7 @@ export type ChatTurn = {
 
 export type ChatWorkflowState = {
   activeConversationId: string | null;
+  executionMode: ChatExecutionMode;
   stage: ChatStage;
   evidenceOpen: boolean;
   investigation: Investigation | null;

@@ -9,6 +9,7 @@ import {
 import type {
   ChatAttachment,
   ChatEngine,
+  ChatExecutionMode,
   ChatTurn,
   ChatWorkflowState,
   EditableSpecification,
@@ -19,6 +20,7 @@ import type {
 
 const initialState: ChatWorkflowState = {
   activeConversationId: null,
+  executionMode: "instant",
   stage: "welcome",
   evidenceOpen: false,
   investigation: null,
@@ -36,11 +38,13 @@ type Action =
       type: "submit/start";
       investigation: Investigation;
       conversationId: string | null;
+      executionMode: ChatExecutionMode;
     }
   | {
       type: "submit/stream";
       investigation: Investigation;
       result: MockResult;
+      executionMode: ChatExecutionMode;
     }
   | { type: "submit/confirmation"; investigation: Investigation }
   | {
@@ -48,6 +52,7 @@ type Action =
       investigation: Investigation;
       result: MockResult;
       processEvents: ProcessEvent[];
+      executionMode: ChatExecutionMode;
     }
   | { type: "draft/update"; specification: EditableSpecification }
   | { type: "draft/reset" }
@@ -75,6 +80,7 @@ type Action =
       processEvents: ProcessEvent[];
       pendingInvestigation: Investigation | null;
       pendingQuestion: string | null;
+      pendingExecutionMode: ChatExecutionMode;
       pendingResponse: boolean;
     }
   | { type: "evidence/open" }
@@ -87,13 +93,17 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
       return {
         ...state,
         activeConversationId: action.conversationId,
-        stage: "pending",
+        executionMode: action.executionMode,
+        stage: action.executionMode === "instant" ? "process" : "pending",
         evidenceOpen: false,
         investigation: action.investigation,
-        draft: {
-          intent: action.investigation.intent,
-          specMarkdown: action.investigation.specMarkdown,
-        },
+        draft:
+          action.executionMode === "thinking"
+            ? {
+                intent: action.investigation.intent,
+                specMarkdown: action.investigation.specMarkdown,
+              }
+            : null,
         approvedSpecification: null,
         processEvents: createProcessEvents(),
         result: null,
@@ -102,6 +112,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
             ? [
                 ...state.history,
                 {
+                  executionMode: state.executionMode,
                   investigation: state.investigation,
                   result: state.result,
                   processEvents: state.processEvents,
@@ -114,7 +125,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
     case "submit/stream":
       return {
         ...state,
-        stage: "result",
+        stage: action.executionMode === "instant" ? "process" : "result",
         evidenceOpen: false,
         investigation: action.investigation,
         draft: null,
@@ -126,6 +137,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
     case "submit/confirmation":
       return {
         ...state,
+        executionMode: "thinking",
         stage: "intent",
         investigation: action.investigation,
         draft: {
@@ -137,6 +149,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
     case "submit/completed":
       return {
         ...state,
+        executionMode: action.executionMode,
         stage: "result",
         evidenceOpen: false,
         investigation: action.investigation,
@@ -218,6 +231,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
       return {
         ...state,
         activeConversationId: action.conversationId,
+        executionMode: "thinking",
         stage: "pending",
         evidenceOpen: false,
         investigation: action.investigation,
@@ -241,6 +255,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
       if (action.investigation && action.result) {
         return {
           ...state,
+          executionMode: action.pendingExecutionMode,
           stage: "result",
           evidenceOpen: false,
           investigation: action.investigation,
@@ -256,6 +271,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
       if (action.pendingInvestigation) {
         return {
           ...state,
+          executionMode: action.pendingExecutionMode,
           stage: "intent",
           evidenceOpen: false,
           investigation: action.pendingInvestigation,
@@ -274,9 +290,14 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
       if (action.pendingQuestion) {
         return {
           ...state,
-          stage: "pending",
+          executionMode: action.pendingExecutionMode,
+          stage:
+            action.pendingExecutionMode === "instant" ? "process" : "pending",
           evidenceOpen: false,
-          investigation: optimisticInvestigation(action.pendingQuestion),
+          investigation:
+            action.pendingExecutionMode === "instant"
+              ? instantReportInvestigation(action.pendingQuestion)
+              : optimisticInvestigation(action.pendingQuestion),
           draft: null,
           approvedSpecification: null,
           processEvents: createProcessEvents(),
@@ -327,6 +348,20 @@ const streamingDirectAnswerInvestigation = (
   output: "Direct answer",
 });
 
+const instantReportInvestigation = (
+  question: string,
+  attachments: ChatAttachment[] = [],
+): Investigation => ({
+  question,
+  attachments,
+  confidence: 100,
+  intent: "report_direct",
+  scope: "Executed immediately with the Report engine.",
+  specMarkdown: "",
+  policy: "AXIOM-scoped sandbox and workspace authorization.",
+  output: "Generated report and AXIOM artifact references",
+});
+
 function chatAttachmentsFromFiles(files: File[]): ChatAttachment[] {
   return files.map((file) => ({
     name: file.name,
@@ -366,6 +401,7 @@ function markActiveProcessEventFailed(events: ProcessEvent[]): ProcessEvent[] {
 type CachedConversationState = Pick<
   ChatWorkflowState,
   | "stage"
+  | "executionMode"
   | "evidenceOpen"
   | "investigation"
   | "draft"
@@ -379,10 +415,22 @@ type CachedConversationState = Pick<
 
 const conversationStateCache = new Map<string, CachedConversationState>();
 
+type LastSubmission = {
+  question: string;
+  conversationId: string | null;
+  engine: ChatEngine;
+  executionMode: ChatExecutionMode;
+  files: File[];
+  organizationId?: string | null;
+  workspaceId?: string | null;
+  modelAlias?: string | null;
+};
+
 function cacheConversationState(state: ChatWorkflowState) {
   if (!state.activeConversationId || state.stage === "welcome") return;
   conversationStateCache.set(state.activeConversationId, {
     stage: state.stage,
+    executionMode: state.executionMode,
     evidenceOpen: state.evidenceOpen,
     investigation: state.investigation,
     draft: state.draft,
@@ -412,6 +460,7 @@ function waitForPendingConversationPoll(signal: AbortSignal) {
 export function useChatWorkflow() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const requestRef = useRef<AbortController | null>(null);
+  const lastSubmissionRef = useRef<LastSubmission | null>(null);
 
   useEffect(() => {
     cacheConversationState(state);
@@ -433,15 +482,30 @@ export function useChatWorkflow() {
       organizationId?: string | null,
       workspaceId?: string | null,
       modelAlias?: string | null,
+      executionMode: ChatExecutionMode = "instant",
     ) => {
       cancelCurrentRequest();
       const attachments = chatAttachmentsFromFiles(files);
+      lastSubmissionRef.current = {
+        question,
+        conversationId,
+        engine,
+        executionMode,
+        files,
+        organizationId,
+        workspaceId,
+        modelAlias,
+      };
       const controller = new AbortController();
       requestRef.current = controller;
       dispatch({
         type: "submit/start",
-        investigation: optimisticInvestigation(question, attachments),
+        investigation:
+          executionMode === "instant"
+            ? instantReportInvestigation(question, attachments)
+            : optimisticInvestigation(question, attachments),
         conversationId,
+        executionMode,
       });
 
       try {
@@ -449,6 +513,7 @@ export function useChatWorkflow() {
           question,
           conversationId,
           engine,
+          executionMode,
           controller.signal,
           {
             files,
@@ -458,11 +523,15 @@ export function useChatWorkflow() {
             onOutputText: (result) =>
               dispatch({
                 type: "submit/stream",
-                investigation: streamingDirectAnswerInvestigation(
-                  question,
-                  attachments,
-                ),
+                investigation:
+                  executionMode === "instant"
+                    ? instantReportInvestigation(question, attachments)
+                    : streamingDirectAnswerInvestigation(
+                        question,
+                        attachments,
+                      ),
                 result,
+                executionMode,
               }),
             onProcessEvents: (events) =>
               dispatch({ type: "process/events", events }),
@@ -477,6 +546,7 @@ export function useChatWorkflow() {
             ),
             result: outcome.result,
             processEvents: outcome.processEvents,
+            executionMode,
           });
         } else {
           dispatch({
@@ -616,9 +686,30 @@ export function useChatWorkflow() {
   }, [startProcess, state.draft, state.loading, state.stage]);
 
   const retryProcess = useCallback(() => {
-    if (state.loading || !state.approvedSpecification) return;
-    void startProcess(state.approvedSpecification);
-  }, [startProcess, state.approvedSpecification, state.loading]);
+    if (state.loading) return;
+    if (state.executionMode === "thinking" && state.approvedSpecification) {
+      void startProcess(state.approvedSpecification);
+      return;
+    }
+    const submission = lastSubmissionRef.current;
+    if (!submission || submission.executionMode !== "instant") return;
+    void submitQuestion(
+      submission.question,
+      submission.conversationId,
+      submission.engine,
+      submission.files,
+      submission.organizationId,
+      submission.workspaceId,
+      submission.modelAlias,
+      submission.executionMode,
+    );
+  }, [
+    startProcess,
+    state.approvedSpecification,
+    state.executionMode,
+    state.loading,
+    submitQuestion,
+  ]);
 
   const loadConversation = useCallback(
     async (conversationId: string) => {
@@ -664,6 +755,8 @@ export function useChatWorkflow() {
               processEvents: activeTurn?.processEvents || createProcessEvents(),
               pendingInvestigation: snapshot.pendingInvestigation,
               pendingQuestion: snapshot.pendingQuestion,
+              pendingExecutionMode:
+                activeTurn?.executionMode ?? snapshot.pendingExecutionMode,
               pendingResponse: snapshot.pendingResponse,
             });
           }
