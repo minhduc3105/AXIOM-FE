@@ -23,6 +23,7 @@ type AppShellProps = {
   showCommandBar?: boolean;
   onTools: () => void;
   onSettings: () => void;
+  onOrganizationAdministration: () => void;
   user: AuthUser | null;
   scope: AppScopeContext | null;
   onLogout: () => void;
@@ -43,6 +44,7 @@ export function AppShell({
   showCommandBar = false,
   onTools,
   onSettings,
+  onOrganizationAdministration,
   user,
   scope,
   onLogout,
@@ -79,6 +81,7 @@ export function AppShell({
           onModels={onModels}
           onTools={onTools}
           onSettings={onSettings}
+          onOrganizationAdministration={onOrganizationAdministration}
           user={user}
           onLogout={onLogout}
         />

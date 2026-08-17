@@ -244,7 +244,7 @@ Currently installed primitives:
 Install more shadcn components from the project root:
 
 ```bash
-npx shadcn@latest add card input label form button dialog tabs tooltip
+npx shadcn@latest add card input label form button dialog switch tabs tooltip
 ```
 
 If the CLI asks about overwriting files, only accept when intentionally replacing an existing primitive.

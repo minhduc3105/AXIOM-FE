@@ -6,6 +6,7 @@ import {
   createMemoryRoute,
   createModelsRoute,
   createOrganizationRoute,
+  createSettingsRoute,
   createToolDetailRoute,
   createToolsRoute,
   getAppRoutePath,
@@ -116,7 +117,7 @@ describe("tools routing", () => {
   });
 });
 
-describe("settings routing", () => {
+describe("application routing", () => {
   it("parses the models path as its own surface", () => {
     expect(parseAppRoute("/models")).toEqual({
       surface: "models",
@@ -136,26 +137,25 @@ describe("settings routing", () => {
     expect(getAppRoutePath(createMemoryRoute())).toBe("/memory");
   });
 
-  it("parses the organization settings path", () => {
-    expect(parseAppRoute("/settings")).toEqual({
+  it("parses the organization administration path", () => {
+    expect(parseAppRoute("/organization")).toEqual({
       surface: "organization",
       tab: "overview",
       sessionId: null,
     });
-    expect(getAppRoutePath(createOrganizationRoute())).toBe("/settings");
+    expect(getAppRoutePath(createOrganizationRoute())).toBe("/organization");
   });
 
-  it("keeps the former memory settings path as a legacy route", () => {
-    expect(parseAppRoute("/settings/memory")).toEqual({
-      surface: "memory",
+  it("keeps organization administration tabs outside Settings", () => {
+    expect(parseAppRoute("/organization/members")).toEqual({
+      surface: "organization",
+      tab: "members",
       sessionId: null,
     });
-  });
-
-  it("redirects the former nested models settings path to the models service", () => {
-    expect(parseAppRoute("/settings/models")).toEqual({
-      surface: "models",
+    expect(parseAppRoute("/settings")).toEqual({
+      surface: "settings",
       sessionId: null,
     });
+    expect(getAppRoutePath(createSettingsRoute())).toBe("/settings");
   });
 });

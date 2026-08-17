@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/shared/lib/utils";
+import { LoaderCircleIcon } from "lucide-react";
 
 type ToolStatusSwitchProps = {
   checked: boolean;
@@ -20,19 +21,10 @@ export function ToolStatusSwitch({
   showLabel = true,
 }: ToolStatusSwitchProps) {
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      role="switch"
-      aria-checked={checked}
-      aria-busy={disabled || undefined}
-      aria-label={`${checked ? "Disable" : "Enable"} ${label}`}
-      disabled={disabled}
-      className="group/switch h-8 shrink-0 gap-2 rounded-lg px-1 disabled:cursor-wait disabled:opacity-65"
+    <div
+      className="flex h-8 shrink-0 items-center gap-2"
       onClick={(event) => {
         event.stopPropagation();
-        if (disabled) return;
-        onCheckedChange(!checked);
       }}
       onKeyDown={(event) => event.stopPropagation()}
     >
@@ -42,29 +34,26 @@ export function ToolStatusSwitch({
           className={cn(
             "h-6 min-w-16 justify-center rounded-md px-2 text-xs font-medium",
             checked
-              ? "border-primary/30 bg-primary/10 text-primary"
+              ? "border-status-success/30 bg-status-success/10 text-status-success"
               : "bg-muted text-muted-foreground",
           )}
         >
-          {disabled ? disabledLabel : checked ? "Active" : "Inactive"}
+          {disabled ? <LoaderCircleIcon className="size-3 animate-spin" /> : null}
+          {disabled ? disabledLabel : checked ? "Active" : "Disabled"}
         </Badge>
       )}
-      <span
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        aria-busy={disabled || undefined}
+        aria-label={`${checked ? "Disable" : "Enable"} ${label}`}
+        disabled={disabled}
         className={cn(
-          "relative block h-5 w-9 rounded-full border transition-colors duration-200",
           checked
-            ? "border-[#2456e8] bg-[#2456e8] dark:border-[#7895ff] dark:bg-[#7895ff]"
-            : "border-[#c9c0b2] bg-[#ded8cb] dark:border-[#514f45] dark:bg-[#303029]",
+            ? "data-checked:bg-status-success focus-visible:border-status-success focus-visible:ring-status-success/20"
+            : "border-line data-unchecked:bg-soft",
         )}
-        aria-hidden="true"
-      >
-        <span
-          className={cn(
-            "absolute left-0 top-0.5 size-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 dark:bg-[#f4efe5]",
-            checked ? "translate-x-[17px]" : "translate-x-0.5",
-          )}
-        />
-      </span>
-    </Button>
+      />
+    </div>
   );
 }
