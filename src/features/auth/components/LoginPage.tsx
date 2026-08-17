@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { LogInIcon } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -12,21 +12,49 @@ import { PasswordField } from './PasswordField'
 const defaultEmail = 'admin@axiom.local'
 const defaultPassword = 'password'
 
-export function LoginPage() {
+type LoginPageProps = {
+  sessionExpired?: boolean
+  registerHref?: string
+  onRegister?: () => void
+  onSuccess?: () => void
+}
+
+export function LoginPage({
+  sessionExpired = false,
+  registerHref = '/register',
+  onRegister,
+  onSuccess,
+}: LoginPageProps) {
   const { login } = useAuth()
   const [email, setEmail] = useState(defaultEmail)
   const [password, setPassword] = useState(defaultPassword)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<AuthError | null>(null)
+  const [showSessionExpired, setShowSessionExpired] = useState(sessionExpired)
   const alertRef = useRef<HTMLDivElement>(null)
 
   const emailError = error?.field === 'email' ? error.userMessage : null
   const passwordError = error?.field === 'password' ? error.userMessage : null
   const formError = error?.field ? null : error
+  const alertError = formError ?? (
+    showSessionExpired
+      ? {
+          kind: 'session' as const,
+          code: 'SESSION_EXPIRED',
+          status: null,
+          field: null,
+          userMessage: 'Your session expired. Sign in again to continue.',
+        }
+      : null
+  )
 
   useEffect(() => {
-    if (formError) alertRef.current?.focus()
-  }, [formError])
+    setShowSessionExpired(sessionExpired)
+  }, [sessionExpired])
+
+  useEffect(() => {
+    if (alertError) alertRef.current?.focus()
+  }, [alertError])
 
   function clearErrorFor(field: AuthField) {
     setError((current) => {
@@ -40,13 +68,24 @@ export function LoginPage() {
     event.preventDefault()
     setSubmitting(true)
     setError(null)
+    setShowSessionExpired(false)
     try {
       await login(email.trim().toLowerCase(), password)
+      onSuccess?.()
     } catch (cause) {
       setError(getAuthError(cause, 'login'))
     } finally {
       setSubmitting(false)
     }
+  }
+
+  function handleRegister(event: MouseEvent<HTMLAnchorElement>) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return
+    }
+    if (!onRegister) return
+    event.preventDefault()
+    onRegister()
   }
 
   return (
@@ -59,9 +98,9 @@ export function LoginPage() {
           </p>
         </div>
 
-        {formError ? (
+        {alertError ? (
           <Alert ref={alertRef} tabIndex={-1} variant="destructive">
-            <AlertDescription>{formError.userMessage}</AlertDescription>
+            <AlertDescription>{alertError.userMessage}</AlertDescription>
           </Alert>
         ) : null}
 
@@ -100,6 +139,14 @@ export function LoginPage() {
           <LogInIcon data-icon="inline-start" aria-hidden="true" />
           {submitting ? 'Signing in…' : 'Sign in'}
         </Button>
+
+        <a
+          className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          href={registerHref}
+          onClick={handleRegister}
+        >
+          Create an account
+        </a>
       </form>
     </AuthShell>
   )

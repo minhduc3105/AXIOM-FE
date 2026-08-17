@@ -18,25 +18,34 @@ import {
   switchOrganization,
 } from '@/features/auth/api/authApi'
 import type {
+  AuthError,
   AuthSession,
   AuthStatus,
   AuthUser,
   CreateOrganizationInput,
   RegisterOrganizationInput,
 } from './types'
-import { configureAuthFetch } from './authFetch'
+import { getAuthError } from './authErrors'
+import {
+  configureAuthFetch,
+  resetAuthFetchUnauthorizedState,
+  type AuthRefreshResult,
+} from './authFetch'
 
 const storageKey = 'axiom.auth.session'
 
-type AuthContextValue = {
+export type AuthContextValue = {
   status: AuthStatus
   user: AuthUser | null
   accessToken: string | null
+  restoreError: AuthError | null
+  sessionEndReason: 'session-expired' | null
   login: (email: string, password: string) => Promise<void>
   createOrganization: (input: CreateOrganizationInput) => Promise<void>
   switchOrganization: (organizationId: string) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<boolean>
+  retryRestore: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -66,9 +75,20 @@ function writeStoredSession(session: AuthSession | null) {
   window.localStorage.removeItem(storageKey)
 }
 
+function isAbortError(cause: unknown) {
+  return cause instanceof DOMException
+    ? cause.name === 'AbortError'
+    : typeof cause === 'object'
+      && cause !== null
+      && 'name' in cause
+      && cause.name === 'AbortError'
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null)
   const [status, setStatus] = useState<AuthStatus>('restoring')
+  const [restoreError, setRestoreError] = useState<AuthError | null>(null)
+  const [sessionEndReason, setSessionEndReason] = useState<'session-expired' | null>(null)
   const sessionRef = useRef<AuthSession | null>(null)
 
   const updateSession = useCallback((nextSession: AuthSession | null) => {
@@ -76,11 +96,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(nextSession)
     writeStoredSession(nextSession)
     setStatus(nextSession ? 'authenticated' : 'unauthenticated')
+    if (nextSession) {
+      resetAuthFetchUnauthorizedState()
+      setRestoreError(null)
+      setSessionEndReason(null)
+    }
   }, [])
 
   const clearSession = useCallback(() => {
     updateSession(null)
+    setRestoreError(null)
+    setSessionEndReason(null)
   }, [updateSession])
+
+  const expireSession = useCallback(() => {
+    updateSession(null)
+    setRestoreError(null)
+    setSessionEndReason('session-expired')
+  }, [updateSession])
+
+  const refreshForRestore = useCallback(async (signal?: AbortSignal) => {
+    const refreshToken = sessionRef.current?.refreshToken
+    if (!refreshToken) return { expired: true, error: null }
+
+    try {
+      const tokenResponse = await refreshWithToken(refreshToken, signal)
+      if (signal?.aborted) return { expired: false, error: null }
+      updateSession({
+        accessToken: tokenResponse.access_token,
+        refreshToken: tokenResponse.refresh_token,
+        user: tokenResponse.user,
+      })
+      return { expired: false, error: null }
+    } catch (cause) {
+      if (isAbortError(cause)) return { expired: false, error: null }
+      const error = getAuthError(cause, 'session')
+      return { expired: error.kind === 'session', error }
+    }
+  }, [updateSession])
+
+  const refreshForAuthFetch = useCallback(async (): Promise<AuthRefreshResult> => {
+    const refreshAttempt = await refreshForRestore()
+    if (refreshAttempt.expired) return 'expired'
+    return refreshAttempt.error ? 'unavailable' : 'refreshed'
+  }, [refreshForRestore])
 
   const refresh = useCallback(async () => {
     const refreshToken = sessionRef.current?.refreshToken
@@ -93,41 +152,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: tokenResponse.user,
       })
       return true
-    } catch {
-      clearSession()
+    } catch (cause) {
+      if (getAuthError(cause, 'session').kind === 'session') {
+        expireSession()
+      }
       return false
     }
-  }, [clearSession, updateSession])
+  }, [expireSession, updateSession])
+
+  const restoreSession = useCallback(async (signal?: AbortSignal) => {
+    const storedSession = readStoredSession()
+    sessionRef.current = storedSession
+    setSession(storedSession)
+    setRestoreError(null)
+    setSessionEndReason(null)
+    setStatus('restoring')
+
+    if (!storedSession) {
+      writeStoredSession(null)
+      setStatus('unauthenticated')
+      return
+    }
+
+    try {
+      const response = await getCurrentUser(storedSession.accessToken, signal)
+      if (signal?.aborted) return
+      updateSession({ ...storedSession, user: response.user })
+    } catch (cause) {
+      if (signal?.aborted || isAbortError(cause)) return
+      const error = getAuthError(cause, 'session')
+      if (error.kind === 'session') {
+        const refreshAttempt = await refreshForRestore(signal)
+        if (signal?.aborted) return
+        if (refreshAttempt.expired) {
+          expireSession()
+          return
+        }
+        if (refreshAttempt.error) {
+          setRestoreError(refreshAttempt.error)
+        }
+        return
+      }
+      setRestoreError(error)
+    }
+  }, [expireSession, refreshForRestore, updateSession])
+
+  const retryRestore = useCallback(async () => {
+    await restoreSession()
+  }, [restoreSession])
 
   useEffect(() => {
     configureAuthFetch({
       getAccessToken: () => sessionRef.current?.accessToken ?? null,
-      refreshAccessToken: refresh,
-      onUnauthorized: clearSession,
+      refreshAccessToken: refreshForAuthFetch,
+      onUnauthorized: expireSession,
     })
-  }, [clearSession, refresh])
+  }, [expireSession, refreshForAuthFetch])
 
   useEffect(() => {
     const controller = new AbortController()
-    const storedSession = readStoredSession()
-    sessionRef.current = storedSession
-    setSession(storedSession)
-
-    if (!storedSession) {
-      setStatus('unauthenticated')
-      return () => controller.abort()
-    }
-
-    getCurrentUser(storedSession.accessToken, controller.signal)
-      .then((response) => {
-        updateSession({ ...storedSession, user: response.user })
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) clearSession()
-      })
+    void restoreSession(controller.signal)
 
     return () => controller.abort()
-  }, [clearSession, updateSession])
+  }, [restoreSession])
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -180,13 +267,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status,
       user: session?.user ?? null,
       accessToken: session?.accessToken ?? null,
+      restoreError,
+      sessionEndReason,
       login,
       createOrganization: createOrganizationForUser,
       switchOrganization: switchOrganizationForUser,
       logout,
       refresh,
+      retryRestore,
     }),
-    [createOrganizationForUser, login, logout, refresh, session, status, switchOrganizationForUser],
+    [createOrganizationForUser, login, logout, refresh, restoreError, retryRestore, session, sessionEndReason, status, switchOrganizationForUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -1,17 +1,28 @@
+export type AuthRefreshResult = "refreshed" | "expired" | "unavailable"
+
 type AuthFetchConfig = {
   getAccessToken: () => string | null
-  refreshAccessToken: () => Promise<boolean>
+  refreshAccessToken: () => Promise<AuthRefreshResult>
   onUnauthorized: () => void
 }
 
 let config: AuthFetchConfig = {
   getAccessToken: () => null,
-  refreshAccessToken: async () => false,
+  refreshAccessToken: async () => "expired",
   onUnauthorized: () => undefined,
 }
 
+let refreshPromise: Promise<AuthRefreshResult> | null = null
+let unauthorizedSignaled = false
+
 export function configureAuthFetch(nextConfig: AuthFetchConfig) {
   config = nextConfig
+  refreshPromise = null
+  unauthorizedSignaled = false
+}
+
+export function resetAuthFetchUnauthorizedState() {
+  unauthorizedSignaled = false
 }
 
 function requestWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
@@ -30,12 +41,21 @@ export async function authFetch(
   const response = await requestWithAuth(input, init)
   if (response.status !== 401) return response
 
-  const refreshed = await config.refreshAccessToken()
-  if (!refreshed) {
-    config.onUnauthorized()
+  const startsRefresh = !refreshPromise
+  if (startsRefresh) {
+    refreshPromise = config.refreshAccessToken().finally(() => {
+      refreshPromise = null
+    })
+  }
+  const refreshResult = await refreshPromise
+  if (refreshResult === "expired") {
+    if (startsRefresh && !unauthorizedSignaled) {
+      unauthorizedSignaled = true
+      config.onUnauthorized()
+    }
     return response
   }
+  if (refreshResult === "unavailable") return response
 
   return requestWithAuth(input, init)
 }
-
