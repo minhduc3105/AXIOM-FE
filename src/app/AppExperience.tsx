@@ -274,6 +274,10 @@ export function AppExperience() {
       onOrganizationAdministration={openOrganizationAdministration}
       user={auth.user}
       scope={scope}
+      workspaces={dataWorkspace.workspaces}
+      selectedWorkspace={dataWorkspace.selectedWorkspace}
+      workspacesLoading={dataWorkspace.loading}
+      onWorkspaceSelect={dataWorkspace.selectWorkspace}
       onLogout={auth.logout}
     >
       {route.surface === "chat" ? (
@@ -329,7 +333,11 @@ export function AppExperience() {
       ) : route.surface === "settings" ? (
         <SettingsPage />
       ) : route.surface === "organization" ? (
-        <OrganizationUsersPage initialTab={route.tab} onBack={openHome} />
+        <OrganizationUsersPage
+          initialTab={route.tab}
+          onBack={openHome}
+          organizationName={scope?.organization.name ?? auth.user.organization_id}
+        />
       ) : route.page === "detail" && route.toolName ? (
         <ToolDetailPage
           toolName={route.toolName}

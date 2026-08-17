@@ -17,7 +17,7 @@ type WorkspaceSelectorProps = {
   onSelect: (workspaceId: string) => void;
 };
 
-export function WorkspaceSelector({
+function LegacyWorkspaceSelector({
   workspaces,
   selected,
   loading,
@@ -67,3 +67,5 @@ export function WorkspaceSelector({
     </DropdownMenu>
   );
 }
+
+export { GlobalWorkspaceSwitcher as WorkspaceSelector } from "@/shared/components/GlobalWorkspaceSwitcher";

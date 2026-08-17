@@ -15,6 +15,18 @@ The current app is an interaction-rich prototype with mocked async APIs. The tar
 - shadcn/ui Base UI with the Nova preset
 - Tailwind-style utility classes in React components with shared tokens in `src/styles/globals.css`
 
+## Design System
+
+[`design.md`](design.md) is the canonical AXIOM-FE design reference.
+It defines shared foundations, semantic token usage, and cross-feature UI rules.
+Feature specifications inherit that core without redefining it:
+
+- [`docs/design/auth.md`](docs/design/auth.md) for the Auth Experience.
+- [`docs/design/model-service.md`](docs/design/model-service.md) for Model Service.
+
+Review new UI work against the core document and its applicable feature
+specification before adding feature-specific presentation.
+
 ## Requirements
 
 Use Node.js 20.19+ or 22.12+.
@@ -111,6 +123,11 @@ AXIOM-FE/
 ├── tsconfig*.json
 ├── vite.config.ts
 ├── README.md
+├── design.md                 # Canonical AXIOM-FE design system
+├── docs/
+│   └── design/
+│       ├── auth.md          # Auth Experience specification
+│       └── model-service.md # Model Service specification
 ├── skills/
 │   └── axiom-fe-design/
 │       └── SKILL.md         # AXIOM-FE design guidance for future agents
@@ -244,7 +261,7 @@ Currently installed primitives:
 Install more shadcn components from the project root:
 
 ```bash
-npx shadcn@latest add card input label form button dialog switch tabs tooltip
+npx shadcn@latest add card input label form button dialog tabs tooltip
 ```
 
 If the CLI asks about overwriting files, only accept when intentionally replacing an existing primitive.

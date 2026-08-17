@@ -175,7 +175,11 @@ export async function updateOrganizationUser(
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ org_role: orgRole }),
   })
-  if (!response.ok) throw new Error(await authErrorMessage(response, 'Unable to update organization member.'))
+  if (!response.ok) {
+    const error = new Error(await authErrorMessage(response, 'Unable to update organization member.')) as Error & { status?: number }
+    error.status = response.status
+    throw error
+  }
   return (await response.json()) as AuthUser
 }
 

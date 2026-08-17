@@ -14,10 +14,14 @@ export function configureAuthFetch(nextConfig: AuthFetchConfig) {
   config = nextConfig
 }
 
-function requestWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
+function requestWithAuth(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  replaceAuthorization = false,
+) {
   const token = config.getAccessToken()
   const headers = new Headers(init.headers)
-  if (token && !headers.has('Authorization')) {
+  if (token && (replaceAuthorization || !headers.has('Authorization'))) {
     headers.set('Authorization', `Bearer ${token}`)
   }
   return fetch(input, { ...init, headers })
@@ -36,6 +40,6 @@ export async function authFetch(
     return response
   }
 
-  return requestWithAuth(input, init)
+  return requestWithAuth(input, init, true)
 }
 
