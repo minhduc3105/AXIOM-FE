@@ -98,23 +98,10 @@ export type IngestionFile = {
   sizeLabel: string
 }
 
-export const SUPPORTED_UPLOAD_EXTENSIONS = [
-  'csv',
-  'json',
-  'pdf',
-  'txt',
-  'md',
-  'markdown',
-  'parquet',
-  'xlsx',
-  'png',
-  'jpg',
-  'jpeg',
-] as const
-
-export const UPLOAD_FILE_ACCEPT = SUPPORTED_UPLOAD_EXTENSIONS
-  .map((extension) => `.${extension}`)
-  .join(',')
+export {
+  SUPPORTED_UPLOAD_EXTENSIONS,
+  UPLOAD_FILE_ACCEPT,
+} from './uploadFileRegistry'
 
 export type IngestionSource =
   | { kind: 'files'; files: IngestionFile[] }
