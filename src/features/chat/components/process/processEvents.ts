@@ -28,6 +28,7 @@ export function isToolProcessEvent(event: ProcessEvent) {
   return (
     isLambdaProcessEvent(event) ||
     phase === "tool" ||
+    phase === "artifact" ||
     eventType === "tool.called" ||
     eventType.endsWith(".tool.called") ||
     Boolean(event.code) ||

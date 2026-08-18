@@ -1,6 +1,7 @@
 import type {
   EditableSpecification,
   EvidenceItem,
+  ChatAttachment,
   ChatEngine,
   ChatExecutionMode,
   ChatTurn,
@@ -528,7 +529,16 @@ function applyStreamEvent(
   }
 
   if (event.type === "response.completed") {
-    outcome.completed = completedFromEvent(event, outcome.outputText);
+    const completed = completedFromEvent(event, outcome.outputText);
+    outcome.completed = completed;
+    const artifactEvent = completionArtifactProcessEvent(completed);
+    if (artifactEvent) {
+      outcome.processEvents = upsertProcessEvent(
+        outcome.processEvents,
+        artifactEvent,
+      );
+      callbacks?.onProcessEvents?.(outcome.processEvents);
+    }
     return;
   }
 
@@ -771,9 +781,12 @@ function processEventFromApiEvent(event: SseEvent): ProcessEvent {
   const explicitStep = asRecord(event.step);
   const runtimeFields = processRuntimeFields(event, explicitStep);
   const runtime = event.type === "pipeline.runtime_event";
+  const toolCall = asRecord(event.tool_call);
   const eventId =
     stringValue(explicitStep.id) ||
     stringValue(event.step_id) ||
+    stringValue(event.tool_call_id) ||
+    stringValue(toolCall.id) ||
     stringValue(event.event_id) ||
     stringValue(event.sequence) ||
     stringValue(event.name) ||
@@ -871,7 +884,10 @@ function parseJsonString(value: unknown) {
 }
 
 function hasRuntimeValue(value: unknown) {
-  return value !== null && value !== undefined && value !== "";
+  if (value === null || value === undefined || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return true;
 }
 
 function normalizeProcessCode(
@@ -958,6 +974,7 @@ function messagesToChatTurns(
   );
   const turns: ChatTurn[] = [];
   let pendingQuestion: string | null = null;
+  let pendingAttachments: ChatAttachment[] = [];
   let pendingExecutionMode: ChatExecutionMode = "thinking";
   let pendingInvestigation: Investigation | null = null;
   let historyConfirmation: PendingConfirmation | null = null;
@@ -966,6 +983,7 @@ function messagesToChatTurns(
   for (const message of orderedMessages) {
     if (message.role === "user") {
       pendingQuestion = userQuestionFromMessage(message) || pendingQuestion;
+      pendingAttachments = attachmentsFromMessage(message);
       pendingExecutionMode = executionModeFromMessage(message);
       pendingInvestigation = null;
       historyConfirmation = null;
@@ -979,6 +997,10 @@ function messagesToChatTurns(
         pendingInvestigation = confirmationToInvestigation(
           confirmation,
           question,
+        );
+        pendingInvestigation = withAttachments(
+          pendingInvestigation,
+          pendingAttachments,
         );
         historyConfirmation = confirmation;
       }
@@ -999,12 +1021,19 @@ function messagesToChatTurns(
       executionMode: pendingExecutionMode,
       investigation:
         pendingExecutionMode === "instant"
-          ? instantReportInvestigation(question)
-          : pendingInvestigation || storedInvestigation(question),
+          ? withAttachments(
+              instantReportInvestigation(question),
+              pendingAttachments,
+            )
+          : withAttachments(
+              pendingInvestigation || storedInvestigation(question),
+              pendingAttachments,
+            ),
       result: completedToResult(completed),
       processEvents: completed.processEvents,
     });
     pendingQuestion = null;
+    pendingAttachments = [];
     pendingInvestigation = null;
     historyConfirmation = null;
     pendingExecutionMode = "thinking";
@@ -1040,6 +1069,37 @@ function userQuestionFromMessage(message: IntelligenceMessage) {
   );
 }
 
+function attachmentsFromMessage(
+  message: IntelligenceMessage,
+): ChatAttachment[] {
+  const uploadedFiles = asRecord(message.content).uploaded_files;
+  if (!Array.isArray(uploadedFiles)) return [];
+
+  return uploadedFiles.flatMap((item) => {
+    const file = asRecord(item);
+    const name = stringValue(file.filename) || stringValue(file.name);
+    if (!name) return [];
+    const type =
+      stringValue(file.content_type) ||
+      stringValue(file.contentType) ||
+      stringValue(file.type);
+    return [
+      {
+        name,
+        size: numberValue(file.size),
+        ...(type ? { type } : {}),
+      },
+    ];
+  });
+}
+
+function withAttachments(
+  investigation: Investigation,
+  attachments: ChatAttachment[],
+): Investigation {
+  return attachments.length ? { ...investigation, attachments } : investigation;
+}
+
 function completedResponseFromMessage(
   message: IntelligenceMessage,
 ): CompletedResponse | null {
@@ -1063,7 +1123,7 @@ function completedResponseFromMessage(
 
   if (!outputText) return null;
 
-  return {
+  const completed = {
     responseId: message.response_id || stringValue(response.id),
     outputText,
     evidence: record.evidence,
@@ -1080,6 +1140,45 @@ function completedResponseFromMessage(
     processEvents: processEventsFromMessage(message),
     pending: !isTerminalAssistantStatus(message.status),
   };
+  const artifactEvent = completionArtifactProcessEvent(completed);
+  if (artifactEvent) {
+    completed.processEvents = upsertProcessEvent(
+      completed.processEvents,
+      artifactEvent,
+    );
+  }
+  return completed;
+}
+
+function completionArtifactProcessEvent(
+  completed: CompletedResponse,
+): ProcessEvent | null {
+  const artifacts = finalizedArtifactRecords(completed.metadata);
+  if (artifacts.length === 0) return null;
+  return {
+    id: `artifacts:${completed.responseId || "response"}`,
+    label: "Generated files",
+    detail: `${artifacts.length} finalized ${artifacts.length === 1 ? "file" : "files"}`,
+    status: "done",
+    phase: "artifact",
+    eventType: "runtime.completed",
+    outputs: { artifacts },
+  };
+}
+
+function finalizedArtifactRecords(metadata: Record<string, unknown>) {
+  for (const value of [
+    metadata.generated_files,
+    metadata.generatedFiles,
+    metadata.artifacts,
+  ]) {
+    if (!Array.isArray(value)) continue;
+    const records = value
+      .map(asRecord)
+      .filter((record) => Object.keys(record).length > 0);
+    if (records.length > 0) return records;
+  }
+  return [];
 }
 
 function isTerminalAssistantStatus(status: string) {
@@ -1155,11 +1254,18 @@ function normalizeStoredProcessEvents(value: unknown): ProcessEvent[] {
         ...asRecord(step),
       }));
 
-  return items.flatMap((item) => {
+  const normalizedEvents = items.flatMap((item) => {
     const record = asRecord(item);
     const eventType = stringValue(record.type);
     if (eventType.startsWith("pipeline.")) {
       return [processEventFromApiEvent(record as SseEvent)];
+    }
+    if (eventType === "runtime.progress") {
+      return [
+        processEventFromApiEvent(
+          normalizeLegacyRuntimeProgressEvent(record as SseEvent),
+        ),
+      ];
     }
 
     const id =
@@ -1185,6 +1291,11 @@ function normalizeStoredProcessEvents(value: unknown): ProcessEvent[] {
       },
     ];
   });
+
+  return normalizedEvents.reduce<ProcessEvent[]>(
+    (events, event) => upsertProcessEvent(events, event),
+    [],
+  );
 }
 
 function normalizeStoredProcessStatus(rawStatus: unknown): ProcessStatus {
@@ -1238,11 +1349,25 @@ class ResponsesSSEParser {
       const payload = JSON.parse(dataLines.join("\n")) as SseEvent;
       if (!payload?.type) return [];
       if (!eventName || payload.type === eventName) return [payload];
+      if (
+        eventName === "pipeline.progress" &&
+        payload.type === "runtime.progress"
+      ) {
+        return [normalizeLegacyRuntimeProgressEvent(payload)];
+      }
       return [];
     } catch {
       return [];
     }
   }
+}
+
+function normalizeLegacyRuntimeProgressEvent(payload: SseEvent): SseEvent {
+  return {
+    ...payload,
+    ...asRecord(payload.payload),
+    type: "pipeline.progress",
+  };
 }
 
 function normalizeEvidence(value: unknown): EvidenceItem[] {
