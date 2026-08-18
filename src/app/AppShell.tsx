@@ -17,6 +17,7 @@ type AppShellProps = {
   onHome: () => void;
   onNewChat: () => void;
   onConversationOpen: (conversationId: string) => void;
+  onConversationDeleted: (conversationId: string) => void;
   onData: () => void;
   onReports: () => void;
   onMemory: () => void;
@@ -42,6 +43,7 @@ export function AppShell({
   onHome,
   onNewChat,
   onConversationOpen,
+  onConversationDeleted,
   onData,
   onReports,
   onMemory,
@@ -84,6 +86,7 @@ export function AppShell({
           onHome={onHome}
           onNewChat={onNewChat}
           onConversationOpen={onConversationOpen}
+          onConversationDeleted={onConversationDeleted}
           onData={onData}
           onReports={onReports}
           onMemory={onMemory}

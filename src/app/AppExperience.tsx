@@ -204,6 +204,17 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
     [navigate],
   );
 
+  const handleConversationDeleted = useCallback(
+    (conversationId: string) => {
+      if (route.surface !== "chat" || route.sessionId !== conversationId) {
+        return;
+      }
+      chat.newChat();
+      navigate(createChatRoute());
+    },
+    [chat.newChat, navigate, route.sessionId, route.surface],
+  );
+
   const changeChatEngine = useCallback((engine: ChatEngine) => {
     setChatEngine(engine);
     setChatExecutionMode((mode) => normalizeExecutionMode(engine, mode));
@@ -259,6 +270,7 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
       onHome={openHome}
       onNewChat={newChat}
       onConversationOpen={openConversation}
+      onConversationDeleted={handleConversationDeleted}
       onData={openData}
       onReports={openReports}
       onMemory={openMemory}
