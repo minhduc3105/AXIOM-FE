@@ -12,6 +12,7 @@ import {
   ArchiveIcon,
   CheckIcon,
   CircleAlertIcon,
+  ChevronDownIcon,
   FolderKanbanIcon,
   KeyRoundIcon,
   LoaderCircleIcon,
@@ -37,6 +38,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -66,6 +75,16 @@ import { cn } from "@/shared/lib/utils";
 
 const panelClass = "rounded-xl border bg-card text-card-foreground shadow-sm";
 const inputClass = "h-10 border-input bg-background shadow-none";
+const organizationRoleOptions = [
+  { value: "org_member", label: "Organization member" },
+  { value: "org_admin", label: "Organization admin" },
+] as const;
+const workspaceRoleOptions = [
+  { value: "none", label: "No access" },
+  { value: "viewer", label: "Viewer" },
+  { value: "editor", label: "Editor" },
+  { value: "workspace_admin", label: "Workspace admin" },
+] as const;
 type OrganizationTab = "overview" | "workspaces" | "members";
 type PendingRoleChange =
   | {
@@ -727,7 +746,7 @@ export function OrganizationUsersPage({
         >
           <TabsList
             variant="line"
-            className="h-auto w-full flex-wrap justify-start gap-1 border-b border-border p-0"
+            className="h-auto w-full flex-wrap justify-start gap-1 border-border p-0"
           >
             <TabsTrigger value="overview" className="h-10 flex-none px-3">
               Overview
@@ -743,6 +762,7 @@ export function OrganizationUsersPage({
             <Overview
               organizationName={organizationName}
               organizationId={organizationId}
+              role={user.org_role}
               workspaceCount={
                 workspaces.filter((workspace) => workspace.status === "active")
                   .length
@@ -989,32 +1009,31 @@ function MembersPanel({
           aria-label="Search members"
           className={inputClass}
         />
-        <select
-          aria-label="Filter members by organization role"
+        <DropdownField
           value={roleFilter}
-          onChange={(event) =>
-            setRoleFilter(event.target.value as "all" | AuthUser["org_role"])
+          onValueChange={(value) =>
+            setRoleFilter(value as "all" | AuthUser["org_role"])
           }
-          className={cn(inputClass, "rounded-lg px-3 text-sm")}
-        >
-          <option value="all">All organization roles</option>
-          <option value="org_admin">Organization admins</option>
-          <option value="org_member">Organization members</option>
-        </select>
-        <select
-          aria-label="Filter members by workspace access"
+          ariaLabel="Filter members by organization role"
+          options={[
+            { value: "all", label: "All organization roles" },
+            { value: "org_admin", label: "Organization admins" },
+            { value: "org_member", label: "Organization members" },
+          ]}
+        />
+        <DropdownField
           value={workspaceFilter}
-          onChange={(event) => setWorkspaceFilter(event.target.value)}
-          className={cn(inputClass, "rounded-lg px-3 text-sm")}
-        >
-          <option value="all">All workspace access</option>
-          <option value="unassigned">No workspace assigned</option>
-          {workspaces.map((workspace) => (
-            <option key={workspace.id} value={workspace.id}>
-              {workspace.name}
-            </option>
-          ))}
-        </select>
+          onValueChange={setWorkspaceFilter}
+          ariaLabel="Filter members by workspace access"
+          options={[
+            { value: "all", label: "All workspace access" },
+            { value: "unassigned", label: "No workspace assigned" },
+            ...workspaces.map((workspace) => ({
+              value: workspace.id,
+              label: workspace.name,
+            })),
+          ]}
+        />
       </CardContent>
       <MemberList
         users={filteredUsers}
@@ -1187,6 +1206,7 @@ function WorkspacesPanel({
 function Overview({
   organizationName,
   organizationId,
+  role,
   workspaceCount,
   memberCount,
   administrators,
@@ -1196,6 +1216,7 @@ function Overview({
 }: {
   organizationName: string;
   organizationId: string;
+  role: AuthUser["org_role"];
   workspaceCount: number;
   memberCount: number;
   administrators: AuthUser[];
@@ -1281,6 +1302,7 @@ function Overview({
         <OrganizationContext
           organizationName={organizationName}
           organizationId={organizationId}
+          role={role}
         />
       </div>
     </div>
@@ -1310,9 +1332,11 @@ function MetricCard({
 function OrganizationContext({
   organizationName,
   organizationId,
+  role,
 }: {
   organizationName: string;
   organizationId: string;
+  role: AuthUser["org_role"];
 }) {
   return (
     <Card>
@@ -1322,7 +1346,14 @@ function OrganizationContext({
       <CardContent className="pt-5">
         <dl className="grid gap-3 text-sm">
           <Summary label="Organization name" value={organizationName} />
-          <Summary label="Your role" value="Organization admin" />
+          <Summary
+            label="Your role"
+            value={
+              role === "org_admin"
+                ? "Organization admin"
+                : "Organization member"
+            }
+          />
         </dl>
       </CardContent>
     </Card>
@@ -1351,6 +1382,65 @@ function Summary({
         {value}
       </dd>
     </div>
+  );
+}
+
+function DropdownField({
+  id,
+  value,
+  options,
+  onValueChange,
+  ariaLabel,
+  ariaLabelledBy,
+  disabled = false,
+  className,
+}: {
+  id?: string;
+  value: string;
+  options: readonly { value: string; label: string; disabled?: boolean }[];
+  onValueChange: (value: string) => void;
+  ariaLabel?: string;
+  ariaLabelledBy?: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const selectedOption = options.find((option) => option.value === value);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            className={cn("w-full justify-between", className)}
+          >
+            <span className="truncate">
+              {selectedOption?.label ?? "Choose an option"}
+            </span>
+            <ChevronDownIcon data-icon="inline-end" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start">
+        <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
+          {options.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              disabled={option.disabled}
+            >
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -1446,21 +1536,15 @@ function MemberList({
                   Organization admin
                 </Badge>
               ) : (
-                <select
-                  aria-label={`Organization role for ${member.email}`}
+                <DropdownField
                   value={member.org_role}
-                  onChange={(event) =>
-                    onRoleChange(
-                      member,
-                      event.target.value as AuthUser["org_role"],
-                    )
+                  onValueChange={(value) =>
+                    onRoleChange(member, value as AuthUser["org_role"])
                   }
+                  ariaLabel={`Organization role for ${member.email}`}
+                  options={organizationRoleOptions}
                   disabled={saving}
-                  className={cn(inputClass, "w-full rounded-lg px-2 text-xs")}
-                >
-                  <option value="org_member">Organization member</option>
-                  <option value="org_admin">Organization admin</option>
-                </select>
+                />
               )}
             </div>
             <div className="grid gap-1">
@@ -1505,15 +1589,6 @@ function MemberList({
     </div>
   );
 }
-/* Legacy compacted implementation retained in history:
-  if (loading) return <div className="grid gap-2 p-4">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-14 rounded-xl" />)}</div>;
-  if (!users.length) return <Empty icon={UsersRoundIcon} title="No matching members" detail="Adjust the filters or add an organization member." />;
-  return <div className="divide-y divide-border">{users.map((member) => {
-    const isCurrentUser = member.id === currentUserId;
-    const workspaceAccess = workspaces.flatMap((workspace) => { const membership = (workspaceMemberships[workspace.id] ?? []).find((item) => item.user_id === member.id); return membership ? [{ workspace, role: membership.role }] : []; });
-    return <article key={member.id} className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(180px,0.85fr)_minmax(160px,0.6fr)_minmax(0,1.45fr)_auto] lg:items-center sm:px-5"><div className="flex min-w-0 items-center gap-3"><Avatar className="size-9 shrink-0"><AvatarFallback className="bg-muted text-xs font-semibold text-primary">{initials(member.display_name || member.email)}</AvatarFallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-semibold">{member.display_name || member.email} {isCurrentUser && <span className="font-normal text-muted-foreground">(you)</span>}</p><p className="mt-0.5 truncate text-xs text-muted-foreground">{member.email}</p></div></div><div className="grid gap-1"><p className="text-xs text-muted-foreground">Organization role</p>{isCurrentUser && !canCurrentUserChangeRole ? <Badge variant="outline" className="w-fit rounded-full text-primary" title="Assign another organization admin before lowering your own role">Organization admin</Badge> : <select aria-label={`Organization role for ${member.email}`} value={member.org_role} onChange={(event) => onRoleChange(member, event.target.value as AuthUser["org_role"])} disabled={saving} className={cn(inputClass, "w-full rounded-lg px-2 text-xs")}><option value="org_member">Organization member</option><option value="org_admin">Organization admin</option></select>}</div><div className="grid gap-1"><p className="text-xs text-muted-foreground">Workspace access</p>{workspaceAccess.length ? <div className="flex flex-wrap gap-1.5">{workspaceAccess.map(({ workspace, role }) => <Badge key={workspace.id} variant="outline" className={role === "workspace_admin" ? "border-primary/30 bg-primary/5 text-primary" : ""}>{workspace.name} · {role === "workspace_admin" ? "Workspace admin" : role}</Badge>)}</div> : <Badge variant="outline" className="w-fit text-muted-foreground">No workspace assigned</Badge>}</div><Button variant="outline" size="sm" className="w-fit" onClick={() => onManageWorkspaceAccess(member)}>Manage access</Button></article>;
-  })}</div>;
-} */
 
 function WorkspaceInspector({
   workspace,
@@ -1667,21 +1742,14 @@ function WorkspaceInspector({
                   {member.email}
                 </p>
               </div>
-              <select
-                aria-label={`Workspace role for ${member.email}`}
+              <DropdownField
                 value={roles.get(member.id) ?? "none"}
-                onChange={(event) => onRoleChange(member, event.target.value)}
+                onValueChange={(value) => onRoleChange(member, value)}
+                ariaLabel={`Workspace role for ${member.email}`}
+                options={workspaceRoleOptions}
                 disabled={saving || !canAssignMembers}
-                className={cn(
-                  inputClass,
-                  "w-full rounded-lg px-2 text-xs sm:w-48",
-                )}
-              >
-                <option value="none">No access</option>
-                <option value="viewer">Viewer</option>
-                <option value="editor">Editor</option>
-                <option value="workspace_admin">Workspace admin</option>
-              </select>
+                className="sm:w-48"
+              />
             </div>
           ))}
         </div>
@@ -1695,15 +1763,7 @@ function WorkspaceInspector({
     </Card>
   );
 }
-/* Legacy compacted implementation retained in history:
-  if (!workspace) return <section className={cn(panelClass, "overflow-hidden")}><Empty icon={FolderKanbanIcon} title="Select a workspace" detail="Select one to review and configure member access." /></section>;
-  const roles = new Map(memberships.map((membership) => [membership.user_id, membership.role]));
-  const canAssignMembers = workspace.status === "active";
-  const canArchive = canAssignMembers && !workspace.is_default;
-  return <Card aria-labelledby="workspace-members-title"><CardHeader className="gap-3 border-b"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace access</p><CardTitle id="workspace-members-title" className="mt-1">{workspace.name}</CardTitle><p className="mt-1 text-sm text-muted-foreground">{workspace.description || workspace.slug}</p></div><WorkspaceStatus status={workspace.status} /></div><dl className="grid gap-2 text-xs sm:grid-cols-2"><Summary label="Slug" value={workspace.slug} technical /><Summary label="Workspace ID" value={workspace.id} technical /></dl><div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={saving || !canAssignMembers} onClick={() => onEdit(workspace)}><PencilIcon /> Edit details</Button><Button size="sm" variant="destructive" disabled={saving || !canArchive} onClick={() => onArchive(workspace)}><ArchiveIcon /> Archive workspace</Button></div></CardHeader>{workspace.is_default && <Alert className="mx-5 mt-5"><ShieldAlertIcon /><AlertTitle>Default workspace is protected</AlertTitle><AlertDescription>Choose another default workspace before archiving or deleting this one.</AlertDescription></Alert>}{showAssignmentPrompt && <Alert className="mx-5 mt-5"><ShieldCheckIcon /><AlertTitle>Assign access next</AlertTitle><AlertDescription>Set a workspace admin, then add members below.</AlertDescription></Alert>}{!canAssignMembers && <Alert className="mx-5 mt-5"><CircleAlertIcon /><AlertTitle>Archived workspace</AlertTitle><AlertDescription>Workspace access is read-only while this workspace is archived.</AlertDescription></Alert>}{loading ? <CardContent className="grid gap-2 py-4">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-14 rounded-lg" />)}</CardContent> : <div className="divide-y divide-border">{users.map((member) => <div key={member.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"><div className="min-w-0"><p className="truncate text-sm font-medium">{member.display_name || member.email}</p><p className="truncate text-xs text-muted-foreground">{member.email}</p></div><select aria-label={`Workspace role for ${member.email}`} value={roles.get(member.id) ?? "none"} onChange={(event) => onRoleChange(member, event.target.value)} disabled={saving || !canAssignMembers} className={cn(inputClass, "w-full rounded-lg px-2 text-xs sm:w-48")}><option value="none">No access</option><option value="viewer">Viewer</option><option value="editor">Editor</option><option value="workspace_admin">Workspace admin</option></select></div>)}</div>}</Card>;
-}
 
-*/
 function WorkspaceStatus({ status }: { status: string }) {
   const normalized = status.toLowerCase();
   const styles =
@@ -1712,7 +1772,7 @@ function WorkspaceStatus({ status }: { status: string }) {
       : normalized === "archived" || normalized === "failed"
         ? "border-destructive/30 bg-destructive/10 text-destructive"
         : normalized === "updating"
-          ? "border-info/30 bg-info/10 text-info"
+          ? "border-status-warning/30 bg-status-warning/10 text-status-warning"
           : "border-warning/30 bg-warning/10 text-warning";
   return (
     <Badge variant="outline" className={styles}>
@@ -1762,6 +1822,12 @@ function MemberDialog({
   errors: FieldErrors;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const [role, setRole] = useState<AuthUser["org_role"]>("org_member");
+
+  useEffect(() => {
+    if (open) setRole("org_member");
+  }, [open]);
+
   return (
     <AdministrationDialog
       open={open}
@@ -1810,18 +1876,16 @@ function MemberDialog({
           minLength={8}
           error={errors["member-password"]}
         />
-        <label className="grid gap-1.5">
+        <div className="grid gap-1.5">
           <Label htmlFor="member-role">Organization role</Label>
-          <select
+          <input type="hidden" name="member-role" value={role} />
+          <DropdownField
             id="member-role"
-            name="member-role"
-            defaultValue="org_member"
-            className={cn(inputClass, "rounded-lg px-3 text-sm")}
-          >
-            <option value="org_member">Member</option>
-            <option value="org_admin">Organization admin</option>
-          </select>
-        </label>
+            value={role}
+            onValueChange={(value) => setRole(value as AuthUser["org_role"])}
+            options={organizationRoleOptions}
+          />
+        </div>
       </form>
     </AdministrationDialog>
   );
@@ -2040,10 +2104,10 @@ function ArchiveWorkspaceDialog({
             supported by the backend.
           </AlertDescription>
         </Alert>
-        <label className="grid gap-1.5">
-          <Label htmlFor="archive-workspace-confirmation">
+        <Field>
+          <FieldLabel htmlFor="archive-workspace-confirmation">
             Type <strong>{workspace.name}</strong> to confirm
-          </Label>
+          </FieldLabel>
           <Input
             id="archive-workspace-confirmation"
             value={confirmationName}
@@ -2051,7 +2115,7 @@ function ArchiveWorkspaceDialog({
             autoComplete="off"
             className={inputClass}
           />
-        </label>
+        </Field>
         <DialogFooter>
           <Button
             type="button"
@@ -2269,10 +2333,10 @@ function ArchiveWorkspaceDialogWithFocus({
             </AlertDescription>
           </Alert>
         </div>
-        <label className="grid gap-1.5">
-          <Label htmlFor="archive-workspace-confirmation">
+        <Field>
+          <FieldLabel htmlFor="archive-workspace-confirmation">
             Type <strong>{workspace.name}</strong> to confirm
-          </Label>
+          </FieldLabel>
           <Input
             id="archive-workspace-confirmation"
             value={confirmationName}
@@ -2280,7 +2344,7 @@ function ArchiveWorkspaceDialogWithFocus({
             autoComplete="off"
             className={inputClass}
           />
-        </label>
+        </Field>
         <DialogFooter>
           <Button
             type="button"
@@ -2508,20 +2572,15 @@ function MemberWorkspaceAccessDialog({
                         : "Archived workspace — read-only"}
                     </p>
                   </div>
-                  <select
-                    aria-label={`Workspace role for ${member.email} in ${workspace.name}`}
+                  <DropdownField
                     value={membership?.role ?? "none"}
-                    onChange={(event) =>
-                      onRoleChange(workspace, member, event.target.value)
+                    onValueChange={(value) =>
+                      onRoleChange(workspace, member, value)
                     }
+                    ariaLabel={`Workspace role for ${member.email} in ${workspace.name}`}
+                    options={workspaceRoleOptions}
                     disabled={saving || !active}
-                    className={cn(inputClass, "w-full rounded-lg px-3 text-sm")}
-                  >
-                    <option value="none">No access</option>
-                    <option value="viewer">Viewer</option>
-                    <option value="editor">Editor</option>
-                    <option value="workspace_admin">Workspace admin</option>
-                  </select>
+                  />
                 </div>
               );
             })

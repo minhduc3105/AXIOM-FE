@@ -3,6 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { S3BrowserStatus, S3Connection } from "../model/types";
 import { SavedProfileControls } from "./SavedProfileControls";
@@ -68,83 +69,97 @@ export function S3Form({
           import.
         </p>
 
-        <form className="mt-6 grid gap-4" onSubmit={submit}>
-          <label className="grid gap-2">
-            AWS access key ID
-            <Input
-              autoComplete="off"
-              value={connection.accessKeyId}
-              onChange={(event) => onChange("accessKeyId", event.target.value)}
-              disabled={busy}
-              required
-            />
-          </label>
-          <label className="grid gap-2">
-            AWS secret access key
-            <Input
-              autoComplete="new-password"
-              type="password"
-              value={connection.secretAccessKey}
-              onChange={(event) =>
-                onChange("secretAccessKey", event.target.value)
-              }
-              disabled={busy}
-              required
-            />
-          </label>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="grid gap-2">
-              AWS region
+        <form className="mt-6" onSubmit={submit}>
+          <FieldGroup className="grid gap-4">
+            <Field>
+              <FieldLabel htmlFor="s3-access-key-id">
+                AWS access key ID
+              </FieldLabel>
               <Input
-                placeholder="us-east-1"
-                value={connection.region}
-                onChange={(event) => onChange("region", event.target.value)}
+                id="s3-access-key-id"
+                autoComplete="off"
+                value={connection.accessKeyId}
+                onChange={(event) =>
+                  onChange("accessKeyId", event.target.value)
+                }
                 disabled={busy}
                 required
               />
-            </label>
-            <label className="grid gap-2">
-              Source bucket
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="s3-secret-access-key">
+                AWS secret access key
+              </FieldLabel>
               <Input
-                placeholder="company-documents"
-                value={connection.bucketName}
-                onChange={(event) => onChange("bucketName", event.target.value)}
+                id="s3-secret-access-key"
+                autoComplete="new-password"
+                type="password"
+                value={connection.secretAccessKey}
+                onChange={(event) =>
+                  onChange("secretAccessKey", event.target.value)
+                }
                 disabled={busy}
                 required
               />
-            </label>
-          </div>
+            </Field>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="s3-region">AWS region</FieldLabel>
+                <Input
+                  id="s3-region"
+                  placeholder="us-east-1"
+                  value={connection.region}
+                  onChange={(event) => onChange("region", event.target.value)}
+                  disabled={busy}
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="s3-bucket">Source bucket</FieldLabel>
+                <Input
+                  id="s3-bucket"
+                  placeholder="company-documents"
+                  value={connection.bucketName}
+                  onChange={(event) =>
+                    onChange("bucketName", event.target.value)
+                  }
+                  disabled={busy}
+                  required
+                />
+              </Field>
+            </div>
 
-          <SavedProfileControls
-            name={profileName}
-            saved={profileSaved}
-            dirty={profileDirty}
-            error={profileError}
-            disabled={busy}
-            onNameChange={onProfileNameChange}
-            onSave={onSaveProfile}
-          />
-
-          {error && (
-            <Alert variant="destructive" role="alert">
-              <AlertTitle>Unable to browse this bucket</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="mt-2 flex justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={onBack}
+            <SavedProfileControls
+              name={profileName}
+              saved={profileSaved}
+              dirty={profileDirty}
+              error={profileError}
               disabled={busy}
-              type="button"
-            >
-              Back
-            </Button>
-            <Button disabled={!requiredReady || busy} type="submit">
-              {busy ? "Loading bucket files..." : "Browse bucket files"}
-            </Button>
-          </div>
+              onNameChange={onProfileNameChange}
+              onSave={onSaveProfile}
+            />
+
+            {error && (
+              <Alert variant="destructive" role="alert">
+                <AlertTitle>Unable to browse this bucket</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="mt-2 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={onBack}
+                disabled={busy}
+                type="button"
+              >
+                Back
+              </Button>
+              <Button disabled={!requiredReady || busy} type="submit">
+                {busy ? "Loading bucket files..." : "Browse bucket files"}
+              </Button>
+            </div>
+          </FieldGroup>
         </form>
       </Card>
 

@@ -1,7 +1,7 @@
 # Tools design specification
 
-> Scope: `/tools`, `/tools/:toolName`, and `src/features/tools/`  
-> Status: Feature specification  
+> Scope: `/tools`, `/tools/:toolName`, and `src/features/tools/`
+> Status: Feature specification
 > Foundation: [AXIOM Design System](../../design.md)
 
 This document specifies the Tools workflow. It adds page-specific behavior to the shared design system; it never overrides shared tokens, primitives, spacing, typography, or accessibility rules.

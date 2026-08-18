@@ -49,16 +49,62 @@ export async function createConversation(
   title?: string,
   signal?: AbortSignal,
 ): Promise<ConversationSummary> {
-  const response = await authFetch(intelligenceApiUrl("/api/v1/conversations"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: title || null }),
-    signal,
-  });
+  const response = await authFetch(
+    intelligenceApiUrl("/api/v1/conversations"),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: title || null }),
+      signal,
+    },
+  );
   if (!response.ok) {
     throw new Error(`AXIOM returned ${response.status}.`);
   }
   return (await response.json()) as ConversationSummary;
+}
+
+export type ConversationUpdate = {
+  title?: string | null;
+  metadata?: Record<string, unknown>;
+  status?: string;
+};
+
+export async function updateConversation(
+  conversationId: string,
+  update: ConversationUpdate,
+  signal?: AbortSignal,
+): Promise<ConversationSummary> {
+  const response = await authFetch(
+    intelligenceApiUrl(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
+    ),
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(update),
+      signal,
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`AXIOM returned ${response.status}.`);
+  }
+  return (await response.json()) as ConversationSummary;
+}
+
+export async function deleteConversation(
+  conversationId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await authFetch(
+    intelligenceApiUrl(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
+    ),
+    { method: "DELETE", signal },
+  );
+  if (!response.ok) {
+    throw new Error(`AXIOM returned ${response.status}.`);
+  }
 }
 
 export async function listConversationMessages(

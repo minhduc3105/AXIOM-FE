@@ -46,16 +46,21 @@ function IngestionJobsSkeleton() {
     <Table className="min-w-[840px]">
       <TableHeader className="bg-[#f4efe5]/70 dark:bg-white/4">
         <TableRow className="hover:bg-transparent">
-          {["Source", "Status", "Records pulled", "Objects written", "Updated", ""].map(
-            (heading) => (
-              <TableHead
-                key={heading}
-                className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]"
-              >
-                {heading}
-              </TableHead>
-            ),
-          )}
+          {[
+            "Source",
+            "Status",
+            "Records pulled",
+            "Objects written",
+            "Updated",
+            "",
+          ].map((heading) => (
+            <TableHead
+              key={heading}
+              className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]"
+            >
+              {heading}
+            </TableHead>
+          ))}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -113,7 +118,9 @@ export function IngestionJobsTable({
           <TableHead className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
             Updated
           </TableHead>
-          <TableHead className="h-11 w-14 px-4"><span className="sr-only">Actions</span></TableHead>
+          <TableHead className="h-11 w-14 px-4">
+            <span className="sr-only">Actions</span>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -131,24 +138,12 @@ export function IngestionJobsTable({
                   <strong className="text-sm font-medium text-[#191915] dark:text-[#f4efe5]">
                     {formatSourceType(job.datasource_type)}
                   </strong>
-                  <span
-                    className="max-w-52 truncate font-mono text-[11px] text-[#6d685e] dark:text-[#aaa397]"
-                    title={job.job_id}
-                  >
-                    {job.job_id}
-                  </span>
                 </div>
               </div>
             </TableCell>
             <TableCell className="px-4 py-3.5">
               <div className="grid justify-items-start gap-1">
                 <StatusBadge status={job.healthStatus} />
-                <span
-                  className="max-w-44 truncate text-xs capitalize text-[#6d685e] dark:text-[#aaa397]"
-                  title={job.error_message ?? job.status}
-                >
-                  {job.error_message ?? job.status}
-                </span>
               </div>
             </TableCell>
             <TableCell className="px-4 py-3.5 text-right font-medium tabular-nums">
@@ -161,7 +156,13 @@ export function IngestionJobsTable({
               {formatDate(job.updated_at)}
             </TableCell>
             <TableCell className="px-4 py-3.5 text-right">
-              <Button variant="ghost" size="icon-sm" onClick={() => onViewFiles(job.job_id)} aria-label={`View files for job ${job.job_id}`} disabled={job.objects_written === 0}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => onViewFiles(job.job_id)}
+                aria-label={`View files for job ${job.job_id}`}
+                disabled={job.objects_written === 0}
+              >
                 <FilesIcon />
               </Button>
             </TableCell>

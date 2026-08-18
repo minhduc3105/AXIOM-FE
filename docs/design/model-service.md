@@ -1,7 +1,7 @@
 # Model Service design specification
 
-> Scope: `/models` and `src/features/models/`  
-> Status: Feature specification  
+> Scope: `/models` and `src/features/models/`
+> Status: Feature specification
 > Foundation: [AXIOM Design System](../../design.md)
 
 This specification adds Model Service workflow constraints to the global design system. `design.md` remains authoritative for tokens, typography, spacing, shape, responsive behavior, accessibility, and shared primitives.

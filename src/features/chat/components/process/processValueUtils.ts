@@ -17,8 +17,20 @@ export function formatDetailLabel(value: string) {
 }
 
 export function artifactName(ref: string) {
-  const path = ref.replace(/^artifact:\/\//, "");
-  return path.split("/").filter(Boolean).pop() || "Artifact";
+  try {
+    const parsed = new URL(ref);
+    const pathName = decodeURIComponent(parsed.pathname);
+    return (
+      pathName.split("/").filter(Boolean).pop() || parsed.hostname || "Artifact"
+    );
+  } catch {
+    const path = ref
+      .replace(/^artifact:\/\//, "")
+      .split(/[?#]/, 1)[0];
+    return decodeURIComponent(
+      path.split("/").filter(Boolean).pop() || "Artifact",
+    );
+  }
 }
 
 export function stringFromUnknown(value: unknown) {

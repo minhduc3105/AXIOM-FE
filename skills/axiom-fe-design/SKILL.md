@@ -9,6 +9,8 @@ description: Use when designing, reviewing, or implementing AXIOM-FE user interf
 
 AXIOM-FE is a work-focused intelligence interface for investigating data, approving plans, and reviewing evidence. The UI should feel precise, calm, and operational: dense enough for repeated expert use, but clear enough that every stage and decision point is obvious.
 
+Before AXIOM-FE UI work, read the root `design.md` as the canonical visual and interaction foundation. Then read the matching feature specification under `docs/design/` when one exists. Feature documents add workflow constraints but do not override core tokens, typography, spacing, responsive behavior, or accessibility rules.
+
 ## When to Use
 
 Use this skill before changing AXIOM-FE screens, layout, styling, shared components, shadcn primitives, workflow states, evidence views, or responsive behavior.
@@ -19,7 +21,7 @@ Do not use this for backend-only AXIOM work or SDK changes without a frontend su
 
 - Make AXIOM feel like an intelligence console, not a marketing site.
 - Prioritize scanability, stage clarity, review gates, and provenance.
-- Keep the visual language restrained: white surfaces, crisp borders, soft slate text, AXIOM blue accents, and purposeful status color.
+- Keep the visual language restrained: warm neutral surfaces, crisp borders, ink-like text, AXIOM blue accents, and purposeful status color.
 - Avoid decorative hero sections, oversized marketing cards, gradient ornaments, and one-note purple/blue washes.
 - Preserve the Figma prototype's important interaction model: chat in the main work area, review surfaces in stable cards, detail inspection beside the work when comparison matters, ingestion as a staged workspace.
 
@@ -79,7 +81,7 @@ Do not use this for backend-only AXIOM work or SDK changes without a frontend su
 - When a shadcn primitive such as `Marker` is needed, add it from the registry, then customize usage from feature components with composition and `className` only.
 - Keep Tailwind, shadcn, font, and theme token imports in `src/styles/globals.css`.
 - Put presentation on components with Tailwind-style utility classes in JSX; do not reintroduce prototype layout stylesheets or component-specific CSS files.
-- Keep AXIOM tokens semantic: brand, brand-strong, line, muted, text-secondary, soft, app-bg, status colors.
+- Keep AXIOM tokens semantic and aligned with `src/styles/globals.css`: background, foreground, card, primary, secondary, muted, accent, boundary, focus, and status roles.
 - After adding shadcn or Tailwind, update `README.md`, `package.json` scripts, and validation commands together.
 
 ## Screenshot Feedback Protocol

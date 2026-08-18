@@ -13,7 +13,6 @@ import {
 import { useModelRegistry } from "@/features/models/model/useModelRegistry";
 import { ModelsPage } from "@/features/models/ModelsPage";
 import { MemoryPage } from "@/features/memory/MemoryPage";
-import { LoginPage } from "@/features/auth/components/LoginPage";
 import { OrganizationUsersPage } from "@/features/auth/components/OrganizationUsersPage";
 import { SettingsPage } from "@/features/auth/components/SettingsPage";
 import { useAuth } from "@/features/auth/model/AuthProvider";
@@ -31,7 +30,7 @@ import {
   createToolDetailRoute,
   createToolsRoute,
 } from "./routing/paths";
-import { useAppRoute } from "./routing/useAppRoute";
+import type { AppRoute } from "./routing/types";
 import { createConversation } from "@/shared/lib/intelligence-api";
 import type {
   ChatEngine,
@@ -47,9 +46,13 @@ import { useAppScope } from "@/shared/hooks/use-app-scope";
 import { useDataWorkspace } from "@/features/data/model/DataWorkspaceProvider";
 import { getRouteWorkspaceScope } from "./scope";
 
-export function AppExperience() {
+type AppExperienceProps = {
+  route: AppRoute;
+  navigate: (nextRoute: AppRoute) => void;
+};
+
+export function AppExperience({ route, navigate }: AppExperienceProps) {
   const auth = useAuth();
-  const { route, navigate } = useAppRoute();
   const chat = useChatWorkflow();
   const dataWorkspace = useDataWorkspace();
   const modelRegistryContext = useMemo(
@@ -201,6 +204,17 @@ export function AppExperience() {
     [navigate],
   );
 
+  const handleConversationDeleted = useCallback(
+    (conversationId: string) => {
+      if (route.surface !== "chat" || route.sessionId !== conversationId) {
+        return;
+      }
+      chat.newChat();
+      navigate(createChatRoute());
+    },
+    [chat.newChat, navigate, route.sessionId, route.surface],
+  );
+
   const changeChatEngine = useCallback((engine: ChatEngine) => {
     setChatEngine(engine);
     setChatExecutionMode((mode) => normalizeExecutionMode(engine, mode));
@@ -244,17 +258,8 @@ export function AppExperience() {
     ],
   );
 
-  if (auth.status === "restoring") {
-    return <AuthRestoreScreen />;
-  }
-
-  if (auth.status === "unauthenticated") {
-    return <LoginPage />;
-  }
-
-  if (!auth.user) {
-    return <AuthRestoreScreen />;
-  }
+  const user = auth.user;
+  if (!user) return null;
 
   return (
     <AppShell
@@ -265,6 +270,7 @@ export function AppExperience() {
       onHome={openHome}
       onNewChat={newChat}
       onConversationOpen={openConversation}
+      onConversationDeleted={handleConversationDeleted}
       onData={openData}
       onReports={openReports}
       onMemory={openMemory}
@@ -272,7 +278,7 @@ export function AppExperience() {
       onTools={openTools}
       onSettings={openSettings}
       onOrganizationAdministration={openOrganizationAdministration}
-      user={auth.user}
+      user={user}
       scope={scope}
       workspaces={dataWorkspace.workspaces}
       selectedWorkspace={dataWorkspace.selectedWorkspace}
@@ -311,7 +317,7 @@ export function AppExperience() {
         />
       ) : route.surface === "data" && route.page === "ingestion" ? (
         <IngestionPage
-          organizationId={auth.user.organization_id}
+          organizationId={user.organization_id}
           onBack={openData}
           backLabel="Back to data"
           launchContext={{
@@ -321,7 +327,7 @@ export function AppExperience() {
         />
       ) : route.surface === "data" ? (
         <DataPage
-          organizationId={auth.user.organization_id}
+          organizationId={user.organization_id}
           onCreateIngestion={openDataIngestion}
         />
       ) : route.surface === "reports" ? (
@@ -336,14 +342,14 @@ export function AppExperience() {
         <OrganizationUsersPage
           initialTab={route.tab}
           onBack={openHome}
-          organizationName={scope?.organization.name ?? auth.user.organization_id}
+          organizationName={scope?.organization.name ?? user.organization_id}
         />
       ) : route.page === "detail" && route.toolName ? (
         <ToolDetailPage
           toolName={route.toolName}
           onBack={openTools}
           availabilityScope={{
-            organizationName: scope?.organization.name ?? auth.user.organization_id,
+            organizationName: scope?.organization.name ?? user.organization_id,
             workspaceName: scope?.workspace?.name ?? "All workspaces",
           }}
         />
@@ -353,21 +359,11 @@ export function AppExperience() {
           viewState={toolsViewState}
           onViewStateChange={setToolsViewState}
           availabilityScope={{
-            organizationName: scope?.organization.name ?? auth.user.organization_id,
+            organizationName: scope?.organization.name ?? user.organization_id,
             workspaceName: scope?.workspace?.name ?? "All workspaces",
           }}
         />
       )}
     </AppShell>
-  );
-}
-
-function AuthRestoreScreen() {
-  return (
-    <main className="grid min-h-screen place-items-center bg-[#f4efe5] text-[#191915] dark:bg-[#11110f] dark:text-[#eee8dc]">
-      <div className="rounded-lg border border-[#d8d0c2] bg-[#fffdf8]/88 px-5 py-4 text-sm text-[#6d685e] shadow-[0_18px_50px_rgba(60,48,25,0.08)] dark:border-[#38372f] dark:bg-[#171714]/90 dark:text-[#eee8dc]/70">
-        Restoring AXIOM session...
-      </div>
-    </main>
   );
 }

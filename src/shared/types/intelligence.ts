@@ -3,6 +3,7 @@ export type ConversationSummary = {
   title: string | null;
   status: string;
   updated_at: string;
+  metadata: Record<string, unknown>;
 };
 
 export type PaginationMeta = {
