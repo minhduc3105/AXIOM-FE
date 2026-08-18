@@ -1,5 +1,6 @@
 import {
   CheckCircle2Icon,
+  ChevronDownIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
@@ -13,11 +14,16 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -72,6 +78,47 @@ function Metric({
       <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
       <p className="mt-0.5 text-xs text-muted-foreground">{detail}</p>
     </div>
+  );
+}
+
+function CatalogFilter({
+  label,
+  value,
+  options,
+  onValueChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly { value: string; label: string }[];
+  onValueChange: (value: string) => void;
+}) {
+  const selected = options.find((option) => option.value === value);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            aria-label={label}
+            className={cn("w-full justify-between", modelServiceInput)}
+          >
+            <span className="truncate">{selected?.label}</span>
+            <ChevronDownIcon data-icon="inline-end" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start">
+        <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
+          {options.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -151,7 +198,7 @@ export function ModelServiceCatalog({
         </div>
         {canManage && (
           <Button size="sm" variant="outline" onClick={onAddModel}>
-            <PlusIcon /> Add model
+            <PlusIcon data-icon="inline-start" /> Add model
           </Button>
         )}
       </div>
@@ -161,60 +208,52 @@ export function ModelServiceCatalog({
           canManage ? "sm:grid-cols-3" : "sm:grid-cols-2",
         )}
       >
-        <label className="relative">
-          <span className="sr-only">Search models</span>
+        <Field className="relative">
+          <FieldLabel htmlFor="model-service-search" className="sr-only">
+            Search models
+          </FieldLabel>
           <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            id="model-service-search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search model, ID or connection"
             className={cn(modelServiceInput, "pl-9")}
           />
-        </label>
-        <label>
-          <span className="sr-only">Filter by capability</span>
-          <select
-            value={capability}
-            onChange={(event) =>
-              setCapability(event.target.value as ModelCapability | "all")
-            }
-            className={cn(
-              "h-9 w-full rounded-md border px-3 text-sm",
-              modelServiceInput,
-            )}
-          >
-            <option value="all">All capabilities</option>
-            {modelCapabilities.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        </Field>
+        <CatalogFilter
+          label="Filter by capability"
+          value={capability}
+          onValueChange={(value) =>
+            setCapability(value as ModelCapability | "all")
+          }
+          options={[
+            { value: "all", label: "All capabilities" },
+            ...modelCapabilities.map((item) => ({
+              value: item.id,
+              label: item.label,
+            })),
+          ]}
+        />
         {canManage && (
-          <label>
-            <span className="sr-only">Filter by model status</span>
-            <select
-              value={status}
-              onChange={(event) =>
-                setStatus(event.target.value as ResourceStatus | "all")
-              }
-              className={cn(
-                "h-9 w-full rounded-md border px-3 text-sm",
-                modelServiceInput,
-              )}
-            >
-              <option value="all">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </label>
+          <CatalogFilter
+            label="Filter by model status"
+            value={status}
+            onValueChange={(value) =>
+              setStatus(value as ResourceStatus | "all")
+            }
+            options={[
+              { value: "all", label: "All statuses" },
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+            ]}
+          />
         )}
       </div>
       {loading && !options.length ? (
         <div className="grid gap-2 p-4">
           {[1, 2, 3].map((key) => (
-            <div key={key} className="h-20 animate-pulse rounded-lg bg-muted" />
+            <Skeleton key={key} className="h-20 rounded-lg" />
           ))}
         </div>
       ) : filtered.length ? (
@@ -372,24 +411,26 @@ function CatalogRow({
                 }
               />
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEditModel(option)}>
-                  <PencilIcon /> Edit model
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onTestModel(option)}>
-                  <CheckCircle2Icon /> Test model
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onToggleModel(option)}>
-                  {option.model.status === "active"
-                    ? "Deactivate model"
-                    : "Activate model"}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => onDeleteModel(option)}
-                >
-                  <Trash2Icon /> Delete model
-                </DropdownMenuItem>
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => onEditModel(option)}>
+                    <PencilIcon /> Edit model
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onTestModel(option)}>
+                    <CheckCircle2Icon /> Test model
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onToggleModel(option)}>
+                    {option.model.status === "active"
+                      ? "Deactivate model"
+                      : "Activate model"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => onDeleteModel(option)}
+                  >
+                    <Trash2Icon /> Delete model
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
           )}

@@ -1,5 +1,6 @@
 import {
   ArrowRightIcon,
+  ChevronDownIcon,
   CircleAlertIcon,
   LoaderCircleIcon,
   ServerIcon,
@@ -21,6 +22,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldError,
@@ -92,28 +100,73 @@ function TextField({
   );
 }
 
-function SelectField({
+function DropdownField({
   id,
   label,
   error,
-  children,
-  ...props
-}: { id: string; label: string; error?: string; children: ReactNode } & Omit<
-  ComponentProps<"select">,
-  "id" | "name" | "children"
->) {
+  options,
+  value,
+  defaultValue,
+  onValueChange,
+}: {
+  id: string;
+  label: string;
+  error?: string;
+  options: readonly { value: string; label: string }[];
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+}) {
+  const initialValue = value ?? defaultValue ?? options[0]?.value ?? "";
+  const [selectedValue, setSelectedValue] = useState(initialValue);
+
+  useEffect(() => {
+    setSelectedValue(value ?? defaultValue ?? options[0]?.value ?? "");
+  }, [defaultValue, options, value]);
+
+  const selectedOption = options.find(
+    (option) => option.value === selectedValue,
+  );
+
+  function handleValueChange(nextValue: string) {
+    setSelectedValue(nextValue);
+    onValueChange?.(nextValue);
+  }
+
   return (
     <Field data-invalid={Boolean(error)}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <select
-        id={id}
-        name={id}
-        aria-invalid={Boolean(error)}
-        className={cn("h-9 rounded-md border px-3 text-sm", modelServiceInput)}
-        {...props}
-      >
-        {children}
-      </select>
+      <input type="hidden" name={id} value={selectedValue} />
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              id={id}
+              type="button"
+              variant="outline"
+              aria-invalid={Boolean(error)}
+              className={cn("w-full justify-between", modelServiceInput)}
+            >
+              <span className="truncate">
+                {selectedOption?.label ?? "Choose an option"}
+              </span>
+              <ChevronDownIcon data-icon="inline-end" />
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="start">
+          <DropdownMenuRadioGroup
+            value={selectedValue}
+            onValueChange={handleValueChange}
+          >
+            {options.map((option) => (
+              <DropdownMenuRadioItem key={option.value} value={option.value}>
+                {option.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <FieldError>{error}</FieldError>
     </Field>
   );
@@ -159,7 +212,12 @@ function FormDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy && <LoaderCircleIcon className="animate-spin" />}
+              {busy && (
+                <LoaderCircleIcon
+                  data-icon="inline-start"
+                  className="animate-spin"
+                />
+              )}
               {submitLabel}
             </Button>
           </DialogFooter>
@@ -253,15 +311,16 @@ export function ModelServiceModelDialog({
             error={errors.connectionName}
             required
           />
-          <SelectField
+          <DropdownField
             id="connection-source"
             label="Connection type"
             defaultValue="cloud"
-          >
-            <option value="cloud">Cloud</option>
-            <option value="custom">Custom</option>
-            <option value="local">Local</option>
-          </SelectField>
+            options={[
+              { value: "cloud", label: "Cloud" },
+              { value: "custom", label: "Custom" },
+              { value: "local", label: "Local" },
+            ]}
+          />
           <TextField
             id="connection-url"
             label="Base URL"
@@ -270,15 +329,16 @@ export function ModelServiceModelDialog({
             error={errors.connectionUrl}
             required
           />
-          <SelectField
+          <DropdownField
             id="connection-protocol"
             label="Protocol"
             defaultValue="openai_compatible"
-          >
-            <option value="openai_compatible">OpenAI compatible</option>
-            <option value="openrouter">OpenRouter</option>
-            <option value="cohere_compatible">Cohere compatible</option>
-          </SelectField>
+            options={[
+              { value: "openai_compatible", label: "OpenAI compatible" },
+              { value: "openrouter", label: "OpenRouter" },
+              { value: "cohere_compatible", label: "Cohere compatible" },
+            ]}
+          />
           <TextField
             id="api-key"
             label="API key (optional)"
@@ -297,19 +357,17 @@ export function ModelServiceModelDialog({
         error={errors.name}
         required
       />
-      <SelectField
+      <DropdownField
         id="model-capability"
         label="Workload"
         defaultValue={model?.capability ?? capability}
         error={errors.capability}
-        onChange={() => clearError(errors, "capability", setErrors)}
-      >
-        {modelCapabilities.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.label}
-          </option>
-        ))}
-      </SelectField>
+        onValueChange={() => clearError(errors, "capability", setErrors)}
+        options={modelCapabilities.map((item) => ({
+          value: item.id,
+          label: item.label,
+        }))}
+      />
       <TextField
         id="max-tokens"
         label="Max output tokens"
@@ -407,19 +465,19 @@ export function ModelServiceProviderDialog({
       onSubmit={validate}
     >
       {!editingProvider && catalog.length > 0 && (
-        <SelectField
+        <DropdownField
           id="provider-template"
           label="Provider template"
           value={templateId}
-          onChange={(event) => selectTemplate(event.target.value)}
-        >
-          <option value="">Custom provider</option>
-          {catalog.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.display_name}
-            </option>
-          ))}
-        </SelectField>
+          onValueChange={selectTemplate}
+          options={[
+            { value: "", label: "Custom provider" },
+            ...catalog.map((item) => ({
+              value: item.id,
+              label: item.display_name,
+            })),
+          ]}
+        />
       )}
       {!editingProvider && (
         <TextField
@@ -447,18 +505,19 @@ export function ModelServiceProviderDialog({
         placeholder="e.g. OpenAI research"
         required
       />
-      <SelectField
+      <DropdownField
         id="provider-source"
         label="Source"
         value={values.source}
-        onChange={(event) =>
-          setValues((current) => ({ ...current, source: event.target.value }))
+        onValueChange={(source) =>
+          setValues((current) => ({ ...current, source }))
         }
-      >
-        <option value="cloud">Cloud</option>
-        <option value="custom">Custom</option>
-        <option value="local">Local</option>
-      </SelectField>
+        options={[
+          { value: "cloud", label: "Cloud" },
+          { value: "custom", label: "Custom" },
+          { value: "local", label: "Local" },
+        ]}
+      />
       <TextField
         id="provider-url"
         label="Base URL"
@@ -471,27 +530,22 @@ export function ModelServiceProviderDialog({
         placeholder="https://api.openai.com/v1"
         required
       />
-      <SelectField
+      <DropdownField
         id="provider-protocol"
         label="Protocol"
         value={values.protocol}
-        onChange={(event) =>
-          setValues((current) => ({ ...current, protocol: event.target.value }))
+        onValueChange={(protocol) =>
+          setValues((current) => ({ ...current, protocol }))
         }
-      >
-        {[
+        options={[
           ...new Set([
             "openai_compatible",
             "openrouter",
             "cohere_compatible",
             ...catalog.map((item) => item.protocol),
           ]),
-        ].map((protocol) => (
-          <option key={protocol} value={protocol}>
-            {protocol}
-          </option>
-        ))}
-      </SelectField>
+        ].map((protocol) => ({ value: protocol, label: protocol }))}
+      />
     </FormDialog>
   );
 }
@@ -628,7 +682,7 @@ export function ModelServiceAssignmentPickerDialog({
                         </code>
                       </p>
                       {reason && (
-                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                        <p className="mt-1 text-xs text-warning">
                           Unavailable: {reason}
                         </p>
                       )}
@@ -741,8 +795,13 @@ export function ModelServiceSwitchReviewDialog({
             Cancel
           </Button>
           <Button disabled={busy || blocked(option)} onClick={onConfirm}>
-            {busy && <LoaderCircleIcon className="animate-spin" />}Confirm
-            default change
+            {busy && (
+              <LoaderCircleIcon
+                data-icon="inline-start"
+                className="animate-spin"
+              />
+            )}
+            Confirm default change
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -787,7 +846,12 @@ export function ModelServiceConfirmationDialog({
             onClick={onConfirm}
             disabled={busy}
           >
-            {busy && <LoaderCircleIcon className="animate-spin" />}
+            {busy && (
+              <LoaderCircleIcon
+                data-icon="inline-start"
+                className="animate-spin"
+              />
+            )}
             {confirmation.confirmLabel}
           </Button>
         </DialogFooter>

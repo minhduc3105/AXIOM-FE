@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Progress, ProgressLabel } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -447,41 +448,43 @@ export function UploadWorkspace({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
-          <label
-            className={cn(
-              "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed bg-muted/60 p-8 text-center transition-colors",
-              dragging && "border-primary bg-primary/10",
-              uploading && "cursor-not-allowed opacity-60",
-            )}
-            htmlFor={inputId}
-            onDragOver={(event) => {
-              event.preventDefault();
-              if (!uploading) setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={dropFiles}
-          >
-            <UploadCloudIcon
-              className="text-muted-foreground"
-              aria-hidden="true"
-            />
-            <strong>Drop or browse multiple files</strong>
-            <span className="max-w-64 text-sm text-muted-foreground">
-              PDF, PNG/JPEG, CSV, JSON, TXT/MD, Excel, and Parquet are
-              supported.
-            </span>
-            <Input
-              id={inputId}
-              className="sr-only"
-              type="file"
-              multiple
-              disabled={uploading}
-              accept={UPLOAD_FILE_ACCEPT}
-              onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                event.target.files && onFiles(event.target.files)
-              }
-            />
-          </label>
+          <Field>
+            <FieldLabel
+              htmlFor={inputId}
+              className={cn(
+                "flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed bg-muted/60 p-8 text-center transition-colors",
+                dragging && "border-primary bg-primary/10",
+                uploading && "cursor-not-allowed opacity-60",
+              )}
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (!uploading) setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={dropFiles}
+            >
+              <UploadCloudIcon
+                className="text-muted-foreground"
+                aria-hidden="true"
+              />
+              <strong>Drop or browse multiple files</strong>
+              <span className="max-w-64 text-sm text-muted-foreground">
+                PDF, PNG/JPEG, CSV, JSON, TXT/MD, Excel, and Parquet are
+                supported.
+              </span>
+              <Input
+                id={inputId}
+                className="sr-only"
+                type="file"
+                multiple
+                disabled={uploading}
+                accept={UPLOAD_FILE_ACCEPT}
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  event.target.files && onFiles(event.target.files)
+                }
+              />
+            </FieldLabel>
+          </Field>
 
           <div className="grid grid-cols-2 gap-3">
             <QueueMetric value={files.length.toString()} label="Files" />
@@ -620,7 +623,7 @@ function ImagePreview({
   imagePreviewUrl: string | null;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 overflow-auto rounded-xl border bg-[#25241f] p-5">
+    <div className="flex min-h-0 flex-1 overflow-auto rounded-xl border bg-foreground p-5">
       {imagePreviewUrl ? (
         <img
           className="m-auto max-h-[680px] max-w-full object-contain shadow-2xl"

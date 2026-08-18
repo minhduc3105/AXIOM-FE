@@ -472,7 +472,7 @@ function RailContent({
               )}
               data-active={surface === "models"}
               onClick={onModels}
-              aria-label="Model Service"
+              aria-label="Models"
             >
               <BotIcon data-icon="inline-start" />
               <span
@@ -483,7 +483,7 @@ function RailContent({
                     : "pointer-events-none w-0 overflow-hidden opacity-0",
                 )}
               >
-                Model Service
+                Models
               </span>
             </Button>
             <Button
@@ -577,7 +577,7 @@ function RailContent({
                 )}
                 data-active={surface === "organization"}
                 onClick={onOrganizationAdministration}
-                aria-label="Organization administration"
+                aria-label="Organization"
               >
                 <Building2Icon data-icon="inline-start" />
                 <span
@@ -588,7 +588,7 @@ function RailContent({
                       : "pointer-events-none w-0 overflow-hidden opacity-0",
                   )}
                 >
-                  Organization administration
+                  Organization
                 </span>
               </Button>
             )}
@@ -601,33 +601,6 @@ function RailContent({
             aria-hidden="true"
           />
         )}
-
-        <Button
-          variant="ghost"
-          className={cn(
-            workspaceNavButtonClass,
-            expanded && sidebarButtonIconPadding,
-            expanded
-              ? "w-full justify-start px-3"
-              : "size-11 justify-center gap-0 !p-0",
-            "rounded-xl",
-          )}
-          data-active={surface === "settings"}
-          onClick={onSettings}
-          aria-label="Settings"
-        >
-          <SettingsIcon data-icon="inline-start" />
-          <span
-            className={cn(
-              "transition-opacity duration-300",
-              expanded
-                ? "opacity-100"
-                : "pointer-events-none w-0 overflow-hidden opacity-0",
-            )}
-          >
-            Settings
-          </span>
-        </Button>
 
         <UserSessionMenu
           expanded={expanded}
@@ -670,7 +643,7 @@ function UserSessionMenu({
           />
         }
       >
-        <Avatar size="lg" className="ring-2 ring-[#fffaf1] dark:ring-[#151512]">
+        <Avatar size="lg">
           <AvatarImage src="" alt="" />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>

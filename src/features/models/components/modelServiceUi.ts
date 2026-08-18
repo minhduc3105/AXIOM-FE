@@ -51,14 +51,13 @@ export function capabilityLabel(capability: ModelCapability) {
 }
 
 export function readinessBadgeClass(level: ReadinessLevel) {
-  if (level === "ready")
-    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  if (level === "ready") return "border-success/30 bg-success/10 text-success";
   if (level === "testing")
     return "border-primary/30 bg-primary/10 text-primary";
   if (level === "failed")
-    return "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300";
+    return "border-destructive/30 bg-destructive/10 text-destructive";
   if (level === "inactive" || level === "blocked")
-    return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    return "border-warning/30 bg-warning/10 text-warning";
   return "border-border bg-muted text-muted-foreground";
 }
 

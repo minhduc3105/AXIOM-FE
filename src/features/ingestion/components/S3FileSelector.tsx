@@ -18,6 +18,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -186,16 +187,19 @@ export function S3FileSelector({
         </div>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <label className="relative min-w-0 flex-1">
-            <span className="sr-only">Search S3 files</span>
+          <Field className="relative min-w-0 flex-1">
+            <FieldLabel htmlFor="s3-file-search" className="sr-only">
+              Search S3 files
+            </FieldLabel>
             <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              id="s3-file-search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search by file name or object path"
               className="pl-9"
             />
-          </label>
+          </Field>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -203,12 +207,14 @@ export function S3FileSelector({
                   variant="outline"
                   className="w-full justify-between lg:w-[190px]"
                   aria-label="Filter by file type"
-                />
+                >
+                  {extensionFilter === "all"
+                    ? "All file types"
+                    : extensionFilter}
+                  <ChevronDownIcon data-icon="inline-end" />
+                </Button>
               }
-            >
-              {extensionFilter === "all" ? "All file types" : extensionFilter}
-              <ChevronDownIcon data-icon="inline-end" />
-            </DropdownMenuTrigger>
+            />
             <DropdownMenuContent align="end">
               <DropdownMenuRadioGroup
                 value={extensionFilter}

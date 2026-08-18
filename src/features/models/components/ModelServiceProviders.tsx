@@ -11,11 +11,13 @@ import {
   ServerIcon,
   Trash2Icon,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -160,7 +162,7 @@ export function ModelServiceProviders({
               aria-label="Add provider"
               title="Add provider"
             >
-              <PlusIcon />
+              <PlusIcon data-icon="inline-start" />
             </Button>
           )}
         </div>
@@ -181,8 +183,9 @@ export function ModelServiceProviders({
       >
         {updating && (
           <div className="flex items-center gap-2 border-b bg-primary/5 px-4 py-2 text-xs text-muted-foreground sm:px-5">
-            <RefreshCwIcon className="size-3.5 animate-spin" /> Updating
-            provider inventory. Current configuration remains available.
+            <RefreshCwIcon data-icon="inline-start" className="animate-spin" />{" "}
+            Updating provider inventory. Current configuration remains
+            available.
           </div>
         )}
         <div
@@ -286,7 +289,7 @@ export function ModelServiceProviders({
                 onClick={actions.onAddModel}
                 disabled={actions.busy}
               >
-                <PlusIcon /> Add model
+                <PlusIcon data-icon="inline-start" /> Add model
               </Button>
             )}
           </div>
@@ -427,7 +430,7 @@ function ProvidersErrorState({
             className="mt-3"
             onClick={onRetry}
           >
-            <RefreshCwIcon /> Retry
+            <RefreshCwIcon data-icon="inline-start" /> Retry
           </Button>
         )}
       </div>
@@ -447,27 +450,22 @@ function ModelLoadError({
   hasModels: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-amber-500/5 px-4 py-3 text-xs leading-5 text-amber-950 dark:text-amber-100 sm:px-5">
-      <CircleAlertIcon className="size-3.5 shrink-0" />
-      <p className="min-w-0 flex-1">
-        <strong>
-          {hasModels
-            ? "Model inventory may be out of date."
-            : "Models could not be loaded."}
-        </strong>{" "}
+    <Alert className="rounded-none border-x-0 border-t-0 border-warning/30 bg-warning/10 px-4 py-3 sm:px-5">
+      <CircleAlertIcon />
+      <AlertTitle>
+        {hasModels
+          ? "Model inventory may be out of date."
+          : "Models could not be loaded."}
+      </AlertTitle>
+      <AlertDescription>
         {providerName}: {error.message}
-      </p>
+      </AlertDescription>
       {error.retryable && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="shrink-0"
-          onClick={onRetry}
-        >
-          <RefreshCwIcon /> Retry
+        <Button size="sm" variant="outline" onClick={onRetry}>
+          <RefreshCwIcon data-icon="inline-start" /> Retry
         </Button>
       )}
-    </div>
+    </Alert>
   );
 }
 
@@ -492,7 +490,7 @@ function EmptyState({
         </p>
         {canManage && (
           <Button size="sm" className="mt-3" onClick={onAddProvider}>
-            <PlusIcon /> Add provider
+            <PlusIcon data-icon="inline-start" /> Add provider
           </Button>
         )}
       </div>
@@ -512,10 +510,10 @@ function ProviderListItem({
   const readiness = getProviderReadiness(item);
   const color =
     readiness.level === "ready"
-      ? "bg-emerald-500"
+      ? "bg-success"
       : readiness.level === "failed"
-        ? "bg-red-500"
-        : "bg-amber-500";
+        ? "bg-destructive"
+        : "bg-warning";
   return (
     <button
       type="button"
@@ -578,7 +576,7 @@ function ProviderActionsMenu({
         onClick={onEditProvider}
         disabled={busy}
       >
-        <PencilIcon /> Edit provider
+        <PencilIcon data-icon="inline-start" /> Edit provider
       </Button>
       {readiness.action === "activate_provider" ? (
         <Button size="sm" onClick={onToggleProvider} disabled={busy}>
@@ -593,9 +591,12 @@ function ProviderActionsMenu({
           aria-label={testing ? "Testing connection" : "Test connection"}
         >
           {testing ? (
-            <LoaderCircleIcon className="animate-spin" />
+            <LoaderCircleIcon
+              data-icon="inline-start"
+              className="animate-spin"
+            />
           ) : (
-            <CheckCircle2Icon />
+            <CheckCircle2Icon data-icon="inline-start" />
           )}
           {testing ? "Testing connection" : "Test connection"}
         </Button>
@@ -604,30 +605,32 @@ function ProviderActionsMenu({
         <DropdownMenuTrigger
           render={
             <Button size="sm" variant="outline" disabled={busy}>
-              <MoreHorizontalIcon /> Manage
+              <MoreHorizontalIcon data-icon="inline-start" /> Manage
             </Button>
           }
         />
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={onCredential}>
-            <KeyRoundIcon /> Store credential
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onToggleProvider}>
-            {provider.status === "active"
-              ? "Deactivate provider"
-              : "Activate provider"}
-          </DropdownMenuItem>
-          {deletable && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={onDeleteProvider}
-              >
-                <Trash2Icon /> Delete provider
-              </DropdownMenuItem>
-            </>
-          )}
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={onCredential}>
+              <KeyRoundIcon /> Store credential
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onToggleProvider}>
+              {provider.status === "active"
+                ? "Deactivate provider"
+                : "Activate provider"}
+            </DropdownMenuItem>
+            {deletable && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={onDeleteProvider}
+                >
+                  <Trash2Icon /> Delete provider
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -679,7 +682,7 @@ function ProviderModelRow({
             "mt-1 text-xs leading-5",
             readiness.level === "ready"
               ? "text-muted-foreground"
-              : "text-amber-700 dark:text-amber-300",
+              : "text-warning",
           )}
         >
           {readiness.detail} Next: {readiness.nextAction}
@@ -711,9 +714,12 @@ function ProviderModelRow({
             }
           >
             {testing ? (
-              <LoaderCircleIcon className="animate-spin" />
+              <LoaderCircleIcon
+                data-icon="inline-start"
+                className="animate-spin"
+              />
             ) : readiness.action === "activate_model" ? null : (
-              <CheckCircle2Icon />
+              <CheckCircle2Icon data-icon="inline-start" />
             )}
             {testing
               ? "Testing"
@@ -736,21 +742,23 @@ function ProviderModelRow({
               }
             />
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEditModel(model)}>
-                <PencilIcon /> Edit model
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onToggleModel(model)}>
-                {model.status === "active"
-                  ? "Deactivate model"
-                  : "Activate model"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => onDeleteModel(model)}
-              >
-                <Trash2Icon /> Delete model
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => onEditModel(model)}>
+                  <PencilIcon /> Edit model
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onToggleModel(model)}>
+                  {model.status === "active"
+                    ? "Deactivate model"
+                    : "Activate model"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => onDeleteModel(model)}
+                >
+                  <Trash2Icon /> Delete model
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -768,19 +776,18 @@ function ReadinessGuidance({
 }) {
   if (readiness.level === "ready") return null;
   return (
-    <div
+    <Alert
       className={cn(
-        "flex gap-2 border-b px-4 py-3 text-xs leading-5 sm:px-5",
+        "rounded-none border-x-0 border-t-0 px-4 py-3 sm:px-5",
         readiness.level === "testing"
-          ? "bg-primary/5 text-foreground"
-          : "bg-amber-500/5 text-amber-950 dark:text-amber-100",
+          ? "border-primary/20 bg-primary/5"
+          : "border-warning/30 bg-warning/10 text-warning",
       )}
     >
-      <CircleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
-      <p>
-        <strong>{readiness.detail}</strong> Next: {readiness.nextAction}
-      </p>
-    </div>
+      <CircleAlertIcon />
+      <AlertTitle>{readiness.detail}</AlertTitle>
+      <AlertDescription>Next: {readiness.nextAction}</AlertDescription>
+    </Alert>
   );
 }
 

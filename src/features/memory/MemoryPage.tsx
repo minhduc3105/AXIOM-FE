@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BrainCircuitIcon,
+  ChevronDownIcon,
   CircleAlertIcon,
   DatabaseIcon,
   FileJsonIcon,
@@ -26,6 +27,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,16 +59,12 @@ type Inspector =
 type CreateMode = "experience" | "procedure" | null;
 
 const panel =
-  "rounded-[22px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 shadow-[0_16px_46px_rgba(24,24,18,0.055)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88";
-const input =
-  "h-9 border-[#d8d0c2]/80 bg-[#f7f3eb] shadow-none dark:border-[#49483f] dark:bg-[#20201c]";
+  "rounded-[22px] border bg-card text-card-foreground shadow-md backdrop-blur-xl";
+const input = "h-9 border-border bg-background shadow-none";
 const statusStyle: Record<ServiceStatus, string> = {
-  online:
-    "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200",
-  offline:
-    "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200",
-  checking:
-    "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200",
+  online: "border-success/30 bg-success/10 text-success",
+  offline: "border-destructive/30 bg-destructive/10 text-destructive",
+  checking: "border-warning/30 bg-warning/10 text-warning",
 };
 
 function formatDate(value: string | null) {
@@ -77,16 +81,61 @@ function RecordSources({ sources }: { sources: { source_id: string }[] }) {
       {sources.length ? (
         sources.map((source) => (
           <code
-            className="max-w-full truncate rounded bg-[#f4efe5] px-1.5 py-0.5 text-[10px] text-[#625d53] dark:bg-white/5 dark:text-[#c5bcaf]"
+            className="max-w-full truncate rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
             key={source.source_id}
           >
             {source.source_id}
           </code>
         ))
       ) : (
-        <span className="text-xs text-[#8a8377]">No source references</span>
+        <span className="text-xs text-muted-foreground">
+          No source references
+        </span>
       )}
     </div>
+  );
+}
+
+function MemoryTypeDropdown({
+  value,
+  onValueChange,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  const options = [
+    { value: "all", label: "All types" },
+    { value: "preference", label: "Preference" },
+    { value: "constraint", label: "Constraint" },
+    { value: "semantic", label: "Semantic" },
+  ];
+  const selected = options.find((option) => option.value === value);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            aria-label="Memory type"
+            className="w-full justify-between rounded-full"
+          >
+            <span className="truncate">{selected?.label}</span>
+            <ChevronDownIcon data-icon="inline-end" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start">
+        <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
+          {options.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -333,16 +382,14 @@ export function MemoryPage() {
         <header className={cn(panel, "p-5 sm:p-6")}>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-xs text-[#777064] dark:text-[#aaa397]">
+              <div className="text-xs text-muted-foreground">
                 Settings <span className="px-1">/</span>
-                <span className="font-medium text-[#2456e8] dark:text-[#9aafff]">
-                  Memory
-                </span>
+                <span className="font-medium text-primary">Memory</span>
               </div>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
                 Memory management
               </h1>
-              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
+              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
                 Review, retrieve and govern durable context for the signed-in
                 workspace.
               </p>
@@ -361,7 +408,7 @@ export function MemoryPage() {
               </Button>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 border-t border-[#e1dacc] pt-4 sm:grid-cols-2 xl:grid-cols-4 dark:border-[#38372f]">
+          <div className="mt-5 grid gap-3 border-t pt-4 sm:grid-cols-2 xl:grid-cols-4">
             <Metric
               label="Canonical memories"
               value={memories.length}
@@ -401,8 +448,8 @@ export function MemoryPage() {
           className="gap-0"
         >
           <section className={cn(panel, "overflow-hidden")}>
-            <div className="border-b border-[#e1dacc] px-4 pt-4 dark:border-[#38372f]">
-              <TabsList className="h-10 max-w-full overflow-x-auto rounded-full border border-[#d8d0c2] bg-[#f4efe5]/70 p-1 dark:border-[#49483f] dark:bg-white/5">
+            <div className="border-b px-4 pt-4">
+              <TabsList className="h-10 max-w-full overflow-x-auto rounded-full border bg-muted/70 p-1">
                 <TabsTrigger
                   value="inventory"
                   className="rounded-full px-3 text-xs"
@@ -434,14 +481,14 @@ export function MemoryPage() {
             </div>
             <TabsContent value="inventory">
               <div className="grid min-w-0 lg:grid-cols-[minmax(0,1fr)_360px]">
-                <div className="min-w-0 border-b border-[#e1dacc] p-4 lg:border-b-0 lg:border-r dark:border-[#38372f]">
+                <div className="min-w-0 border-b p-4 lg:border-b-0 lg:border-r">
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <Field className="min-w-0 flex-1">
                       <FieldLabel htmlFor="memory-search" className="sr-only">
                         Search memories
                       </FieldLabel>
                       <div className="relative">
-                        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8377]" />
+                        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                           id="memory-search"
                           value={query}
@@ -454,17 +501,10 @@ export function MemoryPage() {
                         />
                       </div>
                     </Field>
-                    <select
-                      className={cn(input, "rounded-full px-3 text-sm")}
+                    <MemoryTypeDropdown
                       value={memoryType}
-                      onChange={(event) => setMemoryType(event.target.value)}
-                      aria-label="Memory type"
-                    >
-                      <option value="all">All types</option>
-                      <option value="preference">Preference</option>
-                      <option value="constraint">Constraint</option>
-                      <option value="semantic">Semantic</option>
-                    </select>
+                      onValueChange={setMemoryType}
+                    />
                     <Button
                       size="sm"
                       className="h-9 rounded-full"
@@ -628,19 +668,16 @@ function ServiceBadge({
   return (
     <Badge
       variant="outline"
-      className={cn(
-        "h-8 gap-2 rounded-full px-3 text-xs",
-        statusStyle[status],
-      )}
+      className={cn("h-8 gap-2 rounded-full px-3 text-xs", statusStyle[status])}
     >
       <span
         className={cn(
           "size-1.5 rounded-full",
           status === "online"
-            ? "bg-emerald-500"
+            ? "bg-success"
             : status === "offline"
-              ? "bg-rose-500"
-              : "bg-amber-500",
+              ? "bg-destructive"
+              : "bg-warning",
         )}
       />
       {label}: {status}
@@ -657,15 +694,13 @@ function Metric({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-[#f7f3eb] px-3 py-2.5 dark:bg-white/5">
-      <span className="grid size-8 place-items-center rounded-lg bg-[#edf2ff] text-[#2456e8] dark:bg-[#7895ff]/12 dark:text-[#9aafff]">
+    <div className="flex items-center gap-3 rounded-xl bg-muted px-3 py-2.5">
+      <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
         {icon}
       </span>
       <div>
         <div className="text-lg font-semibold tabular-nums">{value}</div>
-        <div className="text-[11px] text-[#777064] dark:text-[#aaa397]">
-          {label}
-        </div>
+        <div className="text-[11px] text-muted-foreground">{label}</div>
       </div>
     </div>
   );
@@ -683,7 +718,7 @@ function InventoryList({
 }) {
   if (loading)
     return (
-      <div className="grid min-h-60 place-items-center text-sm text-[#777064]">
+      <div className="grid min-h-60 place-items-center text-sm text-muted-foreground">
         <LoaderCircleIcon className="animate-spin" />
       </div>
     );
@@ -691,16 +726,16 @@ function InventoryList({
     return (
       <div className="grid min-h-60 place-items-center text-center">
         <div>
-          <DatabaseIcon className="mx-auto size-5 text-[#8a8377]" />
+          <DatabaseIcon className="mx-auto size-5 text-muted-foreground" />
           <p className="mt-2 text-sm font-medium">No memories found</p>
-          <p className="mt-1 text-xs text-[#777064]">
+          <p className="mt-1 text-xs text-muted-foreground">
             Try changing the filters or capture a completed intent.
           </p>
         </div>
       </div>
     );
   return (
-    <div className="mt-4 divide-y divide-[#e9e2d6] rounded-xl border border-[#e1dacc] dark:divide-[#38372f] dark:border-[#38372f]">
+    <div className="mt-4 divide-y rounded-xl border">
       {memories.map((memory) => (
         <Button
           type="button"
@@ -708,8 +743,8 @@ function InventoryList({
           key={memory.id}
           onClick={() => onSelect(memory)}
           className={cn(
-            "h-auto w-full flex-col items-stretch rounded-none px-3 py-3 text-left hover:bg-[#f7f3eb] dark:hover:bg-white/5",
-            selectedId === memory.id && "bg-[#edf2ff] dark:bg-[#7895ff]/10",
+            "h-auto w-full flex-col items-stretch rounded-none px-3 py-3 text-left hover:bg-muted",
+            selectedId === memory.id && "bg-primary/10",
           )}
         >
           <div className="flex min-w-0 items-center gap-2">
@@ -722,13 +757,13 @@ function InventoryList({
             <p className="min-w-0 flex-1 truncate text-sm font-medium">
               {memory.content || "Untitled memory"}
             </p>
-            <span className="text-xs tabular-nums text-[#777064]">
+            <span className="text-xs tabular-nums text-muted-foreground">
               {memory.confidence === null
                 ? "—"
                 : `${Math.round(memory.confidence * 100)}%`}
             </span>
           </div>
-          <div className="mt-1 flex items-center gap-2 text-[11px] text-[#8a8377]">
+          <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
             <span>{memory.backend}</span>
             <span>·</span>
             <span>{formatDate(memory.updated_at ?? memory.created_at)}</span>
@@ -757,9 +792,9 @@ function Inspector({
     return (
       <aside className="grid min-h-80 place-items-center p-6 text-center">
         <div>
-          <FileJsonIcon className="mx-auto size-5 text-[#8a8377]" />
+          <FileJsonIcon className="mx-auto size-5 text-muted-foreground" />
           <p className="mt-2 text-sm font-medium">Select a record</p>
-          <p className="mt-1 text-xs text-[#777064]">
+          <p className="mt-1 text-xs text-muted-foreground">
             Its content, provenance and actions stay in this inspector.
           </p>
         </div>
@@ -773,7 +808,7 @@ function Inspector({
     <aside className="min-w-0 p-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-48px)] lg:overflow-y-auto">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs text-[#777064] capitalize">
+          <div className="text-xs text-muted-foreground capitalize">
             {inspector.kind}
           </div>
           <h2 className="mt-1 text-base font-semibold">
@@ -801,13 +836,13 @@ function Inspector({
           </p>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
             <div>
-              <dt className="text-[#777064]">Confidence</dt>
+              <dt className="text-muted-foreground">Confidence</dt>
               <dd className="mt-1 font-medium">
                 {inspector.data.confidence ?? "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-[#777064]">Importance</dt>
+              <dt className="text-muted-foreground">Importance</dt>
               <dd className="mt-1 font-medium">
                 {inspector.data.importance ?? "—"}
               </dd>
@@ -826,13 +861,13 @@ function Inspector({
         </p>
       )}{" "}
       {inspector.kind === "job" && (
-        <p className="mt-4 text-sm text-[#625d53] dark:text-[#c5bcaf]">
+        <p className="mt-4 text-sm text-muted-foreground">
           {inspector.data.message ?? "No status message."}
         </p>
       )}{" "}
       {inspector.kind !== "job" && (
         <>
-          <div className="mt-4 text-xs font-medium text-[#777064]">
+          <div className="mt-4 text-xs font-medium text-muted-foreground">
             Provenance
           </div>
           <RecordSources sources={sources} />
@@ -876,7 +911,7 @@ function Inspector({
             <Button
               size="sm"
               variant="outline"
-              className="h-8 border-amber-300 text-amber-800 dark:text-amber-200"
+              className="h-8 border-warning/40 text-warning"
               disabled={busy === "forget"}
               onClick={() => void onForget(inspector.data)}
             >
@@ -913,11 +948,11 @@ function Inspector({
           </Button>
         </div>
       )}
-      <details className="mt-5 border-t border-[#e1dacc] pt-3 dark:border-[#38372f]">
-        <summary className="cursor-pointer text-xs font-medium text-[#777064]">
+      <details className="mt-5 border-t pt-3">
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
           Raw API response
         </summary>
-        <pre className="mt-2 max-h-60 overflow-auto rounded-lg bg-[#191915] p-3 text-[10px] leading-5 text-[#f5f0e6]">
+        <pre className="mt-2 max-h-60 overflow-auto rounded-lg bg-foreground p-3 text-[10px] leading-5 text-background">
           {JSON.stringify(raw, null, 2)}
         </pre>
       </details>
@@ -956,7 +991,7 @@ function RecallPanel({
             id="memory-recall-query"
             value={recallQuery}
             onChange={(event) => setRecallQuery(event.target.value)}
-            className="min-h-28 border-[#d8d0c2] bg-[#f7f3eb] dark:border-[#49483f] dark:bg-[#20201c]"
+            className="min-h-28 border-border bg-background"
             placeholder="What context should AXIOM retrieve?"
           />
         </Field>
@@ -966,19 +1001,19 @@ function RecallPanel({
             <SearchIcon /> Recall memory
           </Button>
         </div>
-        <div className="mt-5 rounded-xl border border-[#d8d0c2] bg-[#f7f3eb] p-4 dark:border-[#49483f] dark:bg-[#20201c]">
-          <div className="text-xs font-medium text-[#777064]">
+        <div className="mt-5 rounded-xl border bg-muted p-4">
+          <div className="text-xs font-medium text-muted-foreground">
             Bounded context
           </div>
-          <pre className="mt-2 whitespace-pre-wrap text-xs leading-6 text-[#625d53] dark:text-[#c5bcaf]">
+          <pre className="mt-2 whitespace-pre-wrap text-xs leading-6 text-muted-foreground">
             {boundedContext ||
               "Run recall to inspect the context passed to the agent."}
           </pre>
         </div>
       </section>
-      <section className="rounded-xl border border-[#d8d0c2] p-4 dark:border-[#49483f]">
+      <section className="rounded-xl border p-4">
         <h2 className="text-sm font-semibold">Capture and extraction</h2>
-        <p className="mt-1 text-xs leading-5 text-[#777064]">
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
           Use a governed stored agent intent as the capture source.
         </p>
         <Field className="mt-4">
@@ -1063,7 +1098,7 @@ function RecordPanel<T extends ExperienceRecord | ProcedureRecord>({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-base font-semibold">{title}</h2>
-          <p className="mt-1 text-xs text-[#777064]">{description}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         </div>
         <Button size="sm" onClick={onCreate}>
           <PlusIcon /> Create {kind}
@@ -1097,17 +1132,17 @@ function RecordPanel<T extends ExperienceRecord | ProcedureRecord>({
                 type="button"
                 variant="outline"
                 onClick={() => onSelect(record)}
-                className="h-auto flex-col items-stretch rounded-xl border-[#e1dacc] bg-[#fffdfa] p-3 text-left hover:border-[#2456e8]/35 hover:bg-[#edf2ff]/45 dark:border-[#38372f] dark:bg-[#20201c] dark:hover:bg-[#7895ff]/8"
+                className="h-auto flex-col items-stretch rounded-xl p-3 text-left hover:border-primary/35 hover:bg-primary/5"
               >
                 <div className="flex items-center justify-between gap-3">
                   <strong className="truncate text-sm">
                     {experience ? record.goal : record.name}
                   </strong>
-                  <span className="text-xs text-[#777064]">
+                  <span className="text-xs text-muted-foreground">
                     {record.confidence ?? "—"}
                   </span>
                 </div>
-                <p className="mt-1 truncate text-xs text-[#777064]">
+                <p className="mt-1 truncate text-xs text-muted-foreground">
                   {experience ? record.lesson : record.trigger}
                 </p>
                 <RecordSources sources={record.source_refs} />
@@ -1115,7 +1150,7 @@ function RecordPanel<T extends ExperienceRecord | ProcedureRecord>({
             );
           })
         ) : (
-          <div className="py-12 text-center text-sm text-[#777064]">
+          <div className="py-12 text-center text-sm text-muted-foreground">
             No {kind}s found.
           </div>
         )}
@@ -1136,7 +1171,7 @@ function RemePanel({
 }) {
   return (
     <div className="p-4">
-      <Alert className="border-amber-300/70 bg-amber-50/80 text-amber-950 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
+      <Alert className="border-warning/30 bg-warning/10 text-warning">
         <ShieldAlertIcon />
         <AlertTitle>Advanced ReMe operations</AlertTitle>
         <AlertDescription>
@@ -1152,7 +1187,7 @@ function RemePanel({
           id="reme-operation-input"
           value={remeInput}
           onChange={(event) => setInput(event.target.value)}
-          className="min-h-20 border-[#d8d0c2] bg-[#f7f3eb] dark:border-[#49483f] dark:bg-[#20201c]"
+          className="min-h-20 border-border bg-background"
           placeholder="Content for auto_memory or query for ReMe search"
         />
       </Field>
@@ -1203,14 +1238,12 @@ function RemeAction({
   onClick: () => void;
 }) {
   return (
-    <article className="rounded-xl border border-[#e1dacc] p-4 dark:border-[#38372f]">
-      <div className="flex items-center gap-2 text-[#2456e8] dark:text-[#9aafff]">
+    <article className="rounded-xl border p-4">
+      <div className="flex items-center gap-2 text-primary">
         {icon}
-        <h2 className="text-sm font-semibold text-[#191915] dark:text-[#f4efe5]">
-          {title}
-        </h2>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       </div>
-      <p className="mt-2 text-xs text-[#777064]">{description}</p>
+      <p className="mt-2 text-xs text-muted-foreground">{description}</p>
       <Button
         size="sm"
         variant="outline"
@@ -1246,7 +1279,7 @@ function EditMemoryDialog({
   }, [memory, open]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg border-[#d8d0c2] bg-[#fffdf8] dark:border-[#38372f] dark:bg-[#1a1a17]">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit memory</DialogTitle>
           <DialogDescription>
@@ -1323,7 +1356,7 @@ function CreateDialog({
   const label = mode === "experience" ? "Experience" : "Procedure";
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg border-[#d8d0c2] bg-[#fffdf8] dark:border-[#38372f] dark:bg-[#1a1a17]">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Create {label}</DialogTitle>
           <DialogDescription>
