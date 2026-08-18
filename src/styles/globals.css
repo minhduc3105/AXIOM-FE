@@ -1,3 +1,4 @@
+@import url("https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,600,700,800&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -9,6 +10,15 @@
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-line: var(--line);
+  --color-soft: var(--soft);
+  --color-text-secondary: var(--text-secondary);
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-danger: var(--status-danger);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
@@ -24,13 +34,6 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
-  --color-info-foreground: var(--info-foreground);
-  --color-info: var(--info);
-  --color-warning-foreground: var(--warning-foreground);
-  --color-warning: var(--warning);
-  --color-success-foreground: var(--success-foreground);
-  --color-success: var(--success);
-  --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -64,23 +67,25 @@
   --popover-foreground: #191915;
   --primary: #2456e8;
   --primary-foreground: #ffffff;
+  --brand: var(--primary);
+  --brand-strong: #1d48c7;
+  --brand-foreground: var(--primary-foreground);
   --secondary: #e9e2d5;
   --secondary-foreground: #25241f;
   --muted: #ece6da;
-  --muted-foreground: #69645a;
+  --muted-foreground: #6d685e;
   --accent: #ded8cb;
   --accent-foreground: #191915;
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: #ffffff;
-  --success: #17643a;
-  --success-foreground: #ffffff;
-  --warning: #87560e;
-  --warning-foreground: #ffffff;
-  --info: #2456e8;
-  --info-foreground: #ffffff;
   --border: #d8d0c2;
-  --input: #8f877a;
+  --input: #d8d0c2;
   --ring: #2456e8;
+  --line: var(--border);
+  --soft: var(--muted);
+  --text-secondary: var(--muted-foreground);
+  --status-success: #16834c;
+  --status-warning: #9a5b08;
+  --status-danger: #be3434;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -95,6 +100,7 @@
   --sidebar-accent-foreground: #f5f0e6;
   --sidebar-border: #393831;
   --sidebar-ring: #8da5ff;
+  --success: #16834c;
 }
 
 .dark {
@@ -106,6 +112,9 @@
   --popover-foreground: #eee8dc;
   --primary: #7895ff;
   --primary-foreground: #0e142c;
+  --brand: var(--primary);
+  --brand-strong: #9aafff;
+  --brand-foreground: var(--primary-foreground);
   --secondary: #292923;
   --secondary-foreground: #eee8dc;
   --muted: #252520;
@@ -113,16 +122,15 @@
   --accent: #303029;
   --accent-foreground: #f4efe5;
   --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: #2c1113;
-  --success: #91d6a7;
-  --success-foreground: #142419;
-  --warning: #f1c56d;
-  --warning-foreground: #2c2312;
-  --info: #9aafff;
-  --info-foreground: #14224a;
   --border: #38372f;
-  --input: #706d62;
+  --input: #403f36;
   --ring: #7895ff;
+  --line: var(--border);
+  --soft: var(--muted);
+  --text-secondary: var(--muted-foreground);
+  --status-success: #51c980;
+  --status-warning: #f1bb62;
+  --status-danger: #ff9b9b;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -136,6 +144,7 @@
   --sidebar-accent-foreground: #f4efe5;
   --sidebar-border: #30302a;
   --sidebar-ring: #7895ff;
+  --success: #51c980;
 }
 
 @layer base {

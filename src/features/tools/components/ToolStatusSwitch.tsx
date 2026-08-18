@@ -38,7 +38,9 @@ export function ToolStatusSwitch({
               : "bg-muted text-muted-foreground",
           )}
         >
-          {disabled ? <LoaderCircleIcon className="size-3 animate-spin" /> : null}
+          {disabled ? (
+            <LoaderCircleIcon className="size-3 animate-spin" />
+          ) : null}
           {disabled ? disabledLabel : checked ? "Active" : "Disabled"}
         </Badge>
       )}
