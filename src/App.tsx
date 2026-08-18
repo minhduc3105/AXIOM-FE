@@ -1,4 +1,5 @@
 import { AppExperience } from "./app/AppExperience";
+import { AppRouter } from "./app/AppRouter";
 import { ThemeProvider } from "./app/ThemeProvider";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider } from "./features/auth/model/AuthProvider";
@@ -10,12 +11,16 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <DataWorkspaceProvider>
-          <ToolsProvider>
-            <AppExperience />
-            <Toaster position="bottom-right" richColors />
-          </ToolsProvider>
-        </DataWorkspaceProvider>
+        <AppRouter
+          renderApp={(route, navigate) => (
+            <DataWorkspaceProvider>
+              <ToolsProvider>
+                <AppExperience route={route} navigate={navigate} />
+              </ToolsProvider>
+            </DataWorkspaceProvider>
+          )}
+        />
+        <Toaster position="bottom-right" richColors />
       </AuthProvider>
     </ThemeProvider>
   );

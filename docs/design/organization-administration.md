@@ -1,7 +1,7 @@
 # Organization Administration design specification
 
-> Scope: `/organization`, `/organization/workspaces`, `/organization/members`, and `src/features/auth/components/OrganizationUsersPage.tsx`  
-> Status: Feature specification  
+> Scope: `/organization`, `/organization/workspaces`, `/organization/members`, and `src/features/auth/components/OrganizationUsersPage.tsx`
+> Status: Feature specification
 > Foundation: [AXIOM Design System](../../design.md)
 
 This document defines the organization-administration workflow. It extends the shared design system with feature-specific information architecture, permissions, and operational states; it does not override global tokens, primitives, spacing, typography, or accessibility rules.

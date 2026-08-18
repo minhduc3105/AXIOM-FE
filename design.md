@@ -11,9 +11,7 @@ This document defines AXIOM's shared visual language and interaction baseline. I
 Read this document before designing or changing AXIOM-FE UI. Then read the relevant feature specification when one exists:
 
 - [Auth Experience](docs/design/auth.md)
-- [Organization Administration](docs/design/organization-administration.md)
 - [Model Service](docs/design/model-service.md)
-- [Tools](docs/design/tools.md)
 
 When guidance conflicts, this document wins for tokens, typography, spacing, radius, elevation, accessibility, responsive behavior, and shared component semantics. A feature document wins only for feature-specific layout, states, copy, and permissions.
 
@@ -44,21 +42,21 @@ The visual signature is warm neutral surfaces, ink-like text, restrained cobalt 
 
 Components must consume semantic classes backed by `globals.css`. Never add a one-off hex value to a product component.
 
-| Intent              | Background or surface | Foreground                    | Typical use                      |
-| ------------------- | --------------------- | ----------------------------- | -------------------------------- |
-| App canvas          | `bg-background`       | `text-foreground`             | Page background                  |
-| Raised surface      | `bg-card`             | `text-card-foreground`        | Panels, cards, dialogs           |
-| Quiet surface       | `bg-muted`            | `text-muted-foreground`       | Secondary groups, metadata       |
-| Primary action      | `bg-primary`          | `text-primary-foreground`     | Main action, active emphasis     |
-| Secondary action    | `bg-secondary`        | `text-secondary-foreground`   | Supporting action                |
-| Contextual emphasis | `bg-accent`           | `text-accent-foreground`      | Selected or highlighted regions  |
-| Destructive         | `bg-destructive`      | `text-destructive-foreground` | Irreversible or dangerous action |
-| Success             | `bg-success`          | `text-success-foreground`     | Completed, healthy, available    |
-| Warning             | `bg-warning`          | `text-warning-foreground`     | Attention or degraded state      |
-| Information         | `bg-info`             | `text-info-foreground`        | Neutral operational notice       |
-| Boundary            | `border-border`       | -                             | Structural separation            |
-| Control boundary    | `border-input`        | -                             | Inputs and interactive outlines  |
-| Focus               | `ring-ring`           | -                             | Keyboard focus indicator         |
+| Intent | Background or surface | Foreground | Typical use |
+| --- | --- | --- | --- |
+| App canvas | `bg-background` | `text-foreground` | Page background |
+| Raised surface | `bg-card` | `text-card-foreground` | Panels, cards, dialogs |
+| Quiet surface | `bg-muted` | `text-muted-foreground` | Secondary groups, metadata |
+| Primary action | `bg-primary` | `text-primary-foreground` | Main action, active emphasis |
+| Secondary action | `bg-secondary` | `text-secondary-foreground` | Supporting action |
+| Contextual emphasis | `bg-accent` | `text-accent-foreground` | Selected or highlighted regions |
+| Destructive | `bg-destructive` | `text-destructive-foreground` | Irreversible or dangerous action |
+| Success | `bg-success` | `text-success-foreground` | Completed, healthy, available |
+| Warning | `bg-warning` | `text-warning-foreground` | Attention or degraded state |
+| Information | `bg-info` | `text-info-foreground` | Neutral operational notice |
+| Boundary | `border-border` | - | Structural separation |
+| Control boundary | `border-input` | - | Inputs and interactive outlines |
+| Focus | `ring-ring` | - | Keyboard focus indicator |
 
 Status color supports meaning; it does not replace a label or icon. Use destructive only for failure or destructive intent, not merely to attract attention.
 
@@ -77,15 +75,15 @@ Geist Sans is the product interface family; Geist Mono is reserved for identifie
 
 Use the following hierarchy as a target, adjusting only when the density of a component requires it:
 
-| Role            | Suggested treatment                                  |
-| --------------- | ---------------------------------------------------- |
-| Page title      | `text-2xl font-semibold tracking-tight`              |
-| Section title   | `text-lg font-semibold tracking-tight`               |
-| Card title      | `text-sm font-semibold` or `text-base font-semibold` |
-| Body            | `text-sm leading-6`                                  |
-| Supporting text | `text-sm text-muted-foreground`                      |
-| Metadata        | `text-xs text-muted-foreground`                      |
-| Technical value | `font-mono text-xs` or `font-mono text-sm`           |
+| Role | Suggested treatment |
+| --- | --- |
+| Page title | `text-2xl font-semibold tracking-tight` |
+| Section title | `text-lg font-semibold tracking-tight` |
+| Card title | `text-sm font-semibold` or `text-base font-semibold` |
+| Body | `text-sm leading-6` |
+| Supporting text | `text-sm text-muted-foreground` |
+| Metadata | `text-xs text-muted-foreground` |
+| Technical value | `font-mono text-xs` or `font-mono text-sm` |
 
 Use sentence case for headings, labels, buttons, and navigation. Reserve uppercase for very short machine-like metadata, never for paragraphs. A page should normally have one dominant title; do not manufacture hierarchy using many font sizes and weights.
 
@@ -186,16 +184,16 @@ Write concise, direct language that names the object and next action.
 
 ## 12. Do / Don't
 
-| Do                                                         | Don't                                                     |
-| ---------------------------------------------------------- | --------------------------------------------------------- |
-| Use semantic tokens from `globals.css`                     | Add a one-off hex or palette color to a product component |
-| Compose shared primitives at feature level                 | Patch a shadcn primitive for one screen                   |
-| Make hierarchy with spacing, type, and borders             | Add shadows, gradients, or colored cards everywhere       |
-| Label status with text and, where useful, an icon          | Communicate status with color alone                       |
-| Design loading, empty, error, disabled, and success states | Treat the happy path as the complete UI                   |
-| Collapse layouts around task order below `md`              | Shrink a desktop layout until it technically fits         |
-| Keep one dominant action per decision area                 | Give several actions identical visual priority            |
-| Extend this system through semantic roles                  | Create feature-specific visual foundations                |
+| Do | Don't |
+| --- | --- |
+| Use semantic tokens from `globals.css` | Add a one-off hex or palette color to a product component |
+| Compose shared primitives at feature level | Patch a shadcn primitive for one screen |
+| Make hierarchy with spacing, type, and borders | Add shadows, gradients, or colored cards everywhere |
+| Label status with text and, where useful, an icon | Communicate status with color alone |
+| Design loading, empty, error, disabled, and success states | Treat the happy path as the complete UI |
+| Collapse layouts around task order below `md` | Shrink a desktop layout until it technically fits |
+| Keep one dominant action per decision area | Give several actions identical visual priority |
+| Extend this system through semantic roles | Create feature-specific visual foundations |
 
 ## 13. Review checklist
 
