@@ -746,7 +746,7 @@ export function OrganizationUsersPage({
         >
           <TabsList
             variant="line"
-            className="h-auto w-full flex-wrap justify-start gap-1 border-b border-border p-0"
+            className="h-auto w-full flex-wrap justify-start gap-1 border-border p-0"
           >
             <TabsTrigger value="overview" className="h-10 flex-none px-3">
               Overview

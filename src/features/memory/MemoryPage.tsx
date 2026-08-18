@@ -58,8 +58,7 @@ type Inspector =
   | null;
 type CreateMode = "experience" | "procedure" | null;
 
-const panel =
-  "rounded-[22px] border bg-card text-card-foreground shadow-md backdrop-blur-xl";
+const panel = "border bg-card text-card-foreground";
 const input = "h-9 border-border bg-background shadow-none";
 const statusStyle: Record<ServiceStatus, string> = {
   online: "border-success/30 bg-success/10 text-success",
@@ -379,7 +378,7 @@ export function MemoryPage() {
       aria-label="Memory management"
     >
       <div className="mx-auto grid w-full max-w-[1440px] gap-6">
-        <header className={cn(panel, "p-5 sm:p-6")}>
+        <header className="border-b pb-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="text-xs text-muted-foreground">
@@ -408,7 +407,7 @@ export function MemoryPage() {
               </Button>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 border-t pt-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-6 grid gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-2 xl:grid-cols-4">
             <Metric
               label="Canonical memories"
               value={memories.length}
@@ -447,87 +446,91 @@ export function MemoryPage() {
           onValueChange={(value) => setView(value as View)}
           className="gap-0"
         >
-          <section className={cn(panel, "overflow-hidden")}>
-            <div className="border-b px-4 pt-4">
-              <TabsList className="h-10 max-w-full overflow-x-auto rounded-full border bg-muted/70 p-1">
+          <section className={cn(panel, "overflow-hidden rounded-lg")}>
+            <div className="border-b bg-muted/30 px-4 py-3">
+              <TabsList className="h-auto max-w-full overflow-x-auto rounded-md border bg-background p-1">
                 <TabsTrigger
                   value="inventory"
-                  className="rounded-full px-3 text-xs"
+                  className="rounded-sm px-3 text-xs"
                 >
                   Inventory
                 </TabsTrigger>
-                <TabsTrigger
-                  value="recall"
-                  className="rounded-full px-3 text-xs"
-                >
+                <TabsTrigger value="recall" className="rounded-sm px-3 text-xs">
                   Recall & capture
                 </TabsTrigger>
                 <TabsTrigger
                   value="experiences"
-                  className="rounded-full px-3 text-xs"
+                  className="rounded-sm px-3 text-xs"
                 >
                   Experiences
                 </TabsTrigger>
                 <TabsTrigger
                   value="procedures"
-                  className="rounded-full px-3 text-xs"
+                  className="rounded-sm px-3 text-xs"
                 >
                   Procedures
                 </TabsTrigger>
-                <TabsTrigger value="reme" className="rounded-full px-3 text-xs">
+                <TabsTrigger value="reme" className="rounded-sm px-3 text-xs">
                   ReMe operations
                 </TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value="inventory">
-              <div className="grid min-w-0 lg:grid-cols-[minmax(0,1fr)_360px]">
-                <div className="min-w-0 border-b p-4 lg:border-b-0 lg:border-r">
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <Field className="min-w-0 flex-1">
-                      <FieldLabel htmlFor="memory-search" className="sr-only">
-                        Search memories
-                      </FieldLabel>
-                      <div className="relative">
-                        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="memory-search"
-                          value={query}
-                          onChange={(event) => setQuery(event.target.value)}
-                          onKeyDown={(event) =>
-                            event.key === "Enter" && void searchInventory()
-                          }
-                          className={cn(input, "w-full rounded-full pl-9")}
-                          placeholder="Search content or source"
-                        />
+              <div className="grid min-w-0 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+                <section
+                  className="min-w-0 border-b lg:border-b-0 lg:border-r"
+                  aria-labelledby="memory-inventory-heading"
+                >
+                  <div className="border-b p-4 sm:p-5">
+                    <div className="mb-4 flex items-end justify-between gap-3">
+                      <div>
+                        <h2
+                          id="memory-inventory-heading"
+                          className="text-sm font-semibold"
+                        >
+                          Memory inventory
+                        </h2>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {visibleMemories.length}{" "}
+                          {visibleMemories.length === 1 ? "record" : "records"}{" "}
+                          in this view
+                        </p>
                       </div>
-                    </Field>
-                    <MemoryTypeDropdown
-                      value={memoryType}
-                      onValueChange={setMemoryType}
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <Field className="min-w-0 flex-1">
+                        <FieldLabel htmlFor="memory-search" className="sr-only">
+                          Search memories
+                        </FieldLabel>
+                      </Field>
+                      <MemoryTypeDropdown
+                        value={memoryType}
+                        onValueChange={setMemoryType}
+                      />
+                      <Button
+                        size="sm"
+                        className="h-9 rounded-full"
+                        onClick={() => void searchInventory()}
+                        disabled={busy === "search"}
+                      >
+                        {busy === "search" ? (
+                          <LoaderCircleIcon className="animate-spin" />
+                        ) : (
+                          <SearchIcon />
+                        )}{" "}
+                        Search
+                      </Button>
+                    </div>
+                    <InventoryList
+                      memories={visibleMemories}
+                      loading={loading}
+                      selectedId={
+                        inspector?.kind === "memory" ? inspector.data.id : null
+                      }
+                      onSelect={selectMemory}
                     />
-                    <Button
-                      size="sm"
-                      className="h-9 rounded-full"
-                      onClick={() => void searchInventory()}
-                      disabled={busy === "search"}
-                    >
-                      {busy === "search" ? (
-                        <LoaderCircleIcon className="animate-spin" />
-                      ) : (
-                        <SearchIcon />
-                      )}{" "}
-                      Search
-                    </Button>
                   </div>
-                  <InventoryList
-                    memories={visibleMemories}
-                    loading={loading}
-                    selectedId={
-                      inspector?.kind === "memory" ? inspector.data.id : null
-                    }
-                    onSelect={selectMemory}
-                  />
-                </div>
+                </section>
                 <Inspector
                   inspector={inspector}
                   busy={busy}
@@ -694,13 +697,13 @@ function Metric({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-muted px-3 py-2.5">
-      <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+    <div className="flex min-h-18 items-center gap-3 bg-card px-4 py-3">
+      <span className="grid size-8 place-items-center rounded-md bg-primary/10 text-primary">
         {icon}
       </span>
       <div>
         <div className="text-lg font-semibold tabular-nums">{value}</div>
-        <div className="text-[11px] text-muted-foreground">{label}</div>
+        <div className="text-xs text-muted-foreground">{label}</div>
       </div>
     </div>
   );
@@ -735,7 +738,7 @@ function InventoryList({
       </div>
     );
   return (
-    <div className="mt-4 divide-y rounded-xl border">
+    <div className="divide-y">
       {memories.map((memory) => (
         <Button
           type="button"
@@ -743,9 +746,11 @@ function InventoryList({
           key={memory.id}
           onClick={() => onSelect(memory)}
           className={cn(
-            "h-auto w-full flex-col items-stretch rounded-none px-3 py-3 text-left hover:bg-muted",
-            selectedId === memory.id && "bg-primary/10",
+            "h-auto w-full flex-col items-stretch rounded-none border-l-2 border-transparent px-4 py-3 text-left hover:bg-muted sm:px-5",
+            selectedId === memory.id &&
+              "border-primary bg-accent hover:bg-accent",
           )}
+          aria-pressed={selectedId === memory.id}
         >
           <div className="flex min-w-0 items-center gap-2">
             <Badge
@@ -773,6 +778,7 @@ function InventoryList({
     </div>
   );
 }
+
 function Inspector({
   inspector,
   busy,
@@ -790,7 +796,10 @@ function Inspector({
 }) {
   if (!inspector)
     return (
-      <aside className="grid min-h-80 place-items-center p-6 text-center">
+      <aside
+        aria-label="Record inspector"
+        className="grid min-h-80 place-items-center bg-muted/20 p-6 text-center"
+      >
         <div>
           <FileJsonIcon className="mx-auto size-5 text-muted-foreground" />
           <p className="mt-2 text-sm font-medium">Select a record</p>
@@ -805,13 +814,16 @@ function Inspector({
   const sources =
     "source_refs" in inspector.data ? inspector.data.source_refs : [];
   return (
-    <aside className="min-w-0 p-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-48px)] lg:overflow-y-auto">
-      <div className="flex items-start justify-between gap-3">
+    <aside
+      aria-label={isMemory ? "Selected memory inspector" : "Record inspector"}
+      className="min-w-0 bg-muted/20 p-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-48px)] lg:overflow-y-auto"
+    >
+      <div className="flex items-start justify-between gap-3 border-b pb-4">
         <div>
           <div className="text-xs text-muted-foreground capitalize">
             {inspector.kind}
           </div>
-          <h2 className="mt-1 text-base font-semibold">
+          <h2 className="mt-1 text-base font-semibold tracking-tight">
             {isMemory
               ? inspector.data.memory_type
               : inspector.kind === "experience"
@@ -831,17 +843,20 @@ function Inspector({
       </div>
       {isMemory && (
         <>
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-6">
+          <div className="mt-5 text-xs font-medium text-muted-foreground">
+            Overview
+          </div>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6">
             {inspector.data.content}
           </p>
-          <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
-            <div>
+          <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border bg-border text-xs">
+            <div className="bg-card p-3">
               <dt className="text-muted-foreground">Confidence</dt>
               <dd className="mt-1 font-medium">
                 {inspector.data.confidence ?? "—"}
               </dd>
             </div>
-            <div>
+            <div className="bg-card p-3">
               <dt className="text-muted-foreground">Importance</dt>
               <dd className="mt-1 font-medium">
                 {inspector.data.importance ?? "—"}
@@ -867,14 +882,17 @@ function Inspector({
       )}{" "}
       {inspector.kind !== "job" && (
         <>
-          <div className="mt-4 text-xs font-medium text-muted-foreground">
+          <div className="mt-5 border-t pt-4 text-xs font-medium text-muted-foreground">
             Provenance
           </div>
           <RecordSources sources={sources} />
         </>
       )}{" "}
       {isMemory && (
-        <div className="mt-5 grid gap-2">
+        <div className="mt-5 grid gap-2 border-t pt-4">
+          <div className="text-xs font-medium text-muted-foreground">
+            Actions
+          </div>
           <Button size="sm" className="h-8" onClick={onEdit}>
             <PencilIcon /> Edit memory
           </Button>
