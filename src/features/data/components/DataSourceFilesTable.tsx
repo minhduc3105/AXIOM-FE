@@ -258,24 +258,12 @@ export function DataSourceFilesTable({
                               {file.name}
                             </strong>
                           )}
-                          <span
-                            className="block truncate text-xs text-muted-foreground"
-                            title={file.key}
-                          >
-                            {file.key}
-                          </span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3.5">
                       <div className="grid justify-items-start gap-1">
                         <StatusBadge status={file.status} />
-                        <span
-                          className="max-w-[190px] truncate text-xs capitalize text-muted-foreground"
-                          title={file.errorMessage ?? file.statusDetail}
-                        >
-                          {file.statusDetail}
-                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3.5 text-sm text-muted-foreground">
