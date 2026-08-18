@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AuthUser } from "@/features/auth/model/types";
 import type { ProviderModelView, ProviderView } from "../model/registryTypes";
@@ -14,7 +20,9 @@ const mocks = vi.hoisted(() => ({
   testProvider: vi.fn(),
 }));
 
-vi.mock("../model/useModelRegistry", () => ({ useModelRegistry: mocks.useModelRegistry }));
+vi.mock("../model/useModelRegistry", () => ({
+  useModelRegistry: mocks.useModelRegistry,
+}));
 vi.mock("../api/modelServiceApi", () => ({
   createProvider: vi.fn(),
   createProviderModel: vi.fn(),
@@ -29,29 +37,62 @@ vi.mock("../api/modelServiceApi", () => ({
 }));
 
 const admin: AuthUser = {
-  id: "user-1", organization_id: "org-1", email: "admin@example.com",
-  display_name: "Admin", status: "active", org_role: "org_admin",
+  id: "user-1",
+  organization_id: "org-1",
+  email: "admin@example.com",
+  display_name: "Admin",
+  status: "active",
+  org_role: "org_admin",
 };
 
 const member: AuthUser = { ...admin, id: "user-2", org_role: "org_member" };
 
-function provider(id: string, displayName: string, overrides: Partial<ProviderView> = {}): ProviderView {
+function provider(
+  id: string,
+  displayName: string,
+  overrides: Partial<ProviderView> = {},
+): ProviderView {
   return {
-    resource_id: id + "-resource", id, scope: "organization", organization_id: "org-1",
-    display_name: displayName, source: "custom", base_url: "https://" + id + ".example.com/v1",
-    protocol: "openai_compatible", status: "active", connection_status: "available",
-    credential_configured: true, credential_source: "database",
-    created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z", ...overrides,
+    resource_id: id + "-resource",
+    id,
+    scope: "organization",
+    organization_id: "org-1",
+    display_name: displayName,
+    source: "custom",
+    base_url: "https://" + id + ".example.com/v1",
+    protocol: "openai_compatible",
+    status: "active",
+    connection_status: "available",
+    credential_configured: true,
+    credential_source: "database",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    ...overrides,
   };
 }
 
-function model(providerId: string, id: string, name: string, overrides: Partial<ProviderModelView> = {}): ProviderModelView {
+function model(
+  providerId: string,
+  id: string,
+  name: string,
+  overrides: Partial<ProviderModelView> = {},
+): ProviderModelView {
   return {
-    resource_id: providerId + "-" + id + "-resource", provider_id: providerId,
-    provider_scope: "organization", organization_id: "org-1", model_id: id, name,
-    capability: "llm", max_tokens: 4096, max_context_length: 128000, status: "active",
-    connection_status: "available", is_default: false,
-    created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-02T10:30:00Z", ...overrides,
+    resource_id: providerId + "-" + id + "-resource",
+    provider_id: providerId,
+    provider_scope: "organization",
+    organization_id: "org-1",
+    model_id: id,
+    name,
+    capability: "llm",
+    max_tokens: 4096,
+    max_context_length: 128000,
+    status: "active",
+    connection_status: "available",
+    is_default: false,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-02T10:30:00Z",
+    ...overrides,
   };
 }
 
@@ -63,14 +104,28 @@ function renderRegistry(
     loading: boolean;
     isInitialLoading: boolean;
     isRefreshing: boolean;
-    error: { message: string; status: number | null; retryable: boolean } | null;
-    modelLoadErrors: Record<string, { message: string; status: number | null; retryable: boolean }>;
+    error: {
+      message: string;
+      status: number | null;
+      retryable: boolean;
+    } | null;
+    modelLoadErrors: Record<
+      string,
+      { message: string; status: number | null; retryable: boolean }
+    >;
   }> = {},
 ) {
   mocks.useModelRegistry.mockReturnValue({
-    providers, modelsByProvider, loading: false, isInitialLoading: false, isRefreshing: false,
-    error: null, modelLoadErrors: {}, refresh: mocks.refresh,
-    replaceProvider: mocks.replaceProvider, replaceModel: mocks.replaceModel,
+    providers,
+    modelsByProvider,
+    loading: false,
+    isInitialLoading: false,
+    isRefreshing: false,
+    error: null,
+    modelLoadErrors: {},
+    refresh: mocks.refresh,
+    replaceProvider: mocks.replaceProvider,
+    replaceModel: mocks.replaceModel,
     ...state,
   });
   return render(<OrganizationModelRegistry user={user} />);
@@ -112,19 +167,32 @@ describe("OrganizationModelRegistry", () => {
 
   it("keeps existing assignments visible while refreshing", () => {
     const openai = provider("openai", "OpenAI");
-    renderRegistry([openai], { openai: [model("openai", "gpt", "GPT", { is_default: true })] }, admin, {
-      loading: true,
-      isRefreshing: true,
-    });
+    renderRegistry(
+      [openai],
+      { openai: [model("openai", "gpt", "GPT", { is_default: true })] },
+      admin,
+      {
+        loading: true,
+        isRefreshing: true,
+      },
+    );
 
-    expect(screen.getByText("Updating assignments. Current configuration remains available.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Updating assignments. Current configuration remains available.",
+      ),
+    ).toBeTruthy();
     expect(screen.getByText("GPT")).toBeTruthy();
   });
 
   it("offers retry for a retryable registry failure without leaving the content area blank", async () => {
     const actor = userEvent.setup();
     renderRegistry([], {}, admin, {
-      error: { message: "Network error while loading providers.", status: null, retryable: true },
+      error: {
+        message: "Network error while loading providers.",
+        status: null,
+        retryable: true,
+      },
     });
 
     expect(screen.getByText("Assignments could not be loaded")).toBeTruthy();
@@ -137,22 +205,35 @@ describe("OrganizationModelRegistry", () => {
     const openai = provider("openai", "OpenAI");
     renderRegistry([openai], { openai: [] }, admin, {
       modelLoadErrors: {
-        openai: { message: "Network error while loading models for OpenAI.", status: null, retryable: true },
+        openai: {
+          message: "Network error while loading models for OpenAI.",
+          status: null,
+          retryable: true,
+        },
       },
     });
 
     await actor.click(screen.getByRole("tab", { name: /Providers/ }));
     expect(screen.getByText("Models could not be loaded.")).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Retry" }).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("button", { name: "Retry" }).length,
+    ).toBeGreaterThan(0);
   });
 
   it("makes each assignment's provider, capability, organization, readiness, and last check visible", () => {
     const openai = provider("openai", "OpenAI");
-    renderRegistry([openai], { openai: [model("openai", "gpt", "GPT", { is_default: true })] });
+    renderRegistry([openai], {
+      openai: [model("openai", "gpt", "GPT", { is_default: true })],
+    });
 
     expect(screen.getByText("Provider: OpenAI")).toBeTruthy();
     expect(screen.getAllByText(/LLM/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText((_, element) => element?.textContent?.includes("Organization: org-1") ?? false).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent?.includes("Organization: org-1") ?? false,
+      ).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText(/Last checked:/)).toBeTruthy();
     expect(screen.getAllByText("Ready").length).toBeGreaterThan(0);
   });
@@ -168,14 +249,24 @@ describe("OrganizationModelRegistry", () => {
     });
 
     await actor.click(screen.getByRole("button", { name: "Change LLM model" }));
-    await actor.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Select model" }));
+    await actor.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Select model",
+      }),
+    );
     const review = screen.getByRole("dialog");
     expect(within(review).getByText("GPT Current")).toBeTruthy();
     expect(within(review).getByText("GPT Next")).toBeTruthy();
-    await actor.click(within(review).getByRole("button", { name: "Confirm default change" }));
-    await waitFor(() => expect(mocks.updateProviderModel).toHaveBeenCalledWith(
-      expect.anything(), "openai-next-resource", { is_default: true, status: "active" },
-    ));
+    await actor.click(
+      within(review).getByRole("button", { name: "Confirm default change" }),
+    );
+    await waitFor(() =>
+      expect(mocks.updateProviderModel).toHaveBeenCalledWith(
+        expect.anything(),
+        "openai-next-resource",
+        { is_default: true, status: "active" },
+      ),
+    );
   });
 
   it("does not allow an untested or inactive model to become default and states why", async () => {
@@ -185,23 +276,41 @@ describe("OrganizationModelRegistry", () => {
 
     await actor.click(screen.getByRole("button", { name: "Assign LLM model" }));
     const picker = screen.getByRole("dialog");
-    expect(within(picker).queryByRole("button", { name: "Select model" })).toBeNull();
-    expect(within(picker).getByText(/Unavailable: This model cannot be validated because this provider is disabled/)).toBeTruthy();
-    expect(within(picker).getByRole("button", { name: "Not eligible" })).toBeTruthy();
+    expect(
+      within(picker).queryByRole("button", { name: "Select model" }),
+    ).toBeNull();
+    expect(
+      within(picker).getByText(
+        /Unavailable: This model cannot be validated because this provider is disabled/,
+      ),
+    ).toBeTruthy();
+    expect(
+      within(picker).getByRole("button", { name: "Not eligible" }),
+    ).toBeTruthy();
   });
 
   it("replaces provider readiness immediately after a connection test", async () => {
     const actor = userEvent.setup();
-    const openai = provider("openai", "OpenAI", { connection_status: "unknown" });
-    mocks.testProvider.mockResolvedValue({ ...openai, connection_status: "available" });
+    const openai = provider("openai", "OpenAI", {
+      connection_status: "unknown",
+    });
+    mocks.testProvider.mockResolvedValue({
+      ...openai,
+      connection_status: "available",
+    });
     renderRegistry([openai], { openai: [] });
 
     await actor.click(screen.getByRole("tab", { name: /Providers/ }));
     await actor.click(screen.getByRole("button", { name: "Test connection" }));
 
-    await waitFor(() => expect(mocks.replaceProvider).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "openai", connection_status: "available" }),
-    ));
+    await waitFor(() =>
+      expect(mocks.replaceProvider).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "openai",
+          connection_status: "available",
+        }),
+      ),
+    );
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
@@ -234,15 +343,26 @@ describe("OrganizationModelRegistry", () => {
     const pipeline = screen.getByRole("dialog");
     expect(within(pipeline).getByText("Complete provider setup")).toBeTruthy();
     expect(within(pipeline).getByText("Step 4 of 5: Add model.")).toBeTruthy();
-    expect(within(pipeline).getByRole("button", { name: "Add model" })).toBeTruthy();
+    expect(
+      within(pipeline).getByRole("button", { name: "Add model" }),
+    ).toBeTruthy();
   });
 
   it("keeps platform defaults read-only and directs admins to create an organization provider", async () => {
     const actor = userEvent.setup();
     const openai = provider("openai", "OpenAI", {
-      scope: "system", organization_id: null, source: "cloud",
+      scope: "system",
+      organization_id: null,
+      source: "cloud",
     });
-    renderRegistry([openai], { openai: [model("openai", "gpt", "GPT", { provider_scope: "system", organization_id: null })] });
+    renderRegistry([openai], {
+      openai: [
+        model("openai", "gpt", "GPT", {
+          provider_scope: "system",
+          organization_id: null,
+        }),
+      ],
+    });
 
     await actor.click(screen.getByRole("tab", { name: /Providers/ }));
     expect(screen.queryByRole("button", { name: "Edit provider" })).toBeNull();
@@ -254,7 +374,11 @@ describe("OrganizationModelRegistry", () => {
   it("keeps providers visible but mutations unavailable to organization members", async () => {
     const actor = userEvent.setup();
     const openai = provider("openai", "OpenAI");
-    renderRegistry([openai], { openai: [model("openai", "gpt", "GPT", { is_default: true })] }, member);
+    renderRegistry(
+      [openai],
+      { openai: [model("openai", "gpt", "GPT", { is_default: true })] },
+      member,
+    );
 
     expect(screen.getByText("Read-only Model Service access")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add provider" })).toBeNull();
@@ -266,8 +390,10 @@ describe("OrganizationModelRegistry", () => {
 
   it("supports keyboard selection and preserves accessible names for long provider and model values", async () => {
     const actor = userEvent.setup();
-    const longProviderName = "Provider with an intentionally long organization connection name for responsive review";
-    const longModelName = "Model with an intentionally long deployment name that must remain inspectable at high browser zoom";
+    const longProviderName =
+      "Provider with an intentionally long organization connection name for responsive review";
+    const longModelName =
+      "Model with an intentionally long deployment name that must remain inspectable at high browser zoom";
     const openai = provider("openai", "OpenAI");
     const longProvider = provider("long-provider", longProviderName);
     renderRegistry([openai, longProvider], {
@@ -283,7 +409,9 @@ describe("OrganizationModelRegistry", () => {
     expect(document.activeElement).toBe(providerButton);
     await actor.keyboard("{Enter}");
 
-    expect(screen.getByRole("heading", { name: longProviderName })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: longProviderName }),
+    ).toBeTruthy();
     expect(screen.getByTitle(longModelName)).toBeTruthy();
     expect(providerButton?.getAttribute("aria-current")).toBe("true");
   });
