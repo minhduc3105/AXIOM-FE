@@ -381,10 +381,6 @@ export function MemoryPage() {
         <header className="border-b pb-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-xs text-muted-foreground">
-                Settings <span className="px-1">/</span>
-                <span className="font-medium text-primary">Memory</span>
-              </div>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
                 Memory management
               </h1>
