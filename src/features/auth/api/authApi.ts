@@ -208,6 +208,27 @@ export async function logoutWithToken(
   }, 'session', [401])
 }
 
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<AuthTokenResponse> {
+  const response = await requestAuth('/api/v1/auth/password', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+    signal,
+  }, 'password')
+  return (await response.json()) as AuthTokenResponse
+}
+
 export async function getCurrentUser(
   accessToken: string,
   signal?: AbortSignal,

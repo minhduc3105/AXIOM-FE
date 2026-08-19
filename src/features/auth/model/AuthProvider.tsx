@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  changePassword as changePasswordWithToken,
   getCurrentUser,
   loginWithPassword,
   createOrganization,
@@ -44,6 +45,7 @@ export type AuthContextValue = {
   register: (input: RegisterOrganizationInput) => Promise<void>
   createOrganization: (input: CreateOrganizationInput) => Promise<void>
   switchOrganization: (organizationId: string) => Promise<void>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<boolean>
   retryRestore: () => Promise<void>
@@ -264,6 +266,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [updateSession],
   )
 
+  const changePasswordForUser = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      const accessToken = sessionRef.current?.accessToken
+      if (!accessToken) throw new Error('Sign in to change your password.')
+      const tokenResponse = await changePasswordWithToken(currentPassword, newPassword, accessToken)
+      updateSession({
+        accessToken: tokenResponse.access_token,
+        refreshToken: tokenResponse.refresh_token,
+        user: tokenResponse.user,
+      })
+    },
+    [updateSession],
+  )
+
   const logout = useCallback(async () => {
     const refreshToken = sessionRef.current?.refreshToken
     clearSession()
@@ -286,11 +302,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       createOrganization: createOrganizationForUser,
       switchOrganization: switchOrganizationForUser,
+      changePassword: changePasswordForUser,
       logout,
       refresh,
       retryRestore,
     }),
-    [createOrganizationForUser, login, logout, refresh, register, restoreError, retryRestore, session, sessionEndReason, status, switchOrganizationForUser],
+    [changePasswordForUser, createOrganizationForUser, login, logout, refresh, register, restoreError, retryRestore, session, sessionEndReason, status, switchOrganizationForUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

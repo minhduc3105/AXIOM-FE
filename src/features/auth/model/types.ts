@@ -77,6 +77,8 @@ export type AuthField =
   | 'adminDisplayName'
   | 'adminEmail'
   | 'adminPassword'
+  | 'currentPassword'
+  | 'newPassword'
   | 'confirmPassword'
   | null
 

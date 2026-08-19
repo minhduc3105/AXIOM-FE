@@ -1,6 +1,6 @@
 import type { AuthError, AuthErrorKind, AuthField } from './types'
 
-export type AuthErrorOperation = 'login' | 'registration' | 'session' | 'organization'
+export type AuthErrorOperation = 'login' | 'registration' | 'session' | 'organization' | 'password'
 
 type ErrorDetails = {
   code: string | null
@@ -64,6 +64,10 @@ function mapAuthError({ code, status, operation }: ErrorDetails): AuthRequestErr
 
   if (code === 'USER_DISABLED') {
     return createError('account', code, status, null, 'This account is unavailable. Contact your organization administrator.')
+  }
+
+  if (code === 'INVALID_CURRENT_PASSWORD') {
+    return createError('field', code, status, 'currentPassword', 'Current password is incorrect.')
   }
 
   if (code === 'INVALID_CREDENTIALS' || (operation === 'login' && status === 401)) {

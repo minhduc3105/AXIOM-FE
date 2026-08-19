@@ -1,9 +1,14 @@
-import { MonitorIcon, MoonIcon, SunIcon, UserRoundIcon } from "lucide-react";
+import { KeyRoundIcon, LoaderCircleIcon, MonitorIcon, MoonIcon, SunIcon, UserRoundIcon } from "lucide-react";
 import { useTheme, type ThemePreference } from "@/app/ThemeProvider";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/model/AuthProvider";
+import { getAuthError } from "@/features/auth/model/authErrors";
+import type { AuthError } from "@/features/auth/model/types";
 import { cn } from "@/shared/lib/utils";
+import { useRef, useState, type FormEvent } from "react";
+import { PasswordField } from "./PasswordField";
 
 const panelClass =
   "rounded-2xl border border-[#d8d0c2]/90 bg-[#fffdf8]/88 shadow-[0_16px_46px_rgba(24,24,18,0.055)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88";
@@ -18,11 +23,68 @@ const themeOptions: Array<{
   { value: "system", label: "System", icon: MonitorIcon },
 ];
 
+type PasswordChangeField = "currentPassword" | "newPassword" | "confirmPassword";
+
+type PasswordChangeDraft = Record<PasswordChangeField, string>;
+
+const initialPasswordChangeDraft: PasswordChangeDraft = {
+  currentPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+};
+
 export function SettingsPage() {
-  const { user } = useAuth();
+  const { user, changePassword } = useAuth();
   const { theme, resolvedTheme, setTheme } = useTheme();
+  const [passwordDraft, setPasswordDraft] = useState(initialPasswordChangeDraft);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<PasswordChangeField, string>>>({});
+  const [requestError, setRequestError] = useState<AuthError | null>(null);
+  const [passwordUpdated, setPasswordUpdated] = useState(false);
+  const [submittingPassword, setSubmittingPassword] = useState(false);
+  const submittingPasswordRef = useRef(false);
 
   if (!user) return null;
+
+  const formError = requestError?.field ? null : requestError;
+
+  function errorFor(field: PasswordChangeField) {
+    return fieldErrors[field]
+      ?? (requestError?.field === field ? requestError.userMessage : null);
+  }
+
+  function clearFieldError(field: PasswordChangeField) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+    setRequestError((current) => current?.field === field ? null : current);
+  }
+
+  async function handlePasswordChange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submittingPasswordRef.current) return;
+
+    const errors = validatePasswordChange(passwordDraft);
+    setFieldErrors(errors);
+    setRequestError(null);
+    setPasswordUpdated(false);
+    if (Object.keys(errors).length > 0) return;
+
+    submittingPasswordRef.current = true;
+    setSubmittingPassword(true);
+    try {
+      await changePassword(passwordDraft.currentPassword, passwordDraft.newPassword);
+      setPasswordDraft(initialPasswordChangeDraft);
+      setPasswordUpdated(true);
+    } catch (cause) {
+      setRequestError(getAuthError(cause, "password"));
+    } finally {
+      submittingPasswordRef.current = false;
+      setSubmittingPassword(false);
+    }
+  }
 
   return (
     <main className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
@@ -35,7 +97,7 @@ export function SettingsPage() {
             Settings
           </h1>
           <p className="mt-1.5 text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
-            Review your account context and interface preferences.
+            Review your account context, password, and interface preferences.
           </p>
         </header>
 
@@ -66,6 +128,92 @@ export function SettingsPage() {
               </dd>
             </div>
           </dl>
+        </section>
+
+        <section className={cn(panelClass, "overflow-hidden")} aria-labelledby="password-settings-title">
+          <header className="flex items-start gap-3 border-b border-[#e1dacc] p-5 dark:border-[#38372f]">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#ecf7ed] text-[#2a6d3d] dark:bg-[#75b986]/12 dark:text-[#99d9a9]">
+              <KeyRoundIcon className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">
+                Security
+              </p>
+              <h2 id="password-settings-title" className="mt-1 text-lg font-semibold">
+                Change password
+              </h2>
+              <p className="mt-1 text-sm text-[#625d53] dark:text-[#c5bcaf]">
+                You will remain signed in here; other sessions will need to sign in again when they refresh.
+              </p>
+            </div>
+          </header>
+          <form className="grid gap-4 p-5" onSubmit={handlePasswordChange} noValidate aria-busy={submittingPassword}>
+            {formError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{formError.userMessage}</AlertDescription>
+              </Alert>
+            ) : null}
+            {passwordUpdated ? (
+              <Alert>
+                <AlertDescription>Password updated.</AlertDescription>
+              </Alert>
+            ) : null}
+            <div className="grid gap-4 md:grid-cols-3">
+              <PasswordField
+                id="axiom-settings-current-password"
+                name="currentPassword"
+                label="Current password"
+                autoComplete="current-password"
+                value={passwordDraft.currentPassword}
+                error={errorFor("currentPassword")}
+                minLength={8}
+                required
+                onChange={(event) => {
+                  setPasswordDraft((current) => ({ ...current, currentPassword: event.target.value }));
+                  clearFieldError("currentPassword");
+                  setPasswordUpdated(false);
+                }}
+              />
+              <PasswordField
+                id="axiom-settings-new-password"
+                name="newPassword"
+                label="New password"
+                autoComplete="new-password"
+                value={passwordDraft.newPassword}
+                error={errorFor("newPassword")}
+                minLength={8}
+                required
+                onChange={(event) => {
+                  setPasswordDraft((current) => ({ ...current, newPassword: event.target.value }));
+                  clearFieldError("newPassword");
+                  clearFieldError("confirmPassword");
+                  setPasswordUpdated(false);
+                }}
+              />
+              <PasswordField
+                id="axiom-settings-confirm-password"
+                name="confirmPassword"
+                label="Confirm new password"
+                autoComplete="new-password"
+                value={passwordDraft.confirmPassword}
+                error={errorFor("confirmPassword")}
+                minLength={8}
+                required
+                onChange={(event) => {
+                  setPasswordDraft((current) => ({ ...current, confirmPassword: event.target.value }));
+                  clearFieldError("confirmPassword");
+                  setPasswordUpdated(false);
+                }}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" disabled={submittingPassword} className="min-w-40">
+                {submittingPassword ? <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" /> : <KeyRoundIcon />}
+                {submittingPassword ? "Updating password…" : "Update password"}
+              </Button>
+              <p className="text-xs leading-5 text-[#777064] dark:text-[#aaa397]">Use at least 8 characters.</p>
+            </div>
+          </form>
         </section>
 
         <section className={cn(panelClass, "overflow-hidden")} aria-labelledby="appearance-settings-title">
@@ -99,6 +247,24 @@ export function SettingsPage() {
       </div>
     </main>
   );
+}
+
+function validatePasswordChange(draft: PasswordChangeDraft) {
+  const errors: Partial<Record<PasswordChangeField, string>> = {};
+
+  if (!draft.currentPassword) {
+    errors.currentPassword = "Enter your current password.";
+  }
+  if (draft.newPassword.length < 8) {
+    errors.newPassword = "Use at least 8 characters.";
+  }
+  if (!draft.confirmPassword) {
+    errors.confirmPassword = "Confirm your new password.";
+  } else if (draft.confirmPassword !== draft.newPassword) {
+    errors.confirmPassword = "Passwords do not match.";
+  }
+
+  return errors;
 }
 
 function SettingRow({ label, value }: { label: string; value: string }) {
