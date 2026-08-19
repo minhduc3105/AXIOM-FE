@@ -188,7 +188,8 @@ function ConversationGroup({
           const title = conversation.title || "Untitled conversation";
           const pinned = isPinnedConversation(conversation);
           const busy = actionPending === conversation.conversation_id;
-          const editing = editingConversationId === conversation.conversation_id;
+          const editing =
+            editingConversationId === conversation.conversation_id;
           const active =
             conversation.conversation_id === activeConversationId &&
             activeStage !== "welcome";
@@ -781,7 +782,7 @@ function RailContent({
         <Button
           type="button"
           variant="ghost"
-          className="min-h-0 h-auto w-full flex-1 cursor-pointer rounded-lg p-0 focus-visible:ring-[#2456e8]/30 dark:focus-visible:ring-[#7895ff]/35"
+          className="min-h-0 h-auto w-[60%] flex-1 cursor-pointer rounded-lg p-0 focus-visible:ring-[#2456e8]/30 dark:focus-visible:ring-[#7895ff]/35"
           aria-label="Expand workspace navigation"
           onClick={() => onExpandedChange(true)}
         />

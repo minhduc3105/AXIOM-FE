@@ -63,11 +63,12 @@ authenticated BFF for deployed browser apps.
 ### Model Service v2
 
 The Model Service page uses AXIOM's published `/api/v2` contract through the
-relative `/model-service` Vite proxy. Keep the base URL free of an API version:
+relative `/model-service` Vite proxy, which forwards to Gateway so browser
+requests retain their Bearer token. Keep the base URL free of an API version:
 
 ```dotenv
 VITE_MODEL_SERVICE_API_BASE_URL=/model-service
-VITE_MODEL_SERVICE_PROXY_TARGET=http://localhost:38006
+VITE_MODEL_SERVICE_PROXY_TARGET=http://localhost:8007
 ```
 
 Model Service code is split by responsibility:
@@ -80,10 +81,11 @@ Model Service code is split by responsibility:
 - `model/registryTypes.ts` owns the UI domain types.
 - `model/registryForm.ts` converts form values to the v2 contract enums.
 
-Run the read-only live contract check against a rebuilt v2 service with:
+Run the read-only live contract check through Gateway with an `org_admin` Bearer token:
 
 ```powershell
-$env:VITE_MODEL_SERVICE_E2E_URL="http://localhost:38006"
+$env:VITE_MODEL_SERVICE_E2E_URL="http://localhost:8007/model-service"
+$env:VITE_MODEL_SERVICE_E2E_BEARER_TOKEN="<org-admin-jwt>"
 npm.cmd test -- --run src/features/models/api/modelServiceApi.integration.test.ts
 ```
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  createDataIngestionRoute,
   createDataRoute,
   createReportsRoute,
   createMemoryRoute,
@@ -22,59 +21,20 @@ describe("data routing", () => {
     });
   });
 
-  it("parses the ingestion workspace path", () => {
-    expect(parseAppRoute("/data/ingestion")).toEqual({
-      surface: "data",
-      page: "ingestion",
-      sessionId: null,
-      connector: null,
-      profileId: null,
-    });
-  });
-
-  it("parses a safe saved-source launch context", () => {
-    expect(
-      parseAppRoute(
-        "/data/ingestion",
-        "?connector=s3&profile=source-123&aws_secret_access_key=ignored",
-      ),
-    ).toEqual({
-      surface: "data",
-      page: "ingestion",
-      sessionId: null,
-      connector: "s3",
-      profileId: "source-123",
-    });
-  });
-
-  it("normalizes the former ingestion URL to the ingestion workspace", () => {
-    expect(parseAppRoute("/ingest")).toEqual({
-      surface: "data",
-      page: "ingestion",
-      sessionId: null,
-      connector: null,
-      profileId: null,
-    });
-  });
+  it.each(["/data/ingestion", "/data/ingestion?connector=s3", "/ingest"])(
+    "treats obsolete ingestion path %s as the data dashboard",
+    (path) => {
+      const [pathname, search = ""] = path.split("?");
+      expect(parseAppRoute(pathname, search ? `?${search}` : "")).toEqual(
+        createDataRoute(),
+      );
+    },
+  );
 
   it("creates a stable data URL", () => {
     expect(getAppRoutePath(createDataRoute())).toBe("/data");
   });
 
-  it("creates a stable data ingestion URL", () => {
-    expect(getAppRoutePath(createDataIngestionRoute())).toBe("/data/ingestion");
-  });
-
-  it("creates an ingestion URL with connector and profile identifiers only", () => {
-    expect(
-      getAppRoutePath(
-        createDataIngestionRoute({
-          connector: "snowflake",
-          profileId: "finance",
-        }),
-      ),
-    ).toBe("/data/ingestion?connector=snowflake&profile=finance");
-  });
 });
 
 describe("report routing", () => {

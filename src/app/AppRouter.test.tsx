@@ -7,42 +7,48 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   navigatePath: vi.fn(),
   register: vi.fn(),
+  useAuth: vi.fn(),
+  useBrowserRoute: vi.fn(),
 }))
 
 vi.mock('@/features/auth/model/AuthProvider', () => ({
-  useAuth: () => ({
-    status: 'unauthenticated',
-    user: null,
-    accessToken: null,
-    restoreError: null,
-    sessionEndReason: null,
-    login: vi.fn(),
-    register: mocks.register,
-    createOrganization: vi.fn(),
-    switchOrganization: vi.fn(),
-    logout: vi.fn(),
-    refresh: vi.fn(),
-    retryRestore: vi.fn(),
-  }),
+  useAuth: mocks.useAuth,
 }))
 
 vi.mock('./routing/useBrowserRoute', () => ({
-  useBrowserRoute: () => ({
-    route: {
-      kind: 'auth',
-      page: 'register',
-      returnTo: '/data',
-      reason: null,
-    },
-    path: '/register?returnTo=%2Fdata',
-    navigate: mocks.navigate,
-    navigatePath: mocks.navigatePath,
-  }),
+  useBrowserRoute: mocks.useBrowserRoute,
 }))
+
+const unauthenticatedAuth = {
+  status: 'unauthenticated' as const,
+  user: null,
+  accessToken: null,
+  restoreError: null,
+  sessionEndReason: null,
+  login: vi.fn(),
+  register: mocks.register,
+  createOrganization: vi.fn(),
+  switchOrganization: vi.fn(),
+  logout: vi.fn(),
+  refresh: vi.fn(),
+  retryRestore: vi.fn(),
+}
 
 describe('AppRouter registration route', () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset())
+    mocks.useAuth.mockReturnValue(unauthenticatedAuth)
+    mocks.useBrowserRoute.mockReturnValue({
+      route: {
+        kind: 'auth',
+        page: 'register',
+        returnTo: '/data',
+        reason: null,
+      },
+      path: '/register?returnTo=%2Fdata',
+      navigate: mocks.navigate,
+      navigatePath: mocks.navigatePath,
+    })
   })
 
   afterEach(cleanup)
@@ -62,5 +68,39 @@ describe('AppRouter registration route', () => {
       returnTo: '/data',
       reason: null,
     })
+  })
+})
+
+describe('AppRouter legacy ingestion route', () => {
+  beforeEach(() => {
+    Object.values(mocks).forEach((mock) => mock.mockReset())
+    mocks.useAuth.mockReturnValue({
+      ...unauthenticatedAuth,
+      status: 'authenticated',
+      user: { id: 'user-1' },
+    })
+    mocks.useBrowserRoute.mockReturnValue({
+      route: {
+        kind: 'app',
+        route: { surface: 'data', page: 'dashboard', sessionId: null },
+      },
+      path: '/data/ingestion',
+      navigate: mocks.navigate,
+      navigatePath: mocks.navigatePath,
+    })
+  })
+
+  afterEach(cleanup)
+
+  it('replaces the obsolete ingestion location with /data', () => {
+    render(<AppRouter renderApp={() => null} />)
+
+    expect(mocks.navigate).toHaveBeenCalledWith(
+      {
+        kind: 'app',
+        route: { surface: 'data', page: 'dashboard', sessionId: null },
+      },
+      { replace: true },
+    )
   })
 })

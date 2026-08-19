@@ -60,6 +60,12 @@ import type {
   SnowflakeConnection,
 } from "./types";
 import { SUPPORTED_UPLOAD_EXTENSIONS } from "./types";
+import {
+  createPendingProcessingStatus,
+  createUploadProcessingBatch,
+  getDocumentProcessingUiStatus,
+  isTerminalProcessingStatus,
+} from "./globalIngestionProcessing";
 
 const initialConnection: MySqlConnection = {
   host: "mysql.company.internal",
@@ -439,57 +445,6 @@ function getConnectorJobUiStatus(
   return "polling";
 }
 
-function getDocumentProcessingUiStatus(
-  results: DocumentProcessingStatus[],
-): DocumentProcessingUiStatus {
-  if (results.length === 0) return "empty";
-  const allTerminal =
-    results.length > 0 &&
-    results.every(
-      (result) =>
-        result.found &&
-        (result.status === "completed" || result.status === "failed"),
-    );
-  if (!allTerminal) return "polling";
-  return results.some((result) => result.status === "failed")
-    ? "completed_with_errors"
-    : "complete";
-}
-
-function createPendingProcessingStatus(
-  objectKey: string,
-): DocumentProcessingStatus {
-  return {
-    object_key: objectKey,
-    found: false,
-    run_id: null,
-    document_id: null,
-    status: null,
-    error_message: null,
-    started_at: null,
-    finished_at: null,
-    created_at: null,
-  };
-}
-
-function createUploadProcessingBatch(
-  result: UploadFilesResponse,
-): DocumentProcessingBatch {
-  return {
-    job_id: result.job_id,
-    organization_id: result.organization_id,
-    workspace_id: result.workspace_id,
-    bucket: result.bucket,
-    count: result.count,
-    source_kind: "upload",
-    files: result.files.map((file) => ({
-      key: file.key,
-      filename: file.filename,
-      contentType: file.content_type,
-    })),
-  };
-}
-
 function createConnectorProcessingBatch(
   job: IngestionJobResponse,
   filesResult: JobFilesResult,
@@ -512,15 +467,6 @@ function createConnectorProcessingBatch(
       contentType: null,
     })),
   };
-}
-
-function isTerminalProcessingStatus(
-  result: DocumentProcessingStatus | undefined,
-) {
-  return Boolean(
-    result?.found &&
-    (result.status === "completed" || result.status === "failed"),
-  );
 }
 
 function getConnectorStage(

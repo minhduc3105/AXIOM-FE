@@ -25,10 +25,7 @@ import type { DataHealthFilter } from "./model/types";
 
 type DataPageProps = {
   organizationId: string;
-  onCreateIngestion: (context?: {
-    connector?: "s3" | "snowflake";
-    profileId?: string;
-  }) => void;
+  onCreateIngestion: () => void;
 };
 
 function formatAggregateSize(bytes: number) {

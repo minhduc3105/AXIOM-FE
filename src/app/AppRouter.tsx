@@ -8,7 +8,7 @@ import {
   getSafeReturnTo,
   type AuthRoute,
 } from "./routing/browserRoutes";
-import { createChatHomeRoute } from "./routing/paths";
+import { createChatHomeRoute, createDataRoute } from "./routing/paths";
 import type { AppRoute } from "./routing/types";
 import { useBrowserRoute } from "./routing/useBrowserRoute";
 
@@ -37,8 +37,15 @@ export function AppRouter({ renderApp }: AppRouterProps) {
     auth.status === "authenticated" && route.kind === "auth"
       ? createChatHomeRoute()
       : null;
+  const isLegacyIngestionPath =
+    route.kind === "app" &&
+    (path === "/ingest" || path.startsWith("/data/ingestion"));
 
   useLayoutEffect(() => {
+    if (isLegacyIngestionPath) {
+      navigate({ kind: "app", route: createDataRoute() }, { replace: true });
+      return;
+    }
     if (protectedLoginRoute) {
       navigate(protectedLoginRoute, { replace: true });
       return;
@@ -46,7 +53,12 @@ export function AppRouter({ renderApp }: AppRouterProps) {
     if (authenticatedHomeRoute) {
       navigate({ kind: "app", route: authenticatedHomeRoute }, { replace: true });
     }
-  }, [authenticatedHomeRoute, navigate, protectedLoginRoute]);
+  }, [
+    authenticatedHomeRoute,
+    isLegacyIngestionPath,
+    navigate,
+    protectedLoginRoute,
+  ]);
 
   if (auth.status === "restoring") {
     return (

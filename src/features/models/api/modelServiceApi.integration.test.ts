@@ -2,16 +2,14 @@ import { describe, expect, it } from "vitest";
 import { normalizeProvider } from "./modelServiceMappers";
 
 const baseUrl = import.meta.env.VITE_MODEL_SERVICE_E2E_URL?.replace(/\/$/, "");
-const liveIt = baseUrl ? it : it.skip;
+const bearerToken = import.meta.env.VITE_MODEL_SERVICE_E2E_BEARER_TOKEN?.trim();
+const liveIt = baseUrl && bearerToken ? it : it.skip;
 
 describe("Model Service live contract", () => {
   liveIt("loads the deployed provider registry and adapts it to the UI contract", async () => {
     const response = await fetch(`${baseUrl}/api/v2/providers`, {
       headers: {
-        "X-Consumer-Service": "axiom-fe-e2e",
-        "X-User-ID": "axiom-fe-e2e",
-        "X-Org-ID": "test-org",
-        "X-Org-Role": "org_admin",
+        Authorization: `Bearer ${bearerToken}`,
       },
     });
     expect(response.ok).toBe(true);

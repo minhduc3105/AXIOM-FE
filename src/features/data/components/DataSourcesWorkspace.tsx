@@ -65,10 +65,7 @@ type DataSourcesWorkspaceProps = {
   loading: boolean;
   healthFilter: DataHealthFilter | null;
   profileError: string | null;
-  onCreateIngestion: (context?: {
-    connector?: "s3" | "snowflake";
-    profileId?: string;
-  }) => void;
+  onCreateIngestion: () => void;
   onDeleteProfile: (profileId: string) => void;
   onHealthFilterChange: (filter: DataHealthFilter | null) => void;
   onViewJobs: (jobId?: string) => void;
@@ -235,30 +232,14 @@ function AddSourceMenu({
   onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
 }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button variant="ghost" size="icon-sm" aria-label="Add external source" />}
-      >
-        <PlusIcon />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-52">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Connect a source</DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={() => onCreateIngestion({ connector: "s3" })}
-          >
-            <CloudIcon />
-            Amazon S3
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onCreateIngestion({ connector: "snowflake" })}
-          >
-            <SnowflakeIcon />
-            Snowflake
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Add data for ingestion"
+      onClick={() => onCreateIngestion()}
+    >
+      <PlusIcon />
+    </Button>
   );
 }
 
@@ -279,11 +260,7 @@ function SourceActions({
 }) {
   const isAggregate = datasource.id === ORGANIZATION_FILES_SOURCE_ID;
   const isUpload = datasource.type === "UPLOAD";
-  const connector =
-    datasource.type === "s3" || datasource.type === "snowflake"
-      ? datasource.type
-      : null;
-  const canReconnect = Boolean(connector && profile);
+  const canReconnect = datasource.type === "s3";
   const hasSecondaryActions = Boolean(
     latestJob || canReconnect || (profile && !isUpload),
   );
@@ -305,12 +282,10 @@ function SourceActions({
             View jobs
           </Button>
         )}
-        {canReconnect && connector && profile && (
+        {canReconnect && (
           <Button
             variant="outline"
-            onClick={() =>
-              onCreateIngestion({ connector, profileId: profile.id })
-            }
+            onClick={() => onCreateIngestion()}
           >
             Reconnect
           </Button>
@@ -350,11 +325,9 @@ function SourceActions({
                 View jobs
               </DropdownMenuItem>
             )}
-            {canReconnect && connector && profile && (
+            {canReconnect && (
               <DropdownMenuItem
-                onClick={() =>
-                  onCreateIngestion({ connector, profileId: profile.id })
-                }
+                onClick={() => onCreateIngestion()}
               >
                 Reconnect
               </DropdownMenuItem>
@@ -476,11 +449,6 @@ export function DataSourcesWorkspace({
   const profile = isAggregate
     ? null
     : findReconnectProfile(selectedSource, profiles, jobs);
-  const selectedConnector =
-    selectedSource.type === "s3" || selectedSource.type === "snowflake"
-      ? selectedSource.type
-      : null;
-
   const countFor = (datasource: DataSource): DataSourceFileCountState => {
     if (datasource.id === ORGANIZATION_FILES_SOURCE_ID) {
       return { count: files.length, loading, error: false };
@@ -797,15 +765,11 @@ export function DataSourcesWorkspace({
                   onSortChange={changeSort}
                   onInspect={setInspectedFile}
                   onCreateIngestion={
-                    isAggregate || selectedSource.type === "UPLOAD"
+                    isAggregate ||
+                    selectedSource.type === "UPLOAD" ||
+                    selectedSource.type === "s3"
                       ? () => onCreateIngestion()
-                      : profile && selectedConnector
-                        ? () =>
-                            onCreateIngestion({
-                              connector: selectedConnector,
-                              profileId: profile.id,
-                            })
-                        : undefined
+                      : undefined
                   }
                 />
               )}

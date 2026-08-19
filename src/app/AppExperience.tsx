@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { DataPage } from "@/features/data/DataPage";
-import { IngestionPage } from "@/features/ingestion/IngestionPage";
+import { GlobalIngestionDock } from "@/features/ingestion/components/GlobalIngestionDock";
+import { IngestionDialog } from "@/features/ingestion/components/IngestionDialog";
+import {
+  GlobalIngestionProvider,
+  useGlobalIngestion,
+} from "@/features/ingestion/model/GlobalIngestionProvider";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
@@ -20,7 +25,6 @@ import { AppShell } from "./AppShell";
 import {
   createChatHomeRoute,
   createChatRoute,
-  createDataIngestionRoute,
   createDataRoute,
   createModelsRoute,
   createReportsRoute,
@@ -53,8 +57,25 @@ type AppExperienceProps = {
 
 export function AppExperience({ route, navigate }: AppExperienceProps) {
   const auth = useAuth();
+  const dataWorkspace = useDataWorkspace();
+  const user = auth.user;
+  if (!user) return null;
+
+  return (
+    <GlobalIngestionProvider
+      organizationId={user.organization_id}
+      workspaceId={dataWorkspace.selectedWorkspace?.id ?? ""}
+    >
+      <AppExperienceContent route={route} navigate={navigate} />
+    </GlobalIngestionProvider>
+  );
+}
+
+function AppExperienceContent({ route, navigate }: AppExperienceProps) {
+  const auth = useAuth();
   const chat = useChatWorkflow();
   const dataWorkspace = useDataWorkspace();
+  const ingestion = useGlobalIngestion();
   const modelRegistryContext = useMemo(
     () =>
       auth.user
@@ -108,10 +129,7 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
 
   const routeScope = getRouteWorkspaceScope(route);
   const showWorkspace = routeScope.showWorkspace;
-  const workspaceId =
-    route.surface === "data" && route.page === "ingestion"
-      ? (dataWorkspace.selectedWorkspace?.id ?? null)
-      : routeScope.workspaceId;
+  const workspaceId = routeScope.workspaceId;
   const scope = useAppScope({
     user: auth.user,
     accessToken: auth.accessToken,
@@ -159,10 +177,8 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
   }, [navigate]);
 
   const openDataIngestion = useCallback(
-    (context?: { connector?: "s3" | "snowflake"; profileId?: string }) => {
-      navigate(createDataIngestionRoute(context));
-    },
-    [navigate],
+    () => ingestion.openDialog(),
+    [ingestion.openDialog],
   );
 
   const openReports = useCallback(() => {
@@ -262,7 +278,8 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
   if (!user) return null;
 
   return (
-    <AppShell
+    <>
+      <AppShell
       activeStage={chat.stage}
       surface={route.surface}
       activeConversationId={route.surface === "chat" ? route.sessionId : null}
@@ -286,7 +303,7 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
       onWorkspaceSelect={dataWorkspace.selectWorkspace}
       onLogout={auth.logout}
     >
-      {route.surface === "chat" ? (
+        {route.surface === "chat" ? (
         <ChatPage
           conversationId={route.sessionId}
           stage={chat.stage}
@@ -314,16 +331,6 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
           onRetryProcess={chat.retryProcess}
           onCloseEvidence={chat.closeEvidence}
           onData={openData}
-        />
-      ) : route.surface === "data" && route.page === "ingestion" ? (
-        <IngestionPage
-          organizationId={user.organization_id}
-          onBack={openData}
-          backLabel="Back to data"
-          launchContext={{
-            connector: route.connector,
-            profileId: route.profileId,
-          }}
         />
       ) : route.surface === "data" ? (
         <DataPage
@@ -363,7 +370,10 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
             workspaceName: scope?.workspace?.name ?? "All workspaces",
           }}
         />
-      )}
-    </AppShell>
+        )}
+      </AppShell>
+      <IngestionDialog />
+      <GlobalIngestionDock />
+    </>
   );
 }

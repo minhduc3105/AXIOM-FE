@@ -384,7 +384,7 @@ describe("DataSourcesWorkspace health filtering", () => {
     ).toBe("ready");
   });
 
-  it("opens the add-source menu and launches the selected connector", async () => {
+  it("opens the shared ingestion source chooser from the add-data action", async () => {
     const user = userEvent.setup();
     const onCreateIngestion = vi.fn();
     render(
@@ -404,18 +404,15 @@ describe("DataSourcesWorkspace health filtering", () => {
       />,
     );
 
-    const addSourceButtons = screen.getAllByRole("button", {
-      name: "Add external source",
+    const addDataButtons = screen.getAllByRole("button", {
+      name: "Add data for ingestion",
     });
-    addSourceButtons[0].focus();
-    fireEvent.keyDown(addSourceButtons[0], { key: "ArrowDown" });
-    expect(screen.getByText("Connect a source")).toBeTruthy();
-
-    await user.click(screen.getByRole("menuitem", { name: "Amazon S3" }));
-    expect(onCreateIngestion).toHaveBeenCalledWith({ connector: "s3" });
+    await user.click(addDataButtons[0]);
+    expect(onCreateIngestion).toHaveBeenCalledOnce();
+    expect(onCreateIngestion).toHaveBeenCalledWith();
   });
 
-  it("separates reconnect, jobs, and destructive profile removal", async () => {
+  it("opens the shared source chooser from S3 reconnect and separates jobs from profile removal", async () => {
     const user = userEvent.setup();
     const onCreateIngestion = vi.fn();
     const onDeleteProfile = vi.fn();
@@ -437,10 +434,8 @@ describe("DataSourcesWorkspace health filtering", () => {
     await user.click(screen.getByText("Finance evidence").closest("button")!);
 
     await user.click(screen.getByRole("button", { name: "Reconnect" }));
-    expect(onCreateIngestion).toHaveBeenCalledWith({
-      connector: "s3",
-      profileId: "profile-1",
-    });
+    expect(onCreateIngestion).toHaveBeenCalledOnce();
+    expect(onCreateIngestion).toHaveBeenCalledWith();
     await user.click(screen.getByRole("button", { name: "View jobs" }));
     expect(onViewJobs).toHaveBeenCalledWith("job-1");
 
@@ -458,5 +453,37 @@ describe("DataSourcesWorkspace health filtering", () => {
       }),
     );
     expect(onDeleteProfile).toHaveBeenCalledWith("profile-1");
+  });
+
+  it("does not offer a Snowflake reconnect action", async () => {
+    const user = userEvent.setup();
+    const snowflakeSource: DataSource = {
+      ...externalSource,
+      id: "source-snowflake",
+      name: "Analytics warehouse",
+      type: "snowflake",
+    };
+    render(
+      <DataSourcesWorkspace
+        workspaceId="workspace-1"
+        datasources={[snowflakeSource]}
+        files={[]}
+        jobs={[]}
+        profiles={[]}
+        loading={false}
+        healthFilter="all"
+        profileError={null}
+        onCreateIngestion={vi.fn()}
+        onDeleteProfile={vi.fn()}
+        onHealthFilterChange={vi.fn()}
+        onViewJobs={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByText("Analytics warehouse").closest("button")!,
+    );
+
+    expect(screen.queryByRole("button", { name: "Reconnect" })).toBeNull();
   });
 });

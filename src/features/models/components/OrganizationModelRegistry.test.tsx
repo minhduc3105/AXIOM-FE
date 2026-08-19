@@ -145,7 +145,7 @@ describe("OrganizationModelRegistry", () => {
   it("renders a dedicated Model Service header and only its two main areas", () => {
     renderRegistry([provider("openai", "OpenAI")], { openai: [] });
 
-    expect(screen.getByRole("heading", { name: "Model Service" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Models" })).toBeTruthy();
     expect(screen.getByText("Organization · org-1")).toBeTruthy();
     expect(screen.getByText("Operational")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();

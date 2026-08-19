@@ -10,20 +10,10 @@ export type AppSurface =
 
 export type OrganizationAdministrationTab = "overview" | "workspaces" | "members";
 
-export type DataIngestionLaunchContext = {
-  connector: "s3" | "snowflake" | null;
-  profileId: string | null;
-};
-
 export type AppRoute =
   | { surface: "chat"; page: "home" | "compose"; sessionId: null }
   | { surface: "chat"; page: "conversation"; sessionId: string }
   | { surface: "data"; page: "dashboard"; sessionId: null }
-  | ({
-      surface: "data";
-      page: "ingestion";
-      sessionId: null;
-    } & DataIngestionLaunchContext)
   | { surface: "reports"; sessionId: null }
   | {
       surface: "tools";

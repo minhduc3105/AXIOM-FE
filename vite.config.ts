@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
     environment.METHODS_HUB_PROXY_TARGET ?? "http://localhost:38000";
   const methodsHubAdminToken = environment.METHOD_HUB_ADMIN_TOKEN;
   const modelServiceTarget =
-    environment.VITE_MODEL_SERVICE_PROXY_TARGET ?? "http://localhost:38006";
+    environment.VITE_MODEL_SERVICE_PROXY_TARGET ?? gatewayApiTarget;
   const storageTarget =
     environment.VITE_STORAGE_PROXY_TARGET ?? "http://localhost:30443";
 
@@ -60,7 +60,6 @@ export default defineConfig(({ mode }) => {
         "/model-service": {
           target: modelServiceTarget,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/model-service/, ""),
         },
         "/storage": {
           target: storageTarget,
