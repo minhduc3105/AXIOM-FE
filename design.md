@@ -11,6 +11,7 @@ This document defines AXIOM's shared visual language and interaction baseline. I
 Read this document before designing or changing AXIOM-FE UI. Then read the relevant feature specification when one exists:
 
 - [Auth Experience](docs/design/auth.md)
+- [Data Management](docs/design/data-management.md)
 - [Model Service](docs/design/model-service.md)
 
 When guidance conflicts, this document wins for tokens, typography, spacing, radius, elevation, accessibility, responsive behavior, and shared component semantics. A feature document wins only for feature-specific layout, states, copy, and permissions.

@@ -369,8 +369,14 @@ describe("DataSourcesWorkspace health filtering", () => {
     await user.type(search, "ready");
     await user.click(screen.getByRole("row", { name: "Open ready-report.pdf" }));
     expect(screen.getByText("Inspecting ready-report.pdf")).toBeTruthy();
+    expect(
+      screen.queryByRole("complementary", { name: "Data sources" }),
+    ).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Back to files" }));
+    expect(
+      screen.getByRole("complementary", { name: "Data sources" }),
+    ).toBeTruthy();
     expect(
       (screen.getByRole("textbox", {
         name: /search data source files/i,

@@ -108,7 +108,7 @@ export function DocumentProcessingWorkspace({
   const source = sourceMeta[batch.source_kind];
 
   return (
-    <div className="grid min-h-[calc(100dvh-var(--app-top-bar-height)-84px)] min-w-0 gap-4 xl:h-[calc(100dvh-var(--app-top-bar-height)-84px)] xl:grid-cols-[330px_minmax(0,1.12fr)_minmax(360px,0.88fr)]">
+    <div className="grid min-h-[calc(100dvh-var(--app-top-bar-height)-84px)] min-w-0 gap-4 xl:h-[calc(100dvh-var(--app-top-bar-height)-84px)] xl:grid-cols-[330px_minmax(0,1fr)]">
       <Card className="min-h-[520px] min-w-0 gap-0 py-0 xl:min-h-0">
         <CardHeader className="border-b py-4">
           <CardTitle>Pipeline results</CardTitle>
@@ -292,12 +292,17 @@ export function DocumentProcessingWorkspace({
       </Card>
 
       <DocumentResultViewer
+        className="xl:min-h-0"
         file={inspector.selectedFile}
-        runId={inspector.selectedResult?.run_id ?? null}
         preview={inspector.preview}
         parsing={inspector.parsing}
         onRetryPreview={inspector.retryPreview}
         onRetryParsing={inspector.retryParsing}
+        context={{
+          sourceLabel: source.label,
+          statusLabel: inspector.selectedFile ? "Ready" : "No selection",
+          statusTone: inspector.selectedFile ? "success" : "neutral",
+        }}
       />
     </div>
   );

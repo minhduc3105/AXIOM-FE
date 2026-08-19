@@ -577,7 +577,8 @@ export function DataSourcesWorkspace({
 
   return (
     <div className="min-w-0">
-      <div className="border-b p-4 lg:hidden">
+      {!inspectedFile && (
+        <div className="border-b p-4 lg:hidden">
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -636,13 +637,17 @@ export function DataSourcesWorkspace({
             <AlertDescription>{profileError}</AlertDescription>
           </Alert>
         )}
-      </div>
+        </div>
+      )}
 
-      <div className="grid min-w-0 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside
-          className="hidden border-r p-4 lg:block"
-          aria-label="Data sources"
-        >
+      <div
+        className={cn(
+          "grid min-w-0",
+          !inspectedFile && "lg:grid-cols-[280px_minmax(0,1fr)]",
+        )}
+      >
+        {!inspectedFile && (
+          <aside className="hidden border-r p-4 lg:block" aria-label="Data sources">
           <div className="flex items-center justify-between gap-3 px-1">
             <div>
               <h3 className="text-sm font-semibold">Data sources</h3>
@@ -686,7 +691,8 @@ export function DataSourcesWorkspace({
               })}
             </div>
           </ScrollArea>
-        </aside>
+          </aside>
+        )}
 
         <section className="min-w-0" aria-label="Selected data source files">
           {inspectedFile ? (
