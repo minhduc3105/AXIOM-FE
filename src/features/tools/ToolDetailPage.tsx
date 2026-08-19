@@ -64,7 +64,7 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
 
   if (loading && !tool) {
     return (
-      <section className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10">
+      <section className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
         <ToolDetailSkeleton />
       </section>
     );
@@ -74,7 +74,7 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
     const toolNotFound = errorKind === "tool_not_found" || !error;
     const methodsHubUnavailable = errorKind === "methods_hub_unavailable";
     return (
-      <section className="grid min-h-screen place-items-center px-5 py-20">
+      <section className="grid min-h-[calc(100dvh-var(--app-top-bar-height))] place-items-center px-5 py-12">
         <div className="max-w-md text-center">
           <CircleAlertIcon className="mx-auto size-8 text-muted-foreground" />
           <h1 className="mt-4 text-xl font-semibold">
@@ -114,7 +114,7 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
 
   return (
     <section
-      className="relative min-h-screen w-full overflow-x-hidden px-5 pb-12 pt-20 sm:px-8 md:pt-10"
+      className="relative min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden px-5 pb-12 pt-4 sm:px-8 md:pt-6"
       aria-label={`${displayName} details`}
     >
       <div className="mx-auto grid w-full min-w-0 max-w-[1360px] gap-6">

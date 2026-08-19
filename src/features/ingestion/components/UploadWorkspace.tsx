@@ -170,7 +170,7 @@ export function UploadWorkspace({
   };
 
   return (
-    <div className="grid min-h-[calc(100vh-360px)] items-stretch gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+    <div className="grid min-h-[calc(100dvh-var(--app-top-bar-height)-360px)] items-stretch gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
       <Card className="h-full rounded-3xl bg-card/90">
         <CardHeader>
           <CardTitle className="text-2xl">Upload queue</CardTitle>

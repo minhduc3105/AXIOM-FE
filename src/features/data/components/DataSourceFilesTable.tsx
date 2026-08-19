@@ -10,6 +10,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import type {
   DataFile,
+  DataHealthFilter,
   DataSourceFileSortField,
   DataSourceFileSortOrder,
   DataSourceFilesPage,
@@ -42,6 +44,7 @@ import { StatusBadge } from "./StatusBadge";
 type DataSourceFilesTableProps = {
   result: DataSourceFilesPage | null;
   loading: boolean;
+  healthFilter?: DataHealthFilter;
   search: string;
   page: number;
   pageSize: number;
@@ -119,6 +122,7 @@ function TableSkeleton() {
 export function DataSourceFilesTable({
   result,
   loading,
+  healthFilter = "all",
   search,
   page,
   pageSize,
@@ -136,6 +140,14 @@ export function DataSourceFilesTable({
   const totalCount = result?.totalCount ?? 0;
   const totalUnfilteredCount = result?.totalUnfilteredCount ?? 0;
   const totalPages = Math.max(1, result?.totalPages ?? 0);
+  const activeFilterLabel =
+    healthFilter === "success"
+      ? "Ready"
+      : healthFilter === "processing"
+        ? "Processing"
+        : healthFilter === "failed"
+          ? "Failed"
+          : null;
   const sortIcon = (field: DataSourceFileSortField) => {
     if (sortBy !== field) return <ArrowUpDownIcon className="size-3.5" />;
     return sortOrder === "asc" ? (
@@ -163,9 +175,14 @@ export function DataSourceFilesTable({
             />
           </div>
         </Field>
-        <span className="text-sm tabular-nums text-muted-foreground">
-          {totalCount} of {totalUnfilteredCount}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {activeFilterLabel && (
+            <Badge variant="outline">Filtered: {activeFilterLabel}</Badge>
+          )}
+          <span className="text-sm tabular-nums text-muted-foreground">
+            {totalCount} of {totalUnfilteredCount}
+          </span>
+        </div>
       </div>
       <Separator />
 
@@ -180,8 +197,16 @@ export function DataSourceFilesTable({
         />
       ) : totalCount === 0 ? (
         <DataEmptyState
-          title="No matching files"
-          description="Adjust the search to see more results."
+          title={
+            activeFilterLabel && !search.trim()
+              ? `No ${activeFilterLabel.toLowerCase()} files`
+              : "No matching files"
+          }
+          description={
+            activeFilterLabel && !search.trim()
+              ? `No files in this workspace currently have the ${activeFilterLabel} status. Adjust the search or choose another health filter.`
+              : "Adjust the search or choose another health filter to see more results."
+          }
         />
       ) : (
         <>

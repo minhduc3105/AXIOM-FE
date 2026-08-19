@@ -1,8 +1,4 @@
-import {
-  Building2Icon,
-  ChevronRightIcon,
-  FolderKanbanIcon,
-} from "lucide-react";
+import { Building2Icon, FolderKanbanIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GlobalWorkspaceSwitcher } from "@/shared/components/GlobalWorkspaceSwitcher";
 import type { AssignedWorkspace } from "@/features/auth/api/authzApi";
@@ -22,14 +18,21 @@ function ScopeItem({
     <Tooltip>
       <TooltipTrigger
         render={
-          <span className="flex min-w-0 items-center gap-1.5" tabIndex={0} />
+          <span
+            className="flex h-10 min-w-0 items-center gap-2 px-2"
+            tabIndex={0}
+            aria-label={`${kind}: ${name}`}
+          />
         }
       >
-        <Icon className="size-3.5 shrink-0 text-[#2456e8] dark:text-[#9aafff]" />
-        <span className="hidden text-[10px] font-medium uppercase tracking-[0.08em] text-[#777064] sm:inline dark:text-[#aaa397]">
-          {kind}
-        </span>
-        <strong className="max-w-36 truncate text-xs font-semibold sm:max-w-52">
+        <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+        <strong
+          className={
+            kind === "Organization"
+              ? "hidden max-w-36 truncate text-xs font-medium lg:block"
+              : "max-w-44 truncate text-xs font-medium sm:max-w-52"
+          }
+        >
           {name}
         </strong>
       </TooltipTrigger>
@@ -42,9 +45,11 @@ function ScopeItem({
 
 export function AppScopeBar({ scope, workspaces = [], selectedWorkspace = null, workspacesLoading = false, onWorkspaceSelect }: { scope: AppScopeContext | null; workspaces?: AssignedWorkspace[]; selectedWorkspace?: AssignedWorkspace | null; workspacesLoading?: boolean; onWorkspaceSelect?: (workspaceId: string) => void }) {
   if (!scope) return null;
+  const showWorkspace = Boolean(scope.workspace || onWorkspaceSelect);
+
   return (
     <div
-      className="fixed right-3 top-2 z-30 flex max-w-[calc(100vw-1.5rem)] items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-card-foreground shadow-sm sm:right-4 md:max-w-[calc(100vw-92px)]"
+      className="flex min-w-0 max-w-full items-center text-foreground"
       aria-label="Current application scope"
     >
       <ScopeItem
@@ -52,18 +57,25 @@ export function AppScopeBar({ scope, workspaces = [], selectedWorkspace = null, 
         name={scope.organization.name}
         id={scope.organization.id}
       />
-      {scope.workspace && (
-        <>
-          <ChevronRightIcon className="size-3 shrink-0 text-[#aaa397]" aria-hidden="true" />
-          <ScopeItem
-            kind="Workspace"
-            name={scope.workspace.name}
-            id={scope.workspace.id}
-          />
-        </>
+      {showWorkspace && (
+        <span className="mx-1 h-5 border-l border-border" aria-hidden="true" />
       )}
-      {!scope.workspace && onWorkspaceSelect && (workspaces.length > 0 || workspacesLoading) && (
-        <><ChevronRightIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" /><div className="min-w-0"><GlobalWorkspaceSwitcher workspaces={workspaces} selected={selectedWorkspace} loading={workspacesLoading} onSelect={onWorkspaceSelect} /></div></>
+      {scope.workspace && (
+        <ScopeItem
+          kind="Workspace"
+          name={scope.workspace.name}
+          id={scope.workspace.id}
+        />
+      )}
+      {!scope.workspace && onWorkspaceSelect && (
+        <div className="min-w-0">
+          <GlobalWorkspaceSwitcher
+            workspaces={workspaces}
+            selected={selectedWorkspace}
+            loading={workspacesLoading}
+            onSelect={onWorkspaceSelect}
+          />
+        </div>
       )}
     </div>
   );

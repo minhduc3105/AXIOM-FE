@@ -1,95 +1,128 @@
-import {
-  AlertTriangleIcon,
-  CheckCircle2Icon,
-  DatabaseIcon,
-  LoaderCircleIcon,
-} from "lucide-react";
+import { CheckIcon, DatabaseIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
+import type {
+  DataHealthFilter,
+  DataHealthStatus,
+} from "../model/types";
+import { dataStatusPresentation } from "./StatusBadge";
 
 type DataMetricsProps = {
   loading: boolean;
+  disabled: boolean;
+  activeFilter: DataHealthFilter | null;
   total: number;
   ready: number;
   processing: number;
   failed: number;
   totalSize: string;
+  onFilterChange: (filter: DataHealthFilter) => void;
 };
 
-const metrics = [
+const metrics: Array<{
+  key: DataHealthFilter;
+  label: string;
+  description: string;
+  icon: typeof DatabaseIcon;
+  iconClassName: string;
+}> = [
   {
-    key: "total",
-    label: "All stored objects",
+    key: "all",
+    label: "All files",
+    description: "Stored in this workspace",
     icon: DatabaseIcon,
-    tone: "text-[#2456e8] bg-[#edf2ff] dark:bg-[#7895ff]/12 dark:text-[#9aafff]",
+    iconClassName: "bg-muted text-foreground",
   },
-  {
-    key: "ready",
-    label: "Ready",
-    icon: CheckCircle2Icon,
-    tone: "text-emerald-700 bg-emerald-50 dark:bg-emerald-400/10 dark:text-emerald-300",
-  },
-  {
-    key: "processing",
-    label: "Processing",
-    icon: LoaderCircleIcon,
-    tone: "text-amber-800 bg-amber-50 dark:bg-amber-400/10 dark:text-amber-200",
-  },
-  {
-    key: "failed",
-    label: "Failed",
-    icon: AlertTriangleIcon,
-    tone: "text-rose-700 bg-rose-50 dark:bg-rose-400/10 dark:text-rose-300",
-  },
-] as const;
+  ...(["success", "processing", "failed"] as const).map(
+    (status: DataHealthStatus) => ({
+      key: status,
+      ...dataStatusPresentation[status],
+    }),
+  ),
+];
 
 export function DataMetrics({
   loading,
+  disabled,
+  activeFilter,
   total,
   ready,
   processing,
   failed,
   totalSize,
+  onFilterChange,
 }: DataMetricsProps) {
-  const values = { total, ready, processing, failed };
+  const values: Record<DataHealthFilter, number> = {
+    all: total,
+    success: ready,
+    processing,
+    failed,
+  };
 
   return (
     <section
-      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      className="grid grid-cols-2 gap-3 xl:grid-cols-4"
       aria-label="Data health summary"
     >
       {metrics.map((metric) => {
         const Icon = metric.icon;
+        const selected = activeFilter === metric.key;
+        const description =
+          metric.key === "all"
+            ? `${totalSize} across this workspace`
+            : metric.description;
+
         return (
-          <article
+          <button
             key={metric.key}
-            className="group grid min-h-[126px] grid-cols-[1fr_auto] gap-4 overflow-hidden rounded-[22px] border border-[#d8d0c2]/78 bg-[#fffdf8]/84 p-4 shadow-[0_18px_48px_rgba(24,24,18,0.07)] backdrop-blur-xl transition-transform duration-500 ease-out hover:-translate-y-0.5 dark:border-[#38372f]/82 dark:bg-[#1a1a17]/86"
+            type="button"
+            className={cn(
+              "relative flex min-h-36 w-full items-start justify-between gap-2 overflow-hidden rounded-lg border bg-card p-3 text-left text-card-foreground transition-colors hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60 sm:min-h-32 sm:gap-4 sm:p-4",
+              selected &&
+                "border-ring bg-accent/50 before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-r-full before:bg-primary",
+            )}
+            onClick={() => onFilterChange(metric.key)}
+            disabled={disabled}
+            aria-pressed={selected}
+            aria-controls="data-file-inventory"
+            aria-label={`${metric.label}: ${values[metric.key]}. ${description}`}
           >
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-[#6d685e] dark:text-[#aaa397]">
-                {metric.label}
-              </p>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">{metric.label}</span>
               {loading ? (
                 <Skeleton className="mt-3 h-8 w-16" />
               ) : (
-                <strong className="mt-2 block text-2xl font-semibold tabular-nums text-[#191915] dark:text-[#f4efe5]">
+                <strong className="mt-2 block text-2xl font-semibold tabular-nums">
                   {values[metric.key]}
                 </strong>
               )}
-              <p className="mt-1 truncate text-xs text-[#8a8377] dark:text-[#898378]">
-                {metric.key === "total" ? totalSize : "All data sources"}
-              </p>
-            </div>
-            <span
-              className={cn(
-                "flex size-10 shrink-0 items-center justify-center rounded-[12px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.38)] transition-transform duration-500 ease-out group-hover:scale-105",
-                metric.tone,
-              )}
-              aria-hidden="true"
-            >
-              <Icon className="size-4" />
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                {description}
+              </span>
             </span>
-          </article>
+
+            <span className="flex shrink-0 flex-col items-end gap-3">
+              <span
+                className={cn(
+                  "grid size-10 place-items-center rounded-md",
+                  metric.iconClassName,
+                )}
+                aria-hidden="true"
+              >
+                <Icon className="size-4" />
+              </span>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 text-xs font-medium text-foreground",
+                  !selected && "invisible",
+                )}
+                aria-hidden={!selected}
+              >
+                <CheckIcon className="size-3.5" />
+                <span className="hidden sm:inline">Active</span>
+              </span>
+            </span>
+          </button>
         );
       })}
     </section>

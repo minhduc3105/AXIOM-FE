@@ -374,7 +374,7 @@ export function MemoryPage() {
 
   return (
     <section
-      className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10"
+      className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6"
       aria-label="Memory management"
     >
       <div className="mx-auto grid w-full max-w-[1440px] gap-6">

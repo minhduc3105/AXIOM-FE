@@ -640,7 +640,7 @@ export function OrganizationUsersPage({
 
   if (!canManage) {
     return (
-      <main className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10">
+      <main className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
         <section className="mx-auto grid max-w-3xl gap-5">
           <Card>
             <CardHeader>
@@ -689,7 +689,7 @@ export function OrganizationUsersPage({
   const membershipError = Object.values(membershipErrors)[0];
 
   return (
-    <main className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10">
+    <main className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
       <div className="mx-auto grid w-full max-w-6xl gap-6">
         <OrganizationAdministrationHeader user={user} />
         <div className="flex flex-wrap items-center justify-end gap-2">

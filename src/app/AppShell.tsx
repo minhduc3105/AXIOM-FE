@@ -3,9 +3,8 @@ import type { ChatStage } from "@/features/chat/model/types";
 import type { AuthUser } from "@/features/auth/model/types";
 import type { AppSurface } from "@/app/routing/types";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { WorkspaceCommandBar } from "@/shared/components/WorkspaceCommandBar";
+import { AppTopBar } from "@/layout/AppTopBar";
 import { WorkspaceRail } from "@/shared/components/WorkspaceRail";
-import { AppScopeBar } from "@/shared/components/AppScopeBar";
 import { cn } from "@/shared/lib/utils";
 import type { AppScopeContext } from "@/shared/types/appScope";
 import type { AssignedWorkspace } from "@/features/auth/api/authzApi";
@@ -22,7 +21,7 @@ type AppShellProps = {
   onReports: () => void;
   onMemory: () => void;
   onModels: () => void;
-  showCommandBar?: boolean;
+  showPrimaryNavigation?: boolean;
   onTools: () => void;
   onSettings: () => void;
   onOrganizationAdministration: () => void;
@@ -48,7 +47,7 @@ export function AppShell({
   onReports,
   onMemory,
   onModels,
-  showCommandBar = false,
+  showPrimaryNavigation = false,
   onTools,
   onSettings,
   onOrganizationAdministration,
@@ -99,20 +98,26 @@ export function AppShell({
         />
         <div
           className={cn(
-            "relative z-10 min-h-screen min-w-0 transition-[margin-left] duration-500 ease-out md:ml-[76px]",
+            "relative z-10 flex min-h-dvh min-w-0 flex-col [--app-top-bar-height:4rem] transition-[margin-left] duration-500 ease-out md:ml-[76px] md:[--app-top-bar-height:3.5rem]",
+            showPrimaryNavigation && "max-md:[--app-top-bar-height:7rem]",
             expanded && "md:ml-[304px]",
           )}
         >
-          <AppScopeBar scope={scope} workspaces={workspaces} selectedWorkspace={selectedWorkspace} workspacesLoading={workspacesLoading} onWorkspaceSelect={onWorkspaceSelect} />
-          {showCommandBar && (
-            <WorkspaceCommandBar
-              onHome={onHome}
-              onNewChat={onNewChat}
-              onData={onData}
-              onReports={onReports}
-            />
-          )}
-          {children}
+          <AppTopBar
+            showPrimaryNavigation={showPrimaryNavigation}
+            onHome={onHome}
+            onNewChat={onNewChat}
+            onData={onData}
+            onReports={onReports}
+            scope={scope}
+            workspaces={workspaces}
+            selectedWorkspace={selectedWorkspace}
+            workspacesLoading={workspacesLoading}
+            onWorkspaceSelect={onWorkspaceSelect}
+          />
+          <div className="min-h-[calc(100dvh-var(--app-top-bar-height))] min-w-0 flex-1">
+            {children}
+          </div>
         </div>
       </main>
     </TooltipProvider>

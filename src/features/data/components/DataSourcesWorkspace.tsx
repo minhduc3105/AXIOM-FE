@@ -32,6 +32,7 @@ import { cn } from "@/shared/lib/utils";
 import type { SavedDataSourceProfile } from "@/shared/types/data-source-profile";
 import type {
   DataFile,
+  DataHealthFilter,
   DataSource,
   DataSourceFileSortField,
   DataSourceFileSortOrder,
@@ -50,12 +51,14 @@ type DataSourcesWorkspaceProps = {
   jobs: IngestionJob[];
   profiles: SavedDataSourceProfile[];
   loading: boolean;
+  healthFilter: DataHealthFilter | null;
   profileError: string | null;
   onCreateIngestion: (context?: {
     connector?: "s3" | "snowflake";
     profileId?: string;
   }) => void;
   onDeleteProfile: (profileId: string) => void;
+  onHealthFilterChange: (filter: DataHealthFilter | null) => void;
   onViewJobs: (jobId?: string) => void;
 };
 
@@ -72,7 +75,8 @@ function formatDate(value: string) {
 }
 
 function displayName(datasource: DataSource) {
-  if (datasource.id === ORGANIZATION_FILES_SOURCE_ID) return "Stored objects";
+  if (datasource.id === ORGANIZATION_FILES_SOURCE_ID)
+    return "All workspace files";
   if (datasource.type === "UPLOAD") return "Uploaded files";
   if (datasource.name?.trim()) return datasource.name;
   if (datasource.type === "s3") return "Amazon S3";
@@ -82,7 +86,7 @@ function displayName(datasource: DataSource) {
 
 function sourceDescription(datasource: DataSource) {
   if (datasource.id === ORGANIZATION_FILES_SOURCE_ID)
-    return "Organization file inventory";
+    return "Workspace-wide inventory";
   if (datasource.type === "UPLOAD") return "Built-in source";
   if (datasource.type === "s3") return "Amazon S3";
   if (datasource.type === "snowflake") return "Snowflake";
@@ -147,10 +151,12 @@ function sortFiles(
 function OrganizationFilesDetail({
   datasource,
   files,
+  healthFilter,
   onCreateIngestion,
 }: {
   datasource: DataSource;
   files: DataFile[];
+  healthFilter: DataHealthFilter;
   onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
 }) {
   const [inspectedFile, setInspectedFile] = useState<DataFile | null>(null);
@@ -162,13 +168,17 @@ function OrganizationFilesDetail({
   const [sortOrder, setSortOrder] = useState<DataSourceFileSortOrder>("desc");
   const result = useMemo<DataSourceFilesPage>(() => {
     const normalizedSearch = search.trim().toLowerCase();
+    const statusScopedFiles =
+      healthFilter === "all"
+        ? files
+        : files.filter((file) => file.status === healthFilter);
     const filteredFiles = normalizedSearch
-      ? files.filter((file) =>
+      ? statusScopedFiles.filter((file) =>
           [file.name, file.key, file.type, file.statusDetail].some((value) =>
             value.toLowerCase().includes(normalizedSearch),
           ),
         )
-      : files;
+      : statusScopedFiles;
     const sortedFiles = sortFiles(filteredFiles, sortBy, sortOrder);
     const totalPages = Math.ceil(sortedFiles.length / pageSize);
     const safePage = Math.min(page, Math.max(1, totalPages || 1));
@@ -189,6 +199,7 @@ function OrganizationFilesDetail({
     datasource.id,
     datasource.organizationId,
     files,
+    healthFilter,
     page,
     pageSize,
     search,
@@ -199,6 +210,10 @@ function OrganizationFilesDetail({
   useEffect(() => {
     if (page !== result.page) setPage(result.page);
   }, [page, result.page]);
+  useEffect(() => {
+    setPage(1);
+    setInspectedFile(null);
+  }, [healthFilter]);
   useEffect(() => {
     if (
       inspectedFile &&
@@ -255,6 +270,7 @@ function OrganizationFilesDetail({
       <DataSourceFilesTable
         result={result}
         loading={false}
+        healthFilter={healthFilter}
         search={search}
         page={result.page}
         pageSize={pageSize}
@@ -456,13 +472,14 @@ export function DataSourcesWorkspace({
   jobs,
   profiles,
   loading,
+  healthFilter,
   profileError,
   onCreateIngestion,
   onDeleteProfile,
+  onHealthFilterChange,
   onViewJobs,
 }: DataSourcesWorkspaceProps) {
-  const inventorySource = useMemo<DataSource | null>(() => {
-    if (datasources.length > 0 || files.length === 0) return null;
+  const inventorySource = useMemo<DataSource>(() => {
     const newestFile = [...files].sort((left, right) => {
       const leftTime = left.lastModified ? Date.parse(left.lastModified) : 0;
       const rightTime = right.lastModified ? Date.parse(right.lastModified) : 0;
@@ -470,19 +487,17 @@ export function DataSourcesWorkspace({
     })[0];
     return {
       id: ORGANIZATION_FILES_SOURCE_ID,
-      organizationId: files[0]?.organizationId ?? "",
-      workspaceId: files[0]?.workspaceId ?? "",
-      name: "Stored objects",
+      organizationId:
+        files[0]?.organizationId ?? datasources[0]?.organizationId ?? "",
+      workspaceId: files[0]?.workspaceId ?? datasources[0]?.workspaceId ?? "",
+      name: "All workspace files",
       type: "organization_files",
       createdAt: newestFile?.lastModified ?? new Date(0).toISOString(),
       updatedAt: newestFile?.lastModified ?? new Date(0).toISOString(),
     };
-  }, [datasources.length, files]);
-  const visibleSources = inventorySource ? [inventorySource] : datasources;
-  const preferredSource =
-    visibleSources.find((datasource) => datasource.type === "UPLOAD") ??
-    visibleSources[0] ??
-    null;
+  }, [datasources, files]);
+  const visibleSources = [inventorySource, ...datasources];
+  const preferredSource = inventorySource;
   const [selectedId, setSelectedId] = useState(preferredSource?.id ?? "");
   const [forgetProfile, setForgetProfile] =
     useState<SavedDataSourceProfile | null>(null);
@@ -495,6 +510,14 @@ export function DataSourcesWorkspace({
     if (selectedSource && selectedId !== selectedSource.id)
       setSelectedId(selectedSource.id);
   }, [preferredSource, selectedId, selectedSource]);
+  useEffect(() => {
+    if (
+      healthFilter !== null &&
+      selectedId !== ORGANIZATION_FILES_SOURCE_ID
+    ) {
+      setSelectedId(ORGANIZATION_FILES_SOURCE_ID);
+    }
+  }, [healthFilter, selectedId]);
 
   return (
     <div className="grid min-w-0 xl:grid-cols-[300px_minmax(0,1fr)]">
@@ -506,7 +529,7 @@ export function DataSourcesWorkspace({
           <div>
             <h3 className="font-semibold">Data sources</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              {visibleSources.length} available
+              {datasources.length} connected
             </p>
           </div>
           <DropdownMenu>
@@ -548,7 +571,14 @@ export function DataSourcesWorkspace({
                 type="button"
                 variant="ghost"
                 key={datasource.id}
-                onClick={() => setSelectedId(datasource.id)}
+                onClick={() => {
+                  setSelectedId(datasource.id);
+                  onHealthFilterChange(
+                    datasource.id === ORGANIZATION_FILES_SOURCE_ID
+                      ? "all"
+                      : null,
+                  );
+                }}
                 aria-pressed={selectedSource?.id === datasource.id}
                 className={cn(
                   "h-auto w-full items-center justify-start gap-3 rounded-xl border p-3 text-left",
@@ -578,6 +608,7 @@ export function DataSourcesWorkspace({
           <OrganizationFilesDetail
             datasource={selectedSource}
             files={files}
+            healthFilter={healthFilter ?? "all"}
             onCreateIngestion={onCreateIngestion}
           />
         ) : selectedSource ? (

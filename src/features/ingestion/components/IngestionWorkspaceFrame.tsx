@@ -36,8 +36,8 @@ export function IngestionWorkspaceFrame({
 }: IngestionWorkspaceFrameProps) {
   if (fullBleed) {
     return (
-      <div className="min-h-screen bg-transparent">
-        <main className="flex min-h-screen w-full flex-col px-3 pb-3 pt-3 sm:px-4 lg:px-5">
+      <div className="min-h-[calc(100dvh-var(--app-top-bar-height))] bg-transparent">
+        <main className="flex min-h-[calc(100dvh-var(--app-top-bar-height))] w-full flex-col px-3 pb-3 pt-3 sm:px-4 lg:px-5">
           <header className="mb-3 flex min-h-12 flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-3">
               <Button
@@ -95,8 +95,8 @@ export function IngestionWorkspaceFrame({
   }
 
   return (
-    <div className="min-h-screen bg-transparent">
-      <main className="mx-auto w-[min(1440px,100%)] px-5 pb-14 pt-28 sm:px-8 lg:px-10">
+    <div className="min-h-[calc(100dvh-var(--app-top-bar-height))] bg-transparent">
+      <main className="mx-auto w-[min(1440px,100%)] px-5 pb-14 pt-6 sm:px-8 lg:px-10">
         <div className="grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
           <div>
             <div className="mb-8 flex flex-wrap items-center gap-3">

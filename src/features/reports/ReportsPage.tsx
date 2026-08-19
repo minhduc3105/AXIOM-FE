@@ -80,7 +80,7 @@ export function ReportsPage({ onData }: ReportsPageProps) {
 
   return (
     <section
-      className="relative min-h-screen w-full overflow-x-hidden px-5 pb-12 pt-20 sm:px-8 md:pt-10"
+      className="relative min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden px-5 pb-12 pt-4 sm:px-8 md:pt-6"
       aria-label="Reports workspace"
     >
       <div

@@ -7,49 +7,57 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/shared/lib/utils";
 import type { DataHealthStatus } from "../model/types";
 
-const statusPresentation = {
+export const dataStatusPresentation = {
   success: {
-    label: "Success",
+    label: "Ready",
+    description: "Available for use",
     icon: CheckCircle2Icon,
-    className:
-      "border-emerald-600/20 bg-emerald-50 text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300",
+    iconClassName: "bg-status-success/10 text-status-success",
+    badgeClassName:
+      "border-status-success/25 bg-status-success/10 text-status-success",
   },
   processing: {
     label: "Processing",
+    description: "Parsing or indexing",
     icon: LoaderCircleIcon,
-    className:
-      "border-amber-600/25 bg-amber-50 text-amber-800 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-200",
+    iconClassName: "bg-info/10 text-info",
+    badgeClassName: "border-info/25 bg-info/10 text-info",
   },
   failed: {
     label: "Failed",
+    description: "Needs review or retry",
     icon: AlertTriangleIcon,
-    className:
-      "border-rose-600/20 bg-rose-50 text-rose-700 dark:border-rose-400/25 dark:bg-rose-400/10 dark:text-rose-300",
+    iconClassName: "bg-destructive/10 text-destructive",
+    badgeClassName:
+      "border-destructive/25 bg-destructive/10 text-destructive",
   },
 } satisfies Record<
   DataHealthStatus,
   {
     label: string;
+    description: string;
     icon: typeof CheckCircle2Icon;
-    className: string;
+    iconClassName: string;
+    badgeClassName: string;
   }
 >;
 
 export function StatusBadge({ status }: { status: DataHealthStatus }) {
-  const presentation = statusPresentation[status];
+  const presentation = dataStatusPresentation[status];
   const Icon = presentation.icon;
 
   return (
     <Badge
       variant="outline"
-      className={cn(
-        "h-6 min-w-[104px] justify-center rounded-full px-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.28)]",
-        presentation.className,
-      )}
+      className={cn("justify-center", presentation.badgeClassName)}
     >
       <Icon
         data-icon="inline-start"
-        className={status === "processing" ? "animate-spin" : undefined}
+        className={
+          status === "processing"
+            ? "animate-spin motion-reduce:animate-none"
+            : undefined
+        }
       />
       {presentation.label}
     </Badge>

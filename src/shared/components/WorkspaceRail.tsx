@@ -7,7 +7,6 @@ import {
   Building2Icon,
   MenuIcon,
   MessageSquarePlusIcon,
-  MoonIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   SettingsIcon,
@@ -17,10 +16,8 @@ import {
   MoreHorizontalIcon,
   PencilIcon,
   PinIcon,
-  SunIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useTheme } from "@/app/ThemeProvider";
 import type { AuthUser } from "@/features/auth/model/types";
 import type { ChatStage } from "@/features/chat/model/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -348,7 +345,6 @@ function RailContent({
   user,
   onLogout,
 }: WorkspaceRailProps) {
-  const { resolvedTheme, setTheme } = useTheme();
   const conversationsScrollRef = useRef<HTMLDivElement | null>(null);
   const loadingConversationPagesRef = useRef(
     new Map<number, AbortSignal | null>(),
