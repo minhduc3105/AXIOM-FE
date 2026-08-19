@@ -405,6 +405,29 @@ export async function getDataSourceFiles(
   };
 }
 
+export async function getDataSourceFileCount(
+  datasourceId: string,
+  signal: AbortSignal,
+): Promise<number> {
+  const searchParams = new URLSearchParams({
+    page: "1",
+    page_size: "1",
+    sort_by: "last_modified",
+    sort_order: "desc",
+  });
+  const payload = await getJson<unknown>(
+    `${documentApiBaseUrl}/datasources/${encodeURIComponent(datasourceId)}/files?${searchParams}`,
+    { signal },
+  );
+  if (
+    !isDataSourceFilesResponseDto(payload) ||
+    payload.datasource_id !== datasourceId
+  ) {
+    throw new Error("The data source file count response was invalid.");
+  }
+  return payload.total_unfiltered_count;
+}
+
 export async function getDataDashboard(
   organizationId: string,
   workspaceId: string,

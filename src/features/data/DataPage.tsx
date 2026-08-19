@@ -231,6 +231,7 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
                 />
               ) : (
                 <DataSourcesWorkspace
+                  workspaceId={workspaceId}
                   datasources={datasources}
                   files={files}
                   jobs={ingestionJobs}
