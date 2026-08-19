@@ -25,7 +25,7 @@ export function SettingsPage() {
   if (!user) return null;
 
   return (
-    <main className="min-h-screen px-5 pb-12 pt-20 sm:px-8 md:pt-10">
+    <main className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
       <div className="mx-auto grid w-full max-w-4xl gap-5">
         <header className={cn(panelClass, "p-5 sm:p-6")}>
           <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">

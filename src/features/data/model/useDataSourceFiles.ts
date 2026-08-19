@@ -1,49 +1,47 @@
 import { useCallback, useEffect, useState } from "react";
 import { getDataSourceFiles } from "../api/dataApi";
 import type {
-  DataSourceFileSortField,
-  DataSourceFileSortOrder,
   DataSourceFilesPage,
+  DataSourceFilesQuery,
 } from "./types";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-export function useDataSourceFiles(datasourceId: string, workspaceId: string) {
+export function useDataSourceFiles(
+  datasourceId: string | null,
+  workspaceId: string,
+  query: DataSourceFilesQuery,
+) {
   const [result, setResult] = useState<DataSourceFilesPage | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(datasourceId));
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSizeValue] = useState(20);
-  const [sortBy, setSortBy] = useState<DataSourceFileSortField>("last_modified");
-  const [sortOrder, setSortOrder] = useState<DataSourceFileSortOrder>("desc");
   const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     const timer = window.setTimeout(
-      () => setDebouncedSearch(search.trim()),
+      () => setDebouncedSearch(query.search.trim()),
       SEARCH_DEBOUNCE_MS,
     );
     return () => window.clearTimeout(timer);
-  }, [search]);
+  }, [query.search]);
 
   useEffect(() => {
+    if (!datasourceId || !workspaceId) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
     setError(null);
     void getDataSourceFiles(
       datasourceId,
       workspaceId,
-      { page, pageSize, search: debouncedSearch, sortBy, sortOrder },
+      { ...query, search: debouncedSearch },
       controller.signal,
     )
-      .then((nextResult) => {
-        setResult(nextResult);
-        if (nextResult.totalPages > 0 && page > nextResult.totalPages) {
-          setPage(nextResult.totalPages);
-        }
-      })
+      .then(setResult)
       .catch((requestError: unknown) => {
         if (!controller.signal.aborted) {
           setError(
@@ -57,38 +55,26 @@ export function useDataSourceFiles(datasourceId: string, workspaceId: string) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [datasourceId, debouncedSearch, page, pageSize, refreshToken, sortBy, sortOrder, workspaceId]);
+  }, [
+    datasourceId,
+    debouncedSearch,
+    query.page,
+    query.pageSize,
+    query.sortBy,
+    query.sortOrder,
+    refreshToken,
+    workspaceId,
+  ]);
 
-  const setSearch = useCallback((value: string) => {
-    setSearchValue(value);
-    setPage(1);
-  }, []);
-  const setPageSize = useCallback((value: number) => {
-    setPageSizeValue(value);
-    setPage(1);
-  }, []);
-  const changeSort = useCallback((field: DataSourceFileSortField) => {
-    setSortOrder((current) =>
-      sortBy === field && current === "asc" ? "desc" : "asc",
-    );
-    setSortBy(field);
-    setPage(1);
-  }, [sortBy]);
   const refresh = useCallback(() => setRefreshToken((value) => value + 1), []);
 
+  const currentResult =
+    datasourceId && result?.datasourceId === datasourceId ? result : null;
+
   return {
-    result,
+    result: currentResult,
     loading,
     error,
-    search,
-    page,
-    pageSize,
-    sortBy,
-    sortOrder,
-    setSearch,
-    setPage,
-    setPageSize,
-    changeSort,
     refresh,
   };
 }

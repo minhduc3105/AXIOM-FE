@@ -1,13 +1,4 @@
 import { useMemo } from "react";
-import { ArrowLeftIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { DocumentResultViewer } from "@/shared/components/document-results/DocumentResultViewer";
 import { useProcessedDocumentResources } from "@/shared/hooks/use-processed-document-resources";
 import type { ProcessingFile } from "@/shared/types/document-results";
@@ -49,30 +40,34 @@ export function DataSourceFileInspector({
   });
 
   return (
-    <div className="grid gap-4 p-4 sm:p-5">
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle className="truncate">{file.name}</CardTitle>
-          <CardDescription className="truncate">
-            {datasource.type === "UPLOAD"
-              ? "Uploaded files"
-              : (datasource.name ?? datasource.type)}
-          </CardDescription>
-          <CardAction>
-            <Button variant="ghost" size="sm" type="button" onClick={onBack}>
-              <ArrowLeftIcon data-icon="inline-start" />
-              Back to files
-            </Button>
-          </CardAction>
-        </CardHeader>
-      </Card>
+    <div className="h-[calc(100dvh-var(--app-top-bar-height)-1rem)] min-h-[620px] min-w-0 p-3 sm:p-4">
       <DocumentResultViewer
+        className="min-h-0"
         file={processingFile}
-        runId={file.runId}
         preview={resources.preview}
         parsing={resources.parsing}
         onRetryPreview={resources.retryPreview}
         onRetryParsing={resources.retryParsing}
+        context={{
+          sourceLabel:
+            datasource.type === "UPLOAD"
+              ? "Uploaded files"
+              : (datasource.name ?? datasource.type),
+          statusLabel:
+            file.status === "success"
+              ? "Ready"
+              : file.status === "processing"
+                ? "Processing"
+                : "Failed",
+          statusTone:
+            file.status === "success"
+              ? "success"
+              : file.status === "processing"
+                ? "processing"
+                : "failed",
+          backLabel: "Back to files",
+          onBack,
+        }}
       />
     </div>
   );

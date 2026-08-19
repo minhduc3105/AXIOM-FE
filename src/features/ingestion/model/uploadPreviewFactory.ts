@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import mammoth from "mammoth";
 import Papa from "papaparse";
 import type { IngestionFile } from "./types";
@@ -103,6 +102,7 @@ async function buildTextDataPreview(
 async function buildWorkbookPreview(
   file: IngestionFile,
 ): Promise<DataPreviewState> {
+  const XLSX = await import("xlsx");
   const workbook = XLSX.read(await file.file.arrayBuffer(), {
     type: "array",
     cellDates: true,

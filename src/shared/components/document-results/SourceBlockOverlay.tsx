@@ -40,23 +40,23 @@ export function SourceBlockOverlay({
           <Button
             variant="ghost"
             className={cn(
-              "pointer-events-auto absolute h-auto min-h-2 min-w-2 rounded-none border-2 border-amber-500/80 bg-amber-300/10 p-0 text-left transition hover:bg-amber-300/25 focus-visible:ring-2 focus-visible:ring-amber-300",
+              "pointer-events-auto absolute h-auto min-h-2 min-w-2 rounded-none border-2 border-primary/70 bg-primary/10 p-0 text-left transition hover:bg-primary/20 focus-visible:ring-2 focus-visible:ring-ring",
               active &&
-                "border-amber-300 bg-amber-300/30 shadow-[0_0_0_2px_rgba(17,17,15,0.8),0_0_16px_rgba(251,191,36,0.7)]",
+                "border-primary bg-primary/25 ring-2 ring-background ring-offset-1 ring-offset-primary",
             )}
             key={block.component_id}
             style={style}
             type="button"
+            data-block-id={block.component_id}
             aria-pressed={active}
             aria-label={`Select parsed block ${index}: ${block.type}`}
-            onMouseEnter={() => onActivate(block.component_id)}
             onClick={() => onActivate(block.component_id)}
           >
             <Badge
               variant="secondary"
               className={cn(
-                "absolute -left-0.5 -top-0.5 min-w-5 rounded-none bg-[#191915]/90 px-1 py-0.5 text-center font-mono text-[9px] font-bold leading-none text-white",
-                active && "bg-amber-300 text-[#191915]",
+                "absolute -left-0.5 -top-0.5 min-w-5 rounded-none bg-foreground px-1 py-0.5 text-center font-mono text-[9px] font-bold leading-none text-background",
+                active && "bg-primary text-primary-foreground",
               )}
             >
               {index.toString().padStart(2, "0")}

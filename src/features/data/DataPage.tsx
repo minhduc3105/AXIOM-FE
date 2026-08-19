@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangleIcon, ServerCrashIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  CircleAlertIcon,
+  ServerCrashIcon,
+} from "lucide-react";
 import {
   Alert,
   AlertAction,
@@ -9,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataDashboardHeader } from "./components/DataDashboardHeader";
+import { DataEmptyState } from "./components/DataEmptyState";
 import { DataMetrics } from "./components/DataMetrics";
 import { DataSourcesWorkspace } from "./components/DataSourcesWorkspace";
 import { IngestionJobsTable } from "./components/IngestionJobsTable";
@@ -16,6 +21,7 @@ import { JobFilesPanel } from "./components/JobFilesPanel";
 import { useDataDashboard } from "./model/useDataDashboard";
 import { useDataSourceProfiles } from "@/shared/hooks/use-data-source-profiles";
 import { useDataWorkspace } from "./model/DataWorkspaceProvider";
+import type { DataHealthFilter } from "./model/types";
 
 type DataPageProps = {
   organizationId: string;
@@ -46,9 +52,11 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
     organizationId,
     workspaceId,
   );
-  const files = snapshot?.files ?? [];
-  const datasources = snapshot?.datasources ?? [];
-  const ingestionJobs = snapshot?.ingestionJobs ?? [];
+  const activeSnapshot =
+    snapshot?.workspaceId === workspaceId ? snapshot : null;
+  const files = activeSnapshot?.files ?? [];
+  const datasources = activeSnapshot?.datasources ?? [];
+  const ingestionJobs = activeSnapshot?.ingestionJobs ?? [];
   const {
     profiles,
     error: profileError,
@@ -56,12 +64,15 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
   } = useDataSourceProfiles(organizationId);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [activeDataView, setActiveDataView] = useState("sources");
+  const [activeHealthFilter, setActiveHealthFilter] =
+    useState<DataHealthFilter | null>("all");
   const selectedJob =
     ingestionJobs.find((job) => job.job_id === selectedJobId) ?? null;
 
   useEffect(() => {
     setSelectedJobId(null);
     setActiveDataView("sources");
+    setActiveHealthFilter("all");
   }, [workspaceId]);
 
   const summary = useMemo(() => {
@@ -76,31 +87,31 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
     };
   }, [files]);
 
-  const initialLoading = loading && !snapshot;
+  const initialLoading = loading && !activeSnapshot;
+  const refreshing = loading && Boolean(activeSnapshot);
+
+  const applyHealthFilter = (filter: DataHealthFilter) => {
+    setActiveDataView("sources");
+    setActiveHealthFilter(filter);
+  };
 
   return (
     <section
-      className="relative min-h-screen w-full overflow-x-hidden px-5 pb-12 pt-20 sm:px-8 md:pt-10"
+      className="min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden px-4 pb-12 pt-4 sm:px-6 md:pt-6"
       aria-label="Data management"
     >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_76%_8%,rgba(36,86,232,0.12),transparent_34%),radial-gradient(circle_at_8%_42%,rgba(120,75,18,0.10),transparent_36%)] dark:bg-[radial-gradient(circle_at_76%_8%,rgba(120,149,255,0.12),transparent_34%)]"
-        aria-hidden="true"
-      />
       <div className="mx-auto grid w-full max-w-[1360px] gap-6">
         <DataDashboardHeader
-          organizationId={organizationId}
-          refreshing={loading}
+          selectedWorkspace={workspace.selectedWorkspace}
+          workspaceLoading={workspace.loading}
+          dataLoading={loading}
+          refreshing={refreshing}
           onRefresh={refresh}
           onCreateIngestion={onCreateIngestion}
-          workspaces={workspace.workspaces}
-          selectedWorkspace={workspace.selectedWorkspace}
-          workspacesLoading={workspace.loading}
-          onWorkspaceSelect={workspace.selectWorkspace}
         />
 
         {workspace.error && (
-          <Alert variant="destructive" className="rounded-[18px]">
+          <Alert variant="destructive">
             <ServerCrashIcon />
             <AlertTitle>Workspaces are unavailable</AlertTitle>
             <AlertDescription>{workspace.error}</AlertDescription>
@@ -112,11 +123,21 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
           </Alert>
         )}
 
+        {!workspace.loading &&
+          !workspace.error &&
+          !workspace.selectedWorkspace && (
+            <Alert>
+              <CircleAlertIcon />
+              <AlertTitle>Select a workspace</AlertTitle>
+              <AlertDescription>
+                Use the global workspace switcher to choose the data inventory
+                you want to manage.
+              </AlertDescription>
+            </Alert>
+          )}
+
         {error && (
-          <Alert
-            variant="destructive"
-            className="rounded-[18px] border-rose-300/70 bg-rose-50/90 pr-24 shadow-[0_14px_38px_rgba(136,19,55,0.08)] dark:border-rose-400/25 dark:bg-rose-400/10"
-          >
+          <Alert variant="destructive">
             <ServerCrashIcon />
             <AlertTitle>Data services are unavailable</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
@@ -124,8 +145,8 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-full bg-white/70 dark:bg-[#1a1a17]"
                 onClick={refresh}
+                disabled={loading}
               >
                 Retry
               </Button>
@@ -133,56 +154,63 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
           </Alert>
         )}
 
-        {snapshot?.warnings.map((warning) => (
-          <Alert
-            key={warning}
-            className="rounded-[18px] border-amber-300/70 bg-amber-50/80 text-amber-950 shadow-[0_14px_38px_rgba(120,75,18,0.08)] dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100"
-          >
-            <AlertTriangleIcon />
+        {activeSnapshot?.warnings.map((warning) => (
+          <Alert key={warning} className="border-warning/30 bg-warning/10">
+            <AlertTriangleIcon className="text-warning" />
             <AlertTitle>Partial service availability</AlertTitle>
-            <AlertDescription className="text-amber-800 dark:text-amber-200">
-              {warning}
-            </AlertDescription>
+            <AlertDescription>{warning}</AlertDescription>
           </Alert>
         ))}
 
         <DataMetrics
           loading={initialLoading}
+          disabled={!workspaceId || initialLoading}
+          activeFilter={activeHealthFilter}
           total={summary.total}
           ready={summary.ready}
           processing={summary.processing}
           failed={summary.failed}
           totalSize={summary.totalSize}
+          onFilterChange={applyHealthFilter}
         />
 
         <Tabs
           value={activeDataView}
-          onValueChange={(value) => setActiveDataView(value)}
+          onValueChange={(value) => {
+            setActiveDataView(value);
+            if (value === "jobs") setActiveHealthFilter(null);
+          }}
           className="gap-0"
         >
           <section
-            className="overflow-hidden rounded-[28px] border border-[#d8d0c2]/80 bg-[#fffdf8]/88 shadow-[0_24px_70px_rgba(24,24,18,0.09)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88"
+            id="data-file-inventory"
+            className="overflow-hidden rounded-lg border bg-card shadow-sm"
             aria-label="Data inventory and ingestion activity"
           >
-            <div className="flex flex-col gap-4 border-b border-[#d8d0c2]/80 bg-[#fffdf8]/54 px-5 py-5 sm:flex-row sm:items-end sm:justify-between dark:border-[#38372f]/80 dark:bg-white/4">
+            <div className="flex flex-col gap-4 border-b px-5 py-5 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
-                <h2 className="text-lg font-semibold text-[#191915] dark:text-[#f4efe5]">
+                <h2 className="text-lg font-semibold tracking-tight">
                   Organization data
                 </h2>
               </div>
               <TabsList
-                className="h-10 w-full justify-start rounded-full border border-[#d8d0c2]/70 bg-[#f4efe5]/70 p-1 sm:w-auto dark:border-[#38372f]/80 dark:bg-white/5"
+                variant="line"
+                className="h-9 w-full justify-start rounded-none bg-transparent p-0 sm:w-auto"
                 aria-label="Data views"
               >
-                <TabsTrigger value="sources" className="rounded-full px-4">
+                <TabsTrigger value="sources" className="px-4">
                   Data sources
-                  <span className="tabular-nums text-[11px] text-[#8a8377]">
+                  <span className="text-xs tabular-nums text-muted-foreground">
                     {datasources.length || (files.length > 0 ? 1 : 0)}
                   </span>
                 </TabsTrigger>
-                <TabsTrigger value="jobs" className="rounded-full px-4">
+                <TabsTrigger
+                  value="jobs"
+                  className="px-4"
+                  disabled={!workspaceId}
+                >
                   Ingestion jobs
-                  <span className="tabular-nums text-[11px] text-[#8a8377]">
+                  <span className="text-xs tabular-nums text-muted-foreground">
                     {ingestionJobs.length}
                   </span>
                 </TabsTrigger>
@@ -190,20 +218,37 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
             </div>
 
             <TabsContent value="sources">
-              <DataSourcesWorkspace
-                datasources={datasources}
-                files={files}
-                jobs={ingestionJobs}
-                profiles={profiles}
-                loading={initialLoading}
-                profileError={profileError}
-                onCreateIngestion={onCreateIngestion}
-                onDeleteProfile={removeProfile}
-                onViewJobs={(jobId) => {
-                  setSelectedJobId(jobId ?? null);
-                  setActiveDataView("jobs");
-                }}
-              />
+              {!workspaceId ? (
+                <DataEmptyState
+                  title={
+                    workspace.loading ? "Loading workspace" : "Select a workspace"
+                  }
+                  description={
+                    workspace.loading
+                      ? "Reading your assigned workspaces."
+                      : "Choose a workspace from the global switcher to view its data inventory."
+                  }
+                />
+              ) : (
+                <DataSourcesWorkspace
+                  workspaceId={workspaceId}
+                  datasources={datasources}
+                  files={files}
+                  jobs={ingestionJobs}
+                  profiles={profiles}
+                  loading={initialLoading}
+                  healthFilter={activeHealthFilter}
+                  profileError={profileError}
+                  onCreateIngestion={onCreateIngestion}
+                  onDeleteProfile={removeProfile}
+                  onHealthFilterChange={setActiveHealthFilter}
+                  onViewJobs={(jobId) => {
+                    setSelectedJobId(jobId ?? null);
+                    setActiveDataView("jobs");
+                    setActiveHealthFilter(null);
+                  }}
+                />
+              )}
             </TabsContent>
             <TabsContent value="jobs">
               <IngestionJobsTable

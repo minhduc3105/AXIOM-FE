@@ -1,18 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  CheckIcon,
+  ChevronDownIcon,
   CloudIcon,
   DatabaseIcon,
+  EllipsisIcon,
   PlusIcon,
   ServerIcon,
   SnowflakeIcon,
   Trash2Icon,
   UploadCloudIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -24,42 +29,59 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import type { SavedDataSourceProfile } from "@/shared/types/data-source-profile";
 import type {
   DataFile,
+  DataHealthFilter,
   DataSource,
   DataSourceFileSortField,
-  DataSourceFileSortOrder,
   DataSourceFilesPage,
+  DataSourceFilesQuery,
   IngestionJob,
 } from "../model/types";
+import {
+  type DataSourceFileCountState,
+  useDataSourceFileCounts,
+} from "../model/useDataSourceFileCounts";
 import { useDataSourceFiles } from "../model/useDataSourceFiles";
-import { DataEmptyState } from "./DataEmptyState";
 import { DataSourceFileInspector } from "./DataSourceFileInspector";
 import { DataSourceFilesTable } from "./DataSourceFilesTable";
 import { StatusBadge } from "./StatusBadge";
 
 type DataSourcesWorkspaceProps = {
+  workspaceId: string;
   datasources: DataSource[];
   files: DataFile[];
   jobs: IngestionJob[];
   profiles: SavedDataSourceProfile[];
   loading: boolean;
+  healthFilter: DataHealthFilter | null;
   profileError: string | null;
   onCreateIngestion: (context?: {
     connector?: "s3" | "snowflake";
     profileId?: string;
   }) => void;
   onDeleteProfile: (profileId: string) => void;
+  onHealthFilterChange: (filter: DataHealthFilter | null) => void;
   onViewJobs: (jobId?: string) => void;
 };
 
 const ORGANIZATION_FILES_SOURCE_ID = "__organization_files__";
+const DEFAULT_QUERY: DataSourceFilesQuery = {
+  page: 1,
+  pageSize: 20,
+  search: "",
+  sortBy: "last_modified",
+  sortOrder: "desc",
+};
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -72,7 +94,8 @@ function formatDate(value: string) {
 }
 
 function displayName(datasource: DataSource) {
-  if (datasource.id === ORGANIZATION_FILES_SOURCE_ID) return "Stored objects";
+  if (datasource.id === ORGANIZATION_FILES_SOURCE_ID)
+    return "All workspace files";
   if (datasource.type === "UPLOAD") return "Uploaded files";
   if (datasource.name?.trim()) return datasource.name;
   if (datasource.type === "s3") return "Amazon S3";
@@ -82,8 +105,8 @@ function displayName(datasource: DataSource) {
 
 function sourceDescription(datasource: DataSource) {
   if (datasource.id === ORGANIZATION_FILES_SOURCE_ID)
-    return "Organization file inventory";
-  if (datasource.type === "UPLOAD") return "Built-in source";
+    return "Workspace-wide inventory";
+  if (datasource.type === "UPLOAD") return "Built-in upload source";
   if (datasource.type === "s3") return "Amazon S3";
   if (datasource.type === "snowflake") return "Snowflake";
   return "External source";
@@ -130,7 +153,7 @@ function findReconnectProfile(
 function sortFiles(
   files: DataFile[],
   sortBy: DataSourceFileSortField,
-  sortOrder: DataSourceFileSortOrder,
+  sortOrder: DataSourceFilesQuery["sortOrder"],
 ) {
   const direction = sortOrder === "asc" ? 1 : -1;
   return [...files].sort((left, right) => {
@@ -144,325 +167,232 @@ function sortFiles(
   });
 }
 
-function OrganizationFilesDetail({
-  datasource,
-  files,
-  onCreateIngestion,
+function SourceCountBadge({
+  state,
+  selected = false,
 }: {
-  datasource: DataSource;
-  files: DataFile[];
-  onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
+  state: DataSourceFileCountState;
+  selected?: boolean;
 }) {
-  const [inspectedFile, setInspectedFile] = useState<DataFile | null>(null);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [sortBy, setSortBy] =
-    useState<DataSourceFileSortField>("last_modified");
-  const [sortOrder, setSortOrder] = useState<DataSourceFileSortOrder>("desc");
-  const result = useMemo<DataSourceFilesPage>(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    const filteredFiles = normalizedSearch
-      ? files.filter((file) =>
-          [file.name, file.key, file.type, file.statusDetail].some((value) =>
-            value.toLowerCase().includes(normalizedSearch),
-          ),
-        )
-      : files;
-    const sortedFiles = sortFiles(filteredFiles, sortBy, sortOrder);
-    const totalPages = Math.ceil(sortedFiles.length / pageSize);
-    const safePage = Math.min(page, Math.max(1, totalPages || 1));
-    const startIndex = (safePage - 1) * pageSize;
-    return {
-      organizationId: files[0]?.organizationId ?? datasource.organizationId,
-      datasourceId: datasource.id,
-      bucket: files[0]?.bucket ?? "",
-      files: sortedFiles.slice(startIndex, startIndex + pageSize),
-      page: safePage,
-      pageSize,
-      totalCount: sortedFiles.length,
-      totalPages,
-      totalUnfilteredCount: files.length,
-      warning: null,
-    };
-  }, [
-    datasource.id,
-    datasource.organizationId,
-    files,
-    page,
-    pageSize,
-    search,
-    sortBy,
-    sortOrder,
-  ]);
-
-  useEffect(() => {
-    if (page !== result.page) setPage(result.page);
-  }, [page, result.page]);
-  useEffect(() => {
-    if (
-      inspectedFile &&
-      !files.some((file) => file.key === inspectedFile.key)
-    ) {
-      setInspectedFile(null);
-    }
-  }, [files, inspectedFile]);
-
-  const changeSort = (field: DataSourceFileSortField) => {
-    setSortOrder((current) =>
-      sortBy === field && current === "asc" ? "desc" : "asc",
-    );
-    setSortBy(field);
-    setPage(1);
-  };
-
-  if (inspectedFile) {
+  if (state.loading) {
     return (
-      <DataSourceFileInspector
-        datasource={datasource}
-        file={inspectedFile}
-        onBack={() => setInspectedFile(null)}
-      />
+      <Badge variant="outline" aria-label="File count loading">
+        <Skeleton className="h-2.5 w-7" />
+      </Badge>
     );
   }
-
+  if (state.error || state.count === null) {
+    return (
+      <Badge variant="outline" title="File count unavailable">
+        Unavailable
+      </Badge>
+    );
+  }
   return (
-    <div className="min-w-0">
-      <header className="p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-              <SourceIcon datasource={datasource} className="size-5" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-lg font-semibold">
-                  {displayName(datasource)}
-                </h3>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {sourceDescription(datasource)}
-              </p>
-            </div>
-          </div>
-          <Button onClick={() => onCreateIngestion()}>
-            <PlusIcon data-icon="inline-start" />
-            Upload files
-          </Button>
-        </div>
-      </header>
-      <Separator />
-      <DataSourceFilesTable
-        result={result}
-        loading={false}
-        search={search}
-        page={result.page}
-        pageSize={pageSize}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        onSearchChange={(value) => {
-          setSearch(value);
-          setPage(1);
-        }}
-        onPageChange={setPage}
-        onPageSizeChange={(value) => {
-          setPageSize(value);
-          setPage(1);
-        }}
-        onSortChange={changeSort}
-        onInspect={setInspectedFile}
-        onCreateIngestion={() => onCreateIngestion()}
-      />
-    </div>
+    <Badge variant={selected ? "secondary" : "outline"}>
+      {state.count.toLocaleString()} {state.count === 1 ? "file" : "files"}
+    </Badge>
   );
 }
 
-function SourceDetail({
+function SourceIdentity({
   datasource,
-  jobs,
+  count,
+  selected = false,
+}: {
+  datasource: DataSource;
+  count: DataSourceFileCountState;
+  selected?: boolean;
+}) {
+  return (
+    <>
+      <span
+        className={cn(
+          "grid size-9 shrink-0 place-items-center rounded-md border bg-muted text-muted-foreground",
+          selected && "border-primary/25 bg-primary/10 text-primary",
+        )}
+      >
+        <SourceIcon datasource={datasource} className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium">
+          {displayName(datasource)}
+        </span>
+        <span className="mt-0.5 flex min-w-0 items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-xs text-muted-foreground">
+            {sourceDescription(datasource)}
+          </span>
+          <SourceCountBadge state={count} selected={selected} />
+        </span>
+      </span>
+    </>
+  );
+}
+
+function AddSourceMenu({
+  onCreateIngestion,
+}: {
+  onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon-sm" aria-label="Add external source" />}
+      >
+        <PlusIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-52">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Connect a source</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => onCreateIngestion({ connector: "s3" })}
+          >
+            <CloudIcon />
+            Amazon S3
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => onCreateIngestion({ connector: "snowflake" })}
+          >
+            <SnowflakeIcon />
+            Snowflake
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function SourceActions({
+  datasource,
+  latestJob,
   profile,
   onCreateIngestion,
   onForgetProfile,
   onViewJobs,
 }: {
   datasource: DataSource;
-  jobs: IngestionJob[];
+  latestJob: IngestionJob | null;
   profile: SavedDataSourceProfile | null;
   onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
   onForgetProfile: (profile: SavedDataSourceProfile) => void;
   onViewJobs: (jobId?: string) => void;
 }) {
-  const files = useDataSourceFiles(datasource.id, datasource.workspaceId);
-  const [inspectedFile, setInspectedFile] = useState<DataFile | null>(null);
-  const linkedJobs = useMemo(
-    () =>
-      jobs
-        .filter((job) => job.datasource_id === datasource.id)
-        .sort(
-          (left, right) =>
-            Date.parse(right.updated_at) - Date.parse(left.updated_at),
-        ),
-    [datasource.id, jobs],
-  );
-  const latestJob = linkedJobs[0] ?? null;
+  const isAggregate = datasource.id === ORGANIZATION_FILES_SOURCE_ID;
+  const isUpload = datasource.type === "UPLOAD";
   const connector =
     datasource.type === "s3" || datasource.type === "snowflake"
       ? datasource.type
       : null;
-
-  useEffect(() => {
-    if (
-      inspectedFile &&
-      !files.result?.files.some((file) => file.key === inspectedFile.key)
-    ) {
-      setInspectedFile(null);
-    }
-  }, [files.result?.files, inspectedFile]);
-
-  if (inspectedFile) {
-    return (
-      <DataSourceFileInspector
-        datasource={datasource}
-        file={inspectedFile}
-        onBack={() => setInspectedFile(null)}
-      />
-    );
-  }
+  const canReconnect = Boolean(connector && profile);
+  const hasSecondaryActions = Boolean(
+    latestJob || canReconnect || (profile && !isUpload),
+  );
 
   return (
-    <div className="min-w-0">
-      <header className="p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-              <SourceIcon datasource={datasource} className="size-5" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-lg font-semibold">
-                  {displayName(datasource)}
-                </h3>
-                {datasource.type === "UPLOAD" ? (
-                  <Badge variant="secondary">System source</Badge>
-                ) : profile ? (
-                  <Badge variant="secondary">Reconnect saved</Badge>
-                ) : (
-                  <Badge variant="outline">Backend source</Badge>
-                )}
-                {latestJob && <StatusBadge status={latestJob.healthStatus} />}
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {sourceDescription(datasource)}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Updated {formatDate(datasource.updatedAt)}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {latestJob && (
+    <div className="flex shrink-0 flex-wrap items-center gap-2">
+      {(isAggregate || isUpload) && (
+        <Button onClick={() => onCreateIngestion()}>
+          <UploadCloudIcon data-icon="inline-start" />
+          Upload files
+        </Button>
+      )}
+      <div className="hidden flex-wrap items-center gap-2 sm:flex">
+        {latestJob && (
+          <Button
+            variant="outline"
+            onClick={() => onViewJobs(latestJob.job_id)}
+          >
+            View jobs
+          </Button>
+        )}
+        {canReconnect && connector && profile && (
+          <Button
+            variant="outline"
+            onClick={() =>
+              onCreateIngestion({ connector, profileId: profile.id })
+            }
+          >
+            Reconnect
+          </Button>
+        )}
+        {profile && !isUpload && (
+          <>
+            <Separator orientation="vertical" className="mx-1 h-6" />
+            <Button
+              variant="destructive"
+              onClick={() => onForgetProfile(profile)}
+            >
+              <Trash2Icon data-icon="inline-start" />
+              Forget settings
+            </Button>
+          </>
+        )}
+      </div>
+      {hasSecondaryActions && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
               <Button
+                className="sm:hidden"
                 variant="outline"
+                size="icon"
+                aria-label="More source actions"
+              />
+            }
+          >
+            <EllipsisIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-48">
+            {latestJob && (
+              <DropdownMenuItem
                 onClick={() => onViewJobs(latestJob.job_id)}
               >
                 View jobs
-              </Button>
+              </DropdownMenuItem>
             )}
-            {datasource.type === "UPLOAD" ? (
-              <Button onClick={() => onCreateIngestion()}>
-                <PlusIcon data-icon="inline-start" />
-                Upload files
-              </Button>
-            ) : connector ? (
-              <Button
-                variant="outline"
+            {canReconnect && connector && profile && (
+              <DropdownMenuItem
                 onClick={() =>
-                  onCreateIngestion({
-                    connector,
-                    ...(profile ? { profileId: profile.id } : {}),
-                  })
+                  onCreateIngestion({ connector, profileId: profile.id })
                 }
               >
-                Reconnect / import
-              </Button>
-            ) : null}
-            {profile && datasource.type !== "UPLOAD" && (
-              <Button
-                variant="destructive"
-                onClick={() => onForgetProfile(profile)}
-              >
-                <Trash2Icon data-icon="inline-start" />
-                Forget settings
-              </Button>
+                Reconnect
+              </DropdownMenuItem>
             )}
-          </div>
-        </div>
-      </header>
-      <Separator />
-      {files.error && (
-        <Alert variant="destructive" className="m-4">
-          <AlertTitle>Unable to load source files</AlertTitle>
-          <AlertDescription>{files.error}</AlertDescription>
-          <Button
-            className="mt-3"
-            variant="outline"
-            size="sm"
-            onClick={files.refresh}
-          >
-            Retry
-          </Button>
-        </Alert>
-      )}
-      {files.result?.warning && (
-        <Alert className="m-4">
-          <AlertTitle>Processing status unavailable</AlertTitle>
-          <AlertDescription>{files.result.warning}</AlertDescription>
-        </Alert>
-      )}
-      {!files.error && (
-        <DataSourceFilesTable
-          result={files.result}
-          loading={files.loading}
-          search={files.search}
-          page={files.page}
-          pageSize={files.pageSize}
-          sortBy={files.sortBy}
-          sortOrder={files.sortOrder}
-          onSearchChange={files.setSearch}
-          onPageChange={files.setPage}
-          onPageSizeChange={files.setPageSize}
-          onSortChange={files.changeSort}
-          onInspect={setInspectedFile}
-          onCreateIngestion={
-            datasource.type === "UPLOAD"
-              ? () => onCreateIngestion()
-              : connector
-                ? () =>
-                    onCreateIngestion({
-                      connector,
-                      ...(profile ? { profileId: profile.id } : {}),
-                    })
-                : undefined
-          }
-        />
+            {profile && !isUpload && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => onForgetProfile(profile)}
+                >
+                  <Trash2Icon />
+                  Forget settings
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   );
 }
 
 export function DataSourcesWorkspace({
+  workspaceId,
   datasources,
   files,
   jobs,
   profiles,
   loading,
+  healthFilter,
   profileError,
   onCreateIngestion,
   onDeleteProfile,
+  onHealthFilterChange,
   onViewJobs,
 }: DataSourcesWorkspaceProps) {
-  const inventorySource = useMemo<DataSource | null>(() => {
-    if (datasources.length > 0 || files.length === 0) return null;
+  const inventorySource = useMemo<DataSource>(() => {
     const newestFile = [...files].sort((left, right) => {
       const leftTime = left.lastModified ? Date.parse(left.lastModified) : 0;
       const rightTime = right.lastModified ? Date.parse(right.lastModified) : 0;
@@ -470,70 +400,236 @@ export function DataSourcesWorkspace({
     })[0];
     return {
       id: ORGANIZATION_FILES_SOURCE_ID,
-      organizationId: files[0]?.organizationId ?? "",
-      workspaceId: files[0]?.workspaceId ?? "",
-      name: "Stored objects",
+      organizationId:
+        files[0]?.organizationId ?? datasources[0]?.organizationId ?? "",
+      workspaceId,
+      name: "All workspace files",
       type: "organization_files",
       createdAt: newestFile?.lastModified ?? new Date(0).toISOString(),
       updatedAt: newestFile?.lastModified ?? new Date(0).toISOString(),
     };
-  }, [datasources.length, files]);
-  const visibleSources = inventorySource ? [inventorySource] : datasources;
-  const preferredSource =
-    visibleSources.find((datasource) => datasource.type === "UPLOAD") ??
-    visibleSources[0] ??
-    null;
-  const [selectedId, setSelectedId] = useState(preferredSource?.id ?? "");
+  }, [datasources, files, workspaceId]);
+  const visibleSources = useMemo(
+    () => [inventorySource, ...datasources],
+    [datasources, inventorySource],
+  );
+  const [selectedId, setSelectedId] = useState(ORGANIZATION_FILES_SOURCE_ID);
+  const [query, setQuery] = useState<DataSourceFilesQuery>(DEFAULT_QUERY);
+  const [inspectedFile, setInspectedFile] = useState<DataFile | null>(null);
   const [forgetProfile, setForgetProfile] =
     useState<SavedDataSourceProfile | null>(null);
+  const [forgetPending, setForgetPending] = useState(false);
+  const sourceCounts = useDataSourceFileCounts(datasources);
   const selectedSource =
     visibleSources.find((datasource) => datasource.id === selectedId) ??
-    preferredSource;
+    inventorySource;
+  const isAggregate = selectedSource.id === ORGANIZATION_FILES_SOURCE_ID;
+  const backendFiles = useDataSourceFiles(
+    isAggregate ? null : selectedSource.id,
+    selectedSource.workspaceId,
+    query,
+  );
+
+  const aggregateResult = useMemo<DataSourceFilesPage>(() => {
+    const normalizedSearch = query.search.trim().toLowerCase();
+    const statusScopedFiles =
+      healthFilter === null || healthFilter === "all"
+        ? files
+        : files.filter((file) => file.status === healthFilter);
+    const filteredFiles = normalizedSearch
+      ? statusScopedFiles.filter((file) =>
+          [file.name, file.key].some((value) =>
+            value.toLowerCase().includes(normalizedSearch),
+          ),
+        )
+      : statusScopedFiles;
+    const sortedFiles = sortFiles(filteredFiles, query.sortBy, query.sortOrder);
+    const totalPages = Math.ceil(sortedFiles.length / query.pageSize);
+    const safePage = Math.min(query.page, Math.max(1, totalPages || 1));
+    const startIndex = (safePage - 1) * query.pageSize;
+    return {
+      organizationId: inventorySource.organizationId,
+      datasourceId: inventorySource.id,
+      bucket: files[0]?.bucket ?? "",
+      files: sortedFiles.slice(startIndex, startIndex + query.pageSize),
+      page: safePage,
+      pageSize: query.pageSize,
+      totalCount: sortedFiles.length,
+      totalPages,
+      totalUnfilteredCount: files.length,
+      warning: null,
+    };
+  }, [files, healthFilter, inventorySource, query]);
+  const result = isAggregate ? aggregateResult : backendFiles.result;
+  const tableLoading = isAggregate ? loading : backendFiles.loading;
+  const linkedJobs = useMemo(
+    () =>
+      jobs
+        .filter((job) => job.datasource_id === selectedSource.id)
+        .sort(
+          (left, right) =>
+            Date.parse(right.updated_at) - Date.parse(left.updated_at),
+        ),
+    [jobs, selectedSource.id],
+  );
+  const latestJob = linkedJobs[0] ?? null;
+  const profile = isAggregate
+    ? null
+    : findReconnectProfile(selectedSource, profiles, jobs);
+  const selectedConnector =
+    selectedSource.type === "s3" || selectedSource.type === "snowflake"
+      ? selectedSource.type
+      : null;
+
+  const countFor = (datasource: DataSource): DataSourceFileCountState => {
+    if (datasource.id === ORGANIZATION_FILES_SOURCE_ID) {
+      return { count: files.length, loading, error: false };
+    }
+    if (
+      datasource.id === selectedSource.id &&
+      backendFiles.result?.datasourceId === datasource.id
+    ) {
+      return {
+        count: backendFiles.result.totalUnfilteredCount,
+        loading: false,
+        error: false,
+      };
+    }
+    return (
+      sourceCounts[datasource.id] ?? {
+        count: null,
+        loading: true,
+        error: false,
+      }
+    );
+  };
+
+  const selectSource = (datasourceId: string) => {
+    setSelectedId(datasourceId);
+    setInspectedFile(null);
+    setQuery((current) => ({ ...current, page: 1 }));
+    onHealthFilterChange(
+      datasourceId === ORGANIZATION_FILES_SOURCE_ID ? "all" : null,
+    );
+  };
+  const changeSort = (field: DataSourceFileSortField) => {
+    setQuery((current) => ({
+      ...current,
+      page: 1,
+      sortBy: field,
+      sortOrder:
+        current.sortBy === field && current.sortOrder === "asc"
+          ? "desc"
+          : "asc",
+    }));
+  };
 
   useEffect(() => {
-    if (!selectedSource && preferredSource) setSelectedId(preferredSource.id);
-    if (selectedSource && selectedId !== selectedSource.id)
-      setSelectedId(selectedSource.id);
-  }, [preferredSource, selectedId, selectedSource]);
+    setSelectedId(ORGANIZATION_FILES_SOURCE_ID);
+    setQuery(DEFAULT_QUERY);
+    setInspectedFile(null);
+  }, [workspaceId]);
+  useEffect(() => {
+    if (!visibleSources.some((datasource) => datasource.id === selectedId)) {
+      setSelectedId(ORGANIZATION_FILES_SOURCE_ID);
+      setQuery((current) => ({ ...current, page: 1 }));
+      setInspectedFile(null);
+    }
+  }, [selectedId, visibleSources]);
+  useEffect(() => {
+    if (
+      healthFilter !== null &&
+      selectedId !== ORGANIZATION_FILES_SOURCE_ID
+    ) {
+      setSelectedId(ORGANIZATION_FILES_SOURCE_ID);
+      setQuery((current) => ({ ...current, page: 1 }));
+      setInspectedFile(null);
+    }
+  }, [healthFilter, selectedId]);
+  useEffect(() => {
+    if (!result) return;
+    const safePage = Math.min(
+      query.page,
+      Math.max(1, result.totalPages || 1),
+    );
+    if (safePage !== query.page) {
+      setQuery((current) => ({ ...current, page: safePage }));
+    }
+  }, [query.page, result]);
+
+  const confirmForget = () => {
+    if (!forgetProfile || forgetPending) return;
+    setForgetPending(true);
+    try {
+      onDeleteProfile(forgetProfile.id);
+      toast.success(`Reconnect settings for ${forgetProfile.name} forgotten.`);
+      setForgetProfile(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to forget reconnect settings.",
+      );
+    } finally {
+      setForgetPending(false);
+    }
+  };
 
   return (
-    <div className="grid min-w-0 xl:grid-cols-[300px_minmax(0,1fr)]">
-      <aside
-        className="border-b p-4 xl:border-b-0 xl:border-r"
-        aria-label="Data sources"
-      >
-        <div className="flex items-center justify-between gap-3 px-1">
-          <div>
-            <h3 className="font-semibold">Data sources</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {visibleSources.length} available
-            </p>
-          </div>
+    <div className="min-w-0">
+      {!inspectedFile && (
+        <div className="border-b p-4 lg:hidden">
+        <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button size="icon-sm" aria-label="Add external source" />
+                <Button
+                  variant="outline"
+                  className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-3 px-3 py-2 text-left"
+                  aria-label={`Select data source. Current source: ${displayName(selectedSource)}`}
+                />
               }
             >
-              <PlusIcon />
+              <SourceIdentity
+                datasource={selectedSource}
+                count={countFor(selectedSource)}
+                selected
+              />
+              <ChevronDownIcon className="size-4 shrink-0" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent
+              align="start"
+              className="w-[var(--anchor-width)] min-w-72 max-w-[calc(100vw-2rem)] p-1.5"
+            >
               <DropdownMenuGroup>
-                <DropdownMenuItem
-                  onClick={() => onCreateIngestion({ connector: "s3" })}
-                >
-                  <CloudIcon />
-                  Amazon S3
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onCreateIngestion({ connector: "snowflake" })}
-                >
-                  <SnowflakeIcon />
-                  Snowflake
-                </DropdownMenuItem>
+                <DropdownMenuLabel>Data sources</DropdownMenuLabel>
+                {visibleSources.map((datasource) => {
+                  const selected = datasource.id === selectedSource.id;
+                  return (
+                    <DropdownMenuItem
+                      key={datasource.id}
+                      className="min-h-12 min-w-0 gap-3 px-2.5 py-2"
+                      onClick={() => selectSource(datasource.id)}
+                      aria-label={`Select ${displayName(datasource)}`}
+                    >
+                      <SourceIdentity
+                        datasource={datasource}
+                        count={countFor(datasource)}
+                        selected={selected}
+                      />
+                      {selected && (
+                        <CheckIcon
+                          className="size-4 shrink-0 text-primary"
+                          aria-label="Selected source"
+                        />
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+          <AddSourceMenu onCreateIngestion={onCreateIngestion} />
         </div>
         {profileError && (
           <Alert variant="destructive" className="mt-3">
@@ -541,92 +637,213 @@ export function DataSourcesWorkspace({
             <AlertDescription>{profileError}</AlertDescription>
           </Alert>
         )}
-        <ScrollArea className="mt-4 max-h-[460px]">
-          <div className="flex flex-col gap-2 pr-2">
-            {visibleSources.map((datasource) => (
-              <Button
-                type="button"
-                variant="ghost"
-                key={datasource.id}
-                onClick={() => setSelectedId(datasource.id)}
-                aria-pressed={selectedSource?.id === datasource.id}
-                className={cn(
-                  "h-auto w-full items-center justify-start gap-3 rounded-xl border p-3 text-left",
-                  selectedSource?.id === datasource.id
-                    ? "border-primary/35 bg-primary/10"
-                    : "hover:bg-muted/50",
-                )}
-              >
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-primary">
-                  <SourceIcon datasource={datasource} className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <strong className="block truncate text-sm">
-                    {displayName(datasource)}
-                  </strong>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {sourceDescription(datasource)}
-                  </span>
-                </span>
-              </Button>
-            ))}
-          </div>
-        </ScrollArea>
-      </aside>
-      <section className="min-w-0">
-        {selectedSource?.id === ORGANIZATION_FILES_SOURCE_ID ? (
-          <OrganizationFilesDetail
-            datasource={selectedSource}
-            files={files}
-            onCreateIngestion={onCreateIngestion}
-          />
-        ) : selectedSource ? (
-          <SourceDetail
-            key={selectedSource.id}
-            datasource={selectedSource}
-            jobs={jobs}
-            profile={findReconnectProfile(selectedSource, profiles, jobs)}
-            onCreateIngestion={onCreateIngestion}
-            onForgetProfile={setForgetProfile}
-            onViewJobs={onViewJobs}
-          />
-        ) : (
-          <DataEmptyState
-            title={loading ? "Loading data sources" : "No data sources yet"}
-            description={
-              loading
-                ? "Reading organization data sources."
-                : "Upload files or connect an external source to begin."
-            }
-            actionLabel={loading ? undefined : "Data Ingestion"}
-            onAction={loading ? undefined : () => onCreateIngestion()}
-          />
+        </div>
+      )}
+
+      <div
+        className={cn(
+          "grid min-w-0",
+          !inspectedFile && "lg:grid-cols-[280px_minmax(0,1fr)]",
         )}
-      </section>
+      >
+        {!inspectedFile && (
+          <aside className="hidden border-r p-4 lg:block" aria-label="Data sources">
+          <div className="flex items-center justify-between gap-3 px-1">
+            <div>
+              <h3 className="text-sm font-semibold">Data sources</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {datasources.length.toLocaleString()} connected
+              </p>
+            </div>
+            <AddSourceMenu onCreateIngestion={onCreateIngestion} />
+          </div>
+          {profileError && (
+            <Alert variant="destructive" className="mt-3">
+              <AlertTitle>Reconnect settings unavailable</AlertTitle>
+              <AlertDescription>{profileError}</AlertDescription>
+            </Alert>
+          )}
+          <ScrollArea className="mt-4 max-h-[min(62dvh,36rem)]">
+            <div className="flex flex-col gap-2 pr-2">
+              {visibleSources.map((datasource) => {
+                const selected = selectedSource.id === datasource.id;
+                return (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    key={datasource.id}
+                    onClick={() => selectSource(datasource.id)}
+                    aria-pressed={selected}
+                    className={cn(
+                      "relative h-auto min-h-16 w-full justify-start gap-3 overflow-hidden rounded-lg border px-3 py-2.5 text-left",
+                      selected
+                        ? "border-primary/30 bg-accent text-accent-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-primary"
+                        : "border-transparent hover:border-border hover:bg-muted/50",
+                    )}
+                  >
+                    <SourceIdentity
+                      datasource={datasource}
+                      count={countFor(datasource)}
+                      selected={selected}
+                    />
+                  </Button>
+                );
+              })}
+            </div>
+          </ScrollArea>
+          </aside>
+        )}
+
+        <section className="min-w-0" aria-label="Selected data source files">
+          {inspectedFile ? (
+            <DataSourceFileInspector
+              datasource={selectedSource}
+              file={inspectedFile}
+              onBack={() => setInspectedFile(null)}
+            />
+          ) : (
+            <>
+              <header className="p-4 sm:p-5">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-muted text-primary">
+                      <SourceIcon
+                        datasource={selectedSource}
+                        className="size-5"
+                      />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="truncate text-lg font-semibold">
+                          {displayName(selectedSource)}
+                        </h3>
+                        <SourceCountBadge state={countFor(selectedSource)} />
+                        {!isAggregate && selectedSource.type === "UPLOAD" ? (
+                          <Badge variant="secondary">System source</Badge>
+                        ) : profile ? (
+                          <Badge variant="secondary">Reconnect saved</Badge>
+                        ) : !isAggregate ? (
+                          <Badge variant="outline">Backend source</Badge>
+                        ) : null}
+                        {latestJob && (
+                          <StatusBadge status={latestJob.healthStatus} />
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {sourceDescription(selectedSource)}
+                      </p>
+                      {!isAggregate && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Updated {formatDate(selectedSource.updatedAt)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <SourceActions
+                    datasource={selectedSource}
+                    latestJob={latestJob}
+                    profile={profile}
+                    onCreateIngestion={onCreateIngestion}
+                    onForgetProfile={setForgetProfile}
+                    onViewJobs={onViewJobs}
+                  />
+                </div>
+              </header>
+              <Separator />
+              {backendFiles.error && !isAggregate && (
+                <Alert variant="destructive" className="m-4">
+                  <AlertTitle>Unable to load source files</AlertTitle>
+                  <AlertDescription>{backendFiles.error}</AlertDescription>
+                  <Button
+                    className="mt-3"
+                    variant="outline"
+                    size="sm"
+                    onClick={backendFiles.refresh}
+                  >
+                    Retry
+                  </Button>
+                </Alert>
+              )}
+              {result?.warning && (
+                <Alert className="m-4">
+                  <AlertTitle>Processing status unavailable</AlertTitle>
+                  <AlertDescription>{result.warning}</AlertDescription>
+                </Alert>
+              )}
+              {(result || !backendFiles.error || isAggregate) && (
+                <DataSourceFilesTable
+                  result={result}
+                  loading={tableLoading}
+                  healthFilter={isAggregate ? healthFilter ?? "all" : "all"}
+                  search={query.search}
+                  page={result?.page ?? query.page}
+                  pageSize={query.pageSize}
+                  sortBy={query.sortBy}
+                  sortOrder={query.sortOrder}
+                  onSearchChange={(search) =>
+                    setQuery((current) => ({ ...current, search, page: 1 }))
+                  }
+                  onClearFilter={() => onHealthFilterChange("all")}
+                  onPageChange={(page) =>
+                    setQuery((current) => ({ ...current, page }))
+                  }
+                  onPageSizeChange={(pageSize) =>
+                    setQuery((current) => ({
+                      ...current,
+                      page: 1,
+                      pageSize,
+                    }))
+                  }
+                  onSortChange={changeSort}
+                  onInspect={setInspectedFile}
+                  onCreateIngestion={
+                    isAggregate || selectedSource.type === "UPLOAD"
+                      ? () => onCreateIngestion()
+                      : profile && selectedConnector
+                        ? () =>
+                            onCreateIngestion({
+                              connector: selectedConnector,
+                              profileId: profile.id,
+                            })
+                        : undefined
+                  }
+                />
+              )}
+            </>
+          )}
+        </section>
+      </div>
+
       <Dialog
         open={Boolean(forgetProfile)}
         onOpenChange={(open) => {
-          if (!open) setForgetProfile(null);
+          if (!open && !forgetPending) setForgetProfile(null);
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Forget reconnect settings?</DialogTitle>
             <DialogDescription>
-              This removes the saved non-secret settings for{" "}
-              {forgetProfile?.name} from this browser. The backend data source,
-              files and ingestion history remain available.
+              This removes the saved non-secret reconnect settings for{" "}
+              <strong>{forgetProfile?.name}</strong> from this browser. The
+              backend data source, files, and ingestion history remain
+              available.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter showCloseButton>
+          <DialogFooter>
+            <DialogClose
+              render={<Button variant="outline" disabled={forgetPending} />}
+            >
+              Cancel
+            </DialogClose>
             <Button
               variant="destructive"
-              onClick={() => {
-                if (forgetProfile) onDeleteProfile(forgetProfile.id);
-                setForgetProfile(null);
-              }}
+              disabled={forgetPending}
+              aria-busy={forgetPending}
+              onClick={confirmForget}
             >
-              Forget settings
+              <Trash2Icon data-icon="inline-start" />
+              {forgetPending ? "Forgetting…" : "Forget settings"}
             </Button>
           </DialogFooter>
         </DialogContent>

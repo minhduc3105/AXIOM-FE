@@ -3,40 +3,42 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import {
   AlertCircleIcon,
+  ArrowLeftIcon,
+  BracesIcon,
+  CopyIcon,
   FileSearchIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  PanelRightCloseIcon,
+  PanelRightOpenIcon,
   RefreshCwIcon,
-  ScanSearchIcon,
+  Rows3Icon,
 } from "lucide-react";
-import * as XLSX from "xlsx";
+import { useGroupRef, usePanelRef } from "react-resizable-panels";
+import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Toggle } from "@/components/ui/toggle";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
 import type {
   InlinePreview,
@@ -48,44 +50,161 @@ import type {
 import { getSourcePreviewKind } from "@/shared/types/document-results";
 import { RenderedBlockContent } from "./RenderedBlockContent";
 import { SourceBlockOverlay } from "./SourceBlockOverlay";
+import { SourceViewerToolbar } from "./SourceViewerToolbar";
 
 const PdfSourceViewer = lazy(() => import("./PdfSourceViewer"));
+const SpreadsheetSourceViewer = lazy(
+  () => import("./SpreadsheetSourceViewer"),
+);
+
+const EMPTY_BLOCKS: LayoutBlock[] = [];
+const DESKTOP_VIEWER_WIDTH = 960;
+
+export type DocumentInspectorContext = {
+  sourceLabel?: string;
+  statusLabel: string;
+  statusTone?: "neutral" | "success" | "processing" | "failed";
+  backLabel?: string;
+  onBack?: () => void;
+};
 
 type DocumentResultViewerProps = {
   file: ProcessingFile | null;
-  runId: string | null;
   preview: InspectorResource<InlinePreview>;
   parsing: InspectorResource<ParsedDocumentResult>;
   onRetryPreview: () => void;
   onRetryParsing: () => void;
+  context?: DocumentInspectorContext;
+  className?: string;
 };
 
 function getDisplayName(file: ProcessingFile) {
   return file.filename ?? file.key.split("/").filter(Boolean).pop() ?? file.key;
 }
 
+function useWideViewer(containerRef: React.RefObject<HTMLDivElement | null>) {
+  const [wide, setWide] = useState(false);
+
+  useLayoutEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const update = () => setWide(element.clientWidth >= DESKTOP_VIEWER_WIDTH);
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [containerRef]);
+
+  return wide;
+}
+
+function scrollElementWithin(
+  viewport: HTMLElement,
+  target: HTMLElement,
+  behavior: ScrollBehavior,
+) {
+  const viewportRect = viewport.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  viewport.scrollTo({
+    top:
+      viewport.scrollTop +
+      targetRect.top -
+      viewportRect.top -
+      viewport.clientHeight / 2 +
+      targetRect.height / 2,
+    left:
+      viewport.scrollLeft +
+      targetRect.left -
+      viewportRect.left -
+      viewport.clientWidth / 2 +
+      targetRect.width / 2,
+    behavior,
+  });
+}
+
+function reducedMotion() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 export function DocumentResultViewer({
   file,
-  runId,
   preview,
   parsing,
   onRetryPreview,
   onRetryParsing,
+  context,
+  className,
 }: DocumentResultViewerProps) {
-  const [activeComponentId, setActiveComponentId] = useState<string | null>(
-    null,
-  );
+  const containerRef = useRef<HTMLDivElement>(null);
+  const parsedViewportRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef(new Map<string, HTMLElement>());
+  const groupRef = useGroupRef();
+  const sourcePanelRef = usePanelRef();
+  const parsedPanelRef = usePanelRef();
+  const wide = useWideViewer(containerRef);
+  const blocks = parsing.data?.blocks ?? EMPTY_BLOCKS;
+
+  const [activeComponentId, setActiveComponentId] = useState<string | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [showBoxes, setShowBoxes] = useState(true);
   const [zoom, setZoom] = useState(1);
-  const cardRefs = useRef(new Map<string, HTMLElement>());
-  const blocks = parsing.data?.blocks ?? [];
+  const [compactPane, setCompactPane] = useState("source");
+  const [parsedMode, setParsedMode] = useState("rendered");
+  const [pageFilter, setPageFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [sourceCollapsed, setSourceCollapsed] = useState(false);
+  const [parsedCollapsed, setParsedCollapsed] = useState(false);
+
+  const pages = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          blocks
+            .map((block) => block.page)
+            .filter((page): page is number => page !== null),
+        ),
+      ).sort((left, right) => left - right),
+    [blocks],
+  );
+  const blockTypes = useMemo(
+    () =>
+      Array.from(new Set(blocks.map((block) => block.type))).sort((left, right) =>
+        left.localeCompare(right),
+      ),
+    [blocks],
+  );
+  const filteredBlocks = useMemo(
+    () =>
+      blocks.filter(
+        (block) =>
+          (pageFilter === "all" || block.page === Number(pageFilter)) &&
+          (typeFilter === "all" || block.type === typeFilter),
+      ),
+    [blocks, pageFilter, typeFilter],
+  );
 
   useEffect(() => {
     setActiveComponentId(null);
     setPageIndex(0);
+    setShowBoxes(true);
     setZoom(1);
-  }, [file?.key]);
+    setCompactPane("source");
+    setParsedMode("rendered");
+    setPageFilter("all");
+    setTypeFilter("all");
+    setSourceCollapsed(false);
+    setParsedCollapsed(false);
+    const frame = window.requestAnimationFrame(() => {
+      sourcePanelRef.current?.expand();
+      parsedPanelRef.current?.expand();
+      groupRef.current?.setLayout({ source: 52, parsed: 48 });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [file?.key, groupRef, parsedPanelRef, sourcePanelRef]);
 
   useEffect(() => {
     if (!blocks.length) {
@@ -101,33 +220,70 @@ export function DocumentResultViewer({
     }
   }, [activeComponentId, blocks]);
 
-  const activateFromSource = useCallback((componentId: string) => {
-    setActiveComponentId(componentId);
-    cardRefs.current
-      .get(componentId)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  useEffect(() => {
+    if (!filteredBlocks.length) return;
+    if (
+      activeComponentId &&
+      filteredBlocks.some((block) => block.component_id === activeComponentId)
+    ) {
+      return;
+    }
+    const first = filteredBlocks[0];
+    setActiveComponentId(first.component_id);
+    if (first.page !== null) setPageIndex(first.page);
+  }, [activeComponentId, filteredBlocks]);
+
+  const revealParsedBlock = useCallback((componentId: string) => {
+    window.requestAnimationFrame(() => {
+      const viewport = parsedViewportRef.current;
+      const card = cardRefs.current.get(componentId);
+      if (!viewport || !card) return;
+      scrollElementWithin(viewport, card, reducedMotion() ? "auto" : "smooth");
+    });
   }, []);
+
+  const activateFromSource = useCallback(
+    (componentId: string) => {
+      const block = blocks.find((item) => item.component_id === componentId);
+      setActiveComponentId(componentId);
+      if (block?.page !== null && block?.page !== undefined) {
+        setPageIndex(block.page);
+      }
+      setPageFilter("all");
+      setTypeFilter("all");
+      setParsedMode("rendered");
+      if (!wide) setCompactPane("parsed");
+      revealParsedBlock(componentId);
+    },
+    [blocks, revealParsedBlock, wide],
+  );
 
   const activateFromCard = useCallback((block: LayoutBlock) => {
     setActiveComponentId(block.component_id);
     if (block.page !== null) setPageIndex(block.page);
   }, []);
 
+  const collapseSource = () => {
+    parsedPanelRef.current?.expand();
+    sourcePanelRef.current?.collapse();
+  };
+  const collapseParsed = () => {
+    sourcePanelRef.current?.expand();
+    parsedPanelRef.current?.collapse();
+  };
+
   if (!file) {
     return (
-      <Card className="min-h-[520px] xl:col-span-2 xl:min-h-0">
+      <Card className={cn("min-h-[520px] min-w-0", className)}>
         <CardContent className="grid flex-1 place-items-center p-8 text-center">
           <div className="flex max-w-sm flex-col items-center gap-3">
             <span className="grid size-12 place-items-center rounded-lg bg-muted text-primary">
               <FileSearchIcon />
             </span>
             <div>
-              <h3 className="text-lg font-semibold">
-                No indexed result selected
-              </h3>
+              <h3 className="text-lg font-semibold">No indexed result selected</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Select an indexed file to compare its source with parsed
-                content.
+                Select an indexed file to compare its source with parsed content.
               </p>
             </div>
           </div>
@@ -136,64 +292,285 @@ export function DocumentResultViewer({
     );
   }
 
-  const sourceKind = getSourcePreviewKind(file);
+  const sourcePane = (
+    <InspectorPane
+      title="Source preview"
+      description="Original file"
+      onCollapse={wide ? collapseSource : undefined}
+      collapseLabel="Hide source preview"
+      collapseIcon={<PanelLeftCloseIcon />}
+      restoreAction={
+        parsedCollapsed
+          ? {
+              label: "Show parsed content",
+              icon: <PanelRightOpenIcon />,
+              onClick: () => parsedPanelRef.current?.expand(),
+            }
+          : undefined
+      }
+    >
+      <SourcePane
+        file={file}
+        preview={preview}
+        blocks={blocks}
+        activeComponentId={activeComponentId}
+        pageIndex={pageIndex}
+        showBoxes={showBoxes}
+        zoom={zoom}
+        onActivate={activateFromSource}
+        onPageIndexChange={setPageIndex}
+        onShowBoxesChange={setShowBoxes}
+        onZoomChange={setZoom}
+        onRetry={onRetryPreview}
+      />
+    </InspectorPane>
+  );
+
+  const parsedPane = (
+    <InspectorPane
+      title="Parsed content"
+      description="Rendered blocks and normalized JSON"
+      onCollapse={wide ? collapseParsed : undefined}
+      collapseLabel="Hide parsed content"
+      collapseIcon={<PanelRightCloseIcon />}
+      restoreAction={
+        sourceCollapsed
+          ? {
+              label: "Show source preview",
+              icon: <PanelLeftOpenIcon />,
+              onClick: () => sourcePanelRef.current?.expand(),
+            }
+          : undefined
+      }
+    >
+      <ParsedPane
+        parsing={parsing}
+        blocks={blocks}
+        filteredBlocks={filteredBlocks}
+        pages={pages}
+        blockTypes={blockTypes}
+        pageFilter={pageFilter}
+        typeFilter={typeFilter}
+        parsedMode={parsedMode}
+        activeComponentId={activeComponentId}
+        cardRefs={cardRefs}
+        viewportRef={parsedViewportRef}
+        onPageFilterChange={setPageFilter}
+        onTypeFilterChange={setTypeFilter}
+        onModeChange={setParsedMode}
+        onActivate={activateFromCard}
+        onRetry={onRetryParsing}
+      />
+    </InspectorPane>
+  );
 
   return (
-    <>
-      <Card
-        className="h-full min-h-[620px] min-w-0 gap-0 py-0 xl:min-h-0"
-        aria-label="Source document inspector"
-      >
-        <CardHeader className="min-h-16 border-b py-3">
-          <CardTitle className="truncate">{getDisplayName(file)}</CardTitle>
-          <CardAction className="flex flex-wrap items-center justify-end gap-2">
-            {sourceKind === "image" && (
-              <Toggle
-                variant="outline"
-                size="sm"
-                pressed={showBoxes}
-                onPressedChange={setShowBoxes}
-                aria-label="Toggle parsed layout boxes"
-              >
-                <ScanSearchIcon />
-                Boxes
-              </Toggle>
-            )}
-            <Badge variant="secondary">{blocks.length} blocks</Badge>
-            <Badge>Indexed</Badge>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-          <SourcePane
-            file={file}
-            preview={preview}
-            blocks={blocks}
-            activeComponentId={activeComponentId}
-            pageIndex={pageIndex}
-            showBoxes={showBoxes}
-            zoom={zoom}
-            onActivate={activateFromSource}
-            onPageIndexChange={setPageIndex}
-            onShowBoxesChange={setShowBoxes}
-            onZoomChange={setZoom}
-            onRetry={onRetryPreview}
-          />
-        </CardContent>
-      </Card>
+    <section
+      ref={containerRef}
+      className={cn(
+        "flex h-full min-h-[620px] min-w-0 flex-col overflow-hidden rounded-lg border bg-card shadow-sm",
+        className,
+      )}
+      aria-label="Document comparison workspace"
+    >
+      <InspectorHeader file={file} context={context} parsing={parsing} />
 
-      <Card
-        className="h-full min-h-[620px] min-w-0 gap-0 py-0 xl:min-h-0"
-        aria-label="Parsed content inspector"
-      >
-        <ParsedPane
-          parsing={parsing}
-          activeComponentId={activeComponentId}
-          cardRefs={cardRefs}
-          onActivate={activateFromCard}
-          onRetry={onRetryParsing}
-        />
-      </Card>
-    </>
+      <div className="min-h-0 min-w-0 flex-1">
+        {wide ? (
+          <ResizablePanelGroup
+            groupRef={groupRef}
+            orientation="horizontal"
+            className="min-h-0 min-w-0"
+          >
+            <ResizablePanel
+              id="source"
+              panelRef={sourcePanelRef}
+              defaultSize="52%"
+              minSize="35%"
+              maxSize="65%"
+              collapsible
+              collapsedSize={0}
+              onResize={(size) => setSourceCollapsed(size.inPixels <= 1)}
+            >
+              {sourcePane}
+            </ResizablePanel>
+            <ResizableHandle
+              withHandle
+              aria-label="Resize source and parsed content panels"
+            />
+            <ResizablePanel
+              id="parsed"
+              panelRef={parsedPanelRef}
+              defaultSize="48%"
+              minSize="35%"
+              maxSize="65%"
+              collapsible
+              collapsedSize={0}
+              onResize={(size) => setParsedCollapsed(size.inPixels <= 1)}
+            >
+              {parsedPane}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        ) : (
+          <Tabs
+            value={compactPane}
+            onValueChange={setCompactPane}
+            className="h-full min-h-0 gap-0"
+          >
+            <div className="border-b px-3 py-2">
+              <TabsList className="w-full" aria-label="Document comparison views">
+                <TabsTrigger value="source">Source</TabsTrigger>
+                <TabsTrigger value="parsed">Parsed content</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="source" keepMounted className="m-0 min-h-0 overflow-hidden">
+              {sourcePane}
+            </TabsContent>
+            <TabsContent value="parsed" keepMounted className="m-0 min-h-0 overflow-hidden">
+              {parsedPane}
+            </TabsContent>
+          </Tabs>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function InspectorHeader({
+  file,
+  context,
+  parsing,
+}: {
+  file: ProcessingFile;
+  context?: DocumentInspectorContext;
+  parsing: InspectorResource<ParsedDocumentResult>;
+}) {
+  const blockLabel = parsing.data
+    ? `${parsing.data.blocks.length.toLocaleString()} blocks`
+    : parsing.status === "loading"
+      ? "Loading blocks"
+      : parsing.status === "error"
+        ? "Blocks unavailable"
+        : "No blocks";
+  const statusTone = context?.statusTone ?? "neutral";
+
+  return (
+    <header className="sticky top-0 z-20 flex min-h-16 shrink-0 items-center gap-3 border-b bg-card px-3 py-2 sm:px-4">
+      {context?.onBack && (
+        <Button variant="ghost" size="sm" type="button" onClick={context.onBack}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          <span className="max-sm:sr-only">{context.backLabel ?? "Back"}</span>
+        </Button>
+      )}
+      <div className="min-w-0 flex-1">
+        <Tooltip>
+          <TooltipTrigger
+            render={<h2 className="truncate text-sm font-semibold" tabIndex={0} />}
+          >
+            {getDisplayName(file)}
+          </TooltipTrigger>
+          <TooltipContent>{getDisplayName(file)}</TooltipContent>
+        </Tooltip>
+        {context?.sourceLabel && (
+          <p className="truncate text-xs text-muted-foreground">
+            {context.sourceLabel}
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <Badge variant="secondary" className="max-sm:hidden">
+          {blockLabel}
+        </Badge>
+        <Badge
+          variant="secondary"
+          className="sm:hidden"
+          aria-label={blockLabel}
+        >
+          {parsing.data?.blocks.length ?? "—"}
+        </Badge>
+        <Badge
+          variant="outline"
+          className={cn(
+            statusTone === "success" && "border-success/30 bg-success/10 text-success",
+            statusTone === "processing" && "border-info/30 bg-info/10 text-info",
+            statusTone === "failed" &&
+              "border-destructive/30 bg-destructive/10 text-destructive",
+          )}
+        >
+          {context?.statusLabel ?? "Indexed"}
+        </Badge>
+      </div>
+    </header>
+  );
+}
+
+function InspectorPane({
+  title,
+  description,
+  children,
+  onCollapse,
+  collapseLabel,
+  collapseIcon,
+  restoreAction,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  onCollapse?: () => void;
+  collapseLabel: string;
+  collapseIcon: React.ReactNode;
+  restoreAction?: { label: string; icon: React.ReactNode; onClick: () => void };
+}) {
+  return (
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <header className="flex min-h-14 shrink-0 items-center gap-3 border-b px-3 py-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-semibold">{title}</h3>
+          <p className="truncate text-xs text-muted-foreground">{description}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {restoreAction && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    type="button"
+                    aria-label={restoreAction.label}
+                    onClick={restoreAction.onClick}
+                  />
+                }
+              >
+                {restoreAction.icon}
+              </TooltipTrigger>
+              <TooltipContent>{restoreAction.label}</TooltipContent>
+            </Tooltip>
+          )}
+          {onCollapse && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    type="button"
+                    aria-label={collapseLabel}
+                    onClick={onCollapse}
+                  />
+                }
+              >
+                {collapseIcon}
+              </TooltipTrigger>
+              <TooltipContent>{collapseLabel}</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      </header>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -214,360 +591,383 @@ type SourcePaneProps = {
 
 function SourcePane(props: SourcePaneProps) {
   const kind = getSourcePreviewKind(props.file);
-  const [imageError, setImageError] = useState(false);
-  useEffect(() => setImageError(false), [props.preview.data?.url]);
-  return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-foreground">
-      {kind === "unsupported" ? (
-        <div className="grid min-h-[420px] flex-1 place-items-center p-8">
-          <Alert className="max-w-md">
-            <AlertTitle>Preview unavailable</AlertTitle>
-            <AlertDescription>
-              Source preview is available for PDF, PNG, JPEG, and XLSX files.
-              Parsed content remains available beside it.
-            </AlertDescription>
-          </Alert>
-        </div>
-      ) : props.preview.status === "loading" && !props.preview.data ? (
-        <div className="grid min-h-[420px] flex-1 place-items-center p-6">
-          <div className="flex w-full max-w-md flex-col gap-3">
-            <Skeleton className="h-10" />
-            <Skeleton className="h-[360px]" />
-          </div>
-        </div>
-      ) : props.preview.status === "error" && !props.preview.data ? (
-        <ResourceError message={props.preview.error} onRetry={props.onRetry} />
-      ) : props.preview.data && kind === "pdf" ? (
-        <Suspense
-          fallback={<SourceLoadingState label="Loading PDF viewer..." />}
-        >
-          <PdfSourceViewer
-            url={props.preview.data.url}
-            fileName={getDisplayName(props.file)}
-            blocks={props.blocks}
-            activeComponentId={props.activeComponentId}
-            pageIndex={props.pageIndex}
-            showBoxes={props.showBoxes}
-            zoom={props.zoom}
-            onActivate={props.onActivate}
-            onPageIndexChange={props.onPageIndexChange}
-            onShowBoxesChange={props.onShowBoxesChange}
-            onZoomChange={props.onZoomChange}
-          />
-        </Suspense>
-      ) : props.preview.data && kind === "xlsx" ? (
+  const expired = Boolean(
+    props.preview.data && props.preview.data.expiresAt <= Date.now(),
+  );
+
+  if (kind === "unsupported") {
+    return (
+      <div className="grid min-h-0 flex-1 place-items-center p-6">
+        <Alert className="max-w-md">
+          <FileSearchIcon />
+          <AlertTitle>Unsupported preview format</AlertTitle>
+          <AlertDescription>
+            Browser preview is available for PDF, PNG, JPEG, and XLSX files.
+            Parsed content remains available.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (props.preview.status === "loading" && !props.preview.data) {
+    return <SourceLoadingState label="Preparing source preview…" />;
+  }
+
+  if (expired || (props.preview.status === "error" && !props.preview.data)) {
+    return (
+      <ResourceError
+        title={expired ? "Preview link expired" : "Preview failed"}
+        message={
+          expired
+            ? "The secure preview link expired. Request a fresh link to continue."
+            : (props.preview.error ?? "Unable to load the source preview.")
+        }
+        onRetry={props.onRetry}
+      />
+    );
+  }
+
+  if (!props.preview.data) return null;
+
+  if (kind === "pdf") {
+    return (
+      <Suspense fallback={<SourceLoadingState label="Loading PDF viewer…" />}>
+        <PdfSourceViewer
+          url={props.preview.data.url}
+          fileName={getDisplayName(props.file)}
+          blocks={props.blocks}
+          activeComponentId={props.activeComponentId}
+          pageIndex={props.pageIndex}
+          showBoxes={props.showBoxes}
+          zoom={props.zoom}
+          onActivate={props.onActivate}
+          onPageIndexChange={props.onPageIndexChange}
+          onShowBoxesChange={props.onShowBoxesChange}
+          onZoomChange={props.onZoomChange}
+          onRetry={props.onRetry}
+        />
+      </Suspense>
+    );
+  }
+
+  if (kind === "xlsx") {
+    return (
+      <Suspense fallback={<SourceLoadingState label="Loading spreadsheet viewer…" />}>
         <SpreadsheetSourceViewer
           url={props.preview.data.url}
           fileName={getDisplayName(props.file)}
-        />
-      ) : props.preview.data && imageError ? (
-        <ResourceError
-          message="The signed image preview could not be loaded."
           onRetry={props.onRetry}
         />
-      ) : props.preview.data ? (
-        <div className="min-h-[420px] flex-1 overflow-auto p-4">
-          <div className="relative mx-auto w-fit max-w-full overflow-hidden bg-white shadow-2xl">
-            <img
-              className="block h-auto max-h-[calc(100dvh-180px)] max-w-full"
-              src={props.preview.data.url}
-              alt={`Source preview for ${getDisplayName(props.file)}`}
-              onError={() => setImageError(true)}
-            />
-            <SourceBlockOverlay
-              blocks={props.blocks.filter((block) => block.page === 0)}
-              allBlocks={props.blocks}
-              activeComponentId={props.activeComponentId}
-              visible={props.showBoxes}
-              onActivate={props.onActivate}
-            />
-          </div>
+      </Suspense>
+    );
+  }
+
+  return (
+    <ImageSourceViewer
+      url={props.preview.data.url}
+      fileName={getDisplayName(props.file)}
+      blocks={props.blocks}
+      activeComponentId={props.activeComponentId}
+      showBoxes={props.showBoxes}
+      zoom={props.zoom}
+      onActivate={props.onActivate}
+      onShowBoxesChange={props.onShowBoxesChange}
+      onZoomChange={props.onZoomChange}
+      onRetry={props.onRetry}
+    />
+  );
+}
+
+function ImageSourceViewer({
+  url,
+  fileName,
+  blocks,
+  activeComponentId,
+  showBoxes,
+  zoom,
+  onActivate,
+  onShowBoxesChange,
+  onZoomChange,
+  onRetry,
+}: {
+  url: string;
+  fileName: string;
+  blocks: LayoutBlock[];
+  activeComponentId: string | null;
+  showBoxes: boolean;
+  zoom: number;
+  onActivate: (componentId: string) => void;
+  onShowBoxesChange: (visible: boolean) => void;
+  onZoomChange: (zoom: number) => void;
+  onRetry: () => void;
+}) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => setImageError(false), [url]);
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || !activeComponentId) return;
+    const target = Array.from(
+      viewport.querySelectorAll<HTMLElement>("[data-block-id]"),
+    ).find((element) => element.dataset.blockId === activeComponentId);
+    if (!target) return;
+    scrollElementWithin(viewport, target, reducedMotion() ? "auto" : "smooth");
+  }, [activeComponentId, zoom]);
+
+  if (imageError) {
+    return (
+      <ResourceError
+        title="Image preview failed"
+        message="The signed image preview could not be rendered."
+        onRetry={onRetry}
+      />
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-muted/30">
+      <SourceViewerToolbar
+        positionLabel="1 / 1"
+        previousDisabled
+        nextDisabled
+        onPrevious={() => undefined}
+        onNext={() => undefined}
+        zoom={zoom}
+        zoomOutDisabled={zoom <= 0.65}
+        zoomInDisabled={zoom >= 1.75}
+        onZoomOut={() =>
+          onZoomChange(Math.max(0.65, Number((zoom - 0.15).toFixed(2))))
+        }
+        onZoomIn={() =>
+          onZoomChange(Math.min(1.75, Number((zoom + 0.15).toFixed(2))))
+        }
+        onFitWidth={() => onZoomChange(1)}
+        onResetZoom={() => onZoomChange(1)}
+        showBoxes={showBoxes}
+        onShowBoxesChange={onShowBoxesChange}
+      />
+      <div ref={viewportRef} className="min-h-0 flex-1 overflow-auto p-4">
+        <div
+          className="relative mx-auto w-fit max-w-none overflow-hidden border bg-background shadow-sm"
+          style={{ width: `${zoom * 100}%`, minWidth: zoom > 1 ? "100%" : undefined }}
+        >
+          <img
+            className="block h-auto w-full"
+            src={url}
+            alt={`Source preview for ${fileName}`}
+            onError={() => setImageError(true)}
+          />
+          <SourceBlockOverlay
+            blocks={blocks.filter((block) => block.page === 0)}
+            allBlocks={blocks}
+            activeComponentId={activeComponentId}
+            visible={showBoxes}
+            onActivate={onActivate}
+          />
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
 
 type ParsedPaneProps = {
   parsing: InspectorResource<ParsedDocumentResult>;
+  blocks: LayoutBlock[];
+  filteredBlocks: LayoutBlock[];
+  pages: number[];
+  blockTypes: string[];
+  pageFilter: string;
+  typeFilter: string;
+  parsedMode: string;
   activeComponentId: string | null;
   cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+  viewportRef: React.RefObject<HTMLDivElement | null>;
+  onPageFilterChange: (value: string) => void;
+  onTypeFilterChange: (value: string) => void;
+  onModeChange: (value: string) => void;
   onActivate: (block: LayoutBlock) => void;
   onRetry: () => void;
 };
 
-type SpreadsheetPreviewState =
-  | { status: "loading"; data: null; error: null }
-  | {
-      status: "ready";
-      data: {
-        sheetName: string;
-        sheetCount: number;
-        columns: string[];
-        rows: string[][];
-      };
-      error: null;
-    }
-  | { status: "error"; data: null; error: string };
-
-function normalizeSheetRows(rows: string[][], width: number) {
-  return rows.map((row) =>
-    Array.from({ length: width }, (_, index) => row[index] ?? ""),
-  );
-}
-
-async function parseSpreadsheetPreview(
-  url: string,
-  signal: AbortSignal,
-): Promise<Extract<SpreadsheetPreviewState, { status: "ready" }>["data"]> {
-  const response = await fetch(url, { signal });
-  if (!response.ok) {
-    throw new Error(`Workbook preview failed with HTTP ${response.status}.`);
-  }
-  const workbook = XLSX.read(await response.arrayBuffer(), {
-    type: "array",
-    cellDates: true,
-  });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName)
-    throw new Error("The workbook does not contain a visible sheet.");
-  const sheet = workbook.Sheets[sheetName];
-  const rawRows = XLSX.utils.sheet_to_json<
-    Array<string | number | boolean | Date | null>
-  >(sheet, {
-    header: 1,
-    blankrows: false,
-    defval: "",
-    raw: false,
-  });
-  const sampleRows = rawRows
-    .filter((row) => row.some((cell) => String(cell ?? "").trim()))
-    .slice(0, 30);
-  const width = Math.min(
-    Math.max(...sampleRows.map((row) => row.length), 1),
-    16,
-  );
-  return {
-    sheetName,
-    sheetCount: workbook.SheetNames.length,
-    columns: Array.from({ length: width }, (_, index) =>
-      XLSX.utils.encode_col(index),
-    ),
-    rows: normalizeSheetRows(
-      sampleRows.map((row) =>
-        row
-          .slice(0, width)
-          .map((cell) =>
-            cell instanceof Date ? cell.toLocaleString() : String(cell ?? ""),
-          ),
-      ),
-      width,
-    ),
-  };
-}
-
-function SpreadsheetSourceViewer({
-  url,
-  fileName,
-}: {
-  url: string;
-  fileName: string;
-}) {
-  const [state, setState] = useState<SpreadsheetPreviewState>({
-    status: "loading",
-    data: null,
-    error: null,
-  });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setState({ status: "loading", data: null, error: null });
-    void parseSpreadsheetPreview(url, controller.signal)
-      .then((data) => {
-        setState({ status: "ready", data, error: null });
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setState({
-          status: "error",
-          data: null,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to parse workbook preview.",
-        });
-      });
-    return () => controller.abort();
-  }, [url]);
-
-  if (state.status === "loading") {
-    return <SourceLoadingState label="Loading spreadsheet preview..." />;
-  }
-  if (state.status === "error") {
+function ParsedPane({
+  parsing,
+  blocks,
+  filteredBlocks,
+  pages,
+  blockTypes,
+  pageFilter,
+  typeFilter,
+  parsedMode,
+  activeComponentId,
+  cardRefs,
+  viewportRef,
+  onPageFilterChange,
+  onTypeFilterChange,
+  onModeChange,
+  onActivate,
+  onRetry,
+}: ParsedPaneProps) {
+  if (parsing.status === "loading" && !parsing.data) {
     return (
-      <div className="grid min-h-[420px] flex-1 place-items-center p-6">
-        <Alert variant="destructive" className="max-w-sm">
-          <AlertCircleIcon />
-          <AlertTitle>Spreadsheet preview unavailable</AlertTitle>
-          <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
+      <div className="flex flex-col gap-3 p-4">
+        <Skeleton className="h-9" />
+        <Skeleton className="h-36" />
+        <Skeleton className="h-28" />
       </div>
     );
   }
 
-  const { columns, rows, sheetName, sheetCount } = state.data;
+  if (parsing.status === "error" && !parsing.data) {
+    return (
+      <ResourceError title="Parsed content failed" message={parsing.error} onRetry={onRetry} />
+    );
+  }
+
+  if (!parsing.data) return null;
+
+  const jsonValue = JSON.stringify(
+    {
+      document: parsing.data.document,
+      processing_run: parsing.data.processingRun,
+      reading_order: parsing.data.readingOrder,
+      blocks: parsing.data.blocks,
+    },
+    null,
+    2,
+  );
+
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-foreground">
-      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
-        <Badge>{sheetName}</Badge>
-        <Badge variant="secondary">
-          {sheetCount} sheet{sheetCount === 1 ? "" : "s"}
-        </Badge>
-        <span className="min-w-0 truncate text-xs text-muted-foreground">
-          {fileName}
-        </span>
+    <Tabs
+      value={parsedMode}
+      onValueChange={onModeChange}
+      className="min-h-0 flex-1 gap-0 overflow-hidden"
+    >
+      <div className="flex min-w-0 flex-col gap-2 border-b px-3 py-2">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <TabsList aria-label="Parsed content modes">
+            <TabsTrigger value="rendered">
+              <Rows3Icon />
+              Rendered
+            </TabsTrigger>
+            <TabsTrigger value="json">
+              <BracesIcon />
+              JSON
+            </TabsTrigger>
+          </TabsList>
+          {parsedMode === "json" && (
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => void copyJson(jsonValue)}
+            >
+              <CopyIcon data-icon="inline-start" />
+              Copy
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {parsedMode === "rendered"
+            ? "Review extracted blocks in document reading order."
+            : "Inspect the complete normalized processing result."}
+        </p>
+        {parsedMode === "rendered" && (
+          <div className="grid min-w-0 grid-cols-2 gap-2">
+            <FilterSelect label="Filter blocks by page" value={pageFilter} onChange={onPageFilterChange}>
+              <option value="all">All pages</option>
+              {pages.map((page) => (
+                <option key={page} value={page}>
+                  Page {page + 1}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect label="Filter blocks by type" value={typeFilter} onChange={onTypeFilterChange}>
+              <option value="all">All types</option>
+              {blockTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </FilterSelect>
+          </div>
+        )}
       </div>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="min-w-max p-4">
-          <div className="overflow-hidden rounded-xl border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {columns.map((column) => (
-                    <TableHead key={column}>{column}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.length ? (
-                  rows.map((row, rowIndex) => (
-                    <TableRow key={`${sheetName}-${rowIndex}`}>
-                      {columns.map((column, columnIndex) => (
-                        <TableCell
-                          key={`${column}-${columnIndex}`}
-                          className="max-w-[280px] truncate"
-                          title={row[columnIndex] ?? ""}
-                        >
-                          {row[columnIndex] || "—"}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-32 text-center text-muted-foreground"
-                    >
-                      No populated cells were found in this sheet.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+
+      <TabsContent value="rendered" keepMounted className="m-0 min-h-0 overflow-hidden">
+        <div ref={viewportRef} className="h-full min-h-0 overflow-auto">
+          <div className="grid min-w-0 gap-3 p-3">
+            {!blocks.length ? (
+              <Alert>
+                <AlertTitle>No layout blocks</AlertTitle>
+                <AlertDescription className="whitespace-pre-wrap">
+                  {parsing.data.mainText ||
+                    "Corpus did not return block or main-text content for this document."}
+                </AlertDescription>
+              </Alert>
+            ) : !filteredBlocks.length ? (
+              <Alert>
+                <FileSearchIcon />
+                <AlertTitle>No matching blocks</AlertTitle>
+                <AlertDescription>
+                  Change the page or block type filter to continue reviewing.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              filteredBlocks.map((block) => {
+                const index = blocks.findIndex(
+                  (item) => item.component_id === block.component_id,
+                );
+                return (
+                  <ParsedBlockCard
+                    key={block.component_id}
+                    block={block}
+                    index={index}
+                    active={activeComponentId === block.component_id}
+                    cardRefs={cardRefs}
+                    onActivate={onActivate}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
-      </ScrollArea>
-    </div>
+      </TabsContent>
+      <TabsContent value="json" keepMounted className="m-0 min-h-0 overflow-hidden">
+        <div className="h-full min-h-0 overflow-auto p-3">
+          <pre className="min-w-max rounded-lg border bg-muted/50 p-4 font-mono text-xs leading-relaxed text-foreground">
+            {jsonValue}
+          </pre>
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 }
 
-function ParsedPane({
-  parsing,
-  activeComponentId,
-  cardRefs,
-  onActivate,
-  onRetry,
-}: ParsedPaneProps) {
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      {parsing.status === "loading" && !parsing.data ? (
-        <>
-          <CardHeader className="min-h-14 border-b py-3">
-            <CardTitle>Parsed content</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 p-4">
-            <Skeleton className="h-10" />
-            <Skeleton className="h-40" />
-            <Skeleton className="h-28" />
-          </CardContent>
-        </>
-      ) : parsing.status === "error" && !parsing.data ? (
-        <>
-          <CardHeader className="min-h-14 border-b py-3">
-            <CardTitle>Parsed content</CardTitle>
-          </CardHeader>
-          <CardContent className="grid flex-1 place-items-center p-6">
-            <ResourceError message={parsing.error} onRetry={onRetry} />
-          </CardContent>
-        </>
-      ) : parsing.data ? (
-        <Tabs
-          defaultValue="rendered"
-          className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
-        >
-          <CardHeader className="min-h-14 border-b py-3">
-            <CardTitle>Parsed content</CardTitle>
-            <CardAction>
-              <TabsList>
-                <TabsTrigger value="rendered">Rendered</TabsTrigger>
-                <TabsTrigger value="json">JSON</TabsTrigger>
-              </TabsList>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-            <TabsContent
-              value="rendered"
-              className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-            >
-              <ScrollArea className="min-h-0 flex-1">
-                <div className="grid gap-3 p-3">
-                  {parsing.data.blocks.length ? (
-                    parsing.data.blocks.map((block, index) => (
-                      <ParsedBlockCard
-                        key={block.component_id}
-                        block={block}
-                        index={index}
-                        active={activeComponentId === block.component_id}
-                        cardRefs={cardRefs}
-                        onActivate={onActivate}
-                      />
-                    ))
-                  ) : (
-                    <Alert>
-                      <AlertTitle>No layout blocks</AlertTitle>
-                      <AlertDescription className="whitespace-pre-wrap">
-                        {parsing.data.mainText ||
-                          "Corpus did not return block or main-text content for this document."}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              </ScrollArea>
-            </TabsContent>
-            <TabsContent
-              value="json"
-              className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-            >
-              <ScrollArea className="min-h-0 flex-1">
-                <pre className="m-3 overflow-x-auto rounded-xl bg-foreground p-4 text-xs leading-relaxed text-background">
-                  {JSON.stringify(
-                    {
-                      document: parsing.data.document,
-                      processing_run: parsing.data.processingRun,
-                      reading_order: parsing.data.readingOrder,
-                      blocks: parsing.data.blocks,
-                    },
-                    null,
-                    2,
-                  )}
-                </pre>
-              </ScrollArea>
-            </TabsContent>
-          </CardContent>
-        </Tabs>
-      ) : null}
-    </div>
+    <label className="min-w-0">
+      <span className="sr-only">{label}</span>
+      <select
+        className="h-8 w-full min-w-0 rounded-md border border-input bg-background px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {children}
+      </select>
+    </label>
   );
 }
 
@@ -585,7 +985,7 @@ function ParsedBlockCard({
   onActivate: (block: LayoutBlock) => void;
 }) {
   const boxed = Boolean(block.bbox && block.page_bbox);
-  const pageLabel = block.page === null ? "Page -" : `Page ${block.page + 1}`;
+  const pageLabel = block.page === null ? "Page —" : `Page ${block.page + 1}`;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -604,66 +1004,76 @@ function ParsedBlockCard({
       aria-label={`Show ${block.component_id} in source document`}
       aria-pressed={active}
       className={cn(
-        "cursor-pointer gap-0 py-0 transition hover:ring-primary/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-        active && "ring-primary",
+        "relative min-w-0 cursor-pointer gap-0 overflow-hidden py-0 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+        active &&
+          "border-primary bg-accent before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-primary",
       )}
-      onMouseEnter={() => onActivate(block)}
       onClick={() => onActivate(block)}
       onKeyDown={handleKeyDown}
     >
-      <CardHeader className="gap-2 bg-muted/40 py-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Badge>{(index + 1).toString().padStart(2, "0")}</Badge>
-          <Badge variant="outline">{block.type}</Badge>
-          <Badge variant="secondary">{pageLabel}</Badge>
-          <Badge variant={boxed ? "secondary" : "outline"}>
-            {boxed ? "Boxed" : "No box"}
-          </Badge>
-        </div>
-      </CardHeader>
-      <Separator />
-      <CardContent className="p-0">
-        <code className="block break-all bg-muted/55 px-3 py-2 font-mono text-[10px] text-muted-foreground">
-          {block.component_id}
-        </code>
-        <Separator />
+      <div className="flex min-w-0 flex-wrap items-center gap-2 border-b bg-muted/40 px-3 py-2.5">
+        <Badge>{(index + 1).toString().padStart(2, "0")}</Badge>
+        <Badge variant="outline">{block.type}</Badge>
+        <Badge variant="secondary">{pageLabel}</Badge>
+        <Badge variant={boxed ? "secondary" : "outline"}>
+          {boxed ? "Boxed" : "No box"}
+        </Badge>
+      </div>
+      <code
+        className="block overflow-x-auto border-b bg-muted/30 px-3 py-2 font-mono text-[10px] text-muted-foreground"
+        title={block.component_id}
+      >
+        {block.component_id}
+      </code>
+      <div className="min-w-0 overflow-hidden">
         <RenderedBlockContent block={block} />
-      </CardContent>
+      </div>
     </Card>
   );
 }
 
+async function copyJson(value: string) {
+  try {
+    if (!navigator.clipboard?.writeText) {
+      throw new Error("Clipboard access is unavailable.");
+    }
+    await navigator.clipboard.writeText(value);
+    toast.success("Parsed JSON copied.");
+  } catch (error) {
+    toast.error(
+      error instanceof Error ? error.message : "Unable to copy parsed JSON.",
+    );
+  }
+}
+
 function SourceLoadingState({ label }: { label: string }) {
   return (
-    <div className="grid min-h-[420px] flex-1 place-items-center p-6">
+    <div className="grid min-h-0 flex-1 place-items-center p-6">
       <div className="flex w-full max-w-md flex-col gap-3">
         <Skeleton className="h-10" />
-        <Skeleton className="h-[360px]" />
-        <p className="text-center text-xs text-background/70">{label}</p>
+        <Skeleton className="h-80" />
+        <p className="text-center text-xs text-muted-foreground">{label}</p>
       </div>
     </div>
   );
 }
 
 function ResourceError({
+  title,
   message,
   onRetry,
 }: {
+  title: string;
   message: string;
   onRetry: () => void;
 }) {
   return (
-    <div className="grid min-h-[420px] flex-1 place-items-center p-6">
+    <div className="grid min-h-0 flex-1 place-items-center p-6">
       <Alert variant="destructive" className="max-w-sm">
         <AlertCircleIcon />
-        <AlertTitle>Resource unavailable</AlertTitle>
+        <AlertTitle>{title}</AlertTitle>
         <AlertDescription>{message}</AlertDescription>
-        <Button
-          className="mt-4"
-          variant="outline"
-          type="button"
-          onClick={onRetry}
-        >
+        <Button className="mt-3" variant="outline" type="button" onClick={onRetry}>
           <RefreshCwIcon data-icon="inline-start" />
           Retry
         </Button>

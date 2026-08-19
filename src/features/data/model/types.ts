@@ -1,4 +1,5 @@
 export type DataHealthStatus = "success" | "processing" | "failed";
+export type DataHealthFilter = "all" | DataHealthStatus;
 
 export type StorageFileDto = {
   workspace_id?: string;

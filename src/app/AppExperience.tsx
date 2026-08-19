@@ -266,7 +266,7 @@ export function AppExperience({ route, navigate }: AppExperienceProps) {
       activeStage={chat.stage}
       surface={route.surface}
       activeConversationId={route.surface === "chat" ? route.sessionId : null}
-      showCommandBar={route.surface === "chat" && route.page === "home"}
+      showPrimaryNavigation={route.surface === "chat" && route.page === "home"}
       onHome={openHome}
       onNewChat={newChat}
       onConversationOpen={openConversation}

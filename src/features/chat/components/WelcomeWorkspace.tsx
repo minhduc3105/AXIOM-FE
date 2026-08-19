@@ -134,9 +134,9 @@ export function WelcomeWorkspace({
   return (
     <div
       ref={root}
-      className="mx-auto w-[min(1440px,100%)] px-5 pb-16 pt-28 sm:px-8 lg:px-12"
+      className="mx-auto w-[min(1440px,100%)] px-5 pb-16 pt-8 sm:px-8 sm:pt-10 lg:px-12"
     >
-      <section className="grid min-h-[min(760px,calc(100vh-96px))] place-items-center py-12 text-center">
+      <section className="grid min-h-[min(760px,calc(100dvh-var(--app-top-bar-height)-2rem))] place-items-center py-12 text-center">
         <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center">
           <h1 className="w-full max-w-6xl text-balance text-[clamp(3rem,6vw,6.25rem)] font-semibold leading-[0.9] tracking-normal text-[#191915] dark:text-[#eee8dc]">
             What should AXIOM{" "}

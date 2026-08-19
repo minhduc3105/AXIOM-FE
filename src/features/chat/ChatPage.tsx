@@ -153,7 +153,7 @@ export function ChatPage({
   if (mode === "home") {
     return (
       <section
-        className="min-h-screen w-full overflow-x-hidden"
+        className="min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden"
         aria-label="Investigation welcome"
       >
         <WelcomeWorkspace
@@ -191,7 +191,7 @@ export function ChatPage({
   return (
     <section
       ref={chatMainRef}
-      className="h-dvh min-h-screen w-full overflow-y-auto overflow-x-hidden bg-transparent [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]"
+      className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-y-auto overflow-x-hidden bg-transparent [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]"
       aria-label="Investigation workspace"
     >
       <div
@@ -204,7 +204,7 @@ export function ChatPage({
               : "w-[min(980px,calc(100%_-_56px))]",
         )}
       >
-        <div className="flex min-h-[100dvh] flex-col gap-4 pb-4 pt-10 max-sm:pt-8 md:pt-14">
+        <div className="flex min-h-full flex-col gap-4 pb-4 pt-8 md:pt-10">
           <div
             className="min-h-0 flex-1 overflow-visible pr-2"
           >
@@ -317,10 +317,10 @@ export function ChatPage({
         {inspectedProcessStep && (
           <aside
             data-process-inspector
-            className="min-h-0 min-w-0 max-w-full pb-4 pt-10 max-xl:pt-0 md:pt-14"
+            className="min-h-0 min-w-0 max-w-full pb-4 pt-8 max-xl:pt-0 md:pt-10"
             aria-label="Process details"
           >
-            <div className="sticky top-10 h-[calc(100dvh-4.5rem)] min-h-0 min-w-0 max-w-full md:top-14">
+            <div className="sticky top-8 h-[calc(100dvh-var(--app-top-bar-height)-4rem)] min-h-0 min-w-0 max-w-full md:top-10">
               <ProcessInspectorAside
                 items={inspectableProcessEvents}
                 conversationId={conversationId}
@@ -376,7 +376,7 @@ function EmptyChatWorkspace({
 }) {
   return (
     <section
-      className="grid min-h-screen w-full place-items-center overflow-hidden px-5 py-10"
+      className="grid min-h-[calc(100dvh-var(--app-top-bar-height))] w-full place-items-center overflow-hidden px-5 py-10"
       aria-label="New chat"
     >
       <div className="flex w-full max-w-3xl flex-col items-center gap-8">
