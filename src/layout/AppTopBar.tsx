@@ -116,7 +116,7 @@ export function AppTopBar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 h-16 shrink-0 text-foreground  md:h-14",
+        "sticky top-0 z-30 h-16 shrink-0 bg-[#f4efe5]/18 text-foreground backdrop-blur-md dark:bg-[#11110f]/18",
         showPrimaryNavigation && "h-28 md:h-14",
       )}
       aria-label="Application toolbar"
@@ -134,17 +134,19 @@ export function AppTopBar({
             showPrimaryNavigation && "md:hidden xl:block",
           )}
         >
-          <div className="flex min-w-0 items-center gap-1">
+          <div className="flex min-w-0 items-start gap-1">
             <span className="grid size-9 shrink-0 place-items-center rounded-md text-primary">
               <PageIcon className="size-6" />
             </span>
-            <p className="truncate text-2xl font-semibold leading-6">
-              {pageContext.title}
-            </p>
+            <div className="min-w-0">
+              <p className="truncate text-2xl font-semibold leading-6">
+                {pageContext.title}
+              </p>
+              <p className="hidden truncate text-sm leading-5 text-muted-foreground md:block">
+                {pageContext.description}
+              </p>
+            </div>
           </div>
-          <p className="hidden truncate text-sm leading-5 text-muted-foreground md:block">
-            {pageContext.description}
-          </p>
         </div>
 
         {showPrimaryNavigation && (

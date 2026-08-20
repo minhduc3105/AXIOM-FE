@@ -10,15 +10,10 @@ import { cn } from "@/shared/lib/utils";
 import { useGlobalIngestion } from "../model/GlobalIngestionProvider";
 import type { IngestionFile } from "../model/types";
 import {
-  UPLOAD_FILE_ACCEPT,
   UPLOAD_FILE_SUPPORTED_FORMAT_LABEL,
   isSupportedUploadFile,
 } from "../model/uploadFileRegistry";
 import { UploadFilePreview } from "./UploadFilePreview";
-
-type UploadIngestionStepProps = {
-  onBack: () => void;
-};
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -48,7 +43,7 @@ function toIngestionFiles(files: FileList | File[]) {
   return { accepted, rejected };
 }
 
-export function UploadIngestionStep({ onBack }: UploadIngestionStepProps) {
+export function UploadIngestionStep() {
   const { startUpload } = useGlobalIngestion();
   const [files, setFiles] = useState<IngestionFile[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
@@ -57,7 +52,8 @@ export function UploadIngestionStep({ onBack }: UploadIngestionStepProps) {
   const selectedFile =
     files.find((file) => file.id === selectedFileId) ?? files[0] ?? null;
   const totalSize = useMemo(
-    () => formatFileSize(files.reduce((total, file) => total + file.file.size, 0)),
+    () =>
+      formatFileSize(files.reduce((total, file) => total + file.file.size, 0)),
     [files],
   );
 
@@ -114,9 +110,6 @@ export function UploadIngestionStep({ onBack }: UploadIngestionStepProps) {
             <span className="text-sm text-muted-foreground">
               or choose files from your computer
             </span>
-            <span className="text-xs text-muted-foreground">
-              {UPLOAD_FILE_SUPPORTED_FORMAT_LABEL}
-            </span>
             <span className="sr-only">Choose files</span>
             <Input
               id="ingestion-upload-files"
@@ -124,7 +117,6 @@ export function UploadIngestionStep({ onBack }: UploadIngestionStepProps) {
               className="sr-only"
               type="file"
               multiple
-              accept={UPLOAD_FILE_ACCEPT}
               onChange={(event: ChangeEvent<HTMLInputElement>) => {
                 if (event.target.files) addFiles(event.target.files);
                 event.target.value = "";
@@ -142,15 +134,17 @@ export function UploadIngestionStep({ onBack }: UploadIngestionStepProps) {
 
         <div className="flex items-center justify-between gap-3 pt-1">
           <p className="text-sm font-medium">Upload queue</p>
-          <Badge variant="secondary">{files.length} files · {totalSize}</Badge>
+          <Badge variant="secondary">
+            {files.length} files · {totalSize}
+          </Badge>
         </div>
         <ScrollArea className="min-h-28 flex-1 rounded-xl border bg-card">
-          <div className="flex flex-col divide-y">
+          <div className="flex flex-col ">
             {files.length ? (
               files.map((file) => {
                 const selected = file.id === selectedFile?.id;
                 return (
-                  <div className="flex items-center gap-2 p-2" key={file.id}>
+                  <div className="flex items-center gap-2 px-2" key={file.id}>
                     <Button
                       className="min-w-0 flex-1 justify-start"
                       variant={selected ? "secondary" : "ghost"}
@@ -160,7 +154,6 @@ export function UploadIngestionStep({ onBack }: UploadIngestionStepProps) {
                       <FileTextIcon data-icon="inline-start" />
                       <span className="truncate">{file.name}</span>
                     </Button>
-                    <Badge variant="outline">{file.extension}</Badge>
                     <Button
                       aria-label={`Remove ${file.name}`}
                       size="icon-sm"
@@ -190,17 +183,16 @@ export function UploadIngestionStep({ onBack }: UploadIngestionStepProps) {
               Review the selected file before it enters processing.
             </p>
           </div>
-          {selectedFile ? <Badge variant="outline">{selectedFile.extension}</Badge> : null}
+          {selectedFile ? (
+            <Badge variant="outline">{selectedFile.extension}</Badge>
+          ) : null}
         </div>
         <div className="min-h-0 flex-1">
           <UploadFilePreview file={selectedFile} />
         </div>
       </section>
 
-      <div className="sticky bottom-0 flex flex-col-reverse gap-2 border-t bg-popover pt-5 lg:col-span-2 sm:flex-row sm:justify-end">
-        <Button size="lg" variant="outline" type="button" onClick={onBack}>
-          Back
-        </Button>
+      <div className="sticky bottom-0 flex justify-end border-t bg-popover pt-5 lg:col-span-2">
         <Button
           size="lg"
           type="button"

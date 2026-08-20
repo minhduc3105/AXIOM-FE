@@ -1,15 +1,17 @@
-import { useMemo, useState } from "react";
 import {
   CheckCircle2Icon,
   CircleAlertIcon,
-  Clock3Icon,
   ListTodoIcon,
   LoaderCircleIcon,
   XCircleIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
+import {
+  Progress,
+  ProgressLabel,
+  ProgressValue,
+} from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
@@ -26,7 +28,6 @@ import type {
   GlobalIngestionJobStatus,
   GlobalIngestionObjectStatus,
 } from "../model/globalIngestionTypes";
-import { IngestionResultDialog } from "./IngestionResultDialog";
 
 const jobStatusLabel: Record<GlobalIngestionJobStatus, string> = {
   submitting: "Submitting",
@@ -37,15 +38,9 @@ const jobStatusLabel: Record<GlobalIngestionJobStatus, string> = {
   failed: "Failed",
 };
 
-const objectStatusLabel: Record<GlobalIngestionObjectStatus, string> = {
-  waiting: "Waiting",
-  processing: "Processing",
-  indexed: "Indexed",
-  failed: "Failed",
-};
-
 function statusBadgeVariant(status: GlobalIngestionJobStatus) {
-  if (status === "failed" || status === "partial_failure") return "destructive" as const;
+  if (status === "failed" || status === "partial_failure")
+    return "destructive" as const;
   if (status === "complete") return "default" as const;
   return "secondary" as const;
 }
@@ -56,14 +51,16 @@ function ObjectStatusIcon({ status }: { status: GlobalIngestionObjectStatus }) {
   if (status === "processing") {
     return <LoaderCircleIcon className="animate-spin" aria-hidden="true" />;
   }
-  return <Clock3Icon aria-hidden="true" />;
+  return <LoaderCircleIcon className="animate-spin" aria-hidden="true" />;
 }
 
 function JobProgress({ job }: { job: GlobalIngestionJob }) {
   if (job.status === "submitting" || job.status === "transferring") {
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-muted-foreground">{jobStatusLabel[job.status]} files to AXIOM storage.</p>
+        <p className="text-sm text-muted-foreground">
+          {jobStatusLabel[job.status]} files to AXIOM storage.
+        </p>
         <Skeleton className="h-1.5 w-full" />
       </div>
     );
@@ -81,7 +78,11 @@ function JobProgress({ job }: { job: GlobalIngestionJob }) {
   );
 }
 
-export function GlobalIngestionDock() {
+export function GlobalIngestionDock({
+  onOpenDetails = () => {},
+}: {
+  onOpenDetails?: (jobId: string, objectKey: string) => void;
+}) {
   const {
     dismissJob,
     jobs,
@@ -90,19 +91,13 @@ export function GlobalIngestionDock() {
     retryJob,
     setJobsSheetOpen,
   } = useGlobalIngestion();
-  const [selectedResult, setSelectedResult] = useState<{
-    jobId: string;
-    key: string;
-  } | null>(null);
-  const selectedJob = useMemo(
-    () => jobs.find((job) => job.id === selectedResult?.jobId) ?? null,
-    [jobs, selectedResult?.jobId],
-  );
-
   if (!jobs.length) return null;
 
   const activeJobs = jobs.filter(
-    (job) => job.status === "submitting" || job.status === "transferring" || job.status === "processing",
+    (job) =>
+      job.status === "submitting" ||
+      job.status === "transferring" ||
+      job.status === "processing",
   );
   const dockLabel = activeJobs.length
     ? `${activeJobs.length} ingestion job${activeJobs.length === 1 ? "" : "s"} active`
@@ -120,11 +115,12 @@ export function GlobalIngestionDock() {
         <span>{dockLabel}</span>
       </Button>
       <Sheet open={jobsSheetOpen} onOpenChange={setJobsSheetOpen}>
-        <SheetContent className="w-full p-0 sm:max-w-xl">
+        <SheetContent className="w-full p-0 sm:max-w-xl gap-0">
           <SheetHeader className="border-b pr-12">
             <SheetTitle>Ingestion jobs</SheetTitle>
             <SheetDescription>
-              Follow transfer and document parsing without leaving your current work.
+              Follow transfer and document parsing without leaving your current
+              work.
             </SheetDescription>
           </SheetHeader>
           <ScrollArea className="min-h-0 flex-1">
@@ -134,7 +130,10 @@ export function GlobalIngestionDock() {
                   job={job}
                   key={job.id}
                   onDismiss={() => dismissJob(job.id)}
-                  onOpenDetails={(key) => setSelectedResult({ jobId: job.id, key })}
+                  onOpenDetails={(key) => {
+                    setJobsSheetOpen(false);
+                    onOpenDetails(job.id, key);
+                  }}
                   onOpenUpload={openDialog}
                   onRetry={() => retryJob(job.id)}
                 />
@@ -143,13 +142,6 @@ export function GlobalIngestionDock() {
           </ScrollArea>
         </SheetContent>
       </Sheet>
-      <IngestionResultDialog
-        job={selectedJob}
-        selectedKey={selectedResult?.key ?? null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedResult(null);
-        }}
-      />
     </>
   );
 }
@@ -168,15 +160,20 @@ function JobRow({
   onRetry: () => void;
 }) {
   return (
-    <section className="flex flex-col gap-4 p-4">
+    <section className="flex flex-col gap-2 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium">{job.title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {job.objects.length} object{job.objects.length === 1 ? "" : "s"} · {job.source === "s3" ? "Amazon S3" : "Upload"}
-          </p>
         </div>
-        <Badge variant={statusBadgeVariant(job.status)}>{jobStatusLabel[job.status]}</Badge>
+        {job.status === "complete" ? (
+          <Button size="sm" type="button" variant="ghost" onClick={onDismiss}>
+            Dismiss
+          </Button>
+        ) : (
+          <Badge variant={statusBadgeVariant(job.status)}>
+            {jobStatusLabel[job.status]}
+          </Badge>
+        )}
       </div>
       <JobProgress job={job} />
       {job.errorMessage ? (
@@ -185,20 +182,7 @@ function JobRow({
           <span>{job.errorMessage}</span>
         </div>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        {job.retry === "start_new_upload" ? (
-          <Button size="sm" type="button" onClick={onOpenUpload}>
-            Start a new upload
-          </Button>
-        ) : job.retry ? (
-          <Button size="sm" type="button" onClick={onRetry}>
-            Retry status check
-          </Button>
-        ) : null}
-        <Button size="sm" type="button" variant="ghost" onClick={onDismiss}>
-          Dismiss
-        </Button>
-      </div>
+
       <div className="flex flex-col divide-y rounded-lg border">
         {job.objects.map((object) => (
           <div className="flex items-center gap-3 p-3" key={object.key}>
@@ -206,34 +190,33 @@ function JobRow({
               className={cn(
                 "text-muted-foreground",
                 object.status === "failed" && "text-destructive",
-                object.status === "indexed" && "text-primary",
+                object.status === "indexed" &&
+                  "text-emerald-600 dark:text-emerald-400",
               )}
             >
               <ObjectStatusIcon status={object.status} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">{object.name}</span>
-              <span className="block truncate font-mono text-xs text-muted-foreground">{object.key}</span>
+              <span className="block truncate text-sm font-medium">
+                {object.name}
+              </span>
               {object.errorMessage ? (
-                <span className="block text-xs text-destructive">{object.errorMessage}</span>
+                <span className="block text-xs text-destructive">
+                  {object.errorMessage}
+                </span>
               ) : null}
             </span>
-            <div className="flex shrink-0 flex-col items-end gap-2">
-              <Badge variant={object.status === "failed" ? "destructive" : "outline"}>
-                {objectStatusLabel[object.status]}
-              </Badge>
-              {object.status === "indexed" ? (
-                <Button
-                  aria-label={`View details for ${object.name}`}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                  onClick={() => onOpenDetails(object.key)}
-                >
-                  View details
-                </Button>
-              ) : null}
-            </div>
+            {object.status === "indexed" ? (
+              <Button
+                aria-label={`View details for ${object.name}`}
+                size="sm"
+                type="button"
+                variant="outline"
+                onClick={() => onOpenDetails(object.key)}
+              >
+                View details
+              </Button>
+            ) : null}
           </div>
         ))}
       </div>

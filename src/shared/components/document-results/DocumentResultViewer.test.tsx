@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type {
@@ -131,7 +137,7 @@ function renderViewer(
           sourceLabel: "Uploaded files",
           statusLabel: "Ready",
           statusTone: "success",
-          backLabel: "Back to files",
+          backLabel: "Back",
           onBack: vi.fn(),
         }}
         {...props}
@@ -184,10 +190,10 @@ describe("DocumentResultViewer", () => {
     });
     expect(firstCard.getAttribute("aria-pressed")).toBe("true");
 
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Filter blocks by page" }),
-      "1",
+    await user.click(
+      screen.getByRole("button", { name: "Filter blocks by page" }),
     );
+    await user.click(screen.getByRole("menuitemradio", { name: "Page 2" }));
     await waitFor(() =>
       expect(
         screen
@@ -198,10 +204,10 @@ describe("DocumentResultViewer", () => {
       ).toBe("true"),
     );
 
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Filter blocks by type" }),
-      "Heading",
+    await user.click(
+      screen.getByRole("button", { name: "Filter blocks by type" }),
     );
+    await user.click(screen.getByRole("menuitemradio", { name: "Heading" }));
     expect(screen.getByText("No matching blocks")).toBeTruthy();
 
     fireEvent.click(
@@ -211,15 +217,11 @@ describe("DocumentResultViewer", () => {
       }),
     );
     expect(
-      (screen.getByRole("combobox", {
-        name: "Filter blocks by page",
-      }) as HTMLSelectElement).value,
-    ).toBe("all");
+      screen.getByRole("button", { name: "Filter blocks by page" }).textContent,
+    ).toContain("All pages");
     expect(
-      (screen.getByRole("combobox", {
-        name: "Filter blocks by type",
-      }) as HTMLSelectElement).value,
-    ).toBe("all");
+      screen.getByRole("button", { name: "Filter blocks by type" }).textContent,
+    ).toContain("All types");
     expect(
       screen
         .getByRole("button", {
@@ -274,7 +276,9 @@ describe("DocumentResultViewer", () => {
     ).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "Source" })).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Hide source preview" }));
+    await user.click(
+      screen.getByRole("button", { name: "Hide source preview" }),
+    );
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Show source preview" }),

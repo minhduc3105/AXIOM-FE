@@ -1014,7 +1014,7 @@ function UserSessionMenu({
             type="button"
             variant="ghost"
             className={cn(
-              "h-auto min-w-0 rounded-xl p-1.5 text-left text-[#191915] hover:bg-[#ebe4d8] dark:text-[#eee8dc] dark:hover:bg-white/10",
+              "h-auto min-w-0 rounded-xl p-1.5 text-left text-[#191915] hover:bg-transparent aria-expanded:bg-transparent dark:text-[#eee8dc] dark:hover:bg-transparent dark:aria-expanded:bg-transparent",
               expanded
                 ? "w-full justify-start gap-3"
                 : "size-11 justify-center p-0",

@@ -268,9 +268,7 @@ export function DataSourceFilesTable({
       <Separator />
 
       {loading && !result ? (
-        <div className="[&_[data-slot=table-container]]:max-h-[min(60dvh,40rem)] [&_[data-slot=table-container]]:overflow-auto">
-          <TableSkeleton />
-        </div>
+        <TableSkeleton />
       ) : totalUnfilteredCount === 0 ? (
         <DataEmptyState
           title="No files in this source"
@@ -287,10 +285,7 @@ export function DataSourceFilesTable({
         />
       ) : (
         <>
-          <div
-            className="[&_[data-slot=table-container]]:max-h-[min(60dvh,40rem)] [&_[data-slot=table-container]]:overflow-auto"
-            aria-busy={loading}
-          >
+          <div aria-busy={loading}>
             <Table className="min-w-[860px]">
               <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--border)]">
                 <TableRow className="hover:bg-transparent">

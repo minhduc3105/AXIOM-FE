@@ -3,6 +3,7 @@ import { ChatPage } from "@/features/chat/ChatPage";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { DataPage } from "@/features/data/DataPage";
 import { GlobalIngestionDock } from "@/features/ingestion/components/GlobalIngestionDock";
+import { IngestionDocumentPage } from "@/features/ingestion/components/IngestionDocumentPage";
 import { IngestionDialog } from "@/features/ingestion/components/IngestionDialog";
 import {
   GlobalIngestionProvider,
@@ -25,6 +26,7 @@ import { AppShell } from "./AppShell";
 import {
   createChatHomeRoute,
   createChatRoute,
+  createDataDocumentRoute,
   createDataRoute,
   createModelsRoute,
   createReportsRoute,
@@ -48,6 +50,7 @@ import {
 } from "@/features/chat/model/executionMode";
 import { useAppScope } from "@/shared/hooks/use-app-scope";
 import { useDataWorkspace } from "@/features/data/model/DataWorkspaceProvider";
+import type { DataFile } from "@/features/data/model/types";
 import { getRouteWorkspaceScope } from "./scope";
 
 type AppExperienceProps = {
@@ -175,6 +178,45 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const openData = useCallback(() => {
     navigate(createDataRoute());
   }, [navigate]);
+
+  const openIngestionDocument = useCallback(
+    (jobId: string, objectKey: string) => {
+      const job = ingestion.jobs.find((candidate) => candidate.id === jobId);
+      const object = job?.objects.find(
+        (candidate) => candidate.key === objectKey,
+      );
+      if (!job?.batch || !object) return;
+
+      const file = job.batch.files.find(
+        (candidate) => candidate.key === objectKey,
+      );
+      navigate(
+        createDataDocumentRoute({
+          objectKey,
+          bucket: job.batch.bucket,
+          filename: file?.filename ?? object.name,
+          documentId: object.documentId,
+          sourceLabel: job.source === "s3" ? "Amazon S3" : "Uploaded files",
+        }),
+      );
+    },
+    [ingestion.jobs, navigate],
+  );
+
+  const openDataDocument = useCallback(
+    (file: DataFile, sourceLabel: string) => {
+      navigate(
+        createDataDocumentRoute({
+          objectKey: file.key,
+          bucket: file.bucket,
+          filename: file.name,
+          documentId: file.documentId,
+          sourceLabel,
+        }),
+      );
+    },
+    [navigate],
+  );
 
   const openDataIngestion = useCallback(
     () => ingestion.openDialog(),
@@ -334,10 +376,22 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
           onData={openData}
         />
       ) : route.surface === "data" ? (
-        <DataPage
-          organizationId={user.organization_id}
-          onCreateIngestion={openDataIngestion}
-        />
+        route.page === "document" ? (
+          <IngestionDocumentPage
+            objectKey={route.objectKey}
+            bucket={route.bucket}
+            filename={route.filename}
+            documentId={route.documentId}
+            sourceLabel={route.sourceLabel}
+            onBack={openData}
+          />
+        ) : (
+          <DataPage
+            organizationId={user.organization_id}
+            onCreateIngestion={openDataIngestion}
+            onOpenDocument={openDataDocument}
+          />
+        )
       ) : route.surface === "reports" ? (
         <ReportsPage
           onData={openData}
@@ -378,7 +432,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
         )}
       </AppShell>
       <IngestionDialog />
-      <GlobalIngestionDock />
+      <GlobalIngestionDock onOpenDetails={openIngestionDocument} />
     </>
   );
 }

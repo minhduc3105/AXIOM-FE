@@ -67,7 +67,7 @@ export function AppShell({
   return (
     <TooltipProvider>
       <main
-        className="relative isolate min-h-screen w-full max-w-full overflow-x-hidden bg-[#f4efe5] text-[#191915] dark:bg-[#11110f] dark:text-[#eee8dc]"
+        className="relative isolate min-h-screen w-full max-w-full overflow-x-clip bg-[#f4efe5] text-[#191915] dark:bg-[#11110f] dark:text-[#eee8dc]"
         data-rail-expanded={expanded}
       >
         <div
@@ -100,7 +100,7 @@ export function AppShell({
         />
         <div
           className={cn(
-            "relative z-10 flex min-h-dvh min-w-0 flex-col [--app-top-bar-height:4rem] transition-[margin-left] duration-500 ease-out md:ml-[76px] md:[--app-top-bar-height:3.5rem]",
+            "relative z-10 flex min-h-dvh min-w-0 flex-col [--app-top-bar-height:4rem] transition-[margin-left] duration-500 ease-out md:ml-[76px]",
             showPrimaryNavigation && "max-md:[--app-top-bar-height:7rem]",
             expanded && "md:ml-[304px]",
           )}

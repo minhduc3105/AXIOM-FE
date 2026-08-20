@@ -65,7 +65,7 @@ export function DataSourceFileInspector({
               : file.status === "processing"
                 ? "processing"
                 : "failed",
-          backLabel: "Back to files",
+          backLabel: "Back",
           onBack,
         }}
       />

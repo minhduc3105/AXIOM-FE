@@ -38,7 +38,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
-import type { SavedDataSourceProfile } from "@/shared/types/data-source-profile";
+import type {
+  DataSourceProfileType,
+  SavedDataSourceProfile,
+} from "@/shared/types/data-source-profile";
 import type {
   DataFile,
   DataSource,
@@ -52,7 +55,6 @@ import {
   useDataSourceFileCounts,
 } from "../model/useDataSourceFileCounts";
 import { useDataSourceFiles } from "../model/useDataSourceFiles";
-import { DataSourceFileInspector } from "./DataSourceFileInspector";
 import { DataSourceFilesTable } from "./DataSourceFilesTable";
 import { StatusBadge } from "./StatusBadge";
 
@@ -68,6 +70,11 @@ type DataSourcesWorkspaceProps = {
   refreshing: boolean;
   onRefresh: () => void;
   onCreateIngestion: () => void;
+  onOpenDocument: (file: DataFile, sourceLabel: string) => void;
+  onConfigureSource: (
+    type: DataSourceProfileType,
+    profile?: SavedDataSourceProfile | null,
+  ) => void;
   onDeleteProfile: (profileId: string) => void;
 };
 
@@ -227,19 +234,37 @@ function SourceIdentity({
 }
 
 function AddSourceMenu({
-  onCreateIngestion,
+  onConfigureSource,
 }: {
-  onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
+  onConfigureSource: DataSourcesWorkspaceProps["onConfigureSource"];
 }) {
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label="Add data for ingestion"
-      onClick={() => onCreateIngestion()}
-    >
-      <PlusIcon />
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Connect a data source"
+          />
+        }
+      >
+        <PlusIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-44">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Connect a source</DropdownMenuLabel>
+          <DropdownMenuItem onClick={() => onConfigureSource("s3")}>
+            <CloudIcon />
+            Amazon S3
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onConfigureSource("snowflake")}>
+            <SnowflakeIcon />
+            Snowflake
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -250,6 +275,7 @@ function SourceActions({
   refreshing,
   onRefresh,
   onCreateIngestion,
+  onConfigureSource,
   onForgetProfile,
 }: {
   datasource: DataSource;
@@ -258,12 +284,22 @@ function SourceActions({
   refreshing: DataSourcesWorkspaceProps["refreshing"];
   onRefresh: DataSourcesWorkspaceProps["onRefresh"];
   onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
+  onConfigureSource: DataSourcesWorkspaceProps["onConfigureSource"];
   onForgetProfile: (profile: SavedDataSourceProfile) => void;
 }) {
   const isAggregate = datasource.id === ORGANIZATION_FILES_SOURCE_ID;
   const isUpload = datasource.type === "UPLOAD";
-  const canReconnect = datasource.type === "s3";
+  const connectorType: DataSourceProfileType | null =
+    datasource.type === "s3"
+      ? "s3"
+      : datasource.type === "snowflake"
+        ? "snowflake"
+        : null;
+  const canReconnect = connectorType !== null;
   const hasSecondaryActions = Boolean(canReconnect || (profile && !isUpload));
+  const openConnectionSettings = () => {
+    if (connectorType) onConfigureSource(connectorType, profile);
+  };
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -293,8 +329,8 @@ function SourceActions({
       )}
       <div className="hidden flex-wrap items-center gap-2 sm:flex">
         {canReconnect && (
-          <Button variant="outline" onClick={() => onCreateIngestion()}>
-            Reconnect
+          <Button variant="outline" onClick={openConnectionSettings}>
+            Connection settings
           </Button>
         )}
         {profile && !isUpload && (
@@ -326,8 +362,8 @@ function SourceActions({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
             {canReconnect && (
-              <DropdownMenuItem onClick={() => onCreateIngestion()}>
-                Reconnect
+              <DropdownMenuItem onClick={openConnectionSettings}>
+                Connection settings
               </DropdownMenuItem>
             )}
             {profile && !isUpload && (
@@ -361,6 +397,8 @@ export function DataSourcesWorkspace({
   refreshing,
   onRefresh,
   onCreateIngestion,
+  onOpenDocument,
+  onConfigureSource,
   onDeleteProfile,
 }: DataSourcesWorkspaceProps) {
   const inventorySource = useMemo<DataSource>(() => {
@@ -386,7 +424,6 @@ export function DataSourcesWorkspace({
   );
   const [selectedId, setSelectedId] = useState(ORGANIZATION_FILES_SOURCE_ID);
   const [query, setQuery] = useState<DataSourceFilesQuery>(DEFAULT_QUERY);
-  const [inspectedFile, setInspectedFile] = useState<DataFile | null>(null);
   const [forgetProfile, setForgetProfile] =
     useState<SavedDataSourceProfile | null>(null);
   const [forgetPending, setForgetPending] = useState(false);
@@ -468,7 +505,6 @@ export function DataSourcesWorkspace({
 
   const selectSource = (datasourceId: string) => {
     setSelectedId(datasourceId);
-    setInspectedFile(null);
     setQuery((current) => ({ ...current, page: 1 }));
   };
   const changeSort = (field: DataSourceFileSortField) => {
@@ -486,13 +522,11 @@ export function DataSourcesWorkspace({
   useEffect(() => {
     setSelectedId(ORGANIZATION_FILES_SOURCE_ID);
     setQuery(DEFAULT_QUERY);
-    setInspectedFile(null);
   }, [workspaceId]);
   useEffect(() => {
     if (!visibleSources.some((datasource) => datasource.id === selectedId)) {
       setSelectedId(ORGANIZATION_FILES_SOURCE_ID);
       setQuery((current) => ({ ...current, page: 1 }));
-      setInspectedFile(null);
     }
   }, [selectedId, visibleSources]);
   useEffect(() => {
@@ -520,91 +554,90 @@ export function DataSourcesWorkspace({
       setForgetPending(false);
     }
   };
+  const configureSelectedSource = () => {
+    if (selectedSource.type === "s3") {
+      onConfigureSource("s3", profile);
+    } else if (selectedSource.type === "snowflake") {
+      onConfigureSource("snowflake", profile);
+    }
+  };
 
   return (
     <div className="min-w-0">
-      {!inspectedFile && (
-        <div className="border-b p-4 lg:hidden">
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-3 px-3 py-2 text-left"
-                    aria-label={`Select data source. Current source: ${displayName(selectedSource)}`}
-                  />
-                }
-              >
-                <SourceIdentity
-                  datasource={selectedSource}
-                  count={countFor(selectedSource)}
-                  selected
+      <div className="border-b p-4 lg:hidden">
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-3 px-3 py-2 text-left"
+                  aria-label={`Select data source. Current source: ${displayName(selectedSource)}`}
                 />
-                <ChevronDownIcon className="size-4 shrink-0" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="w-[var(--anchor-width)] min-w-72 max-w-[calc(100vw-2rem)] p-1.5"
-              >
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Data sources</DropdownMenuLabel>
-                  {visibleSources.map((datasource) => {
-                    const selected = datasource.id === selectedSource.id;
-                    return (
-                      <DropdownMenuItem
-                        key={datasource.id}
-                        className="min-h-12 min-w-0 gap-3 px-2.5 py-2"
-                        onClick={() => selectSource(datasource.id)}
-                        aria-label={`Select ${displayName(datasource)}`}
-                      >
-                        <SourceIdentity
-                          datasource={datasource}
-                          count={countFor(datasource)}
-                          selected={selected}
+              }
+            >
+              <SourceIdentity
+                datasource={selectedSource}
+                count={countFor(selectedSource)}
+                selected
+              />
+              <ChevronDownIcon className="size-4 shrink-0" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-[var(--anchor-width)] min-w-72 max-w-[calc(100vw-2rem)] p-1.5"
+            >
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Data sources</DropdownMenuLabel>
+                {visibleSources.map((datasource) => {
+                  const selected = datasource.id === selectedSource.id;
+                  return (
+                    <DropdownMenuItem
+                      key={datasource.id}
+                      className="min-h-12 min-w-0 gap-3 px-2.5 py-2"
+                      onClick={() => selectSource(datasource.id)}
+                      aria-label={`Select ${displayName(datasource)}`}
+                    >
+                      <SourceIdentity
+                        datasource={datasource}
+                        count={countFor(datasource)}
+                        selected={selected}
+                      />
+                      {selected && (
+                        <CheckIcon
+                          className="size-4 shrink-0 text-primary"
+                          aria-label="Selected source"
                         />
-                        {selected && (
-                          <CheckIcon
-                            className="size-4 shrink-0 text-primary"
-                            aria-label="Selected source"
-                          />
-                        )}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <AddSourceMenu onCreateIngestion={onCreateIngestion} />
-          </div>
-          {profileError && (
-            <Alert variant="destructive" className="mt-3">
-              <AlertTitle>Reconnect settings unavailable</AlertTitle>
-              <AlertDescription>{profileError}</AlertDescription>
-            </Alert>
-          )}
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <AddSourceMenu onConfigureSource={onConfigureSource} />
         </div>
-      )}
-
-      <div
-        className={cn(
-          "grid min-w-0",
-          !inspectedFile && "lg:grid-cols-[280px_minmax(0,1fr)]",
+        {profileError && (
+          <Alert variant="destructive" className="mt-3">
+            <AlertTitle>Reconnect settings unavailable</AlertTitle>
+            <AlertDescription>{profileError}</AlertDescription>
+          </Alert>
         )}
-      >
-        {!inspectedFile && (
-          <aside
-            className="hidden border-r p-4 lg:block"
-            aria-label="Data sources"
-          >
-            <div className="flex items-center justify-between gap-3 px-1">
+      </div>
+
+      <div className="grid min-w-0 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside
+          className="hidden border-r p-4 lg:block"
+          aria-label="Data sources"
+        >
+          <div className="flex items-center justify-between gap-3 px-1">
               <div>
                 <h3 className="text-sm font-semibold">Data sources</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {datasources.length.toLocaleString()} connected
                 </p>
               </div>
-              <AddSourceMenu onCreateIngestion={onCreateIngestion} />
+              <AddSourceMenu onConfigureSource={onConfigureSource} />
             </div>
             {profileError && (
               <Alert variant="destructive" className="mt-3">
@@ -639,102 +672,92 @@ export function DataSourcesWorkspace({
                   );
                 })}
               </div>
-            </ScrollArea>
-          </aside>
-        )}
+          </ScrollArea>
+        </aside>
 
         <section className="min-w-0" aria-label="Selected data source files">
-          {inspectedFile ? (
-            <DataSourceFileInspector
-              datasource={selectedSource}
-              file={inspectedFile}
-              onBack={() => setInspectedFile(null)}
-            />
-          ) : (
-            <>
-              <header className="p-4 sm:p-5">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-white text-primary">
-                      <SourceIcon
-                        datasource={selectedSource}
-                        className="size-5"
-                      />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="truncate text-lg font-semibold">
-                          {displayName(selectedSource)}
-                        </h3>
-                      </div>
-                    </div>
+          <header className="p-4 sm:p-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-white text-primary">
+                  <SourceIcon datasource={selectedSource} className="size-5" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-lg font-semibold">
+                      {displayName(selectedSource)}
+                    </h3>
                   </div>
-                  <SourceActions
-                    datasource={selectedSource}
-                    profile={profile}
-                    dataLoading={dataLoading}
-                    refreshing={refreshing}
-                    onRefresh={onRefresh}
-                    onCreateIngestion={onCreateIngestion}
-                    onForgetProfile={setForgetProfile}
-                  />
                 </div>
-              </header>
-              <Separator />
-              {backendFiles.error && !isAggregate && (
-                <Alert variant="destructive" className="m-4">
-                  <AlertTitle>Unable to load source files</AlertTitle>
-                  <AlertDescription>{backendFiles.error}</AlertDescription>
-                  <Button
-                    className="mt-3"
-                    variant="outline"
-                    size="sm"
-                    onClick={backendFiles.refresh}
-                  >
-                    Retry
-                  </Button>
-                </Alert>
-              )}
-              {result?.warning && (
-                <Alert className="m-4">
-                  <AlertTitle>Processing status unavailable</AlertTitle>
-                  <AlertDescription>{result.warning}</AlertDescription>
-                </Alert>
-              )}
-              {(result || !backendFiles.error || isAggregate) && (
-                <DataSourceFilesTable
-                  result={result}
-                  loading={tableLoading}
-                  search={query.search}
-                  page={result?.page ?? query.page}
-                  pageSize={query.pageSize}
-                  sortBy={query.sortBy}
-                  sortOrder={query.sortOrder}
-                  onSearchChange={(search) =>
-                    setQuery((current) => ({ ...current, search, page: 1 }))
-                  }
-                  onPageChange={(page) =>
-                    setQuery((current) => ({ ...current, page }))
-                  }
-                  onPageSizeChange={(pageSize) =>
-                    setQuery((current) => ({
-                      ...current,
-                      page: 1,
-                      pageSize,
-                    }))
-                  }
-                  onSortChange={changeSort}
-                  onInspect={setInspectedFile}
-                  onCreateIngestion={
-                    isAggregate ||
-                    selectedSource.type === "UPLOAD" ||
-                    selectedSource.type === "s3"
-                      ? () => onCreateIngestion()
-                      : undefined
-                  }
-                />
-              )}
-            </>
+              </div>
+              <SourceActions
+                datasource={selectedSource}
+                profile={profile}
+                dataLoading={dataLoading}
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                onCreateIngestion={onCreateIngestion}
+                onConfigureSource={onConfigureSource}
+                onForgetProfile={setForgetProfile}
+              />
+            </div>
+          </header>
+          <Separator />
+          {backendFiles.error && !isAggregate && (
+            <Alert variant="destructive" className="m-4">
+              <AlertTitle>Unable to load source files</AlertTitle>
+              <AlertDescription>{backendFiles.error}</AlertDescription>
+              <Button
+                className="mt-3"
+                variant="outline"
+                size="sm"
+                onClick={backendFiles.refresh}
+              >
+                Retry
+              </Button>
+            </Alert>
+          )}
+          {result?.warning && (
+            <Alert className="m-4">
+              <AlertTitle>Processing status unavailable</AlertTitle>
+              <AlertDescription>{result.warning}</AlertDescription>
+            </Alert>
+          )}
+          {(result || !backendFiles.error || isAggregate) && (
+            <DataSourceFilesTable
+              result={result}
+              loading={tableLoading}
+              search={query.search}
+              page={result?.page ?? query.page}
+              pageSize={query.pageSize}
+              sortBy={query.sortBy}
+              sortOrder={query.sortOrder}
+              onSearchChange={(search) =>
+                setQuery((current) => ({ ...current, search, page: 1 }))
+              }
+              onPageChange={(page) =>
+                setQuery((current) => ({ ...current, page }))
+              }
+              onPageSizeChange={(pageSize) =>
+                setQuery((current) => ({
+                  ...current,
+                  page: 1,
+                  pageSize,
+                }))
+              }
+              onSortChange={changeSort}
+              onInspect={(file) =>
+                onOpenDocument(file, displayName(selectedSource))
+              }
+              onCreateIngestion={
+                isAggregate || selectedSource.type === "UPLOAD"
+                  ? onCreateIngestion
+                  : selectedSource.type === "s3" ||
+                      selectedSource.type === "snowflake"
+                    ? configureSelectedSource
+                    : undefined
+              }
+            />
           )}
         </section>
       </div>

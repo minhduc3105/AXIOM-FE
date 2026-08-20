@@ -1,41 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GlobalIngestionProvider } from "../model/GlobalIngestionProvider";
 import { writeStoredIngestionJobs } from "../model/globalIngestionStorage";
 import type { GlobalIngestionJob } from "../model/globalIngestionTypes";
 import { GlobalIngestionDock } from "./GlobalIngestionDock";
-
-vi.mock("@/shared/components/document-results/DocumentResultViewer", () => ({
-  DocumentResultViewer: () => <section aria-label="Parsed result viewer" />,
-}));
-
-vi.mock("../model/useDocumentResultInspector", () => ({
-  useDocumentResultInspector: () => ({
-    selectedKey: "uploads/invoice.pdf",
-    selectedFile: {
-      key: "uploads/invoice.pdf",
-      filename: "invoice.pdf",
-      contentType: "application/pdf",
-    },
-    selectedResult: {
-      object_key: "uploads/invoice.pdf",
-      found: true,
-      status: "completed",
-      run_id: "run-1",
-      document_id: "document-1",
-      error_message: null,
-      started_at: null,
-      finished_at: null,
-      created_at: null,
-    },
-    preview: { status: "idle", data: null, error: null },
-    parsing: { status: "idle", data: null, error: null },
-    retryPreview: vi.fn(),
-    retryParsing: vi.fn(),
-    selectFile: vi.fn(),
-  }),
-}));
 
 function createJob(
   status: GlobalIngestionJob["objects"][number]["status"],
@@ -77,11 +46,14 @@ function createJob(
   };
 }
 
-function renderDock(job: GlobalIngestionJob) {
+function renderDock(
+  job: GlobalIngestionJob,
+  onOpenDetails: (jobId: string, objectKey: string) => void = () => {},
+) {
   writeStoredIngestionJobs("org-1", "workspace-1", [job]);
   return render(
     <GlobalIngestionProvider organizationId="org-1" workspaceId="workspace-1">
-      <GlobalIngestionDock />
+      <GlobalIngestionDock onOpenDetails={onOpenDetails} />
     </GlobalIngestionProvider>,
   );
 }
@@ -105,9 +77,12 @@ describe("GlobalIngestionDock", () => {
     ).toBeNull();
   });
 
-  it("opens parsed details for an indexed object", async () => {
+  it("opens the document page for an indexed object", async () => {
     const actor = userEvent.setup();
-    renderDock(createJob("indexed"));
+    let opened: [string, string] | null = null;
+    renderDock(createJob("indexed"), (jobId, objectKey) => {
+      opened = [jobId, objectKey];
+    });
 
     await actor.click(
       screen.getByRole("button", { name: "Open ingestion jobs" }),
@@ -116,6 +91,6 @@ describe("GlobalIngestionDock", () => {
       screen.getByRole("button", { name: "View details for invoice.pdf" }),
     );
 
-    expect(await screen.findByRole("region", { name: "Parsed result viewer" })).toBeTruthy();
+    expect(opened).toEqual(["job-1", "uploads/invoice.pdf"]);
   });
 });

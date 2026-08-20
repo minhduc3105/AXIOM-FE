@@ -14,6 +14,16 @@ export type AppRoute =
   | { surface: "chat"; page: "home" | "compose"; sessionId: null }
   | { surface: "chat"; page: "conversation"; sessionId: string }
   | { surface: "data"; page: "dashboard"; sessionId: null }
+  | {
+      surface: "data";
+      page: "document";
+      objectKey: string;
+      bucket: string;
+      filename: string | null;
+      documentId: string | null;
+      sourceLabel: string;
+      sessionId: null;
+    }
   | { surface: "reports"; sessionId: null }
   | {
       surface: "tools";

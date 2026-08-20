@@ -3,6 +3,7 @@ import { AlertCircleIcon } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { LayoutBlock } from "@/shared/types/document-results";
 import { SourceBlockOverlay } from "./SourceBlockOverlay";
@@ -69,10 +70,13 @@ export default function PdfSourceViewer({
   }, [onPageIndexChange, pageCount, pageIndex]);
 
   useEffect(() => {
-    const viewport = scrollRef.current;
-    if (!viewport || !activeComponentId) return;
+    const scrollContent = scrollRef.current;
+    const viewport = scrollContent?.closest<HTMLElement>(
+      "[data-slot='scroll-area-viewport']",
+    );
+    if (!scrollContent || !viewport || !activeComponentId) return;
     const target = Array.from(
-      viewport.querySelectorAll<HTMLElement>("[data-block-id]"),
+      scrollContent.querySelectorAll<HTMLElement>("[data-block-id]"),
     ).find((element) => element.dataset.blockId === activeComponentId);
     if (!target) return;
     const viewportRect = viewport.getBoundingClientRect();
@@ -106,9 +110,7 @@ export default function PdfSourceViewer({
         previousDisabled={pageIndex <= 0}
         nextDisabled={!pageCount || pageIndex >= pageCount - 1}
         onPrevious={() => onPageIndexChange(Math.max(0, pageIndex - 1))}
-        onNext={() =>
-          onPageIndexChange(Math.min(pageCount - 1, pageIndex + 1))
-        }
+        onNext={() => onPageIndexChange(Math.min(pageCount - 1, pageIndex + 1))}
         zoom={zoom}
         zoomOutDisabled={zoom <= 0.65}
         zoomInDisabled={zoom >= 1.75}
@@ -123,53 +125,55 @@ export default function PdfSourceViewer({
         showBoxes={showBoxes}
         onShowBoxesChange={onShowBoxesChange}
       />
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto p-4">
-        {loadError?.url === url ? (
-          <div className="grid min-h-[480px] place-items-center p-6">
-            <Alert variant="destructive" className="max-w-md">
-              <AlertCircleIcon />
-              <AlertTitle>PDF preview failed</AlertTitle>
-              <AlertDescription>{loadError.message}</AlertDescription>
-              <Button className="mt-3" variant="outline" onClick={onRetry}>
-                Retry preview
-              </Button>
-            </Alert>
-          </div>
-        ) : (
-          <Document
-            file={url}
-            loading={<PdfLoadingState label="Loading PDF..." />}
-            onLoadSuccess={(pdf) => {
-              setPageCount(pdf.numPages);
-              setLoadError(null);
-            }}
-            onLoadError={(error) =>
-              setLoadError({ url, message: error.message })
-            }
-          >
-            <div
-              className="relative mx-auto w-fit overflow-hidden bg-white shadow-2xl"
-              aria-label={`PDF page for ${fileName}`}
-            >
-              <Page
-                pageNumber={pageIndex + 1}
-                width={renderedWidth}
-                renderAnnotationLayer={false}
-                renderTextLayer={false}
-                loading={<PdfLoadingState label="Rendering page..." />}
-                onRenderSuccess={() => setRenderVersion((value) => value + 1)}
-              />
-              <SourceBlockOverlay
-                blocks={pageBlocks}
-                allBlocks={blocks}
-                activeComponentId={activeComponentId}
-                visible={showBoxes}
-                onActivate={onActivate}
-              />
+      <ScrollArea className="min-h-0 flex-1">
+        <div ref={scrollRef} className="min-w-0 p-4">
+          {loadError?.url === url ? (
+            <div className="grid min-h-[480px] place-items-center p-6">
+              <Alert variant="destructive" className="max-w-md">
+                <AlertCircleIcon />
+                <AlertTitle>PDF preview failed</AlertTitle>
+                <AlertDescription>{loadError.message}</AlertDescription>
+                <Button className="mt-3" variant="outline" onClick={onRetry}>
+                  Retry preview
+                </Button>
+              </Alert>
             </div>
-          </Document>
-        )}
-      </div>
+          ) : (
+            <Document
+              file={url}
+              loading={<PdfLoadingState label="Loading PDF..." />}
+              onLoadSuccess={(pdf) => {
+                setPageCount(pdf.numPages);
+                setLoadError(null);
+              }}
+              onLoadError={(error) =>
+                setLoadError({ url, message: error.message })
+              }
+            >
+              <div
+                className="relative mx-auto w-fit overflow-hidden bg-white shadow-2xl"
+                aria-label={`PDF page for ${fileName}`}
+              >
+                <Page
+                  pageNumber={pageIndex + 1}
+                  width={renderedWidth}
+                  renderAnnotationLayer={false}
+                  renderTextLayer={false}
+                  loading={<PdfLoadingState label="Rendering page..." />}
+                  onRenderSuccess={() => setRenderVersion((value) => value + 1)}
+                />
+                <SourceBlockOverlay
+                  blocks={pageBlocks}
+                  allBlocks={blocks}
+                  activeComponentId={activeComponentId}
+                  visible={showBoxes}
+                  onActivate={onActivate}
+                />
+              </div>
+            </Document>
+          )}
+        </div>
+      </ScrollArea>
     </div>
   );
 }

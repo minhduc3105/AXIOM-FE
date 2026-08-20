@@ -62,13 +62,7 @@ export function ProcessWorkspace({
           aria-controls={`${processEventKeyPrefix}-process-steps`}
           onClick={() => setExpanded((current) => !current)}
         >
-          <span
-            className="grid size-8 shrink-0 place-items-center rounded-full border border-[#d8d0c2]/80 bg-white text-[#191915] dark:border-[#38372f] dark:bg-[#1a1a17] dark:text-[#eee8dc]"
-            aria-hidden="true"
-          >
-            <TerminalSquareIcon className="size-3.5" />
-          </span>
-          <strong className="min-w-0 flex-1 truncate text-sm font-semibold text-[#191915] dark:text-[#eee8dc]">
+          <strong className="p-2 min-w-0 flex-1 truncate text-sm font-semibold text-[#191915] dark:text-[#eee8dc]">
             Analysis Details
           </strong>
           <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-[#9b9488] dark:text-[#aaa397]">
@@ -76,8 +70,8 @@ export function ProcessWorkspace({
             {expanded ? (
               <ChevronDownIcon className="size-3.5" />
             ) : (
-            <ChevronRightIcon className="size-3.5" />
-          )}
+              <ChevronRightIcon className="size-3.5" />
+            )}
           </span>
         </Button>
 
@@ -174,5 +168,7 @@ function ProcessStepButton({
 }
 
 function isCodeStep(event: ProcessEvent) {
-  return Boolean(event.code?.content) || /python|code|execute/i.test(event.label);
+  return (
+    Boolean(event.code?.content) || /python|code|execute/i.test(event.label)
+  );
 }

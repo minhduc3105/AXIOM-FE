@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   getAutoReport,
-  getAutoReportPdf,
+  getAutoReportHtml,
   getAutoReportPolicy,
   listAutoReports,
   runAutoReportNow,
@@ -163,10 +163,10 @@ export function ReportsPage({
   const download = async (reportId: string) => {
     if (!workspaceId) return;
     try {
-      const { url } = await getAutoReportPdf(workspaceId, reportId);
+      const { url } = await getAutoReportHtml(workspaceId, reportId);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (requestError) {
-      toast.error("Could not open PDF", {
+      toast.error("Could not open HTML report", {
         description: errorMessage(requestError),
       });
     }
@@ -183,12 +183,11 @@ export function ReportsPage({
                 {workspaceName || workspaceId || "Choose a workspace"}
               </span>
               <h1 className="mt-3 text-3xl font-semibold text-[#191915] dark:text-[#f4efe5] sm:text-4xl">
-                Automated PDF reports
+                Automated HTML reports
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
-                Every run starts with the newest workspace file. GenReport may
-                add related files, and each completed report keeps its exact
-                input list.
+                Every run analyzes only the newest workspace file and creates a
+                compact HTML report with the important findings and charts.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -271,7 +270,7 @@ export function ReportsPage({
                 </p>
                 <strong className="mt-3 block truncate text-lg">
                   {reports.find((report) => report.status === "completed")
-                    ?.title || "No PDF report yet"}
+                    ?.title || "No HTML report yet"}
                 </strong>
                 <p className="mt-2 text-sm text-[#625d53] dark:text-[#c5bcaf]">
                   {reports.length} run{reports.length === 1 ? "" : "s"} recorded
@@ -331,22 +330,21 @@ export function ReportsPage({
                         <span className="rounded-full bg-[#edf2ff] px-2.5 py-1 text-xs font-medium text-[#1237b4] dark:bg-[#7895ff]/12 dark:text-[#bcc9ff]">
                           {statusLabels[report.status]}
                         </span>
-                        {report.pdf_available && (
+                        {report.report_available && (
                           <Button
                             size="sm"
                             variant="outline"
                             className="rounded-full"
                             onClick={() => void download(report.report_id)}
                           >
-                            <DownloadIcon /> PDF
+                            <DownloadIcon /> HTML
                           </Button>
                         )}
                       </div>
                     </div>
                     <p className="mt-3 text-xs text-[#6d685e] dark:text-[#aaa397]">
-                      {report.related_source_count} related file
-                      {report.related_source_count === 1 ? "" : "s"} selected.
-                      Open to see all source files.
+                      Generated from the newest workspace file only. Open to
+                      see the source file.
                     </p>
                   </article>
                 ))}
@@ -361,16 +359,16 @@ export function ReportsPage({
                       Files used by {selected.title || selected.report_id}
                     </h2>
                     <p className="mt-1 text-sm text-[#625d53] dark:text-[#c5bcaf]">
-                      The newest file is marked primary; related files were
-                      selected by GenReport.
+                      This report was generated from the newest workspace file
+                      only.
                     </p>
                   </div>
-                  {selected.pdf_available && (
+                  {selected.report_available && (
                     <Button
                       className="rounded-full"
                       onClick={() => void download(selected.report_id)}
                     >
-                      <DownloadIcon data-icon="inline-start" /> Open PDF
+                      <DownloadIcon data-icon="inline-start" /> Open HTML
                     </Button>
                   )}
                 </div>

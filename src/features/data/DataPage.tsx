@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangleIcon,
   CircleAlertIcon,
@@ -14,13 +14,20 @@ import { Button } from "@/components/ui/button";
 import { DataEmptyState } from "./components/DataEmptyState";
 import { DataMetrics } from "./components/DataMetrics";
 import { DataSourcesWorkspace } from "./components/DataSourcesWorkspace";
+import { DataSourceConnectionDialog } from "./components/DataSourceConnectionDialog";
 import { useDataDashboard } from "./model/useDataDashboard";
 import { useDataSourceProfiles } from "@/shared/hooks/use-data-source-profiles";
+import type {
+  DataSourceProfileType,
+  SavedDataSourceProfile,
+} from "@/shared/types/data-source-profile";
 import { useDataWorkspace } from "./model/DataWorkspaceProvider";
+import type { DataFile } from "./model/types";
 
 type DataPageProps = {
   organizationId: string;
   onCreateIngestion: () => void;
+  onOpenDocument?: (file: DataFile, sourceLabel: string) => void;
 };
 
 function formatAggregateSize(bytes: number) {
@@ -37,7 +44,15 @@ function formatAggregateSize(bytes: number) {
   }).format(value)} ${units[unitIndex]} stored`;
 }
 
-export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
+export function DataPage({
+  organizationId,
+  onCreateIngestion,
+  onOpenDocument = () => {},
+}: DataPageProps) {
+  const [connectionDialog, setConnectionDialog] = useState<{
+    type: DataSourceProfileType;
+    profile: SavedDataSourceProfile | null;
+  } | null>(null);
   const workspace = useDataWorkspace();
   const workspaceId = workspace.selectedWorkspace?.id ?? "";
   const { snapshot, loading, error, refresh } = useDataDashboard(
@@ -52,6 +67,7 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
   const {
     profiles,
     error: profileError,
+    refresh: refreshProfiles,
     remove: removeProfile,
   } = useDataSourceProfiles(organizationId);
   const summary = useMemo(() => {
@@ -169,11 +185,27 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
               refreshing={refreshing}
               onRefresh={refresh}
               onCreateIngestion={onCreateIngestion}
+              onOpenDocument={onOpenDocument}
+              onConfigureSource={(type, profile = null) =>
+                setConnectionDialog({ type, profile })
+              }
               onDeleteProfile={removeProfile}
             />
           )}
         </section>
       </div>
+      {connectionDialog && (
+        <DataSourceConnectionDialog
+          organizationId={organizationId}
+          sourceType={connectionDialog.type}
+          profile={connectionDialog.profile}
+          open
+          onOpenChange={(open) => {
+            if (!open) setConnectionDialog(null);
+          }}
+          onSaved={refreshProfiles}
+        />
+      )}
     </section>
   );
 }

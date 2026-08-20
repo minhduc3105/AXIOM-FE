@@ -28,7 +28,7 @@ export type AutoReport = {
   completed_at: string | null;
   title: string | null;
   summary: string | null;
-  pdf_available: boolean;
+  report_available: boolean;
   primary_source: AutoReportSource | null;
   related_source_count: number;
 };
@@ -115,8 +115,8 @@ export function getAutoReport(workspaceId: string, reportId: string) {
   );
 }
 
-export function getAutoReportPdf(workspaceId: string, reportId: string) {
+export function getAutoReportHtml(workspaceId: string, reportId: string) {
   return request<{ url: string; expires_in: number }>(
-    reportPath(workspaceId, `/${encodeURIComponent(reportId)}/pdf`),
+    reportPath(workspaceId, `/${encodeURIComponent(reportId)}/html`),
   );
 }

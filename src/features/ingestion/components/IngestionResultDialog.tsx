@@ -101,7 +101,6 @@ function ResultContent({
       </section>
       <DocumentResultViewer
         file={inspector.selectedFile}
-        runId={inspector.selectedResult?.run_id ?? null}
         preview={inspector.preview}
         parsing={inspector.parsing}
         onRetryPreview={inspector.retryPreview}

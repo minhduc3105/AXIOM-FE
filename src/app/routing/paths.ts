@@ -15,6 +15,16 @@ export function parseAppRoute(pathname: string, search = ""): AppRoute {
   const segments = pathname.split("/").filter(Boolean);
 
   if (segments[0] === ROUTE_SEGMENTS.data) {
+    if (segments[1] === "document" && segments[2]) {
+      const params = new URLSearchParams(search);
+      return createDataDocumentRoute({
+        objectKey: decodeURIComponent(segments[2]),
+        bucket: params.get("bucket") ?? "",
+        filename: params.get("filename"),
+        documentId: params.get("document_id"),
+        sourceLabel: params.get("source") ?? "Uploaded files",
+      });
+    }
     if (segments[1] === "ingestion") {
       return createDataRoute();
     }
@@ -73,6 +83,15 @@ export function parseAppRoute(pathname: string, search = ""): AppRoute {
 
 export function getAppRoutePath(route: AppRoute) {
   if (route.surface === "data") {
+    if (route.page === "document") {
+      const params = new URLSearchParams({
+        bucket: route.bucket,
+        source: route.sourceLabel,
+      });
+      if (route.filename) params.set("filename", route.filename);
+      if (route.documentId) params.set("document_id", route.documentId);
+      return `/${ROUTE_SEGMENTS.data}/document/${encodeURIComponent(route.objectKey)}?${params.toString()}`;
+    }
     return `/${ROUTE_SEGMENTS.data}`;
   }
   if (route.surface === "reports") return `/${ROUTE_SEGMENTS.reports}`;
@@ -103,6 +122,23 @@ export function createChatHomeRoute(): AppRoute {
 
 export function createDataRoute(): AppRoute {
   return { surface: "data", page: "dashboard", sessionId: null };
+}
+
+export function createDataDocumentRoute(
+  target: {
+    objectKey: string;
+    bucket: string;
+    filename: string | null;
+    documentId: string | null;
+    sourceLabel: string;
+  },
+): AppRoute {
+  return {
+    surface: "data",
+    page: "document",
+    ...target,
+    sessionId: null,
+  };
 }
 
 export function createReportsRoute(): AppRoute {

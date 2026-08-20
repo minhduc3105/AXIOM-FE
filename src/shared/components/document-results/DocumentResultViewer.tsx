@@ -12,6 +12,7 @@ import {
   AlertCircleIcon,
   ArrowLeftIcon,
   BracesIcon,
+  ChevronDownIcon,
   CopyIcon,
   FileSearchIcon,
   PanelLeftCloseIcon,
@@ -26,12 +27,28 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -53,9 +70,7 @@ import { SourceBlockOverlay } from "./SourceBlockOverlay";
 import { SourceViewerToolbar } from "./SourceViewerToolbar";
 
 const PdfSourceViewer = lazy(() => import("./PdfSourceViewer"));
-const SpreadsheetSourceViewer = lazy(
-  () => import("./SpreadsheetSourceViewer"),
-);
+const SpreadsheetSourceViewer = lazy(() => import("./SpreadsheetSourceViewer"));
 
 const EMPTY_BLOCKS: LayoutBlock[] = [];
 const DESKTOP_VIEWER_WIDTH = 960;
@@ -104,20 +119,23 @@ function scrollElementWithin(
   target: HTMLElement,
   behavior: ScrollBehavior,
 ) {
-  const viewportRect = viewport.getBoundingClientRect();
+  const scrollViewport =
+    viewport.closest<HTMLElement>("[data-slot='scroll-area-viewport']") ??
+    viewport;
+  const viewportRect = scrollViewport.getBoundingClientRect();
   const targetRect = target.getBoundingClientRect();
-  viewport.scrollTo({
+  scrollViewport.scrollTo({
     top:
-      viewport.scrollTop +
+      scrollViewport.scrollTop +
       targetRect.top -
       viewportRect.top -
-      viewport.clientHeight / 2 +
+      scrollViewport.clientHeight / 2 +
       targetRect.height / 2,
     left:
-      viewport.scrollLeft +
+      scrollViewport.scrollLeft +
       targetRect.left -
       viewportRect.left -
-      viewport.clientWidth / 2 +
+      scrollViewport.clientWidth / 2 +
       targetRect.width / 2,
     behavior,
   });
@@ -148,7 +166,9 @@ export function DocumentResultViewer({
   const wide = useWideViewer(containerRef);
   const blocks = parsing.data?.blocks ?? EMPTY_BLOCKS;
 
-  const [activeComponentId, setActiveComponentId] = useState<string | null>(null);
+  const [activeComponentId, setActiveComponentId] = useState<string | null>(
+    null,
+  );
   const [pageIndex, setPageIndex] = useState(0);
   const [showBoxes, setShowBoxes] = useState(true);
   const [zoom, setZoom] = useState(1);
@@ -172,8 +192,8 @@ export function DocumentResultViewer({
   );
   const blockTypes = useMemo(
     () =>
-      Array.from(new Set(blocks.map((block) => block.type))).sort((left, right) =>
-        left.localeCompare(right),
+      Array.from(new Set(blocks.map((block) => block.type))).sort(
+        (left, right) => left.localeCompare(right),
       ),
     [blocks],
   );
@@ -276,17 +296,18 @@ export function DocumentResultViewer({
     return (
       <Card className={cn("min-h-[520px] min-w-0", className)}>
         <CardContent className="grid flex-1 place-items-center p-8 text-center">
-          <div className="flex max-w-sm flex-col items-center gap-3">
-            <span className="grid size-12 place-items-center rounded-lg bg-muted text-primary">
-              <FileSearchIcon />
-            </span>
-            <div>
-              <h3 className="text-lg font-semibold">No indexed result selected</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Select an indexed file to compare its source with parsed content.
-              </p>
-            </div>
-          </div>
+          <Empty className="max-w-sm border-0 p-0">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileSearchIcon />
+              </EmptyMedia>
+              <EmptyTitle>No indexed result selected</EmptyTitle>
+              <EmptyDescription>
+                Select an indexed file to compare its source with parsed
+                content.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         </CardContent>
       </Card>
     );
@@ -294,8 +315,7 @@ export function DocumentResultViewer({
 
   const sourcePane = (
     <InspectorPane
-      title="Source preview"
-      description="Original file"
+      title="File preview"
       onCollapse={wide ? collapseSource : undefined}
       collapseLabel="Hide source preview"
       collapseIcon={<PanelLeftCloseIcon />}
@@ -329,7 +349,6 @@ export function DocumentResultViewer({
   const parsedPane = (
     <InspectorPane
       title="Parsed content"
-      description="Rendered blocks and normalized JSON"
       onCollapse={wide ? collapseParsed : undefined}
       collapseLabel="Hide parsed content"
       collapseIcon={<PanelRightCloseIcon />}
@@ -418,15 +437,26 @@ export function DocumentResultViewer({
             className="h-full min-h-0 gap-0"
           >
             <div className="border-b px-3 py-2">
-              <TabsList className="w-full" aria-label="Document comparison views">
+              <TabsList
+                className="w-full"
+                aria-label="Document comparison views"
+              >
                 <TabsTrigger value="source">Source</TabsTrigger>
                 <TabsTrigger value="parsed">Parsed content</TabsTrigger>
               </TabsList>
             </div>
-            <TabsContent value="source" keepMounted className="m-0 min-h-0 overflow-hidden">
+            <TabsContent
+              value="source"
+              keepMounted
+              className="m-0 min-h-0 overflow-hidden"
+            >
               {sourcePane}
             </TabsContent>
-            <TabsContent value="parsed" keepMounted className="m-0 min-h-0 overflow-hidden">
+            <TabsContent
+              value="parsed"
+              keepMounted
+              className="m-0 min-h-0 overflow-hidden"
+            >
               {parsedPane}
             </TabsContent>
           </Tabs>
@@ -455,9 +485,14 @@ function InspectorHeader({
   const statusTone = context?.statusTone ?? "neutral";
 
   return (
-    <header className="sticky top-0 z-20 flex min-h-16 shrink-0 items-center gap-3 border-b bg-card px-3 py-2 sm:px-4">
+    <header className="sticky top-0 z-20 flex min-h-12 shrink-0 items-center gap-3 border-b bg-card px-3 py-2 sm:px-4">
       {context?.onBack && (
-        <Button variant="ghost" size="sm" type="button" onClick={context.onBack}>
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          onClick={context.onBack}
+        >
           <ArrowLeftIcon data-icon="inline-start" />
           <span className="max-sm:sr-only">{context.backLabel ?? "Back"}</span>
         </Button>
@@ -465,40 +500,14 @@ function InspectorHeader({
       <div className="min-w-0 flex-1">
         <Tooltip>
           <TooltipTrigger
-            render={<h2 className="truncate text-sm font-semibold" tabIndex={0} />}
+            render={
+              <h2 className="truncate text-sm font-semibold" tabIndex={0} />
+            }
           >
             {getDisplayName(file)}
           </TooltipTrigger>
           <TooltipContent>{getDisplayName(file)}</TooltipContent>
         </Tooltip>
-        {context?.sourceLabel && (
-          <p className="truncate text-xs text-muted-foreground">
-            {context.sourceLabel}
-          </p>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <Badge variant="secondary" className="max-sm:hidden">
-          {blockLabel}
-        </Badge>
-        <Badge
-          variant="secondary"
-          className="sm:hidden"
-          aria-label={blockLabel}
-        >
-          {parsing.data?.blocks.length ?? "—"}
-        </Badge>
-        <Badge
-          variant="outline"
-          className={cn(
-            statusTone === "success" && "border-success/30 bg-success/10 text-success",
-            statusTone === "processing" && "border-info/30 bg-info/10 text-info",
-            statusTone === "failed" &&
-              "border-destructive/30 bg-destructive/10 text-destructive",
-          )}
-        >
-          {context?.statusLabel ?? "Indexed"}
-        </Badge>
       </div>
     </header>
   );
@@ -506,7 +515,6 @@ function InspectorHeader({
 
 function InspectorPane({
   title,
-  description,
   children,
   onCollapse,
   collapseLabel,
@@ -514,7 +522,6 @@ function InspectorPane({
   restoreAction,
 }: {
   title: string;
-  description: string;
   children: React.ReactNode;
   onCollapse?: () => void;
   collapseLabel: string;
@@ -523,50 +530,6 @@ function InspectorPane({
 }) {
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <header className="flex min-h-14 shrink-0 items-center gap-3 border-b px-3 py-2">
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold">{title}</h3>
-          <p className="truncate text-xs text-muted-foreground">{description}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {restoreAction && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    type="button"
-                    aria-label={restoreAction.label}
-                    onClick={restoreAction.onClick}
-                  />
-                }
-              >
-                {restoreAction.icon}
-              </TooltipTrigger>
-              <TooltipContent>{restoreAction.label}</TooltipContent>
-            </Tooltip>
-          )}
-          {onCollapse && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    type="button"
-                    aria-label={collapseLabel}
-                    onClick={onCollapse}
-                  />
-                }
-              >
-                {collapseIcon}
-              </TooltipTrigger>
-              <TooltipContent>{collapseLabel}</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-      </header>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {children}
       </div>
@@ -653,7 +616,9 @@ function SourcePane(props: SourcePaneProps) {
 
   if (kind === "xlsx") {
     return (
-      <Suspense fallback={<SourceLoadingState label="Loading spreadsheet viewer…" />}>
+      <Suspense
+        fallback={<SourceLoadingState label="Loading spreadsheet viewer…" />}
+      >
         <SpreadsheetSourceViewer
           url={props.preview.data.url}
           fileName={getDisplayName(props.file)}
@@ -748,26 +713,31 @@ function ImageSourceViewer({
         showBoxes={showBoxes}
         onShowBoxesChange={onShowBoxesChange}
       />
-      <div ref={viewportRef} className="min-h-0 flex-1 overflow-auto p-4">
-        <div
-          className="relative mx-auto w-fit max-w-none overflow-hidden border bg-background shadow-sm"
-          style={{ width: `${zoom * 100}%`, minWidth: zoom > 1 ? "100%" : undefined }}
-        >
-          <img
-            className="block h-auto w-full"
-            src={url}
-            alt={`Source preview for ${fileName}`}
-            onError={() => setImageError(true)}
-          />
-          <SourceBlockOverlay
-            blocks={blocks.filter((block) => block.page === 0)}
-            allBlocks={blocks}
-            activeComponentId={activeComponentId}
-            visible={showBoxes}
-            onActivate={onActivate}
-          />
+      <ScrollArea className="min-h-0 flex-1">
+        <div ref={viewportRef} className="min-w-0 p-4">
+          <div
+            className="relative mx-auto w-fit max-w-none overflow-hidden border bg-background shadow-sm"
+            style={{
+              width: `${zoom * 100}%`,
+              minWidth: zoom > 1 ? "100%" : undefined,
+            }}
+          >
+            <img
+              className="block h-auto w-full"
+              src={url}
+              alt={`Source preview for ${fileName}`}
+              onError={() => setImageError(true)}
+            />
+            <SourceBlockOverlay
+              blocks={blocks.filter((block) => block.page === 0)}
+              allBlocks={blocks}
+              activeComponentId={activeComponentId}
+              visible={showBoxes}
+              onActivate={onActivate}
+            />
+          </div>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }
@@ -821,7 +791,11 @@ function ParsedPane({
 
   if (parsing.status === "error" && !parsing.data) {
     return (
-      <ResourceError title="Parsed content failed" message={parsing.error} onRetry={onRetry} />
+      <ResourceError
+        title="Parsed content failed"
+        message={parsing.error}
+        onRetry={onRetry}
+      />
     );
   }
 
@@ -868,106 +842,136 @@ function ParsedPane({
             </Button>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          {parsedMode === "rendered"
-            ? "Review extracted blocks in document reading order."
-            : "Inspect the complete normalized processing result."}
-        </p>
         {parsedMode === "rendered" && (
           <div className="grid min-w-0 grid-cols-2 gap-2">
-            <FilterSelect label="Filter blocks by page" value={pageFilter} onChange={onPageFilterChange}>
-              <option value="all">All pages</option>
-              {pages.map((page) => (
-                <option key={page} value={page}>
-                  Page {page + 1}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect label="Filter blocks by type" value={typeFilter} onChange={onTypeFilterChange}>
-              <option value="all">All types</option>
-              {blockTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </FilterSelect>
+            <FilterDropdown
+              label="Filter blocks by page"
+              value={pageFilter}
+              onChange={onPageFilterChange}
+              items={[
+                { label: "All pages", value: "all" },
+                ...pages.map((page) => ({
+                  label: `Page ${page + 1}`,
+                  value: page.toString(),
+                })),
+              ]}
+            />
+            <FilterDropdown
+              label="Filter blocks by type"
+              value={typeFilter}
+              onChange={onTypeFilterChange}
+              items={[
+                { label: "All types", value: "all" },
+                ...blockTypes.map((type) => ({ label: type, value: type })),
+              ]}
+            />
           </div>
         )}
       </div>
 
-      <TabsContent value="rendered" keepMounted className="m-0 min-h-0 overflow-hidden">
-        <div ref={viewportRef} className="h-full min-h-0 overflow-auto">
-          <div className="grid min-w-0 gap-3 p-3">
-            {!blocks.length ? (
-              <Alert>
-                <AlertTitle>No layout blocks</AlertTitle>
-                <AlertDescription className="whitespace-pre-wrap">
-                  {parsing.data.mainText ||
-                    "Corpus did not return block or main-text content for this document."}
-                </AlertDescription>
-              </Alert>
-            ) : !filteredBlocks.length ? (
-              <Alert>
-                <FileSearchIcon />
-                <AlertTitle>No matching blocks</AlertTitle>
-                <AlertDescription>
-                  Change the page or block type filter to continue reviewing.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              filteredBlocks.map((block) => {
-                const index = blocks.findIndex(
-                  (item) => item.component_id === block.component_id,
-                );
-                return (
-                  <ParsedBlockCard
-                    key={block.component_id}
-                    block={block}
-                    index={index}
-                    active={activeComponentId === block.component_id}
-                    cardRefs={cardRefs}
-                    onActivate={onActivate}
-                  />
-                );
-              })
-            )}
+      <TabsContent
+        value="rendered"
+        keepMounted
+        className="m-0 min-h-0 overflow-hidden"
+      >
+        <ScrollArea className="h-full min-h-0">
+          <div ref={viewportRef} className="min-w-0">
+            <div className="grid min-w-0 gap-3 p-3">
+              {!blocks.length ? (
+                <Alert>
+                  <AlertTitle>No layout blocks</AlertTitle>
+                  <AlertDescription className="whitespace-pre-wrap">
+                    {parsing.data.mainText ||
+                      "Corpus did not return block or main-text content for this document."}
+                  </AlertDescription>
+                </Alert>
+              ) : !filteredBlocks.length ? (
+                <Alert>
+                  <FileSearchIcon />
+                  <AlertTitle>No matching blocks</AlertTitle>
+                  <AlertDescription>
+                    Change the page or block type filter to continue reviewing.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                filteredBlocks.map((block) => {
+                  const index = blocks.findIndex(
+                    (item) => item.component_id === block.component_id,
+                  );
+                  return (
+                    <ParsedBlockCard
+                      key={block.component_id}
+                      block={block}
+                      index={index}
+                      active={activeComponentId === block.component_id}
+                      cardRefs={cardRefs}
+                      onActivate={onActivate}
+                    />
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
+        </ScrollArea>
       </TabsContent>
-      <TabsContent value="json" keepMounted className="m-0 min-h-0 overflow-hidden">
-        <div className="h-full min-h-0 overflow-auto p-3">
-          <pre className="min-w-max rounded-lg border bg-muted/50 p-4 font-mono text-xs leading-relaxed text-foreground">
-            {jsonValue}
-          </pre>
-        </div>
+      <TabsContent
+        value="json"
+        keepMounted
+        className="m-0 min-h-0 overflow-hidden"
+      >
+        <ScrollArea className="h-full min-h-0">
+          <div className="p-3">
+            <pre className="min-w-max rounded-lg border bg-muted/50 p-4 font-mono text-xs leading-relaxed text-foreground">
+              {jsonValue}
+            </pre>
+          </div>
+        </ScrollArea>
       </TabsContent>
     </Tabs>
   );
 }
 
-function FilterSelect({
+function FilterDropdown({
   label,
   value,
   onChange,
-  children,
+  items,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  children: React.ReactNode;
+  items: Array<{ label: string; value: string }>;
 }) {
+  const selectedLabel =
+    items.find((item) => item.value === value)?.label ?? label;
+
   return (
-    <label className="min-w-0">
-      <span className="sr-only">{label}</span>
-      <select
-        className="h-8 w-full min-w-0 rounded-md border border-input bg-background px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-between"
+            aria-label={label}
+          />
+        }
       >
-        {children}
-      </select>
-    </label>
+        {selectedLabel}
+        <ChevronDownIcon data-icon="inline-end" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuGroup>
+          <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
+            {items.map((item) => (
+              <DropdownMenuRadioItem key={item.value} value={item.value}>
+                {item.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -1011,23 +1015,27 @@ function ParsedBlockCard({
       onClick={() => onActivate(block)}
       onKeyDown={handleKeyDown}
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-2 border-b bg-muted/40 px-3 py-2.5">
-        <Badge>{(index + 1).toString().padStart(2, "0")}</Badge>
-        <Badge variant="outline">{block.type}</Badge>
-        <Badge variant="secondary">{pageLabel}</Badge>
-        <Badge variant={boxed ? "secondary" : "outline"}>
-          {boxed ? "Boxed" : "No box"}
-        </Badge>
-      </div>
-      <code
-        className="block overflow-x-auto border-b bg-muted/30 px-3 py-2 font-mono text-[10px] text-muted-foreground"
-        title={block.component_id}
-      >
-        {block.component_id}
-      </code>
-      <div className="min-w-0 overflow-hidden">
-        <RenderedBlockContent block={block} />
-      </div>
+      <CardHeader className="border-b bg-muted/40 px-3 py-2.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Badge>{(index + 1).toString().padStart(2, "0")}</Badge>
+          <Badge variant="outline">{block.type}</Badge>
+          <Badge variant="secondary">{pageLabel}</Badge>
+          <Badge variant={boxed ? "secondary" : "outline"}>
+            {boxed ? "Boxed" : "No box"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <code
+          className="block overflow-x-auto border-b bg-muted/30 px-3 py-2 font-mono text-[10px] text-muted-foreground"
+          title={block.component_id}
+        >
+          {block.component_id}
+        </code>
+        <div className="min-w-0 overflow-hidden">
+          <RenderedBlockContent block={block} />
+        </div>
+      </CardContent>
     </Card>
   );
 }
@@ -1073,7 +1081,12 @@ function ResourceError({
         <AlertCircleIcon />
         <AlertTitle>{title}</AlertTitle>
         <AlertDescription>{message}</AlertDescription>
-        <Button className="mt-3" variant="outline" type="button" onClick={onRetry}>
+        <Button
+          className="mt-3"
+          variant="outline"
+          type="button"
+          onClick={onRetry}
+        >
           <RefreshCwIcon data-icon="inline-start" />
           Retry
         </Button>

@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -153,59 +154,62 @@ export default function SpreadsheetSourceViewer({
         nextDisabled={sheetIndex >= preview.sheetCount - 1}
         onPrevious={() => setSheetIndex((index) => Math.max(0, index - 1))}
         onNext={() =>
-          setSheetIndex((index) =>
-            Math.min(preview.sheetCount - 1, index + 1),
-          )
+          setSheetIndex((index) => Math.min(preview.sheetCount - 1, index + 1))
         }
       />
       <div className="flex min-w-0 items-center gap-2 border-b px-3 py-2">
         <Badge variant="secondary">{preview.sheetName}</Badge>
-        <span className="min-w-0 truncate text-xs text-muted-foreground" title={fileName}>
+        <span
+          className="min-w-0 truncate text-xs text-muted-foreground"
+          title={fileName}
+        >
           {fileName}
         </span>
         <span className="ml-auto shrink-0 text-xs text-muted-foreground">
           First {preview.rows.length} rows
         </span>
       </div>
-      <div className="min-h-0 min-w-0 flex-1 overflow-auto p-3">
-        <div className="w-max min-w-full overflow-hidden rounded-lg border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {preview.columns.map((column) => (
-                  <TableHead key={column}>{column}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {preview.rows.length ? (
-                preview.rows.map((row, rowIndex) => (
-                  <TableRow key={`${preview.sheetName}-${rowIndex}`}>
-                    {preview.columns.map((column, columnIndex) => (
-                      <TableCell
-                        key={`${column}-${columnIndex}`}
-                        className="max-w-72 truncate"
-                        title={row[columnIndex] ?? ""}
-                      >
-                        {row[columnIndex] || "—"}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
+      <ScrollArea className="min-h-0 min-w-0 flex-1">
+        <div className="w-max min-w-full p-3">
+          <div className="overflow-hidden rounded-lg border bg-card">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell
-                    colSpan={preview.columns.length}
-                    className="h-32 text-center text-muted-foreground"
-                  >
-                    No populated cells were found in this sheet.
-                  </TableCell>
+                  {preview.columns.map((column) => (
+                    <TableHead key={column}>{column}</TableHead>
+                  ))}
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {preview.rows.length ? (
+                  preview.rows.map((row, rowIndex) => (
+                    <TableRow key={`${preview.sheetName}-${rowIndex}`}>
+                      {preview.columns.map((column, columnIndex) => (
+                        <TableCell
+                          key={`${column}-${columnIndex}`}
+                          className="max-w-72 truncate"
+                          title={row[columnIndex] ?? ""}
+                        >
+                          {row[columnIndex] || "—"}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={preview.columns.length}
+                      className="h-32 text-center text-muted-foreground"
+                    >
+                      No populated cells were found in this sheet.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }
