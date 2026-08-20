@@ -1,5 +1,9 @@
 import { Building2Icon, FolderKanbanIcon } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { GlobalWorkspaceSwitcher } from "@/shared/components/GlobalWorkspaceSwitcher";
 import type { AssignedWorkspace } from "@/features/auth/api/authzApi";
 import type { AppScopeContext } from "@/shared/types/appScope";
@@ -25,25 +29,38 @@ function ScopeItem({
           />
         }
       >
-        <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+        <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
         <strong
           className={
             kind === "Organization"
-              ? "hidden max-w-36 truncate text-xs font-medium lg:block"
-              : "max-w-44 truncate text-xs font-medium sm:max-w-52"
+              ? "hidden max-w-36 truncate text-sm font-medium lg:block"
+              : "max-w-44 truncate text-sm font-medium sm:max-w-52"
           }
         >
           {name}
         </strong>
       </TooltipTrigger>
       <TooltipContent side="bottom" align="end">
-        {kind}: {name}{id ? ` (${id})` : ""}
+        {kind}: {name}
+        {id ? ` (${id})` : ""}
       </TooltipContent>
     </Tooltip>
   );
 }
 
-export function AppScopeBar({ scope, workspaces = [], selectedWorkspace = null, workspacesLoading = false, onWorkspaceSelect }: { scope: AppScopeContext | null; workspaces?: AssignedWorkspace[]; selectedWorkspace?: AssignedWorkspace | null; workspacesLoading?: boolean; onWorkspaceSelect?: (workspaceId: string) => void }) {
+export function AppScopeBar({
+  scope,
+  workspaces = [],
+  selectedWorkspace = null,
+  workspacesLoading = false,
+  onWorkspaceSelect,
+}: {
+  scope: AppScopeContext | null;
+  workspaces?: AssignedWorkspace[];
+  selectedWorkspace?: AssignedWorkspace | null;
+  workspacesLoading?: boolean;
+  onWorkspaceSelect?: (workspaceId: string) => void;
+}) {
   if (!scope) return null;
   const showWorkspace = Boolean(scope.workspace || onWorkspaceSelect);
 

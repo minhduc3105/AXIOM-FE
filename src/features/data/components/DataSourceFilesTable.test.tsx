@@ -52,14 +52,12 @@ function renderTable(
       file("processing.pdf", false),
     ]),
     loading: false,
-    healthFilter: "all",
     search: "",
     page: 1,
     pageSize: 20,
     sortBy: "last_modified",
     sortOrder: "desc",
     onSearchChange: vi.fn(),
-    onClearFilter: vi.fn(),
     onPageChange: vi.fn(),
     onPageSizeChange: vi.fn(),
     onSortChange: vi.fn(),
@@ -147,14 +145,12 @@ describe("DataSourceFilesTable", () => {
     expect(onSortChange).toHaveBeenCalledWith("name");
   });
 
-  it("distinguishes an empty source from a filtered no-result state", async () => {
+  it("distinguishes an empty source from a search no-result state", async () => {
     const user = userEvent.setup();
     const onSearchChange = vi.fn();
-    const onClearFilter = vi.fn();
     const { rerender } = renderTable({
       result: result([]),
       onSearchChange,
-      onClearFilter,
     });
     expect(screen.getByText("No files in this source")).toBeTruthy();
 
@@ -169,17 +165,13 @@ describe("DataSourceFilesTable", () => {
             result: filtered,
             search: "missing-file",
             onSearchChange,
-            onClearFilter,
           })}
         />
       </TooltipProvider>,
     );
     expect(screen.getByText("No matching files")).toBeTruthy();
-    await user.click(
-      screen.getByRole("button", { name: "Clear search and filters" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
     expect(onSearchChange).toHaveBeenCalledWith("");
-    expect(onClearFilter).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -189,14 +181,12 @@ function renderTableProps(
   return {
     result: result([]),
     loading: false,
-    healthFilter: "all",
     search: "",
     page: 1,
     pageSize: 20,
     sortBy: "last_modified",
     sortOrder: "desc",
     onSearchChange: vi.fn(),
-    onClearFilter: vi.fn(),
     onPageChange: vi.fn(),
     onPageSizeChange: vi.fn(),
     onSortChange: vi.fn(),

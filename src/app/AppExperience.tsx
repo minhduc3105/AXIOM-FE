@@ -280,6 +280,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   return (
     <>
       <AppShell
+      route={route}
       activeStage={chat.stage}
       surface={route.surface}
       activeConversationId={route.surface === "chat" ? route.sessionId : null}
@@ -338,7 +339,11 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
           onCreateIngestion={openDataIngestion}
         />
       ) : route.surface === "reports" ? (
-        <ReportsPage onData={openData} />
+        <ReportsPage
+          onData={openData}
+          workspaceId={dataWorkspace.selectedWorkspace?.id ?? null}
+          workspaceName={dataWorkspace.selectedWorkspace?.name ?? null}
+        />
       ) : route.surface === "memory" ? (
         <MemoryPage />
       ) : route.surface === "models" ? (

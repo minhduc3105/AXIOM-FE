@@ -1,4 +1,4 @@
-import { CheckIcon, DatabaseIcon } from "lucide-react";
+import { DatabaseIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import type {
@@ -9,14 +9,11 @@ import { dataStatusPresentation } from "./StatusBadge";
 
 type DataMetricsProps = {
   loading: boolean;
-  disabled: boolean;
-  activeFilter: DataHealthFilter | null;
   total: number;
   ready: number;
   processing: number;
   failed: number;
   totalSize: string;
-  onFilterChange: (filter: DataHealthFilter) => void;
 };
 
 const metrics: Array<{
@@ -43,14 +40,11 @@ const metrics: Array<{
 
 export function DataMetrics({
   loading,
-  disabled,
-  activeFilter,
   total,
   ready,
   processing,
   failed,
   totalSize,
-  onFilterChange,
 }: DataMetricsProps) {
   const values: Record<DataHealthFilter, number> = {
     all: total,
@@ -61,30 +55,22 @@ export function DataMetrics({
 
   return (
     <section
-      className="grid grid-cols-2 gap-3 xl:grid-cols-4"
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
       aria-label="Data health summary"
     >
       {metrics.map((metric) => {
         const Icon = metric.icon;
-        const selected = activeFilter === metric.key;
         const description =
           metric.key === "all"
             ? `${totalSize} across this workspace`
             : metric.description;
 
         return (
-          <button
+          <article
             key={metric.key}
-            type="button"
             className={cn(
-              "relative flex min-h-36 w-full items-start justify-between gap-2 overflow-hidden rounded-lg border bg-card p-3 text-left text-card-foreground transition-colors hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60 sm:min-h-32 sm:gap-4 sm:p-4",
-              selected &&
-                "border-ring bg-accent/50 before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-r-full before:bg-primary",
+              "flex min-h-36 w-full items-start justify-between gap-2 overflow-hidden rounded-lg border bg-card p-3 text-left text-foreground sm:min-h-32 sm:gap-4 sm:p-4",
             )}
-            onClick={() => onFilterChange(metric.key)}
-            disabled={disabled}
-            aria-pressed={selected}
-            aria-controls="data-file-inventory"
             aria-label={`${metric.label}: ${values[metric.key]}. ${description}`}
           >
             <span className="min-w-0">
@@ -101,7 +87,7 @@ export function DataMetrics({
               </span>
             </span>
 
-            <span className="flex shrink-0 flex-col items-end gap-3">
+            <span className="flex shrink-0 flex-col items-end">
               <span
                 className={cn(
                   "grid size-10 place-items-center rounded-md",
@@ -111,18 +97,8 @@ export function DataMetrics({
               >
                 <Icon className="size-4" />
               </span>
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 text-xs font-medium text-foreground",
-                  !selected && "invisible",
-                )}
-                aria-hidden={!selected}
-              >
-                <CheckIcon className="size-3.5" />
-                <span className="hidden sm:inline">Active</span>
-              </span>
             </span>
-          </button>
+          </article>
         );
       })}
     </section>

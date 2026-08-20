@@ -88,13 +88,17 @@ export async function listWorkspaces(
 }
 
 export async function listMyWorkspaces(
-  organizationId: string,
+  _organizationId: string,
   accessToken: string,
   signal?: AbortSignal,
 ) {
-  // The deployed AuthZ contract exposes the organization collection. The
-  // newer `/authz/me/workspaces` route is not available in every deployment.
-  return listWorkspaces(organizationId, accessToken, signal)
+  // This endpoint is membership-scoped, unlike the organization-wide collection.
+  const payload = await request<{ workspaces: AssignedWorkspace[] }>(
+    "/api/v1/authz/me/workspaces",
+    accessToken,
+    { signal },
+  )
+  return payload.workspaces
 }
 
 export async function createWorkspace(

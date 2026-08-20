@@ -1,12 +1,16 @@
-import { useId, type KeyboardEvent, type MouseEvent } from "react";
+import { useId, useState, type KeyboardEvent, type MouseEvent } from "react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
   ArrowUpDownIcon,
   ChevronDownIcon,
   DownloadIcon,
+  FileCodeIcon,
   FileIcon,
+  FileImageIcon,
   FileSearchIcon,
+  FileSpreadsheetIcon,
+  FileTextIcon,
   SearchIcon,
   XIcon,
 } from "lucide-react";
@@ -37,9 +41,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
+import { getUploadFileDefinition } from "@/features/ingestion/model/uploadFileRegistry";
 import type {
   DataFile,
-  DataHealthFilter,
   DataSourceFileSortField,
   DataSourceFileSortOrder,
   DataSourceFilesPage,
@@ -50,14 +54,12 @@ import { StatusBadge } from "./StatusBadge";
 type DataSourceFilesTableProps = {
   result: DataSourceFilesPage | null;
   loading: boolean;
-  healthFilter?: DataHealthFilter;
   search: string;
   page: number;
   pageSize: number;
   sortBy: DataSourceFileSortField;
   sortOrder: DataSourceFileSortOrder;
   onSearchChange: (value: string) => void;
-  onClearFilter?: () => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onSortChange: (field: DataSourceFileSortField) => void;
@@ -67,6 +69,65 @@ type DataSourceFilesTableProps = {
 
 const byteFormatter = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
 const pageSizeItems = [10, 20, 50];
+
+function FileVisual({ file }: { file: DataFile }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const definition = getUploadFileDefinition(file.name);
+  const showImage = definition?.previewKind === "image" && !imageFailed;
+  let Icon = FileIcon;
+  let iconClassName = "text-muted-foreground group-hover:text-primary";
+
+  switch (definition?.extension) {
+    case "csv":
+    case "xlsx":
+      Icon = FileSpreadsheetIcon;
+      iconClassName = "text-emerald-700 dark:text-emerald-400";
+      break;
+    case "pdf":
+      Icon = FileTextIcon;
+      iconClassName = "text-rose-700 dark:text-rose-400";
+      break;
+    case "docx":
+    case "txt":
+      Icon = FileTextIcon;
+      iconClassName = "text-sky-700 dark:text-sky-400";
+      break;
+    case "md":
+      Icon = FileCodeIcon;
+      iconClassName = "text-violet-700 dark:text-violet-400";
+      break;
+    case "png":
+    case "jpg":
+    case "webp":
+      Icon = FileImageIcon;
+      iconClassName = "text-primary";
+      break;
+  }
+
+  return (
+    <span
+      className={cn(
+        "flex size-9 shrink-0 items-center justify-center rounded-md transition-colors",
+        showImage
+          ? "overflow-hidden bg-muted"
+          : "bg-white group-hover:bg-transparent",
+      )}
+    >
+      {showImage ? (
+        <img
+          src={file.downloadUrl}
+          alt=""
+          className="size-full object-cover"
+          loading="lazy"
+          decoding="async"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <Icon className={cn("size-[24px]", iconClassName)} aria-hidden="true" />
+      )}
+    </span>
+  );
+}
 
 function formatFileSize(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
@@ -96,13 +157,11 @@ function TableSkeleton() {
     <Table className="min-w-[860px]">
       <TableHeader>
         <TableRow>
-          {["File", "Status", "Updated", "Size", ""].map(
-            (heading, index) => (
-              <TableHead key={`${heading}-${index}`} className="h-11 px-4">
-                {heading}
-              </TableHead>
-            ),
-          )}
+          {["File", "Status", "Updated", "Size", ""].map((heading, index) => (
+            <TableHead key={`${heading}-${index}`} className="h-11 px-4">
+              {heading}
+            </TableHead>
+          ))}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -125,14 +184,12 @@ function TableSkeleton() {
 export function DataSourceFilesTable({
   result,
   loading,
-  healthFilter = "all",
   search,
   page,
   pageSize,
   sortBy,
   sortOrder,
   onSearchChange,
-  onClearFilter,
   onPageChange,
   onPageSizeChange,
   onSortChange,
@@ -144,14 +201,6 @@ export function DataSourceFilesTable({
   const totalCount = result?.totalCount ?? 0;
   const totalUnfilteredCount = result?.totalUnfilteredCount ?? 0;
   const totalPages = Math.max(1, result?.totalPages ?? 0);
-  const activeFilterLabel =
-    healthFilter === "success"
-      ? "Ready"
-      : healthFilter === "processing"
-        ? "Processing"
-        : healthFilter === "failed"
-          ? "Failed"
-          : null;
   const firstVisible = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const lastVisible = Math.min(page * pageSize, totalCount);
 
@@ -163,14 +212,13 @@ export function DataSourceFilesTable({
       <ArrowDownIcon className="size-3.5" />
     );
   };
-  const clearSearchAndFilter = () => {
-    onSearchChange("");
-    onClearFilter?.();
-  };
   const openFromRow = (file: DataFile) => {
     if (file.canInspect) onInspect(file);
   };
-  const handleRowClick = (event: MouseEvent<HTMLTableRowElement>, file: DataFile) => {
+  const handleRowClick = (
+    event: MouseEvent<HTMLTableRowElement>,
+    file: DataFile,
+  ) => {
     const target = event.target as HTMLElement;
     if (target.closest("button, a")) return;
     openFromRow(file);
@@ -216,30 +264,6 @@ export function DataSourceFilesTable({
             )}
           </div>
         </Field>
-        <div className="flex flex-wrap items-center gap-2 lg:ml-auto lg:justify-end">
-          {activeFilterLabel && (
-            <Badge variant="outline" className="h-7 gap-1 pl-2.5 pr-1">
-              Filtered: {activeFilterLabel}
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={onClearFilter}
-                aria-label={`Clear ${activeFilterLabel} filter`}
-              >
-                <XIcon />
-              </Button>
-            </Badge>
-          )}
-          <span className="text-sm tabular-nums text-muted-foreground">
-            {totalCount.toLocaleString()} of{" "}
-            {totalUnfilteredCount.toLocaleString()}
-          </span>
-          {loading && result && (
-            <span className="text-xs text-muted-foreground" role="status">
-              Updating…
-            </span>
-          )}
-        </div>
       </div>
       <Separator />
 
@@ -256,18 +280,10 @@ export function DataSourceFilesTable({
         />
       ) : totalCount === 0 ? (
         <DataEmptyState
-          title={
-            activeFilterLabel && !search.trim()
-              ? `No ${activeFilterLabel.toLowerCase()} files`
-              : "No matching files"
-          }
-          description={
-            activeFilterLabel && !search.trim()
-              ? `No files currently have the ${activeFilterLabel} status.`
-              : `No file names match “${search.trim()}”.`
-          }
-          actionLabel="Clear search and filters"
-          onAction={clearSearchAndFilter}
+          title="No matching files"
+          description={`No file names match “${search.trim()}”.`}
+          actionLabel="Clear search"
+          onAction={() => onSearchChange("")}
         />
       ) : (
         <>
@@ -326,7 +342,9 @@ export function DataSourceFilesTable({
                   <TableRow
                     key={file.key}
                     tabIndex={file.canInspect ? 0 : undefined}
-                    aria-label={file.canInspect ? `Open ${file.name}` : undefined}
+                    aria-label={
+                      file.canInspect ? `Open ${file.name}` : undefined
+                    }
                     onClick={(event) => handleRowClick(event, file)}
                     onKeyDown={(event) => handleRowKeyDown(event, file)}
                     className={cn(
@@ -337,9 +355,7 @@ export function DataSourceFilesTable({
                   >
                     <TableCell className="max-w-0 px-4 py-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground group-hover:text-primary">
-                          <FileIcon className="size-4" />
-                        </span>
+                        <FileVisual file={file} />
                         <div className="min-w-0">
                           <Tooltip>
                             <TooltipTrigger
@@ -357,21 +373,12 @@ export function DataSourceFilesTable({
                               {file.name}
                             </TooltipContent>
                           </Tooltip>
-                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                            {file.type}
-                          </span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3">
                       <div className="grid justify-items-start gap-1">
                         <StatusBadge status={file.status} />
-                        <span
-                          className="max-w-48 truncate text-xs text-muted-foreground"
-                          title={file.errorMessage ?? file.statusDetail}
-                        >
-                          {file.statusDetail}
-                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3 text-sm text-muted-foreground">
@@ -423,8 +430,8 @@ export function DataSourceFilesTable({
           <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               <span className="tabular-nums">
-                {firstVisible.toLocaleString()}–{lastVisible.toLocaleString()} of{" "}
-                {totalCount.toLocaleString()}
+                {firstVisible.toLocaleString()}–{lastVisible.toLocaleString()}{" "}
+                of {totalCount.toLocaleString()}
               </span>
               <div className="flex items-center gap-2">
                 <span>Rows per page</span>
@@ -441,7 +448,7 @@ export function DataSourceFilesTable({
                     {pageSize}
                     <ChevronDownIcon data-icon="inline-end" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
+                  <DropdownMenuContent align="start" className="min-w-0">
                     <DropdownMenuGroup>
                       {pageSizeItems.map((item) => (
                         <DropdownMenuItem
@@ -449,9 +456,6 @@ export function DataSourceFilesTable({
                           onClick={() => onPageSizeChange(item)}
                         >
                           {item}
-                          {item === pageSize && (
-                            <span className="ml-auto text-primary">Current</span>
-                          )}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuGroup>

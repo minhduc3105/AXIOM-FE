@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   AlertTriangleIcon,
   CircleAlertIcon,
@@ -11,17 +11,12 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DataDashboardHeader } from "./components/DataDashboardHeader";
 import { DataEmptyState } from "./components/DataEmptyState";
 import { DataMetrics } from "./components/DataMetrics";
 import { DataSourcesWorkspace } from "./components/DataSourcesWorkspace";
-import { IngestionJobsTable } from "./components/IngestionJobsTable";
-import { JobFilesPanel } from "./components/JobFilesPanel";
 import { useDataDashboard } from "./model/useDataDashboard";
 import { useDataSourceProfiles } from "@/shared/hooks/use-data-source-profiles";
 import { useDataWorkspace } from "./model/DataWorkspaceProvider";
-import type { DataHealthFilter } from "./model/types";
 
 type DataPageProps = {
   organizationId: string;
@@ -59,19 +54,6 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
     error: profileError,
     remove: removeProfile,
   } = useDataSourceProfiles(organizationId);
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [activeDataView, setActiveDataView] = useState("sources");
-  const [activeHealthFilter, setActiveHealthFilter] =
-    useState<DataHealthFilter | null>("all");
-  const selectedJob =
-    ingestionJobs.find((job) => job.job_id === selectedJobId) ?? null;
-
-  useEffect(() => {
-    setSelectedJobId(null);
-    setActiveDataView("sources");
-    setActiveHealthFilter("all");
-  }, [workspaceId]);
-
   const summary = useMemo(() => {
     return {
       total: files.length,
@@ -87,33 +69,23 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
   const initialLoading = loading && !activeSnapshot;
   const refreshing = loading && Boolean(activeSnapshot);
 
-  const applyHealthFilter = (filter: DataHealthFilter) => {
-    setActiveDataView("sources");
-    setActiveHealthFilter(filter);
-  };
-
   return (
     <section
       className="min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden px-4 pb-12 pt-4 sm:px-6 md:pt-6"
       aria-label="Data management"
     >
-      <div className="mx-auto grid w-full max-w-[1360px] gap-6">
-        <DataDashboardHeader
-          selectedWorkspace={workspace.selectedWorkspace}
-          workspaceLoading={workspace.loading}
-          dataLoading={loading}
-          refreshing={refreshing}
-          onRefresh={refresh}
-          onCreateIngestion={onCreateIngestion}
-        />
-
+      <div className="mx-auto grid w-full gap-6">
         {workspace.error && (
           <Alert variant="destructive">
             <ServerCrashIcon />
             <AlertTitle>Workspaces are unavailable</AlertTitle>
             <AlertDescription>{workspace.error}</AlertDescription>
             <AlertAction>
-              <Button variant="outline" size="sm" onClick={workspace.refreshWorkspaces}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={workspace.refreshWorkspaces}
+              >
                 Retry
               </Button>
             </AlertAction>
@@ -161,105 +133,46 @@ export function DataPage({ organizationId, onCreateIngestion }: DataPageProps) {
 
         <DataMetrics
           loading={initialLoading}
-          disabled={!workspaceId || initialLoading}
-          activeFilter={activeHealthFilter}
           total={summary.total}
           ready={summary.ready}
           processing={summary.processing}
           failed={summary.failed}
           totalSize={summary.totalSize}
-          onFilterChange={applyHealthFilter}
         />
 
-        <Tabs
-          value={activeDataView}
-          onValueChange={(value) => {
-            setActiveDataView(value);
-            if (value === "jobs") setActiveHealthFilter(null);
-          }}
-          className="gap-0"
+        <section
+          id="data-file-inventory"
+          className="overflow-hidden rounded-lg border bg-card shadow-sm"
+          aria-label="Data inventory"
         >
-          <section
-            id="data-file-inventory"
-            className="overflow-hidden rounded-lg border bg-card shadow-sm"
-            aria-label="Data inventory and ingestion activity"
-          >
-            <div className="flex flex-col gap-4 border-b px-5 py-5 sm:flex-row sm:items-end sm:justify-between">
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold tracking-tight">
-                  Organization data
-                </h2>
-              </div>
-              <TabsList
-                variant="line"
-                className="h-9 w-full justify-start rounded-none bg-transparent p-0 sm:w-auto"
-                aria-label="Data views"
-              >
-                <TabsTrigger value="sources" className="px-4">
-                  Data sources
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {datasources.length || (files.length > 0 ? 1 : 0)}
-                  </span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="jobs"
-                  className="px-4"
-                  disabled={!workspaceId}
-                >
-                  Ingestion jobs
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {ingestionJobs.length}
-                  </span>
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="sources">
-              {!workspaceId ? (
-                <DataEmptyState
-                  title={
-                    workspace.loading ? "Loading workspace" : "Select a workspace"
-                  }
-                  description={
-                    workspace.loading
-                      ? "Reading your assigned workspaces."
-                      : "Choose a workspace from the global switcher to view its data inventory."
-                  }
-                />
-              ) : (
-                <DataSourcesWorkspace
-                  workspaceId={workspaceId}
-                  datasources={datasources}
-                  files={files}
-                  jobs={ingestionJobs}
-                  profiles={profiles}
-                  loading={initialLoading}
-                  healthFilter={activeHealthFilter}
-                  profileError={profileError}
-                  onCreateIngestion={onCreateIngestion}
-                  onDeleteProfile={removeProfile}
-                  onHealthFilterChange={setActiveHealthFilter}
-                  onViewJobs={(jobId) => {
-                    setSelectedJobId(jobId ?? null);
-                    setActiveDataView("jobs");
-                    setActiveHealthFilter(null);
-                  }}
-                />
-              )}
-            </TabsContent>
-            <TabsContent value="jobs">
-              <IngestionJobsTable
-                jobs={ingestionJobs}
-                loading={initialLoading}
-                onCreateIngestion={onCreateIngestion}
-                onViewFiles={(jobId) => setSelectedJobId(jobId)}
-              />
-              <div className="px-4 pb-4">
-                <JobFilesPanel job={selectedJob} />
-              </div>
-            </TabsContent>
-          </section>
-        </Tabs>
+          {!workspaceId ? (
+            <DataEmptyState
+              title={
+                workspace.loading ? "Loading workspace" : "Select a workspace"
+              }
+              description={
+                workspace.loading
+                  ? "Reading your assigned workspaces."
+                  : "Choose a workspace from the global switcher to view its data inventory."
+              }
+            />
+          ) : (
+            <DataSourcesWorkspace
+              workspaceId={workspaceId}
+              datasources={datasources}
+              files={files}
+              jobs={ingestionJobs}
+              profiles={profiles}
+              loading={initialLoading}
+              dataLoading={loading}
+              profileError={profileError}
+              refreshing={refreshing}
+              onRefresh={refresh}
+              onCreateIngestion={onCreateIngestion}
+              onDeleteProfile={removeProfile}
+            />
+          )}
+        </section>
       </div>
     </section>
   );

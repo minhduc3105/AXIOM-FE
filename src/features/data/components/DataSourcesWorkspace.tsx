@@ -6,6 +6,7 @@ import {
   DatabaseIcon,
   EllipsisIcon,
   PlusIcon,
+  RefreshCwIcon,
   ServerIcon,
   SnowflakeIcon,
   Trash2Icon,
@@ -40,7 +41,6 @@ import { cn } from "@/shared/lib/utils";
 import type { SavedDataSourceProfile } from "@/shared/types/data-source-profile";
 import type {
   DataFile,
-  DataHealthFilter,
   DataSource,
   DataSourceFileSortField,
   DataSourceFilesPage,
@@ -63,12 +63,12 @@ type DataSourcesWorkspaceProps = {
   jobs: IngestionJob[];
   profiles: SavedDataSourceProfile[];
   loading: boolean;
-  healthFilter: DataHealthFilter | null;
+  dataLoading: boolean;
   profileError: string | null;
+  refreshing: boolean;
+  onRefresh: () => void;
   onCreateIngestion: () => void;
   onDeleteProfile: (profileId: string) => void;
-  onHealthFilterChange: (filter: DataHealthFilter | null) => void;
-  onViewJobs: (jobId?: string) => void;
 };
 
 const ORGANIZATION_FILES_SOURCE_ID = "__organization_files__";
@@ -205,8 +205,8 @@ function SourceIdentity({
     <>
       <span
         className={cn(
-          "grid size-9 shrink-0 place-items-center rounded-md border bg-muted text-muted-foreground",
-          selected && "border-primary/25 bg-primary/10 text-primary",
+          "grid size-9 shrink-0 place-items-center rounded-md border bg-white text-muted-foreground",
+          selected && "border-primary/25 bg-white text-primary",
         )}
       >
         <SourceIcon datasource={datasource} className="size-4" />
@@ -245,48 +245,55 @@ function AddSourceMenu({
 
 function SourceActions({
   datasource,
-  latestJob,
   profile,
+  dataLoading,
+  refreshing,
+  onRefresh,
   onCreateIngestion,
   onForgetProfile,
-  onViewJobs,
 }: {
   datasource: DataSource;
-  latestJob: IngestionJob | null;
   profile: SavedDataSourceProfile | null;
+  dataLoading: DataSourcesWorkspaceProps["dataLoading"];
+  refreshing: DataSourcesWorkspaceProps["refreshing"];
+  onRefresh: DataSourcesWorkspaceProps["onRefresh"];
   onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
   onForgetProfile: (profile: SavedDataSourceProfile) => void;
-  onViewJobs: (jobId?: string) => void;
 }) {
   const isAggregate = datasource.id === ORGANIZATION_FILES_SOURCE_ID;
   const isUpload = datasource.type === "UPLOAD";
   const canReconnect = datasource.type === "s3";
-  const hasSecondaryActions = Boolean(
-    latestJob || canReconnect || (profile && !isUpload),
-  );
+  const hasSecondaryActions = Boolean(canReconnect || (profile && !isUpload));
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2">
       {(isAggregate || isUpload) && (
-        <Button onClick={() => onCreateIngestion()}>
-          <UploadCloudIcon data-icon="inline-start" />
-          Upload files
-        </Button>
+        <>
+          <Button onClick={() => onCreateIngestion()}>
+            <UploadCloudIcon data-icon="inline-start" />
+            Upload files
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onRefresh}
+            disabled={dataLoading}
+            aria-busy={refreshing}
+          >
+            <RefreshCwIcon
+              data-icon="inline-start"
+              className={
+                refreshing
+                  ? "animate-spin motion-reduce:animate-none"
+                  : undefined
+              }
+            />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+        </>
       )}
       <div className="hidden flex-wrap items-center gap-2 sm:flex">
-        {latestJob && (
-          <Button
-            variant="outline"
-            onClick={() => onViewJobs(latestJob.job_id)}
-          >
-            View jobs
-          </Button>
-        )}
         {canReconnect && (
-          <Button
-            variant="outline"
-            onClick={() => onCreateIngestion()}
-          >
+          <Button variant="outline" onClick={() => onCreateIngestion()}>
             Reconnect
           </Button>
         )}
@@ -318,17 +325,8 @@ function SourceActions({
             <EllipsisIcon />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
-            {latestJob && (
-              <DropdownMenuItem
-                onClick={() => onViewJobs(latestJob.job_id)}
-              >
-                View jobs
-              </DropdownMenuItem>
-            )}
             {canReconnect && (
-              <DropdownMenuItem
-                onClick={() => onCreateIngestion()}
-              >
+              <DropdownMenuItem onClick={() => onCreateIngestion()}>
                 Reconnect
               </DropdownMenuItem>
             )}
@@ -358,12 +356,12 @@ export function DataSourcesWorkspace({
   jobs,
   profiles,
   loading,
-  healthFilter,
+  dataLoading,
   profileError,
+  refreshing,
+  onRefresh,
   onCreateIngestion,
   onDeleteProfile,
-  onHealthFilterChange,
-  onViewJobs,
 }: DataSourcesWorkspaceProps) {
   const inventorySource = useMemo<DataSource>(() => {
     const newestFile = [...files].sort((left, right) => {
@@ -405,17 +403,13 @@ export function DataSourcesWorkspace({
 
   const aggregateResult = useMemo<DataSourceFilesPage>(() => {
     const normalizedSearch = query.search.trim().toLowerCase();
-    const statusScopedFiles =
-      healthFilter === null || healthFilter === "all"
-        ? files
-        : files.filter((file) => file.status === healthFilter);
     const filteredFiles = normalizedSearch
-      ? statusScopedFiles.filter((file) =>
+      ? files.filter((file) =>
           [file.name, file.key].some((value) =>
             value.toLowerCase().includes(normalizedSearch),
           ),
         )
-      : statusScopedFiles;
+      : files;
     const sortedFiles = sortFiles(filteredFiles, query.sortBy, query.sortOrder);
     const totalPages = Math.ceil(sortedFiles.length / query.pageSize);
     const safePage = Math.min(query.page, Math.max(1, totalPages || 1));
@@ -432,7 +426,7 @@ export function DataSourcesWorkspace({
       totalUnfilteredCount: files.length,
       warning: null,
     };
-  }, [files, healthFilter, inventorySource, query]);
+  }, [files, inventorySource, query]);
   const result = isAggregate ? aggregateResult : backendFiles.result;
   const tableLoading = isAggregate ? loading : backendFiles.loading;
   const linkedJobs = useMemo(
@@ -476,9 +470,6 @@ export function DataSourcesWorkspace({
     setSelectedId(datasourceId);
     setInspectedFile(null);
     setQuery((current) => ({ ...current, page: 1 }));
-    onHealthFilterChange(
-      datasourceId === ORGANIZATION_FILES_SOURCE_ID ? "all" : null,
-    );
   };
   const changeSort = (field: DataSourceFileSortField) => {
     setQuery((current) => ({
@@ -505,21 +496,8 @@ export function DataSourcesWorkspace({
     }
   }, [selectedId, visibleSources]);
   useEffect(() => {
-    if (
-      healthFilter !== null &&
-      selectedId !== ORGANIZATION_FILES_SOURCE_ID
-    ) {
-      setSelectedId(ORGANIZATION_FILES_SOURCE_ID);
-      setQuery((current) => ({ ...current, page: 1 }));
-      setInspectedFile(null);
-    }
-  }, [healthFilter, selectedId]);
-  useEffect(() => {
     if (!result) return;
-    const safePage = Math.min(
-      query.page,
-      Math.max(1, result.totalPages || 1),
-    );
+    const safePage = Math.min(query.page, Math.max(1, result.totalPages || 1));
     if (safePage !== query.page) {
       setQuery((current) => ({ ...current, page: safePage }));
     }
@@ -547,64 +525,64 @@ export function DataSourcesWorkspace({
     <div className="min-w-0">
       {!inspectedFile && (
         <div className="border-b p-4 lg:hidden">
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="outline"
-                  className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-3 px-3 py-2 text-left"
-                  aria-label={`Select data source. Current source: ${displayName(selectedSource)}`}
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-3 px-3 py-2 text-left"
+                    aria-label={`Select data source. Current source: ${displayName(selectedSource)}`}
+                  />
+                }
+              >
+                <SourceIdentity
+                  datasource={selectedSource}
+                  count={countFor(selectedSource)}
+                  selected
                 />
-              }
-            >
-              <SourceIdentity
-                datasource={selectedSource}
-                count={countFor(selectedSource)}
-                selected
-              />
-              <ChevronDownIcon className="size-4 shrink-0" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              className="w-[var(--anchor-width)] min-w-72 max-w-[calc(100vw-2rem)] p-1.5"
-            >
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Data sources</DropdownMenuLabel>
-                {visibleSources.map((datasource) => {
-                  const selected = datasource.id === selectedSource.id;
-                  return (
-                    <DropdownMenuItem
-                      key={datasource.id}
-                      className="min-h-12 min-w-0 gap-3 px-2.5 py-2"
-                      onClick={() => selectSource(datasource.id)}
-                      aria-label={`Select ${displayName(datasource)}`}
-                    >
-                      <SourceIdentity
-                        datasource={datasource}
-                        count={countFor(datasource)}
-                        selected={selected}
-                      />
-                      {selected && (
-                        <CheckIcon
-                          className="size-4 shrink-0 text-primary"
-                          aria-label="Selected source"
+                <ChevronDownIcon className="size-4 shrink-0" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-[var(--anchor-width)] min-w-72 max-w-[calc(100vw-2rem)] p-1.5"
+              >
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Data sources</DropdownMenuLabel>
+                  {visibleSources.map((datasource) => {
+                    const selected = datasource.id === selectedSource.id;
+                    return (
+                      <DropdownMenuItem
+                        key={datasource.id}
+                        className="min-h-12 min-w-0 gap-3 px-2.5 py-2"
+                        onClick={() => selectSource(datasource.id)}
+                        aria-label={`Select ${displayName(datasource)}`}
+                      >
+                        <SourceIdentity
+                          datasource={datasource}
+                          count={countFor(datasource)}
+                          selected={selected}
                         />
-                      )}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <AddSourceMenu onCreateIngestion={onCreateIngestion} />
-        </div>
-        {profileError && (
-          <Alert variant="destructive" className="mt-3">
-            <AlertTitle>Reconnect settings unavailable</AlertTitle>
-            <AlertDescription>{profileError}</AlertDescription>
-          </Alert>
-        )}
+                        {selected && (
+                          <CheckIcon
+                            className="size-4 shrink-0 text-primary"
+                            aria-label="Selected source"
+                          />
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AddSourceMenu onCreateIngestion={onCreateIngestion} />
+          </div>
+          {profileError && (
+            <Alert variant="destructive" className="mt-3">
+              <AlertTitle>Reconnect settings unavailable</AlertTitle>
+              <AlertDescription>{profileError}</AlertDescription>
+            </Alert>
+          )}
         </div>
       )}
 
@@ -615,50 +593,53 @@ export function DataSourcesWorkspace({
         )}
       >
         {!inspectedFile && (
-          <aside className="hidden border-r p-4 lg:block" aria-label="Data sources">
-          <div className="flex items-center justify-between gap-3 px-1">
-            <div>
-              <h3 className="text-sm font-semibold">Data sources</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {datasources.length.toLocaleString()} connected
-              </p>
+          <aside
+            className="hidden border-r p-4 lg:block"
+            aria-label="Data sources"
+          >
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div>
+                <h3 className="text-sm font-semibold">Data sources</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {datasources.length.toLocaleString()} connected
+                </p>
+              </div>
+              <AddSourceMenu onCreateIngestion={onCreateIngestion} />
             </div>
-            <AddSourceMenu onCreateIngestion={onCreateIngestion} />
-          </div>
-          {profileError && (
-            <Alert variant="destructive" className="mt-3">
-              <AlertTitle>Reconnect settings unavailable</AlertTitle>
-              <AlertDescription>{profileError}</AlertDescription>
-            </Alert>
-          )}
-          <ScrollArea className="mt-4 max-h-[min(62dvh,36rem)]">
-            <div className="flex flex-col gap-2 pr-2">
-              {visibleSources.map((datasource) => {
-                const selected = selectedSource.id === datasource.id;
-                return (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    key={datasource.id}
-                    onClick={() => selectSource(datasource.id)}
-                    aria-pressed={selected}
-                    className={cn(
-                      "relative h-auto min-h-16 w-full justify-start gap-3 overflow-hidden rounded-lg border px-3 py-2.5 text-left",
-                      selected
-                        ? "border-primary/30 bg-accent text-accent-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-primary"
-                        : "border-transparent hover:border-border hover:bg-muted/50",
-                    )}
-                  >
-                    <SourceIdentity
-                      datasource={datasource}
-                      count={countFor(datasource)}
-                      selected={selected}
-                    />
-                  </Button>
-                );
-              })}
-            </div>
-          </ScrollArea>
+            {profileError && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertTitle>Reconnect settings unavailable</AlertTitle>
+                <AlertDescription>{profileError}</AlertDescription>
+              </Alert>
+            )}
+            <ScrollArea className="mt-4 max-h-[min(62dvh,36rem)]">
+              <div className="flex flex-col gap-2 pr-2">
+                {visibleSources.map((datasource) => {
+                  const selected = selectedSource.id === datasource.id;
+                  return (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      key={datasource.id}
+                      onClick={() => selectSource(datasource.id)}
+                      aria-pressed={selected}
+                      className={cn(
+                        "relative h-auto min-h-16 w-full justify-start gap-3 overflow-hidden rounded-lg border px-3 py-2.5 text-left",
+                        selected
+                          ? "border-primary/30 bg-white text-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-primary"
+                          : "border-transparent hover:border-border hover:bg-muted/50",
+                      )}
+                    >
+                      <SourceIdentity
+                        datasource={datasource}
+                        count={countFor(datasource)}
+                        selected={selected}
+                      />
+                    </Button>
+                  );
+                })}
+              </div>
+            </ScrollArea>
           </aside>
         )}
 
@@ -674,7 +655,7 @@ export function DataSourcesWorkspace({
               <header className="p-4 sm:p-5">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-muted text-primary">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-white text-primary">
                       <SourceIcon
                         datasource={selectedSource}
                         className="size-5"
@@ -685,35 +666,17 @@ export function DataSourcesWorkspace({
                         <h3 className="truncate text-lg font-semibold">
                           {displayName(selectedSource)}
                         </h3>
-                        <SourceCountBadge state={countFor(selectedSource)} />
-                        {!isAggregate && selectedSource.type === "UPLOAD" ? (
-                          <Badge variant="secondary">System source</Badge>
-                        ) : profile ? (
-                          <Badge variant="secondary">Reconnect saved</Badge>
-                        ) : !isAggregate ? (
-                          <Badge variant="outline">Backend source</Badge>
-                        ) : null}
-                        {latestJob && (
-                          <StatusBadge status={latestJob.healthStatus} />
-                        )}
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {sourceDescription(selectedSource)}
-                      </p>
-                      {!isAggregate && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Updated {formatDate(selectedSource.updatedAt)}
-                        </p>
-                      )}
                     </div>
                   </div>
                   <SourceActions
                     datasource={selectedSource}
-                    latestJob={latestJob}
                     profile={profile}
+                    dataLoading={dataLoading}
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
                     onCreateIngestion={onCreateIngestion}
                     onForgetProfile={setForgetProfile}
-                    onViewJobs={onViewJobs}
                   />
                 </div>
               </header>
@@ -742,7 +705,6 @@ export function DataSourcesWorkspace({
                 <DataSourceFilesTable
                   result={result}
                   loading={tableLoading}
-                  healthFilter={isAggregate ? healthFilter ?? "all" : "all"}
                   search={query.search}
                   page={result?.page ?? query.page}
                   pageSize={query.pageSize}
@@ -751,7 +713,6 @@ export function DataSourcesWorkspace({
                   onSearchChange={(search) =>
                     setQuery((current) => ({ ...current, search, page: 1 }))
                   }
-                  onClearFilter={() => onHealthFilterChange("all")}
                   onPageChange={(page) =>
                     setQuery((current) => ({ ...current, page }))
                   }

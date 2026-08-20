@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ChatStage } from "@/features/chat/model/types";
 import type { AuthUser } from "@/features/auth/model/types";
-import type { AppSurface } from "@/app/routing/types";
+import type { AppRoute, AppSurface } from "@/app/routing/types";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppTopBar } from "@/layout/AppTopBar";
 import { WorkspaceRail } from "@/shared/components/WorkspaceRail";
@@ -10,6 +10,7 @@ import type { AppScopeContext } from "@/shared/types/appScope";
 import type { AssignedWorkspace } from "@/features/auth/api/authzApi";
 
 type AppShellProps = {
+  route: AppRoute;
   activeStage: ChatStage;
   surface: AppSurface;
   activeConversationId: string | null;
@@ -36,6 +37,7 @@ type AppShellProps = {
 };
 
 export function AppShell({
+  route,
   activeStage,
   surface,
   activeConversationId,
@@ -104,6 +106,7 @@ export function AppShell({
           )}
         >
           <AppTopBar
+            route={route}
             showPrimaryNavigation={showPrimaryNavigation}
             onHome={onHome}
             onNewChat={onNewChat}

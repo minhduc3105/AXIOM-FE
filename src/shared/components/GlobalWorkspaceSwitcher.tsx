@@ -17,10 +17,15 @@ type GlobalWorkspaceSwitcherProps = {
   onSelect: (workspaceId: string) => void;
 };
 
-export function GlobalWorkspaceSwitcher({ workspaces, selected, loading, onSelect }: GlobalWorkspaceSwitcherProps) {
+export function GlobalWorkspaceSwitcher({
+  workspaces,
+  selected,
+  loading,
+  onSelect,
+}: GlobalWorkspaceSwitcherProps) {
   const currentLabel = loading
     ? "Loading workspaces…"
-    : selected?.name ?? "No workspace";
+    : (selected?.name ?? "No workspace");
 
   return (
     <DropdownMenu>
@@ -35,8 +40,7 @@ export function GlobalWorkspaceSwitcher({ workspaces, selected, loading, onSelec
           />
         }
       >
-        <Layers3Icon data-icon="inline-start" aria-hidden="true" />
-        <span className="max-w-20 min-w-0 truncate text-left sm:max-w-32">
+        <span className="max-w-20 min-w-0 truncate text-sm text-left sm:max-w-32">
           {currentLabel}
         </span>
         <ChevronDownIcon className="size-4 shrink-0" aria-hidden="true" />

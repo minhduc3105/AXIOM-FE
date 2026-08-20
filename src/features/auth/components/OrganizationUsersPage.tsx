@@ -29,7 +29,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -45,9 +52,20 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -74,7 +92,6 @@ import type { AuthUser } from "@/features/auth/model/types";
 import { cn } from "@/shared/lib/utils";
 
 const panelClass = "rounded-xl border bg-card text-card-foreground shadow-sm";
-const inputClass = "h-10 border-input bg-background shadow-none";
 const organizationRoleOptions = [
   { value: "org_member", label: "Organization member" },
   { value: "org_admin", label: "Organization admin" },
@@ -1007,7 +1024,6 @@ function MembersPanel({
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search name or email"
           aria-label="Search members"
-          className={inputClass}
         />
         <DropdownField
           value={roleFilter}
@@ -1152,18 +1168,18 @@ function WorkspacesPanel({
         ) : workspaces.length ? (
           <CardContent className="grid gap-1.5 py-3">
             {workspaces.map((workspace) => (
-              <button
+              <Button
                 key={workspace.id}
                 type="button"
                 data-workspace-id={workspace.id}
                 onClick={() => onSelect(workspace.id)}
                 aria-pressed={selectedWorkspace?.id === workspace.id}
-                className={cn(
-                  "rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                variant={
                   selectedWorkspace?.id === workspace.id
-                    ? "border-primary bg-primary/5"
-                    : "border-transparent hover:border-border hover:bg-muted/50",
-                )}
+                    ? "secondary"
+                    : "ghost"
+                }
+                className="h-auto w-full flex-col items-stretch gap-1.5 p-3 text-left whitespace-normal"
               >
                 <span className="flex items-center justify-between gap-2">
                   <strong className="truncate text-sm">{workspace.name}</strong>
@@ -1177,11 +1193,11 @@ function WorkspacesPanel({
                     Default workspace
                   </span>
                 )}
-              </button>
+              </Button>
             ))}
           </CardContent>
         ) : (
-          <Empty
+          <OrganizationEmptyState
             icon={FolderKanbanIcon}
             title="No workspaces yet"
             detail="Create a workspace, then assign its admins and members."
@@ -1286,9 +1302,9 @@ function Overview({
         <Card>
           <CardHeader className="border-b">
             <CardTitle>Quick actions</CardTitle>
-            <p className="text-sm text-muted-foreground">
+            <CardDescription>
               Manage people and workspace access.
-            </p>
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2 pt-5">
             <Button onClick={onMembers}>
@@ -1320,11 +1336,13 @@ function MetricCard({
 }) {
   return (
     <Card>
-      <CardContent className="grid gap-1 p-5">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-2xl font-semibold tracking-tight">{value}</p>
-        <p className="text-xs text-muted-foreground">{detail}</p>
-      </CardContent>
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+        <CardTitle className="text-2xl tracking-tight">{value}</CardTitle>
+      </CardHeader>
+      <CardFooter>
+        <CardDescription>{detail}</CardDescription>
+      </CardFooter>
     </Card>
   );
 }
@@ -1488,7 +1506,13 @@ function MemberList({
         : hasFilters
           ? "No members match the current search or filters. Adjust them to continue."
           : "Add an organization member to begin assigning access.";
-    return <Empty icon={UsersRoundIcon} title={title} detail={detail} />;
+    return (
+      <OrganizationEmptyState
+        icon={UsersRoundIcon}
+        title={title}
+        detail={detail}
+      />
+    );
   }
   return (
     <div className="divide-y divide-border">
@@ -1631,7 +1655,7 @@ function WorkspaceInspector({
   if (!workspace)
     return (
       <section className={cn(panelClass, "overflow-hidden")}>
-        <Empty
+        <OrganizationEmptyState
           icon={FolderKanbanIcon}
           title="Select a workspace"
           detail="Select one to review and configure member access."
@@ -1754,7 +1778,7 @@ function WorkspaceInspector({
           ))}
         </div>
       ) : (
-        <Empty
+        <OrganizationEmptyState
           icon={UsersRoundIcon}
           title="No organization members yet"
           detail="Add a member before assigning workspace access."
@@ -1789,7 +1813,7 @@ function WorkspaceStatus({ status }: { status: string }) {
   );
 }
 
-function Empty({
+function OrganizationEmptyState({
   icon: Icon,
   title,
   detail,
@@ -1799,13 +1823,15 @@ function Empty({
   detail: string;
 }) {
   return (
-    <div className="grid min-h-44 place-items-center p-5 text-center">
-      <div>
-        <Icon className="mx-auto size-5 text-muted-foreground" />
-        <p className="mt-2 text-sm font-medium">{title}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-      </div>
-    </div>
+    <Empty className="min-h-44">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Icon />
+        </EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{detail}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }
 
@@ -1849,7 +1875,8 @@ function MemberDialog({
         </>
       }
     >
-      <form id="add-member-form" className="grid gap-3" onSubmit={onSubmit}>
+      <form id="add-member-form" onSubmit={onSubmit}>
+        <FieldGroup className="gap-3">
         {errors.form && (
           <Alert variant="destructive">
             <CircleAlertIcon />
@@ -1876,16 +1903,18 @@ function MemberDialog({
           minLength={8}
           error={errors["member-password"]}
         />
-        <div className="grid gap-1.5">
-          <Label htmlFor="member-role">Organization role</Label>
+        <Field>
+          <FieldLabel htmlFor="member-role">Organization role</FieldLabel>
           <input type="hidden" name="member-role" value={role} />
           <DropdownField
             id="member-role"
             value={role}
             onValueChange={(value) => setRole(value as AuthUser["org_role"])}
             options={organizationRoleOptions}
+            ariaLabel="Organization role"
           />
-        </div>
+        </Field>
+        </FieldGroup>
       </form>
     </AdministrationDialog>
   );
@@ -2027,7 +2056,8 @@ function WorkspaceFormDialog({
         </>
       }
     >
-      <form id={formId} className="grid gap-3" onSubmit={onSubmit}>
+      <form id={formId} onSubmit={onSubmit}>
+        <FieldGroup className="gap-3">
         {errors.form && (
           <Alert variant="destructive">
             <CircleAlertIcon />
@@ -2048,22 +2078,29 @@ function WorkspaceFormDialog({
           defaultValue={workspace?.slug}
           error={errors["workspace-slug"]}
         />
-        <div className="grid gap-1.5">
-          <Label htmlFor="workspace-description">Description</Label>
+        <Field
+          data-invalid={Boolean(errors["workspace-description"]) || undefined}
+        >
+          <FieldLabel htmlFor="workspace-description">Description</FieldLabel>
           <Textarea
             id="workspace-description"
             name="workspace-description"
             defaultValue={workspace?.description ?? ""}
             placeholder="What belongs in this workspace?"
             aria-invalid={Boolean(errors["workspace-description"])}
-            className="border-input bg-background shadow-none"
+            aria-describedby={
+              errors["workspace-description"]
+                ? "workspace-description-error"
+                : undefined
+            }
           />
           {errors["workspace-description"] && (
-            <p className="text-xs text-destructive">
+            <FieldError id="workspace-description-error">
               {errors["workspace-description"]}
-            </p>
+            </FieldError>
           )}
-        </div>
+        </Field>
+        </FieldGroup>
       </form>
     </AdministrationDialog>
   );
@@ -2113,7 +2150,6 @@ function ArchiveWorkspaceDialog({
             value={confirmationName}
             onChange={(event) => setConfirmationName(event.target.value)}
             autoComplete="off"
-            className={inputClass}
           />
         </Field>
         <DialogFooter>
@@ -2342,7 +2378,6 @@ function ArchiveWorkspaceDialogWithFocus({
             value={confirmationName}
             onChange={(event) => setConfirmationName(event.target.value)}
             autoComplete="off"
-            className={inputClass}
           />
         </Field>
         <DialogFooter>
@@ -2624,8 +2659,8 @@ function FormField({
   error?: string;
 }) {
   return (
-    <div className="grid gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+    <Field data-invalid={Boolean(error) || undefined}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Input
         id={id}
         name={id}
@@ -2636,13 +2671,10 @@ function FormField({
         required={required}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={inputClass}
       />
       {error && (
-        <p id={`${id}-error`} className="text-xs text-destructive">
-          {error}
-        </p>
+        <FieldError id={`${id}-error`}>{error}</FieldError>
       )}
-    </div>
+    </Field>
   );
 }

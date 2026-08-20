@@ -11,9 +11,22 @@ import {
   ServerIcon,
   Trash2Icon,
 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -338,16 +351,18 @@ export function ModelServiceProviders({
                   ))}
                 </div>
               ) : (
-                <div className="p-6 text-center">
-                  <p className="text-sm font-medium">
-                    No {item.label} models registered
-                  </p>
-                  <p className={cn("mt-1 text-xs", modelServiceMutedText)}>
-                    {editable
-                      ? `Add a ${item.label} model, test it, then assign it as default.`
-                      : "No models are available for this capability."}
-                  </p>
-                </div>
+                <Empty className="min-h-48">
+                  <EmptyHeader>
+                    <EmptyTitle>
+                      No {item.label} models registered
+                    </EmptyTitle>
+                    <EmptyDescription>
+                      {editable
+                        ? `Add a ${item.label} model, test it, then assign it as default.`
+                        : "No models are available for this capability."}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               )}
             </TabsContent>
           ))}
@@ -409,31 +424,23 @@ function ProvidersErrorState({
   onRetry: () => void;
 }) {
   return (
-    <div className="grid min-h-96 place-items-center p-6 text-center">
-      <div>
-        <CircleAlertIcon className="mx-auto size-5 text-destructive" />
-        <p className="mt-2 text-sm font-medium">
-          Providers could not be loaded
-        </p>
-        <p
-          className={cn(
-            "mx-auto mt-1 max-w-md text-xs leading-5",
-            modelServiceMutedText,
-          )}
-        >
-          {error.message}
-        </p>
+    <div className="grid min-h-96 place-items-center p-6">
+      <Alert variant="destructive" className="max-w-md">
+        <CircleAlertIcon />
+        <AlertTitle>Providers could not be loaded</AlertTitle>
+        <AlertDescription>{error.message}</AlertDescription>
         {error.retryable && (
+          <AlertAction>
           <Button
             size="sm"
             variant="outline"
-            className="mt-3"
             onClick={onRetry}
           >
             <RefreshCwIcon data-icon="inline-start" /> Retry
           </Button>
+          </AlertAction>
         )}
-      </div>
+      </Alert>
     </div>
   );
 }
@@ -461,9 +468,11 @@ function ModelLoadError({
         {providerName}: {error.message}
       </AlertDescription>
       {error.retryable && (
-        <Button size="sm" variant="outline" onClick={onRetry}>
-          <RefreshCwIcon data-icon="inline-start" /> Retry
-        </Button>
+        <AlertAction>
+          <Button size="sm" variant="outline" onClick={onRetry}>
+            <RefreshCwIcon data-icon="inline-start" /> Retry
+          </Button>
+        </AlertAction>
       )}
     </Alert>
   );
@@ -474,27 +483,26 @@ function EmptyState({
   onAddProvider,
 }: Pick<ProviderActions, "canManage" | "onAddProvider">) {
   return (
-    <div className="grid min-h-72 place-items-center p-6 text-center">
-      <div>
-        <ServerIcon className="mx-auto size-5 text-muted-foreground" />
-        <p className="mt-2 text-sm font-medium">No provider configured</p>
-        <p
-          className={cn(
-            "mx-auto mt-1 max-w-sm text-xs leading-5",
-            modelServiceMutedText,
-          )}
-        >
+    <Empty className="min-h-72">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <ServerIcon />
+        </EmptyMedia>
+        <EmptyTitle>No provider configured</EmptyTitle>
+        <EmptyDescription>
           {canManage
             ? "Add a provider before registering models."
             : "No provider is currently available to your organization."}
-        </p>
-        {canManage && (
+        </EmptyDescription>
+      </EmptyHeader>
+      {canManage && (
+        <EmptyContent>
           <Button size="sm" className="mt-3" onClick={onAddProvider}>
             <PlusIcon data-icon="inline-start" /> Add provider
           </Button>
-        )}
-      </div>
-    </div>
+        </EmptyContent>
+      )}
+    </Empty>
   );
 }
 
@@ -515,14 +523,12 @@ function ProviderListItem({
         ? "bg-destructive"
         : "bg-warning";
   return (
-    <button
+    <Button
       type="button"
       onClick={() => onSelect(item.id)}
       aria-current={selected ? "true" : undefined}
-      className={cn(
-        "min-w-52 shrink-0 rounded-md border border-transparent p-3 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:min-w-0",
-        selected && "border-primary/30 bg-primary/5",
-      )}
+      variant={selected ? "secondary" : "ghost"}
+      className="h-auto min-w-52 shrink-0 flex-col items-stretch gap-1.5 p-3 text-left whitespace-normal lg:min-w-0"
     >
       <span className="flex items-start justify-between gap-2">
         <strong className="truncate text-sm" title={item.display_name}>
@@ -535,7 +541,7 @@ function ProviderListItem({
         <span>/</span>
         <span>{readiness.label}</span>
       </span>
-    </button>
+    </Button>
   );
 }
 

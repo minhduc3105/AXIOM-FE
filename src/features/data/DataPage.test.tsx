@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const fixtures = vi.hoisted(() => {
@@ -100,39 +99,30 @@ vi.mock("@/shared/hooks/use-data-source-profiles", () => ({
 }));
 
 vi.mock("./components/DataSourcesWorkspace", () => ({
-  DataSourcesWorkspace: ({ healthFilter }: { healthFilter: string | null }) => (
-    <div data-testid="workspace-health-filter">{healthFilter ?? "none"}</div>
-  ),
+  DataSourcesWorkspace: () => <div data-testid="data-sources-workspace" />,
 }));
 
 import { DataPage } from "./DataPage";
 
-describe("DataPage health summary integration", () => {
+describe("DataPage health summary", () => {
   afterEach(() => {
     fixtures.selectedWorkspace = fixtures.workspace;
     cleanup();
   });
 
-  it("applies a metric to the workspace inventory and clears it for jobs", async () => {
-    const user = userEvent.setup();
+  it("renders the data source workspace without view tabs", () => {
     render(
       <TooltipProvider>
         <DataPage organizationId="org-1" onCreateIngestion={vi.fn()} />
       </TooltipProvider>,
     );
 
-    expect(screen.getByTestId("workspace-health-filter").textContent).toBe("all");
-    await user.click(screen.getByRole("button", { name: /failed: 1/i }));
-    expect(screen.getByTestId("workspace-health-filter").textContent).toBe(
-      "failed",
-    );
-
-    await user.click(screen.getByRole("tab", { name: /ingestion jobs/i }));
-    expect(
-      screen
-        .getByRole("button", { name: /failed: 1/i })
-        .getAttribute("aria-pressed"),
-    ).toBe("false");
+    expect(screen.getByLabelText(/all files: 2/i)).toBeTruthy();
+    expect(screen.getByLabelText(/ready: 1/i)).toBeTruthy();
+    expect(screen.getByLabelText(/failed: 1/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /failed: 1/i })).toBeNull();
+    expect(screen.getByTestId("data-sources-workspace")).toBeTruthy();
+    expect(screen.queryByRole("tablist")).toBeNull();
   });
 
   it("keeps every workspace-scoped inventory action unavailable without a workspace", () => {
@@ -144,11 +134,6 @@ describe("DataPage health summary integration", () => {
     );
 
     expect(screen.getAllByText("Select a workspace").length).toBeGreaterThan(0);
-    expect(screen.queryByTestId("workspace-health-filter")).toBeNull();
-    expect(
-      screen
-        .getByRole("tab", { name: /ingestion jobs/i })
-        .getAttribute("aria-disabled"),
-    ).toBe("true");
+    expect(screen.queryByTestId("data-sources-workspace")).toBeNull();
   });
 });

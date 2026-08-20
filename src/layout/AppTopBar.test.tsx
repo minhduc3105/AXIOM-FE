@@ -36,6 +36,7 @@ function renderTopBar(showPrimaryNavigation = false) {
   return render(
     <TooltipProvider>
       <AppTopBar
+        route={{ surface: "data", page: "dashboard", sessionId: null }}
         showPrimaryNavigation={showPrimaryNavigation}
         {...callbacks}
         scope={{
@@ -62,6 +63,7 @@ describe("AppTopBar", () => {
     renderTopBar();
 
     expect(screen.getByRole("banner", { name: "Application toolbar" })).toBeTruthy();
+    expect(screen.getByText("Data Management")).toBeTruthy();
     expect(screen.getByLabelText("Current application scope")).toBeTruthy();
 
     await actor.click(screen.getByRole("button", { name: "Use dark theme" }));
