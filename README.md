@@ -1,7 +1,5 @@
 # AXIOM-FE
 
-AXIOM-FE is the frontend prototype for AXIOM's intelligence and ingestion workflows. It implements the Page 1 screens from the [AXIOM Figma file](https://www.figma.com/design/nNbY7RhnQZgXU1tpkWNVzi/AXIOM?node-id=84-12) as a Vite + React + TypeScript app.
-
 The current app is an interaction-rich prototype with mocked async APIs. The target frontend direction is a feature-oriented Vite React codebase using shadcn/ui primitives, Tailwind CSS theme tokens, and strict placement rules for shared UI.
 
 ## Stack
