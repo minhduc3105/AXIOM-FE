@@ -115,8 +115,8 @@ export function getAutoReport(workspaceId: string, reportId: string) {
   );
 }
 
-export function getAutoReportHtml(workspaceId: string, reportId: string) {
+export function getAutoReportPdf(workspaceId: string, reportId: string) {
   return request<{ url: string; expires_in: number }>(
-    reportPath(workspaceId, `/${encodeURIComponent(reportId)}/html`),
+    reportPath(workspaceId, `/${encodeURIComponent(reportId)}/pdf`),
   );
 }

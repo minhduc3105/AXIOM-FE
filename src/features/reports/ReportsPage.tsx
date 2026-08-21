@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   getAutoReport,
-  getAutoReportHtml,
+  getAutoReportPdf,
   getAutoReportPolicy,
   listAutoReports,
   runAutoReportNow,
@@ -163,10 +163,10 @@ export function ReportsPage({
   const download = async (reportId: string) => {
     if (!workspaceId) return;
     try {
-      const { url } = await getAutoReportHtml(workspaceId, reportId);
+      const { url } = await getAutoReportPdf(workspaceId, reportId);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (requestError) {
-      toast.error("Could not open HTML report", {
+      toast.error("Could not open PDF report", {
         description: errorMessage(requestError),
       });
     }
@@ -183,11 +183,11 @@ export function ReportsPage({
                 {workspaceName || workspaceId || "Choose a workspace"}
               </span>
               <h1 className="mt-3 text-3xl font-semibold text-[#191915] dark:text-[#f4efe5] sm:text-4xl">
-                Automated HTML reports
+                Automated PDF reports
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
                 Every run analyzes only the newest workspace file and creates a
-                compact HTML report with the important findings and charts.
+                compact PDF report with the important findings and charts.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -270,7 +270,7 @@ export function ReportsPage({
                 </p>
                 <strong className="mt-3 block truncate text-lg">
                   {reports.find((report) => report.status === "completed")
-                    ?.title || "No HTML report yet"}
+                    ?.title || "No PDF report yet"}
                 </strong>
                 <p className="mt-2 text-sm text-[#625d53] dark:text-[#c5bcaf]">
                   {reports.length} run{reports.length === 1 ? "" : "s"} recorded
@@ -337,7 +337,7 @@ export function ReportsPage({
                             className="rounded-full"
                             onClick={() => void download(report.report_id)}
                           >
-                            <DownloadIcon /> HTML
+                            <DownloadIcon /> PDF
                           </Button>
                         )}
                       </div>
@@ -368,7 +368,7 @@ export function ReportsPage({
                       className="rounded-full"
                       onClick={() => void download(selected.report_id)}
                     >
-                      <DownloadIcon data-icon="inline-start" /> Open HTML
+                      <DownloadIcon data-icon="inline-start" /> Open PDF
                     </Button>
                   )}
                 </div>
