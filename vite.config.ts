@@ -8,7 +8,8 @@ export default defineConfig(({ mode }) => {
   const gatewayApiTarget =
     environment.VITE_GATEWAY_API_PROXY_TARGET ?? "http://localhost:8007";
   const dataIntelligenceApiTarget =
-    environment.VITE_DATA_INTELLIGENCE_API_PROXY_TARGET ?? "http://localhost:8036";
+    environment.VITE_DATA_INTELLIGENCE_API_PROXY_TARGET ??
+    "http://localhost:8036";
   const methodsHubTarget =
     environment.METHODS_HUB_PROXY_TARGET ?? "http://localhost:38000";
   const methodsHubAdminToken = environment.METHOD_HUB_ADMIN_TOKEN;
@@ -20,7 +21,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     server: {
-      allowedHosts: ["axiom.iselab.site"],
+      allowedHosts: ["axiom.iselab.site", "tuananh5173.iselab.site"],
       proxy: {
         "/data-intelligence-api": {
           target: dataIntelligenceApiTarget,
@@ -42,7 +43,8 @@ export default defineConfig(({ mode }) => {
         "/document-api": {
           target: gatewayApiTarget,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/document-api/, "/document-service"),
+          rewrite: (path) =>
+            path.replace(/^\/document-api/, "/document-service"),
         },
         "/corpus-api": {
           target: gatewayApiTarget,
