@@ -109,7 +109,7 @@ describe("createInvestigation", () => {
     });
   });
 
-  it("posts Instant mode and returns a report-direct investigation", async () => {
+  it("posts Instant mode and returns an engine-neutral investigation", async () => {
     let postedBody = "";
     const fetchMock = vi.fn(
       async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -145,7 +145,7 @@ describe("createInvestigation", () => {
     expect(outcome).toMatchObject({
       kind: "completed",
       investigation: {
-        intent: "report_direct",
+        intent: "instant_engine",
         specMarkdown: "",
       },
     });
@@ -529,7 +529,7 @@ describe("createInvestigation", () => {
     expect(snapshot.turns[0]).toMatchObject({
       executionMode: "instant",
       investigation: {
-        intent: "report_direct",
+        intent: "instant_engine",
         specMarkdown: "",
       },
     });

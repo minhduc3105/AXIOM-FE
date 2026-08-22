@@ -14,7 +14,6 @@ import {
   SearchIcon,
   XIcon,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -360,15 +359,18 @@ export function DataSourceFilesTable({
                             >
                               {file.name}
                             </TooltipTrigger>
-                            <TooltipContent
+                          <TooltipContent
                               side="top"
                               align="start"
                               className="max-w-sm break-all"
-                            >
-                              {file.name}
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
+                          >
+                            {file.name}
+                          </TooltipContent>
+                        </Tooltip>
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          {file.type}
+                        </span>
+                      </div>
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3">
