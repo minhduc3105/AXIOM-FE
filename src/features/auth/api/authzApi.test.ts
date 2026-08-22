@@ -5,7 +5,7 @@ describe("listMyWorkspaces", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("uses the membership-scoped AuthZ endpoint", async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       Response.json({
         workspaces: [
           {

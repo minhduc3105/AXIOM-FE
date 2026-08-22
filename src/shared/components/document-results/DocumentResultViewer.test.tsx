@@ -193,7 +193,9 @@ describe("DocumentResultViewer", () => {
     await user.click(
       screen.getByRole("button", { name: "Filter blocks by page" }),
     );
-    await user.click(screen.getByRole("menuitemradio", { name: "Page 2" }));
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: "Page 2" }),
+    );
     await waitFor(() =>
       expect(
         screen
@@ -207,7 +209,9 @@ describe("DocumentResultViewer", () => {
     await user.click(
       screen.getByRole("button", { name: "Filter blocks by type" }),
     );
-    await user.click(screen.getByRole("menuitemradio", { name: "Heading" }));
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: "Heading" }),
+    );
     expect(screen.getByText("No matching blocks")).toBeTruthy();
 
     fireEvent.click(

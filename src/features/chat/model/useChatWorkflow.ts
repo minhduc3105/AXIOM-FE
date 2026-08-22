@@ -296,7 +296,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           evidenceOpen: false,
           investigation:
             action.pendingExecutionMode === "instant"
-              ? instantReportInvestigation(action.pendingQuestion)
+              ? instantEngineInvestigation(action.pendingQuestion)
               : optimisticInvestigation(action.pendingQuestion),
           draft: null,
           approvedSpecification: null,
@@ -348,18 +348,18 @@ const streamingDirectAnswerInvestigation = (
   output: "Direct answer",
 });
 
-const instantReportInvestigation = (
+const instantEngineInvestigation = (
   question: string,
   attachments: ChatAttachment[] = [],
 ): Investigation => ({
   question,
   attachments,
   confidence: 100,
-  intent: "report_direct",
-  scope: "Executed immediately with the Report engine.",
+  intent: "instant_engine",
+  scope: "Executed immediately by the selected AXIOM engine.",
   specMarkdown: "",
-  policy: "AXIOM-scoped sandbox and workspace authorization.",
-  output: "Generated report and AXIOM artifact references",
+  policy: "AXIOM engine routing and request-scoped authorization.",
+  output: "Engine response and available artifact references",
 });
 
 function chatAttachmentsFromFiles(files: File[]): ChatAttachment[] {
@@ -502,7 +502,7 @@ export function useChatWorkflow() {
         type: "submit/start",
         investigation:
           executionMode === "instant"
-            ? instantReportInvestigation(question, attachments)
+            ? instantEngineInvestigation(question, attachments)
             : optimisticInvestigation(question, attachments),
         conversationId,
         executionMode,
@@ -525,7 +525,7 @@ export function useChatWorkflow() {
                 type: "submit/stream",
                 investigation:
                   executionMode === "instant"
-                    ? instantReportInvestigation(question, attachments)
+                    ? instantEngineInvestigation(question, attachments)
                     : streamingDirectAnswerInvestigation(
                         question,
                         attachments,

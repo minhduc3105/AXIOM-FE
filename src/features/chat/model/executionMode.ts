@@ -7,5 +7,6 @@ export function normalizeExecutionMode(
   engine: ChatEngine,
   mode: ChatExecutionMode,
 ): ChatExecutionMode {
-  return engine === "report" ? mode : "thinking";
+  void engine;
+  return mode;
 }

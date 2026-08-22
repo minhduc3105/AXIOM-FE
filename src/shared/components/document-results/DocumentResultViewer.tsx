@@ -316,6 +316,7 @@ export function DocumentResultViewer({
   const sourcePane = (
     <InspectorPane
       title="File preview"
+      description="Original file"
       onCollapse={wide ? collapseSource : undefined}
       collapseLabel="Hide source preview"
       collapseIcon={<PanelLeftCloseIcon />}
@@ -349,6 +350,7 @@ export function DocumentResultViewer({
   const parsedPane = (
     <InspectorPane
       title="Parsed content"
+      description="Rendered blocks and normalized JSON"
       onCollapse={wide ? collapseParsed : undefined}
       collapseLabel="Hide parsed content"
       collapseIcon={<PanelRightCloseIcon />}
@@ -485,7 +487,7 @@ function InspectorHeader({
   const statusTone = context?.statusTone ?? "neutral";
 
   return (
-    <header className="sticky top-0 z-20 flex min-h-12 shrink-0 items-center gap-3 border-b bg-card px-3 py-2 sm:px-4">
+    <header className="sticky top-0 z-20 flex min-h-16 shrink-0 items-center gap-3 border-b bg-card px-3 py-2 sm:px-4">
       {context?.onBack && (
         <Button
           variant="ghost"
@@ -508,6 +510,30 @@ function InspectorHeader({
           </TooltipTrigger>
           <TooltipContent>{getDisplayName(file)}</TooltipContent>
         </Tooltip>
+        {context?.sourceLabel && (
+          <p className="truncate text-xs text-muted-foreground">
+            {context.sourceLabel}
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <Badge variant="secondary" className="max-sm:hidden">
+          {blockLabel}
+        </Badge>
+        <Badge variant="secondary" className="sm:hidden" aria-label={blockLabel}>
+          {parsing.data?.blocks.length ?? "-"}
+        </Badge>
+        <Badge
+          variant="outline"
+          className={cn(
+            statusTone === "success" && "border-success/30 bg-success/10 text-success",
+            statusTone === "processing" && "border-info/30 bg-info/10 text-info",
+            statusTone === "failed" &&
+              "border-destructive/30 bg-destructive/10 text-destructive",
+          )}
+        >
+          {context?.statusLabel ?? "Indexed"}
+        </Badge>
       </div>
     </header>
   );
@@ -515,6 +541,7 @@ function InspectorHeader({
 
 function InspectorPane({
   title,
+  description,
   children,
   onCollapse,
   collapseLabel,
@@ -522,6 +549,7 @@ function InspectorPane({
   restoreAction,
 }: {
   title: string;
+  description: string;
   children: React.ReactNode;
   onCollapse?: () => void;
   collapseLabel: string;
@@ -530,6 +558,50 @@ function InspectorPane({
 }) {
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <header className="flex min-h-14 shrink-0 items-center gap-3 border-b px-3 py-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-semibold">{title}</h3>
+          <p className="truncate text-xs text-muted-foreground">{description}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {restoreAction && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    type="button"
+                    aria-label={restoreAction.label}
+                    onClick={restoreAction.onClick}
+                  />
+                }
+              >
+                {restoreAction.icon}
+              </TooltipTrigger>
+              <TooltipContent>{restoreAction.label}</TooltipContent>
+            </Tooltip>
+          )}
+          {onCollapse && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    type="button"
+                    aria-label={collapseLabel}
+                    onClick={onCollapse}
+                  />
+                }
+              >
+                {collapseIcon}
+              </TooltipTrigger>
+              <TooltipContent>{collapseLabel}</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      </header>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {children}
       </div>
