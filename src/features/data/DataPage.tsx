@@ -15,6 +15,7 @@ import { DataEmptyState } from "./components/DataEmptyState";
 import { DataMetrics } from "./components/DataMetrics";
 import { DataSourcesWorkspace } from "./components/DataSourcesWorkspace";
 import { DataSourceConnectionDialog } from "./components/DataSourceConnectionDialog";
+import { DataSourceImportDialog } from "./components/DataSourceImportDialog";
 import { useDataDashboard } from "./model/useDataDashboard";
 import { useDataSourceProfiles } from "@/shared/hooks/use-data-source-profiles";
 import type {
@@ -22,7 +23,7 @@ import type {
   SavedDataSourceProfile,
 } from "@/shared/types/data-source-profile";
 import { useDataWorkspace } from "./model/DataWorkspaceProvider";
-import type { DataFile } from "./model/types";
+import type { DataFile, DataSource } from "./model/types";
 
 type DataPageProps = {
   organizationId: string;
@@ -53,6 +54,9 @@ export function DataPage({
     type: DataSourceProfileType;
     profile: SavedDataSourceProfile | null;
   } | null>(null);
+  const [importDatasource, setImportDatasource] = useState<DataSource | null>(
+    null,
+  );
   const workspace = useDataWorkspace();
   const workspaceId = workspace.selectedWorkspace?.id ?? "";
   const { snapshot, loading, error, refresh } = useDataDashboard(
@@ -185,6 +189,7 @@ export function DataPage({
               refreshing={refreshing}
               onRefresh={refresh}
               onCreateIngestion={onCreateIngestion}
+              onImportSource={setImportDatasource}
               onOpenDocument={onOpenDocument}
               onConfigureSource={(type, profile = null) =>
                 setConnectionDialog({ type, profile })
@@ -208,6 +213,16 @@ export function DataPage({
             refreshProfiles();
             refresh();
           }}
+        />
+      )}
+      {importDatasource && (
+        <DataSourceImportDialog
+          datasource={importDatasource}
+          open
+          onOpenChange={(open) => {
+            if (!open) setImportDatasource(null);
+          }}
+          onCompleted={refresh}
         />
       )}
     </section>

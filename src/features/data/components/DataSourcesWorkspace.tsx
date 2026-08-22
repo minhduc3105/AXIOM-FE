@@ -5,6 +5,7 @@ import {
   CloudIcon,
   DatabaseIcon,
   EllipsisIcon,
+  ImportIcon,
   PlusIcon,
   RefreshCwIcon,
   ServerIcon,
@@ -82,6 +83,7 @@ type DataSourcesWorkspaceProps = {
   refreshing: boolean;
   onRefresh: () => void;
   onCreateIngestion: () => void;
+  onImportSource: (datasource: DataSource) => void;
   onOpenDocument: (file: DataFile, sourceLabel: string) => void;
   onConfigureSource: (
     type: DataSourceProfileType,
@@ -395,6 +397,7 @@ function SourceActions({
   refreshing,
   onRefresh,
   onCreateIngestion,
+  onImportSource,
   onConfigureSource,
   onForgetProfile,
 }: {
@@ -404,6 +407,7 @@ function SourceActions({
   refreshing: DataSourcesWorkspaceProps["refreshing"];
   onRefresh: DataSourcesWorkspaceProps["onRefresh"];
   onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
+  onImportSource: DataSourcesWorkspaceProps["onImportSource"];
   onConfigureSource: DataSourcesWorkspaceProps["onConfigureSource"];
   onForgetProfile: (profile: SavedDataSourceProfile) => void;
 }) {
@@ -416,6 +420,8 @@ function SourceActions({
         ? "snowflake"
         : null;
   const canReconnect = connectorType !== null;
+  const canImport =
+    connectorType !== null && datasource.credentialsConfigured === true;
   const hasSecondaryActions = Boolean(canReconnect || (profile && !isUpload));
   const openConnectionSettings = () => {
     if (connectorType) onConfigureSource(connectorType, profile);
@@ -448,6 +454,12 @@ function SourceActions({
         </>
       )}
       <div className="hidden flex-wrap items-center gap-2 sm:flex">
+        {canImport && (
+          <Button onClick={() => onImportSource(datasource)}>
+            <ImportIcon data-icon="inline-start" />
+            Import from source
+          </Button>
+        )}
         {canReconnect && (
           <Button variant="outline" onClick={openConnectionSettings}>
             Connection settings
@@ -486,6 +498,12 @@ function SourceActions({
                 Connection settings
               </DropdownMenuItem>
             )}
+            {canImport && (
+              <DropdownMenuItem onClick={() => onImportSource(datasource)}>
+                <ImportIcon />
+                Import from source
+              </DropdownMenuItem>
+            )}
             {profile && !isUpload && (
               <>
                 <DropdownMenuSeparator />
@@ -517,6 +535,7 @@ export function DataSourcesWorkspace({
   refreshing,
   onRefresh,
   onCreateIngestion,
+  onImportSource,
   onOpenDocument,
   onConfigureSource,
   onDeleteProfile,
@@ -1053,6 +1072,7 @@ export function DataSourcesWorkspace({
                 refreshing={refreshing}
                 onRefresh={onRefresh}
                 onCreateIngestion={onCreateIngestion}
+                onImportSource={onImportSource}
                 onConfigureSource={onConfigureSource}
                 onForgetProfile={setForgetProfile}
               />
