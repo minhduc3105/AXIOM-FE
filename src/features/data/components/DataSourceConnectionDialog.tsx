@@ -15,7 +15,11 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { saveDataSourceProfile } from "@/shared/lib/data-source-profile-storage";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  createDatasourceProfile,
+  updateDatasourceProfile,
+} from "@/features/ingestion/api/datasourceProfileApi";
 import type {
   DataSourceProfileType,
   SavedDataSourceProfile,
@@ -23,13 +27,7 @@ import type {
   SavedSnowflakeConfig,
 } from "@/shared/types/data-source-profile";
 
-type SnowflakeFormState = Omit<
-  SavedSnowflakeConfig,
-  "tableLimit" | "stageLimit"
-> & {
-  tableLimit: string;
-  stageLimit: string;
-};
+type SnowflakeFormState = SavedSnowflakeConfig;
 
 const defaultS3Config: SavedS3Config = {
   region: "ap-southeast-1",
@@ -46,26 +44,12 @@ const defaultSnowflakeConfig: SnowflakeFormState = {
   discoverTables: true,
   discoverStages: true,
   stagePattern: "",
-  tableLimit: "",
-  stageLimit: "",
+  tableLimit: null,
+  stageLimit: null,
 };
 
 function toSnowflakeFormState(config: SavedSnowflakeConfig): SnowflakeFormState {
-  return {
-    ...config,
-    tableLimit: config.tableLimit?.toString() ?? "",
-    stageLimit: config.stageLimit?.toString() ?? "",
-  };
-}
-
-function parseLimit(value: string, label: string) {
-  const normalized = value.trim();
-  if (!normalized) return null;
-  const parsed = Number(normalized);
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    throw new Error(`${label} must be a positive whole number.`);
-  }
-  return parsed;
+  return { ...config };
 }
 
 export function DataSourceConnectionDialog({
@@ -73,10 +57,12 @@ export function DataSourceConnectionDialog({
   sourceType,
   profile,
   open,
+  workspaceId,
   onOpenChange,
   onSaved,
 }: {
   organizationId: string;
+  workspaceId: string;
   sourceType: DataSourceProfileType;
   profile: SavedDataSourceProfile | null;
   open: boolean;
@@ -87,12 +73,23 @@ export function DataSourceConnectionDialog({
   const [s3Config, setS3Config] = useState(defaultS3Config);
   const [snowflakeConfig, setSnowflakeConfig] =
     useState<SnowflakeFormState>(defaultSnowflakeConfig);
+  const [s3AccessKeyId, setS3AccessKeyId] = useState("");
+  const [s3SecretAccessKey, setS3SecretAccessKey] = useState("");
+  const [snowflakePrivateKey, setSnowflakePrivateKey] = useState("");
+  const [snowflakePrivateKeyPassphrase, setSnowflakePrivateKeyPassphrase] =
+    useState("");
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
 
     setError(null);
+    setSaving(false);
+    setS3AccessKeyId("");
+    setS3SecretAccessKey("");
+    setSnowflakePrivateKey("");
+    setSnowflakePrivateKeyPassphrase("");
     setName(
       profile?.name ?? (sourceType === "s3" ? "Amazon S3" : "Snowflake"),
     );
@@ -108,37 +105,74 @@ export function DataSourceConnectionDialog({
     );
   }, [open, profile, sourceType]);
 
-  const save = (event: FormEvent<HTMLFormElement>) => {
+  const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setSaving(true);
 
     try {
-      const saved =
-        sourceType === "s3"
-          ? saveDataSourceProfile(
-              { organizationId, type: "s3", name, config: s3Config },
-              profile?.id,
-            )
-          : saveDataSourceProfile(
-              {
-                organizationId,
-                type: "snowflake",
-                name,
-                config: {
-                  ...snowflakeConfig,
-                  tableLimit: parseLimit(
-                    snowflakeConfig.tableLimit,
-                    "Table limit",
-                  ),
-                  stageLimit: parseLimit(
-                    snowflakeConfig.stageLimit,
-                    "Stage limit",
-                  ),
-                },
-              },
-              profile?.id,
-            );
-      toast.success(`${saved.name} connection settings saved.`);
+      if (!workspaceId.trim()) throw new Error("Choose a workspace first.");
+      if (sourceType === "s3") {
+        if (!s3AccessKeyId.trim() || !s3SecretAccessKey.trim()) {
+          throw new Error("AWS access key ID and secret access key are required.");
+        }
+        const input = {
+          name,
+          connectorConfig: {
+            region: s3Config.region.trim(),
+            bucket_name: s3Config.bucketName.trim(),
+          },
+          credentials: {
+            aws_access_key_id: s3AccessKeyId.trim(),
+            aws_secret_access_key: s3SecretAccessKey,
+          },
+        } as const;
+        if (profile?.backendDatasourceId) {
+          await updateDatasourceProfile({
+            datasourceId: profile.backendDatasourceId,
+            ...input,
+          });
+        } else {
+          await createDatasourceProfile({
+            workspaceId,
+            datasourceType: "s3",
+            ...input,
+          });
+        }
+      } else {
+        if (!snowflakePrivateKey.trim()) {
+          throw new Error("Snowflake private key is required.");
+        }
+        const input = {
+          name,
+          connectorConfig: {
+            account: snowflakeConfig.account.trim(),
+            user: snowflakeConfig.user.trim(),
+            warehouse: snowflakeConfig.warehouse.trim() || null,
+            database: snowflakeConfig.database.trim() || null,
+            schema: snowflakeConfig.schema.trim() || null,
+            role: snowflakeConfig.role.trim() || null,
+          },
+          credentials: {
+            private_key: snowflakePrivateKey,
+            private_key_passphrase:
+              snowflakePrivateKeyPassphrase.trim() || null,
+          },
+        } as const;
+        if (profile?.backendDatasourceId) {
+          await updateDatasourceProfile({
+            datasourceId: profile.backendDatasourceId,
+            ...input,
+          });
+        } else {
+          await createDatasourceProfile({
+            workspaceId,
+            datasourceType: "snowflake",
+            ...input,
+          });
+        }
+      }
+      toast.success(`${name.trim()} connection saved securely.`);
       onSaved();
       onOpenChange(false);
     } catch (saveError) {
@@ -147,6 +181,8 @@ export function DataSourceConnectionDialog({
           ? saveError.message
           : "Unable to save connection settings.",
       );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -161,8 +197,9 @@ export function DataSourceConnectionDialog({
             {isS3 ? "Connect Amazon S3" : "Connect Snowflake"}
           </DialogTitle>
           <DialogDescription>
-            Save the connection settings used when this source is imported.
-            Credentials are requested at import time and are not retained here.
+            Save this connector on the server for reuse across browsers and
+            sessions. Credentials are encrypted by the backend and never
+            returned to the UI.
           </DialogDescription>
         </DialogHeader>
 
@@ -181,6 +218,35 @@ export function DataSourceConnectionDialog({
             {isS3 ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
+                  <FieldLabel htmlFor="s3-access-key-id">
+                    AWS access key ID
+                  </FieldLabel>
+                  <Input
+                    id="s3-access-key-id"
+                    value={s3AccessKeyId}
+                    onChange={(event) => setS3AccessKeyId(event.target.value)}
+                    autoComplete="off"
+                    disabled={saving}
+                    required
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="s3-secret-access-key">
+                    AWS secret access key
+                  </FieldLabel>
+                  <Input
+                    id="s3-secret-access-key"
+                    type="password"
+                    value={s3SecretAccessKey}
+                    onChange={(event) =>
+                      setS3SecretAccessKey(event.target.value)
+                    }
+                    autoComplete="new-password"
+                    disabled={saving}
+                    required
+                  />
+                </Field>
+                <Field>
                   <FieldLabel htmlFor="s3-region">AWS region</FieldLabel>
                   <Input
                     id="s3-region"
@@ -192,6 +258,7 @@ export function DataSourceConnectionDialog({
                       }))
                     }
                     placeholder="ap-southeast-1"
+                    disabled={saving}
                     required
                   />
                 </Field>
@@ -207,6 +274,7 @@ export function DataSourceConnectionDialog({
                       }))
                     }
                     placeholder="company-evidence"
+                    disabled={saving}
                     required
                   />
                 </Field>
@@ -225,6 +293,7 @@ export function DataSourceConnectionDialog({
                           account: event.target.value,
                         }))
                       }
+                      disabled={saving}
                       required
                     />
                   </Field>
@@ -239,7 +308,40 @@ export function DataSourceConnectionDialog({
                           user: event.target.value,
                         }))
                       }
+                      disabled={saving}
                       required
+                    />
+                  </Field>
+                  <Field className="sm:col-span-2">
+                    <FieldLabel htmlFor="snowflake-private-key">
+                      Private key
+                    </FieldLabel>
+                    <Textarea
+                      id="snowflake-private-key"
+                      className="min-h-32 font-mono"
+                      value={snowflakePrivateKey}
+                      onChange={(event) =>
+                        setSnowflakePrivateKey(event.target.value)
+                      }
+                      placeholder="-----BEGIN PRIVATE KEY-----"
+                      autoComplete="off"
+                      disabled={saving}
+                      required
+                    />
+                  </Field>
+                  <Field className="sm:col-span-2">
+                    <FieldLabel htmlFor="snowflake-private-key-passphrase">
+                      Private key passphrase
+                    </FieldLabel>
+                    <Input
+                      id="snowflake-private-key-passphrase"
+                      type="password"
+                      value={snowflakePrivateKeyPassphrase}
+                      onChange={(event) =>
+                        setSnowflakePrivateKeyPassphrase(event.target.value)
+                      }
+                      autoComplete="new-password"
+                      disabled={saving}
                     />
                   </Field>
                   <Field>
@@ -255,6 +357,7 @@ export function DataSourceConnectionDialog({
                           warehouse: event.target.value,
                         }))
                       }
+                      disabled={saving}
                     />
                   </Field>
                   <Field>
@@ -270,6 +373,7 @@ export function DataSourceConnectionDialog({
                           database: event.target.value,
                         }))
                       }
+                      disabled={saving}
                     />
                   </Field>
                   <Field>
@@ -283,6 +387,7 @@ export function DataSourceConnectionDialog({
                           schema: event.target.value,
                         }))
                       }
+                      disabled={saving}
                     />
                   </Field>
                   <Field>
@@ -296,6 +401,7 @@ export function DataSourceConnectionDialog({
                           role: event.target.value,
                         }))
                       }
+                      disabled={saving}
                     />
                   </Field>
                 </div>
@@ -314,6 +420,7 @@ export function DataSourceConnectionDialog({
                           discoverTables: Boolean(checked),
                         }))
                       }
+                      disabled={saving}
                     />
                     <FieldLabel htmlFor="snowflake-discover-tables">
                       Discover tables
@@ -332,6 +439,7 @@ export function DataSourceConnectionDialog({
                           discoverStages: Boolean(checked),
                         }))
                       }
+                      disabled={saving}
                     />
                     <FieldLabel htmlFor="snowflake-discover-stages">
                       Discover stages
@@ -349,12 +457,14 @@ export function DataSourceConnectionDialog({
             )}
 
             <DialogFooter>
-              <DialogClose render={<Button variant="outline" type="button" />}>
+              <DialogClose
+                render={<Button variant="outline" type="button" disabled={saving} />}
+              >
                 Cancel
               </DialogClose>
-              <Button type="submit">
+              <Button type="submit" disabled={saving}>
                 <SaveIcon data-icon="inline-start" />
-                Save source
+                {saving ? "Saving securely…" : "Save source"}
               </Button>
             </DialogFooter>
           </FieldGroup>

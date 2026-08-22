@@ -39,8 +39,8 @@ export function SavedProfileControls({
             <h3 className="font-semibold">Saved source</h3>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Store reusable connection settings in this browser. Credentials are
-            never saved.
+            Store this connector on the server for reuse across sessions.
+            Credentials are encrypted by the backend and never returned.
           </p>
         </div>
         <Badge variant={saved && !dirty ? "secondary" : "outline"}>

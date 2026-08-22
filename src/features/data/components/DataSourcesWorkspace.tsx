@@ -41,6 +41,8 @@ import { cn } from "@/shared/lib/utils";
 import type {
   DataSourceProfileType,
   SavedDataSourceProfile,
+  SavedS3Config,
+  SavedSnowflakeConfig,
 } from "@/shared/types/data-source-profile";
 import type {
   DataFile,
@@ -50,6 +52,16 @@ import type {
   DataSourceFilesQuery,
   IngestionJob,
 } from "../model/types";
+import {
+  cancelIndexingJob,
+  getFilePurgeOperation,
+  getLatestIndexingJob,
+  purgeDataFiles,
+  reprocessIndexingFile,
+  retryIndexingFile,
+  type FilePurgeOperationResponse,
+  type IndexingJob,
+} from "../api/dataApi";
 import {
   type DataSourceFileCountState,
   useDataSourceFileCounts,
@@ -86,6 +98,24 @@ const DEFAULT_QUERY: DataSourceFilesQuery = {
   sortBy: "last_modified",
   sortOrder: "desc",
 };
+
+type FileAction = "cancel" | "retry" | "reprocess" | "delete";
+type BulkAction = "retry" | "delete";
+type BulkProgress = {
+  action: BulkAction;
+  completed: number;
+  total: number;
+  failed: number;
+};
+
+const ACTION_POLL_INTERVAL_MS = 1200;
+const ACTION_POLL_ATTEMPTS = 20;
+
+function waitForActionPoll() {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ACTION_POLL_INTERVAL_MS);
+  });
+}
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -141,17 +171,107 @@ function findReconnectProfile(
   const direct = profiles.find(
     (profile) => profile.backendDatasourceId === datasource.id,
   );
-  if (direct) return direct;
   const sourceJobIds = new Set(
     jobs
       .filter((job) => job.datasource_id === datasource.id)
       .map((job) => job.job_id),
   );
-  return (
-    profiles.find((profile) =>
-      profile.linkedJobIds.some((jobId) => sourceJobIds.has(jobId)),
-    ) ?? null
+  const linked = profiles.find((profile) =>
+    profile.linkedJobIds.some((jobId) => sourceJobIds.has(jobId)),
   );
+  const localProfile = direct ?? linked;
+
+  const config = datasource.connectorConfig ?? {};
+  if (datasource.type === "s3") {
+    const region = config.region;
+    const bucketName = config.bucket_name;
+    if (typeof region !== "string" || typeof bucketName !== "string") {
+      return localProfile ?? null;
+    }
+    if (localProfile?.type === "s3") {
+      return {
+        ...localProfile,
+        name: datasource.name ?? localProfile.name,
+        updatedAt: datasource.updatedAt,
+        backendDatasourceId: datasource.id,
+        config: { region, bucketName },
+      };
+    }
+    const saved: SavedDataSourceProfile = {
+      id: datasource.id,
+      organizationId: datasource.organizationId,
+      type: "s3",
+      name: datasource.name ?? "Amazon S3",
+      createdAt: datasource.createdAt,
+      updatedAt: datasource.updatedAt,
+      linkedJobIds: [],
+      backendDatasourceId: datasource.id,
+      config: { region, bucketName } satisfies SavedS3Config,
+    };
+    return saved;
+  }
+  if (datasource.type === "snowflake") {
+    const account = config.account;
+    const user = config.user;
+    if (typeof account !== "string" || typeof user !== "string") {
+      return localProfile ?? null;
+    }
+    const localSnowflakeProfile =
+      localProfile?.type === "snowflake" ? localProfile : null;
+    if (localSnowflakeProfile) {
+      const localConfig = localSnowflakeProfile.config as SavedSnowflakeConfig;
+      return {
+        ...localSnowflakeProfile,
+        name: datasource.name ?? localSnowflakeProfile.name,
+        updatedAt: datasource.updatedAt,
+        backendDatasourceId: datasource.id,
+        config: {
+          ...localConfig,
+          account,
+          user,
+          warehouse:
+            typeof config.warehouse === "string"
+              ? config.warehouse
+              : localConfig.warehouse,
+          database:
+            typeof config.database === "string"
+              ? config.database
+              : localConfig.database,
+          schema:
+            typeof config.schema === "string"
+              ? config.schema
+              : localConfig.schema,
+          role:
+            typeof config.role === "string" ? config.role : localConfig.role,
+        } satisfies SavedSnowflakeConfig,
+      };
+    }
+    const saved: SavedDataSourceProfile = {
+      id: datasource.id,
+      organizationId: datasource.organizationId,
+      type: "snowflake",
+      name: datasource.name ?? "Snowflake",
+      createdAt: datasource.createdAt,
+      updatedAt: datasource.updatedAt,
+      linkedJobIds: [],
+      backendDatasourceId: datasource.id,
+      config: {
+        account,
+        user,
+        warehouse: typeof config.warehouse === "string" ? config.warehouse : "",
+        database: typeof config.database === "string" ? config.database : "",
+        schema: typeof config.schema === "string" ? config.schema : "",
+        role: typeof config.role === "string" ? config.role : "",
+        discoverTables: true,
+        discoverStages: true,
+        stagePattern: "",
+        tableLimit: null,
+        stageLimit: null,
+      } satisfies SavedSnowflakeConfig,
+    };
+    return saved;
+  }
+  return null;
 }
 
 function sortFiles(
@@ -427,6 +547,13 @@ export function DataSourcesWorkspace({
   const [forgetProfile, setForgetProfile] =
     useState<SavedDataSourceProfile | null>(null);
   const [forgetPending, setForgetPending] = useState(false);
+  const [deleteTargets, setDeleteTargets] = useState<DataFile[]>([]);
+  const [selectedFileKeys, setSelectedFileKeys] = useState<string[]>([]);
+  const [pendingFileAction, setPendingFileAction] = useState<{
+    key: string;
+    action: FileAction;
+  } | null>(null);
+  const [bulkProgress, setBulkProgress] = useState<BulkProgress | null>(null);
   const sourceCounts = useDataSourceFileCounts(datasources);
   const selectedSource =
     visibleSources.find((datasource) => datasource.id === selectedId) ??
@@ -536,6 +663,9 @@ export function DataSourcesWorkspace({
       setQuery((current) => ({ ...current, page: safePage }));
     }
   }, [query.page, result]);
+  useEffect(() => {
+    setSelectedFileKeys([]);
+  }, [query.page, query.pageSize, query.search, query.sortBy, query.sortOrder, selectedId]);
 
   const confirmForget = () => {
     if (!forgetProfile || forgetPending) return;
@@ -559,6 +689,232 @@ export function DataSourcesWorkspace({
       onConfigureSource("s3", profile);
     } else if (selectedSource.type === "snowflake") {
       onConfigureSource("snowflake", profile);
+    }
+  };
+
+  const refreshFileInventory = () => {
+    onRefresh();
+    if (!isAggregate) backendFiles.refresh();
+  };
+
+  const pollIndexingJob = async (
+    datasetId: string,
+    expectedJobId: string,
+    action: Exclude<FileAction, "delete">,
+  ): Promise<IndexingJob | null> => {
+    let latestJob: IndexingJob | null = null;
+    for (let attempt = 0; attempt < ACTION_POLL_ATTEMPTS; attempt += 1) {
+      await waitForActionPoll();
+      try {
+        latestJob = await getLatestIndexingJob(datasetId);
+        refreshFileInventory();
+      } catch {
+        continue;
+      }
+
+      if (action === "cancel") {
+        if (latestJob.status === "cancelled") return latestJob;
+      } else if (
+        latestJob.job_id === expectedJobId &&
+        latestJob.status !== "queued"
+      ) {
+        return latestJob;
+      }
+    }
+    return latestJob;
+  };
+
+  const pollPurgeOperation = async (
+    operation: FilePurgeOperationResponse,
+  ) => {
+    let latestOperation = operation;
+    const updateProgress = (current: FilePurgeOperationResponse) => {
+      const completed = current.items.filter(
+        (item) => item.status === "deleted",
+      ).length;
+      const failed = current.items.filter(
+        (item) => item.status === "failed",
+      ).length;
+      setBulkProgress({
+        action: "delete",
+        completed,
+        total: current.file_count,
+        failed,
+      });
+    };
+
+    updateProgress(latestOperation);
+    for (let attempt = 0; attempt < ACTION_POLL_ATTEMPTS; attempt += 1) {
+      if (
+        latestOperation.status === "completed" ||
+        latestOperation.status === "failed"
+      ) {
+        return latestOperation;
+      }
+      await waitForActionPoll();
+      try {
+        latestOperation = await getFilePurgeOperation(
+          latestOperation.operation_id,
+        );
+        updateProgress(latestOperation);
+        refreshFileInventory();
+      } catch {
+        // Keep the accepted operation visible while a status check is unavailable.
+      }
+    }
+    return latestOperation;
+  };
+
+  const runFileAction = async (
+    action: Exclude<FileAction, "delete">,
+    file: DataFile,
+  ) => {
+    const datasetId = file.datasetId?.trim();
+    if (!datasetId || pendingFileAction || bulkProgress) return;
+
+    setPendingFileAction({ key: file.key, action });
+    try {
+      if (action === "reprocess") {
+        const response = await reprocessIndexingFile(
+          datasetId,
+          crypto.randomUUID(),
+        );
+        const latestJob = await pollIndexingJob(
+          datasetId,
+          response.job_id,
+          action,
+        );
+        toast.success(
+          latestJob?.status === "failed"
+            ? `${file.name} reprocessing failed.`
+            : `${file.name} was queued for reprocessing.`,
+        );
+      } else {
+        if (action === "cancel") {
+          const latestJob = await getLatestIndexingJob(datasetId);
+          if (latestJob.status === "cancel_requested") {
+            toast.info(`Stopping ${file.name} is already in progress.`);
+          } else if (latestJob.status !== "queued" && latestJob.status !== "running") {
+            throw new Error("This file is no longer being processed.");
+          } else {
+            await cancelIndexingJob(latestJob.job_id);
+            const polledJob = await pollIndexingJob(
+              datasetId,
+              latestJob.job_id,
+              action,
+            );
+            toast.success(
+              polledJob?.status === "cancelled"
+                ? `${file.name} processing was stopped.`
+                : `Stop requested for ${file.name}.`,
+            );
+          }
+        } else {
+          const response = await retryIndexingFile(datasetId);
+          const polledJob = await pollIndexingJob(
+            datasetId,
+            response.job_id,
+            action,
+          );
+          toast.success(
+            polledJob?.status === "failed"
+              ? `${file.name} retry failed.`
+              : `${file.name} was queued for retry.`,
+          );
+        }
+      }
+      refreshFileInventory();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : `Unable to ${action} ${file.name}.`,
+      );
+    } finally {
+      setPendingFileAction(null);
+    }
+  };
+
+  const runBulkRetry = async (filesToRetry: DataFile[]) => {
+    if (bulkProgress || pendingFileAction || !filesToRetry.length) return;
+    const files = filesToRetry.filter((file) => file.datasetId?.trim());
+    if (!files.length) return;
+
+    setSelectedFileKeys([]);
+    setBulkProgress({
+      action: "retry",
+      completed: 0,
+      total: files.length,
+      failed: 0,
+    });
+    let completed = 0;
+    let failed = 0;
+    for (const file of files) {
+      try {
+        const response = await retryIndexingFile(file.datasetId!.trim());
+        await pollIndexingJob(
+          file.datasetId!.trim(),
+          response.job_id,
+          "retry",
+        );
+      } catch (error) {
+        failed += 1;
+        if (error instanceof Error) toast.error(`${file.name}: ${error.message}`);
+      } finally {
+        completed += 1;
+        setBulkProgress({
+          action: "retry",
+          completed,
+          total: files.length,
+          failed,
+        });
+      }
+    }
+    refreshFileInventory();
+    setBulkProgress(null);
+    if (failed) {
+      toast.warning(`${completed - failed} retried, ${failed} failed.`);
+    } else {
+      toast.success(`${completed} file${completed === 1 ? "" : "s"} queued for retry.`);
+    }
+  };
+
+  const confirmDelete = async () => {
+    const files = deleteTargets;
+    const datasetIds = files
+      .map((file) => file.datasetId?.trim())
+      .filter((datasetId): datasetId is string => Boolean(datasetId));
+    if (!files.length || !datasetIds.length || bulkProgress || pendingFileAction) {
+      return;
+    }
+
+    setBulkProgress({
+      action: "delete",
+      completed: 0,
+      total: datasetIds.length,
+      failed: 0,
+    });
+    setSelectedFileKeys([]);
+    try {
+      const operation = await purgeDataFiles(datasetIds);
+      setDeleteTargets([]);
+      const finalOperation = await pollPurgeOperation(operation);
+      if (finalOperation.status === "completed") {
+        toast.success(`${datasetIds.length} file${datasetIds.length === 1 ? "" : "s"} deleted.`);
+      } else if (finalOperation.status === "failed") {
+        toast.error("Some files could not be deleted.");
+      } else {
+        toast.info("Deletion is still running. The inventory will refresh automatically.");
+      }
+      refreshFileInventory();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete the selected files.",
+      );
+    } finally {
+      setBulkProgress(null);
     }
   };
 
@@ -757,6 +1113,18 @@ export function DataSourcesWorkspace({
                     ? configureSelectedSource
                     : undefined
               }
+              onCancelIndexing={(file) => void runFileAction("cancel", file)}
+              onRetryIndexing={(file) => void runFileAction("retry", file)}
+              onReprocessIndexing={(file) =>
+                void runFileAction("reprocess", file)
+              }
+              onDeleteFile={(file) => setDeleteTargets([file])}
+              onBulkRetry={(files) => void runBulkRetry(files)}
+              onBulkDelete={setDeleteTargets}
+              selectedFileKeys={selectedFileKeys}
+              onSelectedFileKeysChange={setSelectedFileKeys}
+              pendingFileKey={pendingFileAction?.key ?? null}
+              bulkProgress={bulkProgress}
             />
           )}
         </section>
@@ -792,6 +1160,49 @@ export function DataSourcesWorkspace({
             >
               <Trash2Icon data-icon="inline-start" />
               {forgetPending ? "Forgetting…" : "Forget settings"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteTargets.length > 0}
+        onOpenChange={(open) => {
+          if (!open && !bulkProgress) setDeleteTargets([]);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Delete {deleteTargets.length > 1 ? "files" : "file"} permanently?
+            </DialogTitle>
+            <DialogDescription>
+              This removes {deleteTargets.length > 1 ? "the selected files" : <strong>{deleteTargets[0]?.name}</strong>},
+              their indexed content, and stored objects. This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose
+              render={
+                <Button
+                  variant="outline"
+                  disabled={Boolean(bulkProgress)}
+                />
+              }
+            >
+              Cancel
+            </DialogClose>
+            <Button
+              variant="destructive"
+              disabled={Boolean(bulkProgress)}
+              aria-busy={Boolean(bulkProgress)}
+              onClick={() => void confirmDelete()}
+            >
+              <Trash2Icon data-icon="inline-start" />
+              {bulkProgress?.action === "delete"
+                ? "Deleting…"
+                : `Delete ${deleteTargets.length > 1 ? "files" : "file"}`}
             </Button>
           </DialogFooter>
         </DialogContent>

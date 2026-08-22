@@ -296,3 +296,25 @@ export function linkJobToDataSourceProfile(
   );
   return updated;
 }
+
+export function setBackendDatasourceId(
+  organizationId: string,
+  profileId: string,
+  backendDatasourceId: string,
+  storage?: Storage,
+) {
+  const profiles = readDataSourceProfiles(organizationId, storage);
+  const profile = profiles.find((item) => item.id === profileId);
+  if (!profile) throw new Error("Saved source was not found.");
+  const updated: SavedDataSourceProfile = {
+    ...profile,
+    backendDatasourceId,
+    updatedAt: new Date().toISOString(),
+  };
+  writeProfiles(
+    organizationId,
+    profiles.map((item) => (item.id === profileId ? updated : item)),
+    storage,
+  );
+  return updated;
+}

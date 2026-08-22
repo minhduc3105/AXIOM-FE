@@ -197,13 +197,17 @@ export function DataPage({
       {connectionDialog && (
         <DataSourceConnectionDialog
           organizationId={organizationId}
+          workspaceId={workspaceId}
           sourceType={connectionDialog.type}
           profile={connectionDialog.profile}
           open
           onOpenChange={(open) => {
             if (!open) setConnectionDialog(null);
           }}
-          onSaved={refreshProfiles}
+          onSaved={() => {
+            refreshProfiles();
+            refresh();
+          }}
         />
       )}
     </section>
