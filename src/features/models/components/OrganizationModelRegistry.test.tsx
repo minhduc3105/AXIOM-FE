@@ -328,7 +328,11 @@ describe("OrganizationModelRegistry", () => {
     expect(screen.getByRole("tab", { name: /LLM\s*1/ })).toBeTruthy();
     expect(screen.getByRole("tab", { name: /Embedding\s*1/ })).toBeTruthy();
     await actor.click(screen.getByRole("tab", { name: /Embedding\s*1/ }));
-    expect(screen.getByText("Embed")).toBeTruthy();
+    expect(
+      within(
+        screen.getByRole("tabpanel", { name: /Embedding\s*1/ }),
+      ).getByText("Embed"),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Add model" })).toBeTruthy();
   });
 

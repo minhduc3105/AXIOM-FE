@@ -185,7 +185,7 @@ export async function createInvestigation(
       kind: "completed",
       investigation:
         executionMode === "instant"
-          ? instantReportInvestigation(question)
+          ? instantEngineInvestigation(question)
           : directAnswerInvestigation(question),
       result: completedToResult(outcome.completed),
       processEvents: outcome.processEvents,
@@ -675,15 +675,15 @@ function directAnswerInvestigation(question: string): Investigation {
   };
 }
 
-export function instantReportInvestigation(question: string): Investigation {
+export function instantEngineInvestigation(question: string): Investigation {
   return {
     question,
     confidence: 100,
-    intent: "report_direct",
-    scope: "Executed immediately with the Report engine.",
+    intent: "instant_engine",
+    scope: "Executed immediately by the selected AXIOM engine.",
     specMarkdown: "",
-    policy: "AXIOM-scoped sandbox and workspace authorization.",
-    output: "Generated report and AXIOM artifact references",
+    policy: "AXIOM engine routing and request-scoped authorization.",
+    output: "Engine response and available artifact references",
   };
 }
 
@@ -1022,7 +1022,7 @@ function messagesToChatTurns(
       investigation:
         pendingExecutionMode === "instant"
           ? withAttachments(
-              instantReportInvestigation(question),
+              instantEngineInvestigation(question),
               pendingAttachments,
             )
           : withAttachments(

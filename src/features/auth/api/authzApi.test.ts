@@ -5,22 +5,21 @@ describe("listMyWorkspaces", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("uses the membership-scoped AuthZ endpoint", async () => {
-    const fetchMock = vi.fn(
-      async (..._args: Parameters<typeof fetch>) =>
-        Response.json({
-          workspaces: [
-            {
-              id: "workspace-1",
-              organization_id: "org-1",
-              name: "Workspace 1",
-              slug: "workspace-1",
-              description: null,
-              status: "active",
-              is_default: true,
-              role: "viewer",
-            },
-          ],
-        }),
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      Response.json({
+        workspaces: [
+          {
+            id: "workspace-1",
+            organization_id: "org-1",
+            name: "Workspace 1",
+            slug: "workspace-1",
+            description: null,
+            status: "active",
+            is_default: true,
+            role: "viewer",
+          },
+        ],
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
 

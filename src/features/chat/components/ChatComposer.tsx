@@ -264,27 +264,20 @@ export function ChatComposer({
                 value={executionMode}
                 onValueChange={selectExecutionMode}
               >
-                {executionModeOptions.map((option) => {
-                  const instantUnavailable =
-                    option.value === "instant" && engine !== "report";
-                  return (
+                {executionModeOptions.map((option) => (
                     <DropdownMenuRadioItem
                       key={option.value}
                       value={option.value}
-                      disabled={instantUnavailable}
                       className="items-start py-2"
                     >
                       <span className="flex flex-col">
                         <span>{option.label}</span>
                         <span className="text-xs text-muted-foreground">
-                          {instantUnavailable
-                            ? "Instant currently supports Report"
-                            : option.description}
+                          {option.description}
                         </span>
                       </span>
                     </DropdownMenuRadioItem>
-                  );
-                })}
+                ))}
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
