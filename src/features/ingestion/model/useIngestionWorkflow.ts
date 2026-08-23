@@ -10,6 +10,7 @@ import {
   linkJobToDataSourceProfile,
   readDataSourceProfiles,
   saveDataSourceProfile,
+  setBackendDatasourceId,
 } from "@/shared/lib/data-source-profile-storage";
 import type {
   DataSourceProfileType,
@@ -17,6 +18,12 @@ import type {
   SavedS3Config,
   SavedSnowflakeConfig,
 } from "@/shared/types/data-source-profile";
+import {
+  createDatasourceProfile,
+  listSavedS3Files,
+  startSavedDatasourceIngestion,
+  updateDatasourceProfile,
+} from "../api/datasourceProfileApi";
 import {
   buildSearchIndex,
   createIngestionJob,
@@ -1096,10 +1103,76 @@ export function useIngestionWorkflow(
         JSON.stringify(currentSavedConfig)),
   );
 
-  const saveCurrentProfile = useCallback(() => {
+  const saveCurrentProfile = useCallback(async () => {
     if (!currentProfileType || !currentSavedConfig) return;
     try {
-      const profile = saveDataSourceProfile(
+      const backendProfile =
+        currentProfileType === "s3"
+          ? activeProfile?.backendDatasourceId
+            ? await updateDatasourceProfile({
+                datasourceId: activeProfile.backendDatasourceId,
+                name: profileName,
+                connectorConfig: {
+                  region: state.s3Connection.region.trim(),
+                  bucket_name: state.s3Connection.bucketName.trim(),
+                },
+                credentials: {
+                  aws_access_key_id: state.s3Connection.accessKeyId.trim(),
+                  aws_secret_access_key: state.s3Connection.secretAccessKey,
+                },
+              })
+            : await createDatasourceProfile({
+                workspaceId,
+                name: profileName,
+                datasourceType: "s3",
+                connectorConfig: {
+                  region: state.s3Connection.region.trim(),
+                  bucket_name: state.s3Connection.bucketName.trim(),
+                },
+                credentials: {
+                  aws_access_key_id: state.s3Connection.accessKeyId.trim(),
+                  aws_secret_access_key: state.s3Connection.secretAccessKey,
+                },
+              })
+          : activeProfile?.backendDatasourceId
+            ? await updateDatasourceProfile({
+                datasourceId: activeProfile.backendDatasourceId,
+                name: profileName,
+                connectorConfig: {
+                  account: state.snowflakeConnection.account.trim(),
+                  user: state.snowflakeConnection.user.trim(),
+                  warehouse: optionalString(state.snowflakeConnection.warehouse),
+                  database: optionalString(state.snowflakeConnection.database),
+                  schema: optionalString(state.snowflakeConnection.schema),
+                  role: optionalString(state.snowflakeConnection.role),
+                },
+                credentials: {
+                  private_key: state.snowflakeConnection.privateKey,
+                  private_key_passphrase: optionalString(
+                    state.snowflakeConnection.privateKeyPassphrase,
+                  ),
+                },
+              })
+            : await createDatasourceProfile({
+                workspaceId,
+                name: profileName,
+                datasourceType: "snowflake",
+                connectorConfig: {
+                  account: state.snowflakeConnection.account.trim(),
+                  user: state.snowflakeConnection.user.trim(),
+                  warehouse: optionalString(state.snowflakeConnection.warehouse),
+                  database: optionalString(state.snowflakeConnection.database),
+                  schema: optionalString(state.snowflakeConnection.schema),
+                  role: optionalString(state.snowflakeConnection.role),
+                },
+                credentials: {
+                  private_key: state.snowflakeConnection.privateKey,
+                  private_key_passphrase: optionalString(
+                    state.snowflakeConnection.privateKeyPassphrase,
+                  ),
+                },
+              });
+      let profile = saveDataSourceProfile(
         {
           organizationId,
           type: currentProfileType,
@@ -1108,6 +1181,13 @@ export function useIngestionWorkflow(
         },
         activeProfile?.id,
       );
+      if (profile.backendDatasourceId !== backendProfile.datasource_id) {
+        profile = setBackendDatasourceId(
+          organizationId,
+          profile.id,
+          backendProfile.datasource_id,
+        );
+      }
       setActiveProfile(profile);
       setProfileName(profile.name);
       setProfileError(null);
@@ -1116,10 +1196,14 @@ export function useIngestionWorkflow(
     }
   }, [
     activeProfile?.id,
+    activeProfile?.backendDatasourceId,
     currentProfileType,
     currentSavedConfig,
     organizationId,
     profileName,
+    state.s3Connection,
+    state.snowflakeConnection,
+    workspaceId,
   ]);
 
   const linkAcceptedJob = useCallback(
@@ -1201,6 +1285,31 @@ export function useIngestionWorkflow(
       dispatch({ type: "UPDATE_SNOWFLAKE_CONNECTION", field, value }),
     [],
   );
+  const listS3Page = useCallback(
+    (nextToken: string | null, signal: AbortSignal) => {
+      if (activeProfile?.backendDatasourceId && !profileDirty) {
+        return listSavedS3Files(
+          activeProfile.backendDatasourceId,
+          1000,
+          nextToken,
+          signal,
+        );
+      }
+      return listS3Files(
+        workspaceId,
+        getS3Credentials(state.s3Connection),
+        1000,
+        nextToken,
+        signal,
+      );
+    },
+    [
+      activeProfile?.backendDatasourceId,
+      profileDirty,
+      state.s3Connection,
+      workspaceId,
+    ],
+  );
   const browseS3Files = useCallback(async () => {
     if (
       state.s3BrowserStatus === "loading" ||
@@ -1213,13 +1322,7 @@ export function useIngestionWorkflow(
     const signal = beginRequest();
     dispatch({ type: "S3_BROWSE_START", status: "loading" });
     try {
-      const result = await listS3Files(
-        workspaceId,
-        getS3Credentials(state.s3Connection),
-        1000,
-        null,
-        signal,
-      );
+      const result = await listS3Page(null, signal);
       assertUniqueS3Files([], result.files);
       dispatch({
         type: "S3_PAGE_READY",
@@ -1241,10 +1344,9 @@ export function useIngestionWorkflow(
     }
   }, [
     beginRequest,
+    listS3Page,
     state.ingestionJob,
     state.s3BrowserStatus,
-    state.s3Connection,
-    workspaceId,
   ]);
 
   const loadMoreS3Files = useCallback(async () => {
@@ -1260,13 +1362,7 @@ export function useIngestionWorkflow(
     const requestedToken = state.s3NextToken;
     dispatch({ type: "S3_BROWSE_START", status: "loading_more" });
     try {
-      const result = await listS3Files(
-        workspaceId,
-        getS3Credentials(state.s3Connection),
-        1000,
-        requestedToken,
-        signal,
-      );
+      const result = await listS3Page(requestedToken, signal);
       assertUniqueS3Files(state.s3Files, result.files);
       const nextToken = result.nextToken?.trim() || null;
       if (nextToken === requestedToken) {
@@ -1291,11 +1387,10 @@ export function useIngestionWorkflow(
     }
   }, [
     beginRequest,
+    listS3Page,
     state.s3BrowserStatus,
-    state.s3Connection,
     state.s3Files,
     state.s3NextToken,
-    workspaceId,
   ]);
 
   const loadAllS3Files = useCallback(async () => {
@@ -1320,13 +1415,7 @@ export function useIngestionWorkflow(
           );
         }
         seenTokens.add(nextToken);
-        const result = await listS3Files(
-          workspaceId,
-          getS3Credentials(state.s3Connection),
-          1000,
-          nextToken,
-          signal,
-        );
+        const result = await listS3Page(nextToken, signal);
         assertUniqueS3Files(loadedFiles, result.files);
         loadedFiles.push(...result.files);
         const followingToken = result.nextToken?.trim() || null;
@@ -1354,11 +1443,10 @@ export function useIngestionWorkflow(
     }
   }, [
     beginRequest,
+    listS3Page,
     state.s3BrowserStatus,
-    state.s3Connection,
     state.s3Files,
     state.s3NextToken,
-    workspaceId,
   ]);
 
   const retryS3Browser = useCallback(() => {
@@ -1523,16 +1611,23 @@ export function useIngestionWorkflow(
     const signal = beginRequest();
     dispatch({ type: "CONNECTOR_SUBMIT_START" });
     try {
-      const job = await createS3IngestionJob(
-        {
-          organization_id: organizationId,
-          workspace_id: workspaceId,
-          ...(profileName.trim() ? { name: profileName.trim() } : {}),
-          credentials: getS3Credentials(state.s3Connection),
-          keys: state.selectedS3Keys,
-        },
-        signal,
-      );
+      const job =
+        activeProfile?.backendDatasourceId && !profileDirty
+          ? await startSavedDatasourceIngestion({
+              datasourceId: activeProfile.backendDatasourceId,
+              options: { s3Keys: state.selectedS3Keys },
+              signal,
+            })
+          : await createS3IngestionJob(
+              {
+                organization_id: organizationId,
+                workspace_id: workspaceId,
+                ...(profileName.trim() ? { name: profileName.trim() } : {}),
+                credentials: getS3Credentials(state.s3Connection),
+                keys: state.selectedS3Keys,
+              },
+              signal,
+            );
       dispatch({ type: "CONNECTOR_JOB_ACCEPTED", job });
       linkAcceptedJob(job);
       if (job.status === "completed") {
@@ -1552,9 +1647,11 @@ export function useIngestionWorkflow(
     }
   }, [
     beginRequest,
+    activeProfile?.backendDatasourceId,
     linkAcceptedJob,
     monitorIngestionJob,
     organizationId,
+    profileDirty,
     prepareConnectorProcessing,
     profileName,
     state.connectorJobStatus,
@@ -1574,36 +1671,57 @@ export function useIngestionWorkflow(
     const signal = beginRequest();
     dispatch({ type: "CONNECTOR_SUBMIT_START" });
     try {
-      const job = await createIngestionJob(
-        {
-          organization_id: organizationId,
-          workspace_id: workspaceId,
-          ...(profileName.trim() ? { name: profileName.trim() } : {}),
-          datasource_type: "snowflake",
-          credentials: {
-            account: state.snowflakeConnection.account.trim(),
-            user: state.snowflakeConnection.user.trim(),
-            private_key: state.snowflakeConnection.privateKey,
-            private_key_passphrase: optionalString(
-              state.snowflakeConnection.privateKeyPassphrase,
-            ),
-            warehouse: optionalString(state.snowflakeConnection.warehouse),
-            database: optionalString(state.snowflakeConnection.database),
-            schema: optionalString(state.snowflakeConnection.schema),
-            role: optionalString(state.snowflakeConnection.role),
-          },
-          discover_tables: state.snowflakeConnection.discoverTables,
-          discover_stages: state.snowflakeConnection.discoverStages,
-          stage_pattern: optionalString(state.snowflakeConnection.stagePattern),
-          table_limit: optionalPositiveInteger(
-            state.snowflakeConnection.tableLimit,
-          ),
-          stage_limit: optionalPositiveInteger(
-            state.snowflakeConnection.stageLimit,
-          ),
-        },
-        signal,
-      );
+      const job =
+        activeProfile?.backendDatasourceId && !profileDirty
+          ? await startSavedDatasourceIngestion({
+              datasourceId: activeProfile.backendDatasourceId,
+              options: {
+                discoverTables: state.snowflakeConnection.discoverTables,
+                discoverStages: state.snowflakeConnection.discoverStages,
+                stagePattern: optionalString(
+                  state.snowflakeConnection.stagePattern,
+                ),
+                tableLimit: optionalPositiveInteger(
+                  state.snowflakeConnection.tableLimit,
+                ),
+                stageLimit: optionalPositiveInteger(
+                  state.snowflakeConnection.stageLimit,
+                ),
+              },
+              signal,
+            })
+          : await createIngestionJob(
+              {
+                organization_id: organizationId,
+                workspace_id: workspaceId,
+                ...(profileName.trim() ? { name: profileName.trim() } : {}),
+                datasource_type: "snowflake",
+                credentials: {
+                  account: state.snowflakeConnection.account.trim(),
+                  user: state.snowflakeConnection.user.trim(),
+                  private_key: state.snowflakeConnection.privateKey,
+                  private_key_passphrase: optionalString(
+                    state.snowflakeConnection.privateKeyPassphrase,
+                  ),
+                  warehouse: optionalString(state.snowflakeConnection.warehouse),
+                  database: optionalString(state.snowflakeConnection.database),
+                  schema: optionalString(state.snowflakeConnection.schema),
+                  role: optionalString(state.snowflakeConnection.role),
+                },
+                discover_tables: state.snowflakeConnection.discoverTables,
+                discover_stages: state.snowflakeConnection.discoverStages,
+                stage_pattern: optionalString(
+                  state.snowflakeConnection.stagePattern,
+                ),
+                table_limit: optionalPositiveInteger(
+                  state.snowflakeConnection.tableLimit,
+                ),
+                stage_limit: optionalPositiveInteger(
+                  state.snowflakeConnection.stageLimit,
+                ),
+              },
+              signal,
+            );
       dispatch({ type: "CONNECTOR_JOB_ACCEPTED", job });
       linkAcceptedJob(job);
       if (job.status === "completed") {
@@ -1623,9 +1741,11 @@ export function useIngestionWorkflow(
     }
   }, [
     beginRequest,
+    activeProfile?.backendDatasourceId,
     linkAcceptedJob,
     monitorIngestionJob,
     organizationId,
+    profileDirty,
     prepareConnectorProcessing,
     profileName,
     state.connectorJobStatus,

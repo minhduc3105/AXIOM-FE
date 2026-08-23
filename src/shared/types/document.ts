@@ -1,4 +1,5 @@
 export type JobFile = {
+  dataset_id?: string;
   key: string;
   size: number;
   last_modified: string | null;

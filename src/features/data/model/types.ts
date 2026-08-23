@@ -2,6 +2,7 @@ export type DataHealthStatus = "success" | "processing" | "failed";
 export type DataHealthFilter = "all" | DataHealthStatus;
 
 export type StorageFileDto = {
+  dataset_id?: string;
   workspace_id?: string;
   key: string;
   size: number;
@@ -69,6 +70,7 @@ export type DataFile = {
   bucket: string;
   runId: string | null;
   documentId: string | null;
+  datasetId?: string | null;
   canInspect: boolean;
 };
 
@@ -93,6 +95,10 @@ export type DataSourceDto = {
   workspace_id: string;
   name: string | null;
   datasource_type: string;
+  status?: string;
+  current_profile_version?: number | null;
+  credentials_configured?: boolean;
+  connector_config?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };
@@ -103,6 +109,10 @@ export type DataSource = {
   workspaceId: string;
   name: string | null;
   type: string;
+  status?: string;
+  currentProfileVersion?: number | null;
+  credentialsConfigured?: boolean;
+  connectorConfig?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 };

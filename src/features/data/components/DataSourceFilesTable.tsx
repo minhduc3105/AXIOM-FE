@@ -3,6 +3,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   ArrowUpDownIcon,
+  CircleStopIcon,
   ChevronDownIcon,
   DownloadIcon,
   FileCodeIcon,
@@ -11,15 +12,21 @@ import {
   FileSearchIcon,
   FileSpreadsheetIcon,
   FileTextIcon,
+  LoaderCircleIcon,
+  MoreHorizontalIcon,
+  RefreshCwIcon,
   SearchIcon,
+  Trash2Icon,
   XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -64,6 +71,21 @@ type DataSourceFilesTableProps = {
   onSortChange: (field: DataSourceFileSortField) => void;
   onInspect: (file: DataFile) => void;
   onCreateIngestion?: () => void;
+  onCancelIndexing?: (file: DataFile) => void;
+  onRetryIndexing?: (file: DataFile) => void;
+  onReprocessIndexing?: (file: DataFile) => void;
+  onDeleteFile?: (file: DataFile) => void;
+  onBulkRetry?: (files: DataFile[]) => void;
+  onBulkDelete?: (files: DataFile[]) => void;
+  selectedFileKeys?: string[];
+  onSelectedFileKeysChange?: (keys: string[]) => void;
+  pendingFileKey?: string | null;
+  bulkProgress?: {
+    action: "retry" | "delete";
+    completed: number;
+    total: number;
+    failed: number;
+  } | null;
 };
 
 const byteFormatter = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
@@ -156,7 +178,7 @@ function TableSkeleton() {
     <Table className="min-w-[860px]">
       <TableHeader>
         <TableRow>
-          {["File", "Status", "Updated", "Size", ""].map((heading, index) => (
+          {["", "File", "Status", "Updated", "Size", ""].map((heading, index) => (
             <TableHead key={`${heading}-${index}`} className="h-11 px-4">
               {heading}
             </TableHead>
@@ -194,6 +216,16 @@ export function DataSourceFilesTable({
   onSortChange,
   onInspect,
   onCreateIngestion,
+  onCancelIndexing,
+  onRetryIndexing,
+  onReprocessIndexing,
+  onDeleteFile,
+  onBulkRetry,
+  onBulkDelete,
+  selectedFileKeys = [],
+  onSelectedFileKeysChange,
+  pendingFileKey = null,
+  bulkProgress = null,
 }: DataSourceFilesTableProps) {
   const searchId = useId();
   const files = result?.files ?? [];
@@ -202,6 +234,38 @@ export function DataSourceFilesTable({
   const totalPages = Math.max(1, result?.totalPages ?? 0);
   const firstVisible = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const lastVisible = Math.min(page * pageSize, totalCount);
+  const selectableFiles = files.filter((file) => Boolean(file.datasetId));
+  const selectedFileKeySet = new Set(selectedFileKeys);
+  const selectedFiles = files.filter((file) => selectedFileKeySet.has(file.key));
+  const retryableSelectedFiles = selectedFiles.filter(
+    (file) => file.status === "failed",
+  );
+  const allVisibleSelected =
+    selectableFiles.length > 0 &&
+    selectableFiles.every((file) => selectedFileKeySet.has(file.key));
+  const someVisibleSelected = selectableFiles.some((file) =>
+    selectedFileKeySet.has(file.key),
+  );
+  const selectionDisabled = Boolean(pendingFileKey || bulkProgress);
+
+  const toggleFileSelection = (file: DataFile) => {
+    if (!file.datasetId || !onSelectedFileKeysChange || selectionDisabled) return;
+    onSelectedFileKeysChange(
+      selectedFileKeySet.has(file.key)
+        ? selectedFileKeys.filter((key) => key !== file.key)
+        : [...selectedFileKeys, file.key],
+    );
+  };
+
+  const toggleVisibleSelection = () => {
+    if (!onSelectedFileKeysChange || selectionDisabled) return;
+    const visibleKeys = selectableFiles.map((file) => file.key);
+    onSelectedFileKeysChange(
+      allVisibleSelected
+        ? selectedFileKeys.filter((key) => !visibleKeys.includes(key))
+        : Array.from(new Set([...selectedFileKeys, ...visibleKeys])),
+    );
+  };
 
   const sortIcon = (field: DataSourceFileSortField) => {
     if (sortBy !== field) return <ArrowUpDownIcon className="size-3.5" />;
@@ -235,7 +299,7 @@ export function DataSourceFilesTable({
 
   return (
     <div className="min-w-0">
-      <div className="flex flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-center">
+      <div className="flex flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <Field className="min-w-0 flex-1 lg:max-w-md">
           <FieldLabel htmlFor={searchId} className="sr-only">
             Search data source files
@@ -263,8 +327,53 @@ export function DataSourceFilesTable({
             )}
           </div>
         </Field>
+        {selectedFiles.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/35 p-1.5">
+            <span className="px-2 text-xs font-medium text-muted-foreground">
+              {selectedFiles.length} selected
+            </span>
+            {onBulkRetry && retryableSelectedFiles.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={selectionDisabled}
+                onClick={() => onBulkRetry(retryableSelectedFiles)}
+              >
+                <RefreshCwIcon data-icon="inline-start" />
+                Retry failed ({retryableSelectedFiles.length})
+              </Button>
+            )}
+            {onBulkDelete && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={selectionDisabled}
+                onClick={() => onBulkDelete(selectedFiles)}
+              >
+                <Trash2Icon data-icon="inline-start" />
+                Delete
+              </Button>
+            )}
+          </div>
+        )}
       </div>
       <Separator />
+      {bulkProgress && (
+        <div
+          className="flex items-center gap-3 border-b bg-primary/5 px-4 py-3 text-sm text-primary sm:px-5"
+          role="status"
+          aria-live="polite"
+        >
+          <LoaderCircleIcon className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
+          <span className="min-w-0 flex-1 truncate">
+            {bulkProgress.action === "delete" ? "Deleting" : "Retrying indexing"}{" "}
+            {bulkProgress.completed} of {bulkProgress.total}
+            {bulkProgress.failed > 0 && ` · ${bulkProgress.failed} failed`}
+          </span>
+        </div>
+      )}
 
       {loading && !result ? (
         <TableSkeleton />
@@ -285,9 +394,18 @@ export function DataSourceFilesTable({
       ) : (
         <>
           <div aria-busy={loading}>
-            <Table className="min-w-[860px]">
+            <Table className="min-w-[920px]">
               <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--border)]">
                 <TableRow className="hover:bg-transparent">
+                  <TableHead className="h-11 w-12 bg-card px-4">
+                    <Checkbox
+                      checked={allVisibleSelected}
+                      indeterminate={someVisibleSelected && !allVisibleSelected}
+                      disabled={!selectableFiles.length || selectionDisabled}
+                      onCheckedChange={toggleVisibleSelection}
+                      aria-label="Select all visible files"
+                    />
+                  </TableHead>
                   {(
                     [
                       ["name", "File", "w-[42%]"],
@@ -335,6 +453,7 @@ export function DataSourceFilesTable({
                 {files.map((file) => (
                   <TableRow
                     key={file.key}
+                    data-state={selectedFileKeySet.has(file.key) ? "selected" : undefined}
                     tabIndex={file.canInspect ? 0 : undefined}
                     aria-label={
                       file.canInspect ? `Open ${file.name}` : undefined
@@ -343,10 +462,21 @@ export function DataSourceFilesTable({
                     onKeyDown={(event) => handleRowKeyDown(event, file)}
                     className={cn(
                       "group outline-none",
+                      selectedFileKeySet.has(file.key) && "bg-primary/5",
                       file.canInspect &&
                         "cursor-pointer focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                     )}
                   >
+                    <TableCell className="px-4 py-3">
+                      <Checkbox
+                        checked={selectedFileKeySet.has(file.key)}
+                        disabled={!file.datasetId || selectionDisabled}
+                        onCheckedChange={() => toggleFileSelection(file)}
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                        aria-label={`Select ${file.name}`}
+                      />
+                    </TableCell>
                     <TableCell className="max-w-0 px-4 py-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <FileVisual file={file} />
@@ -416,6 +546,85 @@ export function DataSourceFilesTable({
                         >
                           <DownloadIcon />
                         </Button>
+                        {(onCancelIndexing ||
+                          onRetryIndexing ||
+                          onReprocessIndexing ||
+                          onDeleteFile) && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  disabled={pendingFileKey === file.key}
+                                  aria-label={`More actions for ${file.name}`}
+                                  aria-busy={pendingFileKey === file.key}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onKeyDown={(event) => event.stopPropagation()}
+                                />
+                              }
+                            >
+                              {pendingFileKey === file.key ? (
+                                <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
+                              ) : (
+                                <MoreHorizontalIcon />
+                              )}
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-48">
+                              <DropdownMenuGroup>
+                                {file.status === "processing" &&
+                                  file.sourceStatus !== "cancel_requested" &&
+                                  onCancelIndexing && (
+                                    <DropdownMenuItem
+                                      disabled={!file.datasetId}
+                                      onClick={() => onCancelIndexing(file)}
+                                    >
+                                      <CircleStopIcon />
+                                      Stop processing
+                                    </DropdownMenuItem>
+                                  )}
+                                {file.status === "failed" && onRetryIndexing && (
+                                  <DropdownMenuItem
+                                    disabled={!file.datasetId}
+                                    onClick={() => onRetryIndexing(file)}
+                                  >
+                                    <RefreshCwIcon />
+                                    Retry indexing
+                                  </DropdownMenuItem>
+                                )}
+                                {file.status === "success" &&
+                                  onReprocessIndexing && (
+                                    <DropdownMenuItem
+                                      disabled={!file.datasetId}
+                                      onClick={() => onReprocessIndexing(file)}
+                                    >
+                                      <RefreshCwIcon />
+                                      Reprocess file
+                                    </DropdownMenuItem>
+                                  )}
+                                {file.sourceStatus === "cancel_requested" && (
+                                  <DropdownMenuItem disabled>
+                                    <CircleStopIcon />
+                                    Stop requested
+                                  </DropdownMenuItem>
+                                )}
+                                {onDeleteFile && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      variant="destructive"
+                                      disabled={!file.datasetId}
+                                      onClick={() => onDeleteFile(file)}
+                                    >
+                                      <Trash2Icon />
+                                      Delete file
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
