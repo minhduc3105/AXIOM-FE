@@ -104,3 +104,39 @@ describe('AppRouter legacy ingestion route', () => {
     )
   })
 })
+
+describe('AppRouter authenticated fallback', () => {
+  beforeEach(() => {
+    Object.values(mocks).forEach((mock) => mock.mockReset())
+    mocks.useAuth.mockReturnValue({
+      ...unauthenticatedAuth,
+      status: 'authenticated',
+      user: { id: 'user-1' },
+    })
+    mocks.useBrowserRoute.mockReturnValue({
+      route: {
+        kind: 'auth',
+        page: 'login',
+        returnTo: '/',
+        reason: null,
+      },
+      path: '/login',
+      navigate: mocks.navigate,
+      navigatePath: mocks.navigatePath,
+    })
+  })
+
+  afterEach(cleanup)
+
+  it('replaces an authenticated auth route with the blank chat composer', () => {
+    render(<AppRouter renderApp={() => null} />)
+
+    expect(mocks.navigate).toHaveBeenCalledWith(
+      {
+        kind: 'app',
+        route: { surface: 'chat', page: 'compose', sessionId: null },
+      },
+      { replace: true },
+    )
+  })
+})

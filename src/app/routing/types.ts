@@ -11,7 +11,7 @@ export type AppSurface =
 export type OrganizationAdministrationTab = "overview" | "workspaces" | "members";
 
 export type AppRoute =
-  | { surface: "chat"; page: "home" | "compose"; sessionId: null }
+  | { surface: "chat"; page: "compose"; sessionId: null }
   | { surface: "chat"; page: "conversation"; sessionId: string }
   | { surface: "data"; page: "dashboard"; sessionId: null }
   | {

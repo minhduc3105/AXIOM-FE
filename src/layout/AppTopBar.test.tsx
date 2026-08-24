@@ -24,21 +24,33 @@ const workspace = {
   role: "editor" as const,
 };
 
-const callbacks = {
-  onHome: vi.fn(),
-  onNewChat: vi.fn(),
-  onData: vi.fn(),
-  onReports: vi.fn(),
-  onWorkspaceSelect: vi.fn(),
+const callbacks = { onWorkspaceSelect: vi.fn() };
+const shellCallbacks = {
+  onNavigationToggle: vi.fn(),
+  onInspectorOpen: vi.fn(),
 };
 
-function renderTopBar(showPrimaryNavigation = false) {
+function renderTopBar({
+  route = { surface: "data", page: "dashboard", sessionId: null },
+  navigationOpen = false,
+  showNavigationToggle = false,
+  showInspectorToggle = false,
+}: {
+  route?: Parameters<typeof AppTopBar>[0]["route"];
+  navigationOpen?: boolean;
+  showNavigationToggle?: boolean;
+  showInspectorToggle?: boolean;
+} = {}) {
   return render(
     <TooltipProvider>
       <AppTopBar
-        route={{ surface: "data", page: "dashboard", sessionId: null }}
-        showPrimaryNavigation={showPrimaryNavigation}
+        route={route}
         {...callbacks}
+        navigationOpen={navigationOpen}
+        onNavigationToggle={shellCallbacks.onNavigationToggle}
+        showNavigationToggle={showNavigationToggle}
+        showInspectorToggle={showInspectorToggle}
+        onInspectorOpen={shellCallbacks.onInspectorOpen}
         scope={{
           organization: { id: "org-1", name: "Research Operations" },
           workspace: null,
@@ -78,15 +90,54 @@ describe("AppTopBar", () => {
     expect(screen.getByRole("button", { name: "Use light theme" })).toBeTruthy();
   });
 
-  it("keeps the home navigation in the same top bar", async () => {
+  it("does not duplicate workspace navigation in the header", () => {
+    renderTopBar();
+
+    expect(
+      screen.queryByRole("navigation", { name: "Workspace sections" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Homepage" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Chat" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Data" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Report" })).toBeNull();
+  });
+
+  it("keeps workspace navigation out of the desktop toolbar", () => {
+    renderTopBar();
+
+    expect(
+      screen.queryByRole("button", { name: "Open workspace navigation" }),
+    ).toBeNull();
+  });
+
+  it("opens workspace navigation from the mobile toolbar", async () => {
     const actor = userEvent.setup();
-    renderTopBar(true);
+    renderTopBar({ showNavigationToggle: true });
 
-    expect(screen.getByRole("navigation", { name: "Workspace sections" })).toBeTruthy();
-    await actor.click(screen.getByRole("button", { name: "Chat" }));
-    await actor.click(screen.getByRole("button", { name: "Data" }));
+    await actor.click(
+      screen.getByRole("button", { name: "Open workspace navigation" }),
+    );
 
-    expect(callbacks.onNewChat).toHaveBeenCalledOnce();
-    expect(callbacks.onData).toHaveBeenCalledOnce();
+    expect(shellCallbacks.onNavigationToggle).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the close workspace navigation action accessible", () => {
+    renderTopBar({ navigationOpen: true, showNavigationToggle: true });
+
+    expect(
+      screen.getByRole("button", { name: "Close workspace navigation" }),
+    ).toBeTruthy();
+  });
+
+  it("opens Logs & Files from the chat toolbar", async () => {
+    const actor = userEvent.setup();
+    renderTopBar({
+      route: { surface: "chat", page: "conversation", sessionId: "chat-42" },
+      showInspectorToggle: true,
+    });
+
+    await actor.click(screen.getByRole("button", { name: "Open Logs & Files" }));
+
+    expect(shellCallbacks.onInspectorOpen).toHaveBeenCalledOnce();
   });
 });

@@ -74,7 +74,7 @@ export function ProcessInspectorAside({
     const viewport = analysisScrollArea.current?.querySelector<HTMLElement>(
       '[data-slot="scroll-area-viewport"]',
     );
-    if (!row || !viewport) return;
+    if (!row || !viewport || typeof viewport.scrollTo !== "function") return;
 
     const viewportRect = viewport.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
@@ -121,7 +121,7 @@ export function ProcessInspectorAside({
   }
 
   return (
-    <div className="flex h-full min-h-[420px] w-full max-w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-[#d8d0c2]/80 bg-[#fffdf8]/75 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/65">
+    <div className="flex h-full min-h-0 w-full max-w-full min-w-0 flex-col overflow-hidden bg-card">
       <Tabs
         value={activeTab}
         onValueChange={(value) =>
@@ -158,7 +158,7 @@ export function ProcessInspectorAside({
                 type="button"
                 size="icon-sm"
                 variant="ghost"
-                aria-label="Close process details"
+                aria-label="Close Logs & Files"
                 onClick={onClose}
               >
                 <XIcon />

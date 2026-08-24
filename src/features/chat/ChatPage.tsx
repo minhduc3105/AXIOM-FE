@@ -4,9 +4,13 @@ import { EvidencePanel } from "./components/EvidencePanel";
 import { ProcessInspectorAside } from "./components/ProcessStepPanel";
 import { ReviewCard } from "./components/ReviewCard";
 import { UserMessage } from "./components/UserMessage";
-import { WelcomeWorkspace } from "./components/WelcomeWorkspace";
-import { Button } from "@/components/ui/button";
-import { PanelRightOpenIcon } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import type {
   ChatStage,
   ChatEngine,
@@ -19,6 +23,7 @@ import type {
   ProcessEvent,
 } from "./model/types";
 import { cn } from "@/shared/lib/utils";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
 
 type ChatPageProps = {
   conversationId: string | null;
@@ -31,7 +36,9 @@ type ChatPageProps = {
   history: ChatTurn[];
   error: string | null;
   loading: boolean;
-  mode: "home" | "chat";
+  processInspectorOpen: boolean;
+  onProcessInspectorOpen: () => void;
+  onProcessInspectorClose: () => void;
   engine: ChatEngine;
   executionMode: ChatExecutionMode;
   models: ChatModelOption[];
@@ -52,7 +59,6 @@ type ChatPageProps = {
   onApproveAndRun: () => void;
   onRetryProcess: () => void;
   onCloseEvidence: () => void;
-  onData: () => void;
 };
 
 export function ChatPage({
@@ -66,7 +72,9 @@ export function ChatPage({
   history,
   error,
   loading,
-  mode,
+  processInspectorOpen,
+  onProcessInspectorOpen,
+  onProcessInspectorClose,
   engine,
   executionMode,
   models,
@@ -81,9 +89,8 @@ export function ChatPage({
   onApproveAndRun,
   onRetryProcess,
   onCloseEvidence,
-  onData,
 }: ChatPageProps) {
-  const chatMainRef = useRef<HTMLElement>(null);
+  const chatMainRef = useRef<HTMLDivElement>(null);
   const [inspectedProcessStep, setInspectedProcessStep] = useState<{
     key: string;
     event: ProcessEvent;
@@ -105,18 +112,22 @@ export function ChatPage({
     ],
     [history, processEvents],
   );
-  const processInspectorOpen = Boolean(inspectedProcessStep);
-  const canOpenProcessInspector = inspectableProcessEvents.length > 0;
-
   function handleProcessEventSelect(event: ProcessEvent, key: string) {
     setInspectedProcessStep({ event, key });
+    onProcessInspectorOpen();
   }
+  const desktopInspector = useMediaQuery("(min-width: 1280px)");
 
-  function handleOpenProcessInspector() {
+  useEffect(() => {
+    if (processInspectorOpen || inspectableProcessEvents.length === 0) return;
+    setInspectedProcessStep(null);
+  }, [inspectableProcessEvents.length, processInspectorOpen]);
+
+  useEffect(() => {
+    if (!processInspectorOpen || inspectedProcessStep) return;
     const latestStep = inspectableProcessEvents[inspectableProcessEvents.length - 1];
-    if (!latestStep) return;
-    setInspectedProcessStep(latestStep);
-  }
+    if (latestStep) setInspectedProcessStep(latestStep);
+  }, [inspectableProcessEvents, inspectedProcessStep, processInspectorOpen]);
 
   useEffect(() => {
     if (!inspectedProcessStep) return;
@@ -150,27 +161,6 @@ export function ChatPage({
     return () => window.cancelAnimationFrame(frame);
   }, [history.length, loading, processSignature, resultScrollSignature, stage]);
 
-  if (mode === "home") {
-    return (
-      <section
-        className="min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden"
-        aria-label="Investigation welcome"
-      >
-        <WelcomeWorkspace
-          engine={engine}
-          executionMode={executionMode}
-          models={models}
-          selectedModelAlias={selectedModelAlias}
-          onEngineChange={onEngineChange}
-          onExecutionModeChange={onExecutionModeChange}
-          onModelChange={onModelChange}
-          onSubmit={onSubmit}
-          onData={onData}
-        />
-      </section>
-    );
-  }
-
   if (stage === "welcome") {
     return (
       <EmptyChatWorkspace
@@ -188,27 +178,42 @@ export function ChatPage({
   }
   if (!investigation) return null;
 
+  const inspector = (
+    <ProcessInspectorAside
+      items={inspectableProcessEvents}
+      conversationId={conversationId}
+      activeProcessEventKey={inspectedProcessStep?.key}
+      onProcessEventSelect={handleProcessEventSelect}
+      onClose={onProcessInspectorClose}
+    />
+  );
+
   return (
     <section
-      ref={chatMainRef}
-      className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-y-auto overflow-x-hidden bg-transparent"
+      className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-hidden bg-background"
       aria-label="Investigation workspace"
     >
       <div
         className={cn(
-          "mx-auto grid min-h-full gap-5 transition-[width] duration-300 ease-out max-sm:w-[calc(100%_-_24px)]",
-          processInspectorOpen
-            ? "w-[calc(100%_-_40px)] xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] 2xl:w-[calc(100%_-_64px)]"
-            : evidenceOpen && stage === "result"
-              ? "w-[min(1480px,calc(100%_-_56px))]"
-              : "w-[min(980px,calc(100%_-_56px))]",
+          "grid h-full min-h-0 min-w-0 transition-[grid-template-columns] duration-200 ease-out",
+          processInspectorOpen && desktopInspector
+            ? "xl:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)]"
+            : "grid-cols-1",
         )}
       >
-        <div className="flex min-h-full flex-col gap-4 pb-4 pt-8 md:pt-10">
+        <div className="flex min-h-0 min-w-0 flex-col">
           <div
-            className="min-h-0 flex-1 overflow-visible pr-2"
+            ref={chatMainRef}
+            className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
           >
-            <div className="flex flex-col gap-10 pb-6">
+            <div
+              className={cn(
+                "mx-auto flex w-full min-w-0 flex-col gap-10 px-4 py-6 md:px-8 md:py-8",
+                evidenceOpen && stage === "result" && !processInspectorOpen
+                  ? "max-w-[1480px]"
+                  : "max-w-5xl",
+              )}
+            >
               {history.map((turn, index) => (
                 <HistoryTurn
                   key={`${turn.investigation.question}-${index}`}
@@ -219,7 +224,7 @@ export function ChatPage({
                 />
               ))}
 
-              <section className="flex flex-col gap-6">
+              <section className="flex min-w-0 flex-col gap-6">
                 <UserMessage
                   attachments={investigation.attachments}
                   question={investigation.question}
@@ -293,55 +298,58 @@ export function ChatPage({
             </div>
           </div>
 
-          <ChatComposer
-            className="sticky bottom-4 z-20 shrink-0"
-            engine={engine}
-            executionMode={executionMode}
-            models={models}
-            selectedModelAlias={selectedModelAlias}
-            sendDisabled={loading}
-            onEngineChange={onEngineChange}
-            onExecutionModeChange={onExecutionModeChange}
-            onModelChange={onModelChange}
-            onSubmit={onSubmit}
-            placeholder={
-              loading
-                ? "AXIOM is working..."
-                : stage === "result"
-                  ? "Ask a follow-up or start another investigation..."
-                  : "Message AXIOM..."
-            }
-          />
-        </div>
-
-        {inspectedProcessStep && (
-          <aside
-            data-process-inspector
-            className="min-h-0 min-w-0 max-w-full pb-4 pt-8 max-xl:pt-0 md:pt-10"
-            aria-label="Process details"
-          >
-            <div className="sticky top-8 h-[calc(100dvh-var(--app-top-bar-height)-4rem)] min-h-0 min-w-0 max-w-full md:top-10">
-              <ProcessInspectorAside
-                items={inspectableProcessEvents}
-                conversationId={conversationId}
-                activeProcessEventKey={inspectedProcessStep.key}
-                onProcessEventSelect={handleProcessEventSelect}
-                onClose={() => setInspectedProcessStep(null)}
+          <div className="shrink-0 border-t border-border bg-background/95 px-4 py-3 md:px-8">
+            <div className="mx-auto w-full max-w-5xl">
+              <ChatComposer
+                className="w-full"
+                engine={engine}
+                executionMode={executionMode}
+                models={models}
+                selectedModelAlias={selectedModelAlias}
+                sendDisabled={loading}
+                onEngineChange={onEngineChange}
+                onExecutionModeChange={onExecutionModeChange}
+                onModelChange={onModelChange}
+                onSubmit={onSubmit}
+                placeholder={
+                  loading
+                    ? "AXIOM is working..."
+                    : stage === "result"
+                      ? "Ask a follow-up or start another investigation..."
+                      : "Message AXIOM..."
+                }
               />
             </div>
+          </div>
+        </div>
+
+        {processInspectorOpen && desktopInspector && (
+          <aside
+            data-process-inspector
+            className="min-h-0 min-w-0 overflow-hidden border-l border-border bg-card"
+            aria-label="Process details"
+          >
+            {inspector}
           </aside>
         )}
       </div>
-      {!processInspectorOpen && canOpenProcessInspector && (
-        <Button
-          type="button"
-          variant="outline"
-          className="fixed right-5 top-24 z-30 rounded-2xl border-[#d8d0c2] bg-white/92 px-4 shadow-[0_10px_30px_rgba(24,24,18,0.12)] backdrop-blur-xl hover:bg-[#f7f3eb] dark:border-[#38372f] dark:bg-[#20201c]/92 dark:hover:bg-[#292923]"
-          onClick={handleOpenProcessInspector}
-        >
-          <PanelRightOpenIcon data-icon="inline-start" />
-          Logs & Files
-        </Button>
+      {processInspectorOpen && !desktopInspector && (
+        <Sheet open onOpenChange={(open) => !open && onProcessInspectorClose()}>
+          <SheetContent
+            className="!w-[min(480px,100vw)] border-border bg-card p-0"
+            side="right"
+            showCloseButton={false}
+            aria-label="Logs & Files"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Logs &amp; Files</SheetTitle>
+              <SheetDescription>
+                Review analysis details and generated files for this chat.
+              </SheetDescription>
+            </SheetHeader>
+            {inspector}
+          </SheetContent>
+        </Sheet>
       )}
     </section>
   );
