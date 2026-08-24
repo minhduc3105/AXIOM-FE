@@ -454,6 +454,7 @@ export function DataSourceFilesTable({
                   <TableRow
                     key={file.key}
                     data-state={selectedFileKeySet.has(file.key) ? "selected" : undefined}
+                    data-interactive={file.canInspect || undefined}
                     tabIndex={file.canInspect ? 0 : undefined}
                     aria-label={
                       file.canInspect ? `Open ${file.name}` : undefined
@@ -464,7 +465,7 @@ export function DataSourceFilesTable({
                       "group outline-none",
                       selectedFileKeySet.has(file.key) && "bg-primary/5",
                       file.canInspect &&
-                        "cursor-pointer focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                        "focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                     )}
                   >
                     <TableCell className="px-4 py-3">

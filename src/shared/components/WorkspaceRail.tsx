@@ -677,7 +677,7 @@ function RailContent({
         aria-label="Conversation vault"
       >
         <div className="min-h-0 min-w-0 flex-1" ref={conversationsScrollRef}>
-          <ScrollArea className="h-full min-h-0 w-full min-w-0 overflow-hidden pr-1">
+          <ScrollArea className="h-full min-h-0 w-full min-w-0 overflow-hidden pr-2">
             {conversationsLoading && conversations.length === 0 ? (
               <div className="grid gap-1.5" aria-live="polite">
                 {Array.from({ length: 3 }).map((_, index) => (

@@ -78,6 +78,19 @@ function renderTable(
 describe("DataSourceFilesTable", () => {
   afterEach(cleanup);
 
+  it("marks only inspectable file rows as interactive", () => {
+    renderTable();
+
+    expect(
+      screen
+        .getByRole("row", { name: /open a-very-long-quarterly/i })
+        .hasAttribute("data-interactive"),
+    ).toBe(true);
+    expect(
+      screen.getByRole("row", { name: /processing.pdf/i }).hasAttribute("data-interactive"),
+    ).toBe(false);
+  });
+
   it("opens inspectable files from the complete row with mouse and keyboard", async () => {
     const user = userEvent.setup();
     const onInspect = vi.fn();

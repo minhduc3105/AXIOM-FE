@@ -191,7 +191,7 @@ export function ChatPage({
   return (
     <section
       ref={chatMainRef}
-      className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-y-auto overflow-x-hidden bg-transparent [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]"
+      className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-y-auto overflow-x-hidden bg-transparent"
       aria-label="Investigation workspace"
     >
       <div
