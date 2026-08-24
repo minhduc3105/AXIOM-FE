@@ -17,12 +17,13 @@ vi.mock("@/shared/hooks/use-media-query", () => ({
 
 const intelligenceApi = vi.hoisted(() => ({
   listConversationsPage: vi.fn(),
+  updateConversation: vi.fn(),
 }));
 
 vi.mock("@/shared/lib/intelligence-api", () => ({
   deleteConversation: vi.fn(),
   listConversationsPage: intelligenceApi.listConversationsPage,
-  updateConversation: vi.fn(),
+  updateConversation: intelligenceApi.updateConversation,
 }));
 
 const callbacks = {
@@ -201,6 +202,128 @@ describe("WorkspaceRail", () => {
     expect(screen.queryByRole("button", { name: "Research summary" })).toBeNull();
     await actor.click(screen.getByRole("button", { name: "Expand recent work" }));
     expect(await screen.findByRole("button", { name: "Research summary" })).toBeTruthy();
+  });
+
+  it("collapses pinned conversations independently from recent work", async () => {
+    const actor = userEvent.setup();
+    intelligenceApi.listConversationsPage.mockResolvedValue({
+      items: [
+        {
+          conversation_id: "pinned-chat",
+          title: "Pinned research",
+          status: "active",
+          updated_at: "2026-08-24T10:00:00Z",
+          metadata: { pinned: true },
+        },
+        {
+          conversation_id: "recent-chat",
+          title: "Recent research",
+          status: "active",
+          updated_at: "2026-08-24T09:00:00Z",
+          metadata: {},
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 20,
+        total_items: 2,
+        total_pages: 1,
+        has_next: false,
+        has_previous: false,
+      },
+    });
+    renderRail({ expanded: true });
+
+    const toggle = await screen.findByRole("button", {
+      name: "Collapse pinned conversations",
+    });
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+
+    await actor.click(toggle);
+    expect(screen.queryByRole("button", { name: "Pinned research" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Recent research" })).toBeTruthy();
+
+    await actor.click(
+      screen.getByRole("button", { name: "Expand pinned conversations" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Pinned research" }),
+    ).toBeTruthy();
+  });
+
+  it("marks pinned rows with a conversation icon", async () => {
+    intelligenceApi.listConversationsPage.mockResolvedValue({
+      items: [
+        {
+          conversation_id: "pinned-chat",
+          title: "Pinned research",
+          status: "active",
+          updated_at: "2026-08-24T10:00:00Z",
+          metadata: { pinned: true },
+        },
+        {
+          conversation_id: "recent-chat",
+          title: "Recent research",
+          status: "active",
+          updated_at: "2026-08-24T09:00:00Z",
+          metadata: {},
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 20,
+        total_items: 2,
+        total_pages: 1,
+        has_next: false,
+        has_previous: false,
+      },
+    });
+    renderRail({ expanded: true });
+
+    const pinned = await screen.findByRole("button", { name: "Pinned research" });
+    const recent = screen.getByRole("button", { name: "Recent research" });
+
+    expect(
+      within(pinned).getByRole("img", { name: "Pinned conversation" }),
+    ).toBeTruthy();
+    expect(
+      within(recent).queryByRole("img", { name: "Pinned conversation" }),
+    ).toBeNull();
+  });
+
+  it("keeps the pin action visible with one loading indicator while a pin change is pending", async () => {
+    const actor = userEvent.setup();
+    intelligenceApi.listConversationsPage.mockResolvedValue({
+      items: [
+        {
+          conversation_id: "chat-1",
+          title: "Research summary",
+          status: "active",
+          updated_at: "2026-08-24T09:00:00Z",
+          metadata: {},
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 20,
+        total_items: 1,
+        total_pages: 1,
+        has_next: false,
+        has_previous: false,
+      },
+    });
+    intelligenceApi.updateConversation.mockReturnValue(new Promise(() => {}));
+    renderRail({ expanded: true });
+
+    const pinAction = await screen.findByRole("button", {
+      name: "Pin conversation Research summary",
+    });
+    await actor.click(pinAction);
+
+    expect(document.querySelectorAll("svg.animate-spin")).toHaveLength(1);
+    expect(pinAction.classList.contains("!w-7")).toBe(true);
+    expect(pinAction.classList.contains("opacity-100")).toBe(true);
+    expect(pinAction.classList.contains("mr-1")).toBe(true);
   });
 
   it("keeps the Recent work toggle available when the conversation vault is empty", async () => {

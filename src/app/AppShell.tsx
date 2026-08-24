@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { ChatStage } from "@/features/chat/model/types";
 import type { AuthUser } from "@/features/auth/model/types";
 import type { AppRoute, AppSurface } from "@/app/routing/types";
@@ -34,7 +34,8 @@ type AppShellProps = {
   workspacesLoading: boolean;
   onWorkspaceSelect: (workspaceId: string) => void;
   onLogout: () => void;
-  children: React.ReactNode;
+  chatControls?: ReactNode;
+  children: ReactNode;
 };
 
 export function AppShell({
@@ -62,6 +63,7 @@ export function AppShell({
   workspacesLoading,
   onWorkspaceSelect,
   onLogout,
+  chatControls,
   children,
 }: AppShellProps) {
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -109,6 +111,7 @@ export function AppShell({
             selectedWorkspace={selectedWorkspace}
             workspacesLoading={workspacesLoading}
             onWorkspaceSelect={onWorkspaceSelect}
+            chatControls={chatControls}
           />
           <div className="min-h-[calc(100dvh-var(--app-top-bar-height))] min-w-0 flex-1">
             {children}

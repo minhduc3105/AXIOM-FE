@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatPage } from "@/features/chat/ChatPage";
+import { ChatModelReasoningSelector } from "@/features/chat/components/ChatModelReasoningSelector";
+import { toChatModelOptions } from "@/features/chat/model/chatModelOptions";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { DataPage } from "@/features/data/DataPage";
 import { GlobalIngestionDock } from "@/features/ingestion/components/GlobalIngestionDock";
@@ -103,15 +105,17 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const skipNextHydrationRef = useRef<string | null>(null);
   const llmModelOptions: ChatModelOption[] = useMemo(
     () =>
-      Object.values(llmRegistry.modelsByProvider)
-        .flat()
-        .filter((model) => model.capability === "llm")
-        .map((model) => ({
-          id: model.resource_id,
-          alias: model.resource_id,
-          label: model.name || model.model_id,
-          status: model.status,
-        })),
+      toChatModelOptions(
+        Object.values(llmRegistry.modelsByProvider)
+          .flat()
+          .filter((model) => model.capability === "llm")
+          .map((model) => ({
+            id: model.resource_id,
+            alias: model.resource_id,
+            label: model.name || model.model_id,
+            status: model.status,
+          })),
+      ),
     [llmRegistry.modelsByProvider],
   );
 
@@ -296,8 +300,6 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       question: string,
       engine: ChatEngine,
       files: File[] = [],
-      modelAlias?: string | null,
-      executionMode?: ChatExecutionMode,
     ) => {
       let conversationId = route.surface === "chat" ? route.sessionId : null;
 
@@ -315,8 +317,8 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
         files,
         auth.user?.organization_id,
         dataWorkspace.selectedWorkspace?.id,
-        modelAlias,
-        executionMode ?? chatExecutionMode,
+        selectedModelAlias,
+        chatExecutionMode,
       );
     },
     [
@@ -326,6 +328,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       dataWorkspace.selectedWorkspace?.id,
       navigate,
       route,
+      selectedModelAlias,
     ],
   );
 
@@ -361,6 +364,17 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       workspacesLoading={dataWorkspace.loading}
       onWorkspaceSelect={dataWorkspace.selectWorkspace}
       onLogout={auth.logout}
+      chatControls={
+        route.surface === "chat" ? (
+          <ChatModelReasoningSelector
+            models={llmModelOptions}
+            selectedModelAlias={selectedModelAlias}
+            executionMode={chatExecutionMode}
+            onModelChange={setSelectedModelAlias}
+            onExecutionModeChange={setChatExecutionMode}
+          />
+        ) : undefined
+      }
     >
         {route.surface === "chat" ? (
         <ChatPage
@@ -378,13 +392,8 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
           onProcessInspectorOpen={() => setProcessInspectorOpen(true)}
           onProcessInspectorClose={() => setProcessInspectorOpen(false)}
           engine={chatEngine}
-          executionMode={chatExecutionMode}
-          models={llmModelOptions}
-          selectedModelAlias={selectedModelAlias}
           onSubmit={submitQuestion}
           onEngineChange={changeChatEngine}
-          onExecutionModeChange={setChatExecutionMode}
-          onModelChange={setSelectedModelAlias}
           onSpecificationChange={chat.updateSpecification}
           onSpecificationRevise={chat.reviseSpecification}
           onResetSpecification={chat.resetSpecification}

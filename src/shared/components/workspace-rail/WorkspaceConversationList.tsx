@@ -28,6 +28,38 @@ type WorkspaceConversationListProps = {
   onConversationOpen: (conversationId: string) => void;
 };
 
+function ConversationSectionToggle({
+  label,
+  accessibleName,
+  expanded,
+  onToggle,
+}: {
+  label: string;
+  accessibleName: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      className="mb-1 h-8 w-full cursor-pointer justify-start gap-1 rounded-lg px-2 text-[13px] font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground aria-expanded:bg-transparent aria-expanded:text-muted-foreground dark:aria-expanded:bg-transparent"
+      aria-label={`${expanded ? "Collapse" : "Expand"} ${accessibleName}`}
+      aria-expanded={expanded}
+      onClick={onToggle}
+    >
+      <span>{label}</span>
+      <ChevronDownIcon
+        className={cn(
+          "size-3.5 transition-transform duration-150 motion-reduce:transition-none",
+          !expanded && "-rotate-90",
+        )}
+        aria-hidden="true"
+      />
+    </Button>
+  );
+}
+
 export function WorkspaceConversationList({
   activeConversationId,
   activeStage,
@@ -36,6 +68,7 @@ export function WorkspaceConversationList({
   onConversationOpen,
 }: WorkspaceConversationListProps) {
   const conversationsScrollRef = useRef<HTMLDivElement | null>(null);
+  const [pinnedExpanded, setPinnedExpanded] = useState(true);
   const [recentWorkExpanded, setRecentWorkExpanded] = useState(true);
   const {
     conversationActionPending,
@@ -135,36 +168,36 @@ export function WorkspaceConversationList({
             {!conversationsLoading &&
               !conversationsError &&
               pinnedConversations.length > 0 && (
-                <ConversationGroup
-                  label="Pinned"
-                  conversations={pinnedConversations}
-                  activeConversationId={activeConversationId}
-                  activeStage={activeStage}
-                  actionPending={conversationActionPending}
-                  onOpen={onConversationOpen}
-                  onRename={renameConversation}
-                  onTogglePinned={togglePinnedConversation}
-                  onDelete={setDeleteTarget}
-                />
+                <>
+                  <ConversationSectionToggle
+                    label="Pinned"
+                    accessibleName="pinned conversations"
+                    expanded={pinnedExpanded}
+                    onToggle={() => setPinnedExpanded((current) => !current)}
+                  />
+                  {pinnedExpanded && (
+                    <ConversationGroup
+                      label="Pinned"
+                      conversations={pinnedConversations}
+                      activeConversationId={activeConversationId}
+                      activeStage={activeStage}
+                      actionPending={conversationActionPending}
+                      onOpen={onConversationOpen}
+                      onRename={renameConversation}
+                      onTogglePinned={togglePinnedConversation}
+                      onDelete={setDeleteTarget}
+                      hideLabel
+                    />
+                  )}
+                </>
               )}
 
-            <Button
-              type="button"
-              variant="ghost"
-              className="mb-1 h-8 w-full cursor-pointer justify-start gap-1 rounded-lg px-2 text-[13px] font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground aria-expanded:bg-transparent aria-expanded:text-muted-foreground dark:aria-expanded:bg-transparent"
-              aria-label={`${recentWorkExpanded ? "Collapse" : "Expand"} recent work`}
-              aria-expanded={recentWorkExpanded}
-              onClick={() => setRecentWorkExpanded((current) => !current)}
-            >
-              <span>Recent work</span>
-              <ChevronDownIcon
-                className={cn(
-                  "size-3.5 transition-transform duration-150 motion-reduce:transition-none",
-                  !recentWorkExpanded && "-rotate-90",
-                )}
-                aria-hidden="true"
-              />
-            </Button>
+            <ConversationSectionToggle
+              label="Recent work"
+              accessibleName="recent work"
+              expanded={recentWorkExpanded}
+              onToggle={() => setRecentWorkExpanded((current) => !current)}
+            />
 
             {recentWorkExpanded && (
               <>

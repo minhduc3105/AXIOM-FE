@@ -41,16 +41,11 @@ function renderChatPage() {
       error={null}
       loading={false}
       engine="report"
-      executionMode="thinking"
-      models={[]}
-      selectedModelAlias={null}
       processInspectorOpen
       onProcessInspectorClose={onProcessInspectorClose}
       onProcessInspectorOpen={onProcessInspectorOpen}
       onSubmit={vi.fn()}
       onEngineChange={vi.fn()}
-      onExecutionModeChange={vi.fn()}
-      onModelChange={vi.fn()}
       onSpecificationChange={vi.fn()}
       onSpecificationRevise={vi.fn()}
       onResetSpecification={vi.fn()}
@@ -88,5 +83,39 @@ describe("ChatPage", () => {
     );
 
     expect(onProcessInspectorOpen).toHaveBeenCalledOnce();
+  });
+
+  it("positions the welcome workspace above the vertical center", () => {
+    window.scrollTo = vi.fn();
+    render(
+      <ChatPage
+        conversationId={null}
+        stage="welcome"
+        evidenceOpen={false}
+        investigation={null}
+        draft={null}
+        processEvents={[]}
+        result={null}
+        history={[]}
+        error={null}
+        loading={false}
+        engine="auto"
+        processInspectorOpen={false}
+        onProcessInspectorClose={vi.fn()}
+        onProcessInspectorOpen={vi.fn()}
+        onSubmit={vi.fn()}
+        onEngineChange={vi.fn()}
+        onSpecificationChange={vi.fn()}
+        onSpecificationRevise={vi.fn()}
+        onResetSpecification={vi.fn()}
+        onApproveAndRun={vi.fn()}
+        onRetryProcess={vi.fn()}
+        onCloseEvidence={vi.fn()}
+      />,
+    );
+
+    const welcome = screen.getByRole("region", { name: "New chat" });
+    expect(welcome.className).toContain("items-start");
+    expect(welcome.className).toContain("pt-[clamp(12rem,30vh,32rem)]");
   });
 });

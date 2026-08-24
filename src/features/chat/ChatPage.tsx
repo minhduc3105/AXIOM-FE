@@ -14,8 +14,6 @@ import {
 import type {
   ChatStage,
   ChatEngine,
-  ChatExecutionMode,
-  ChatModelOption,
   ChatTurn,
   EditableSpecification,
   Investigation,
@@ -40,19 +38,8 @@ type ChatPageProps = {
   onProcessInspectorOpen: () => void;
   onProcessInspectorClose: () => void;
   engine: ChatEngine;
-  executionMode: ChatExecutionMode;
-  models: ChatModelOption[];
-  selectedModelAlias: string | null;
-  onSubmit: (
-    value: string,
-    engine: ChatEngine,
-    files: File[],
-    modelAlias?: string | null,
-    executionMode?: ChatExecutionMode,
-  ) => void;
+  onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
   onEngineChange: (engine: ChatEngine) => void;
-  onExecutionModeChange: (mode: ChatExecutionMode) => void;
-  onModelChange: (modelAlias: string | null) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
   onSpecificationRevise: (feedback: string) => void;
   onResetSpecification: () => void;
@@ -76,13 +63,8 @@ export function ChatPage({
   onProcessInspectorOpen,
   onProcessInspectorClose,
   engine,
-  executionMode,
-  models,
-  selectedModelAlias,
   onSubmit,
   onEngineChange,
-  onExecutionModeChange,
-  onModelChange,
   onSpecificationChange,
   onSpecificationRevise,
   onResetSpecification,
@@ -165,13 +147,8 @@ export function ChatPage({
     return (
       <EmptyChatWorkspace
         engine={engine}
-        executionMode={executionMode}
-        models={models}
-        selectedModelAlias={selectedModelAlias}
         loading={loading}
         onEngineChange={onEngineChange}
-        onExecutionModeChange={onExecutionModeChange}
-        onModelChange={onModelChange}
         onSubmit={onSubmit}
       />
     );
@@ -303,13 +280,8 @@ export function ChatPage({
               <ChatComposer
                 className="w-full"
                 engine={engine}
-                executionMode={executionMode}
-                models={models}
-                selectedModelAlias={selectedModelAlias}
                 sendDisabled={loading}
                 onEngineChange={onEngineChange}
-                onExecutionModeChange={onExecutionModeChange}
-                onModelChange={onModelChange}
                 onSubmit={onSubmit}
                 placeholder={
                   loading
@@ -357,34 +329,18 @@ export function ChatPage({
 
 function EmptyChatWorkspace({
   engine,
-  executionMode,
   onSubmit,
   onEngineChange,
-  onExecutionModeChange,
-  models,
-  selectedModelAlias,
-  onModelChange,
   loading,
 }: {
   engine: ChatEngine;
-  executionMode: ChatExecutionMode;
-  models: ChatModelOption[];
-  selectedModelAlias: string | null;
-  onSubmit: (
-    value: string,
-    engine: ChatEngine,
-    files: File[],
-    modelAlias?: string | null,
-    executionMode?: ChatExecutionMode,
-  ) => void;
+  onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
   onEngineChange: (engine: ChatEngine) => void;
-  onExecutionModeChange: (mode: ChatExecutionMode) => void;
-  onModelChange: (modelAlias: string | null) => void;
   loading: boolean;
 }) {
   return (
     <section
-      className="grid min-h-[calc(100dvh-var(--app-top-bar-height))] w-full place-items-center overflow-hidden px-5 py-10"
+      className="grid min-h-[calc(100dvh-var(--app-top-bar-height))] w-full items-start justify-items-center overflow-hidden px-5 pb-10 pt-[clamp(12rem,30vh,32rem)]"
       aria-label="New chat"
     >
       <div className="flex w-full max-w-3xl flex-col items-center gap-8">
@@ -399,13 +355,8 @@ function EmptyChatWorkspace({
         </div>
         <ChatComposer
           engine={engine}
-          executionMode={executionMode}
-          models={models}
-          selectedModelAlias={selectedModelAlias}
           onSubmit={onSubmit}
           onEngineChange={onEngineChange}
-          onExecutionModeChange={onExecutionModeChange}
-          onModelChange={onModelChange}
           disabled={loading}
           placeholder="Message AXIOM..."
         />

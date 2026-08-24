@@ -14,6 +14,7 @@ import {
   WrenchIcon,
 } from "lucide-react";
 import { useTheme } from "@/app/ThemeProvider";
+import type { ReactNode } from "react";
 import type { AppRoute } from "@/app/routing/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,7 @@ type AppTopBarProps = {
   selectedWorkspace: AssignedWorkspace | null;
   workspacesLoading: boolean;
   onWorkspaceSelect: (workspaceId: string) => void;
+  chatControls?: ReactNode;
 };
 
 function getPageContext(route: AppRoute) {
@@ -109,10 +111,12 @@ export function AppTopBar({
   selectedWorkspace,
   workspacesLoading,
   onWorkspaceSelect,
+  chatControls,
 }: AppTopBarProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const pageContext = getPageContext(route);
   const PageIcon = pageContext.icon;
+  const isChat = route.surface === "chat";
   const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
   const themeLabel = `Use ${nextTheme} theme`;
   const navigationLabel = navigationOpen
@@ -153,20 +157,28 @@ export function AppTopBar({
           </Tooltip>
         )}
 
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-start gap-1">
-            <span className="grid size-9 shrink-0 place-items-center rounded-md text-primary">
-              <PageIcon className="size-6" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-2xl font-semibold leading-6">
-                {pageContext.title}
-              </p>
-              <p className="hidden truncate text-sm leading-5 text-muted-foreground md:block">
-                {pageContext.description}
-              </p>
+        <div
+          className="min-w-0"
+          role={isChat ? "group" : undefined}
+          aria-label={isChat ? "Chat controls" : undefined}
+        >
+          {isChat ? (
+            chatControls
+          ) : (
+            <div className="flex min-w-0 items-start gap-1">
+              <span className="grid size-9 shrink-0 place-items-center rounded-md text-primary">
+                <PageIcon className="size-6" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-2xl font-semibold leading-6">
+                  {pageContext.title}
+                </p>
+                <p className="hidden truncate text-sm leading-5 text-muted-foreground md:block">
+                  {pageContext.description}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="flex min-w-0 items-center justify-self-end gap-2">

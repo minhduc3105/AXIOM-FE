@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppTopBar } from "./AppTopBar";
 
@@ -35,11 +36,13 @@ function renderTopBar({
   navigationOpen = false,
   showNavigationToggle = false,
   showInspectorToggle = false,
+  chatControls,
 }: {
   route?: Parameters<typeof AppTopBar>[0]["route"];
   navigationOpen?: boolean;
   showNavigationToggle?: boolean;
   showInspectorToggle?: boolean;
+  chatControls?: ReactNode;
 } = {}) {
   return render(
     <TooltipProvider>
@@ -51,6 +54,7 @@ function renderTopBar({
         showNavigationToggle={showNavigationToggle}
         showInspectorToggle={showInspectorToggle}
         onInspectorOpen={shellCallbacks.onInspectorOpen}
+        chatControls={chatControls}
         scope={{
           organization: { id: "org-1", name: "Research Operations" },
           workspace: null,
@@ -139,5 +143,42 @@ describe("AppTopBar", () => {
     await actor.click(screen.getByRole("button", { name: "Open Logs & Files" }));
 
     expect(shellCallbacks.onInspectorOpen).toHaveBeenCalledOnce();
+  });
+
+  it("shows chat controls without the redundant Chat page context", () => {
+    renderTopBar({
+      route: { surface: "chat", page: "compose", sessionId: null },
+      chatControls: <button type="button">Chat model settings</button>,
+    });
+
+    expect(screen.getByRole("button", { name: "Chat model settings" })).toBeTruthy();
+    expect(screen.queryByText("Chat")).toBeNull();
+    expect(screen.queryByText("Ask questions and explore your workspace.")).toBeNull();
+  });
+
+  it("places chat controls in the left page-context slot", () => {
+    renderTopBar({
+      route: { surface: "chat", page: "compose", sessionId: null },
+      chatControls: <button type="button">Chat model settings</button>,
+    });
+
+    const chatContext = screen.getByRole("group", { name: "Chat controls" });
+
+    expect(
+      within(chatContext).getByRole("button", { name: "Chat model settings" }),
+    ).toBeTruthy();
+    expect(
+      chatContext.nextElementSibling?.contains(
+        screen.getByLabelText("Current application scope"),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps chat controls off non-chat routes", () => {
+    renderTopBar({
+      chatControls: <button type="button">Chat model settings</button>,
+    });
+
+    expect(screen.queryByRole("button", { name: "Chat model settings" })).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   LoaderCircleIcon,
+  MessageCircleIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PinIcon,
@@ -96,8 +97,16 @@ function WorkspaceConversationRow({
           size="sm"
           className="h-9 min-w-0 flex-1 !shrink cursor-pointer justify-start overflow-hidden rounded-lg px-2.5 text-left text-[13px] font-normal hover:bg-transparent hover:text-inherit"
           onClick={() => onOpen(conversation.conversation_id)}
+          aria-label={title}
           title={title}
         >
+          {pinned && (
+            <MessageCircleIcon
+              className="size-[18px] shrink-0"
+              role="img"
+              aria-label="Pinned conversation"
+            />
+          )}
           <span className="block min-w-0 truncate">{title}</span>
         </Button>
       )}
@@ -107,7 +116,10 @@ function WorkspaceConversationRow({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="size-7 !w-0 shrink-0 !p-0 opacity-0 pointer-events-none transition-[width,opacity] duration-150 hover:bg-muted focus-visible:!w-7 focus-visible:opacity-100 focus-visible:pointer-events-auto group-hover:!w-7 group-hover:opacity-100 group-hover:pointer-events-auto cursor-pointer"
+            className={cn(
+              "size-7 !w-0 shrink-0 !p-0 opacity-0 pointer-events-none transition-[width,opacity] duration-150 hover:bg-muted focus-visible:!w-7 focus-visible:opacity-100 focus-visible:pointer-events-auto group-hover:!w-7 group-hover:opacity-100 group-hover:pointer-events-auto cursor-pointer",
+              busy && "mr-1 !w-7 opacity-100",
+            )}
             aria-label={`${pinned ? "Unpin" : "Pin"} conversation ${title}`}
             disabled={busy}
             onClick={() => onTogglePinned(conversation)}
@@ -131,11 +143,7 @@ function WorkspaceConversationRow({
                 />
               }
             >
-              {busy ? (
-                <LoaderCircleIcon className="animate-spin" aria-hidden="true" />
-              ) : (
-                <MoreHorizontalIcon aria-hidden="true" />
-              )}
+              <MoreHorizontalIcon aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
