@@ -9,11 +9,9 @@ import {
   FileCodeIcon,
   FileIcon,
   FileImageIcon,
-  FileSearchIcon,
   FileSpreadsheetIcon,
   FileTextIcon,
   LoaderCircleIcon,
-  MoreHorizontalIcon,
   RefreshCwIcon,
   SearchIcon,
   Trash2Icon,
@@ -80,6 +78,7 @@ type DataSourceFilesTableProps = {
   selectedFileKeys?: string[];
   onSelectedFileKeysChange?: (keys: string[]) => void;
   pendingFileKey?: string | null;
+  pendingAction?: "cancel" | "retry" | "reprocess" | "delete";
   bulkProgress?: {
     action: "retry" | "delete";
     completed: number;
@@ -178,11 +177,13 @@ function TableSkeleton() {
     <Table className="min-w-[860px]">
       <TableHeader>
         <TableRow>
-          {["", "File", "Status", "Updated", "Size", ""].map((heading, index) => (
-            <TableHead key={`${heading}-${index}`} className="h-11 px-4">
-              {heading}
-            </TableHead>
-          ))}
+          {["", "File", "Status", "Updated", "Size", "Actions"].map(
+            (heading, index) => (
+              <TableHead key={`${heading}-${index}`} className="h-11 px-4">
+                {heading}
+              </TableHead>
+            ),
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -225,6 +226,7 @@ export function DataSourceFilesTable({
   selectedFileKeys = [],
   onSelectedFileKeysChange,
   pendingFileKey = null,
+  pendingAction,
   bulkProgress = null,
 }: DataSourceFilesTableProps) {
   const searchId = useId();
@@ -236,7 +238,9 @@ export function DataSourceFilesTable({
   const lastVisible = Math.min(page * pageSize, totalCount);
   const selectableFiles = files.filter((file) => Boolean(file.datasetId));
   const selectedFileKeySet = new Set(selectedFileKeys);
-  const selectedFiles = files.filter((file) => selectedFileKeySet.has(file.key));
+  const selectedFiles = files.filter((file) =>
+    selectedFileKeySet.has(file.key),
+  );
   const retryableSelectedFiles = selectedFiles.filter(
     (file) => file.status === "failed",
   );
@@ -249,7 +253,8 @@ export function DataSourceFilesTable({
   const selectionDisabled = Boolean(pendingFileKey || bulkProgress);
 
   const toggleFileSelection = (file: DataFile) => {
-    if (!file.datasetId || !onSelectedFileKeysChange || selectionDisabled) return;
+    if (!file.datasetId || !onSelectedFileKeysChange || selectionDisabled)
+      return;
     onSelectedFileKeysChange(
       selectedFileKeySet.has(file.key)
         ? selectedFileKeys.filter((key) => key !== file.key)
@@ -368,7 +373,9 @@ export function DataSourceFilesTable({
         >
           <LoaderCircleIcon className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
           <span className="min-w-0 flex-1 truncate">
-            {bulkProgress.action === "delete" ? "Deleting" : "Retrying indexing"}{" "}
+            {bulkProgress.action === "delete"
+              ? "Deleting"
+              : "Retrying indexing"}{" "}
             {bulkProgress.completed} of {bulkProgress.total}
             {bulkProgress.failed > 0 && ` · ${bulkProgress.failed} failed`}
           </span>
@@ -444,16 +451,25 @@ export function DataSourceFilesTable({
                       )}
                     </TableHead>
                   ))}
-                  <TableHead className="h-11 w-24 bg-card px-4">
-                    <span className="sr-only">Actions</span>
+                  <TableHead className="h-11 w-40 bg-card px-4 text-right text-xs font-semibold">
+                    Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {files.map((file) => (
-                  <TableRow
+                {files.map((file) => {
+                  const actionPending = pendingFileKey === file.key;
+                  const cancelPending = actionPending && pendingAction === "cancel";
+                  const retryPending = actionPending && pendingAction === "retry";
+                  const reprocessPending =
+                    actionPending && pendingAction === "reprocess";
+
+                  return (
+                    <TableRow
                     key={file.key}
-                    data-state={selectedFileKeySet.has(file.key) ? "selected" : undefined}
+                    data-state={
+                      selectedFileKeySet.has(file.key) ? "selected" : undefined
+                    }
                     tabIndex={file.canInspect ? 0 : undefined}
                     aria-label={
                       file.canInspect ? `Open ${file.name}` : undefined
@@ -489,18 +505,18 @@ export function DataSourceFilesTable({
                             >
                               {file.name}
                             </TooltipTrigger>
-                          <TooltipContent
+                            <TooltipContent
                               side="top"
                               align="start"
                               className="max-w-sm break-all"
-                          >
-                            {file.name}
-                          </TooltipContent>
-                        </Tooltip>
-                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                          {file.type}
-                        </span>
-                      </div>
+                            >
+                              {file.name}
+                            </TooltipContent>
+                          </Tooltip>
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            {file.type}
+                          </span>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3">
@@ -516,24 +532,109 @@ export function DataSourceFilesTable({
                     </TableCell>
                     <TableCell className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openFromRow(file);
-                          }}
-                          onKeyDown={(event) => event.stopPropagation()}
-                          disabled={!file.canInspect}
-                          aria-label={`View processed result for ${file.name}`}
-                          title={
-                            file.canInspect
-                              ? `View processed result for ${file.name}`
-                              : "Processed result is not ready"
-                          }
-                        >
-                          <FileSearchIcon />
-                        </Button>
+                        {onCancelIndexing &&
+                          !retryPending &&
+                          !reprocessPending &&
+                          ((file.status === "processing" &&
+                            file.sourceStatus !== "cancel_requested") ||
+                            cancelPending) && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={
+                                !file.datasetId ||
+                                Boolean(bulkProgress) ||
+                                actionPending
+                              }
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onCancelIndexing(file);
+                              }}
+                              onKeyDown={(event) => event.stopPropagation()}
+                              aria-label={`Stop processing ${file.name}`}
+                              title={`Stop processing ${file.name}`}
+                              aria-busy={cancelPending}
+                            >
+                              <CircleStopIcon
+                                className={cn(
+                                  cancelPending &&
+                                    "animate-spin motion-reduce:animate-none",
+                                )}
+                              />
+                            </Button>
+                          )}
+                        {onRetryIndexing &&
+                          (file.status === "failed" || retryPending) && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={
+                                !file.datasetId ||
+                                Boolean(bulkProgress) ||
+                                actionPending
+                              }
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onRetryIndexing(file);
+                              }}
+                              onKeyDown={(event) => event.stopPropagation()}
+                              aria-label={`Retry indexing ${file.name}`}
+                              title={`Retry indexing ${file.name}`}
+                              aria-busy={retryPending}
+                            >
+                              <RefreshCwIcon
+                                className={cn(
+                                  retryPending &&
+                                    "animate-spin motion-reduce:animate-none",
+                                )}
+                              />
+                            </Button>
+                          )}
+                        {onReprocessIndexing &&
+                          (file.status === "success" || reprocessPending) && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={
+                                !file.datasetId ||
+                                Boolean(bulkProgress) ||
+                                actionPending
+                              }
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onReprocessIndexing(file);
+                              }}
+                              onKeyDown={(event) => event.stopPropagation()}
+                              aria-label={`Reprocess ${file.name}`}
+                              title={`Reprocess ${file.name}`}
+                              aria-busy={reprocessPending}
+                            >
+                              <RefreshCwIcon
+                                className={cn(
+                                  reprocessPending &&
+                                    "animate-spin motion-reduce:animate-none",
+                                )}
+                              />
+                            </Button>
+                          )}
+                        {file.sourceStatus === "cancel_requested" &&
+                          !cancelPending &&
+                          !retryPending &&
+                          !reprocessPending && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled
+                              aria-label={`Stop requested for ${file.name}`}
+                              title={`Stop requested for ${file.name}`}
+                            >
+                              <CircleStopIcon />
+                            </Button>
+                          )}
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -546,89 +647,33 @@ export function DataSourceFilesTable({
                         >
                           <DownloadIcon />
                         </Button>
-                        {(onCancelIndexing ||
-                          onRetryIndexing ||
-                          onReprocessIndexing ||
-                          onDeleteFile) && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              render={
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  disabled={pendingFileKey === file.key}
-                                  aria-label={`More actions for ${file.name}`}
-                                  aria-busy={pendingFileKey === file.key}
-                                  onClick={(event) => event.stopPropagation()}
-                                  onKeyDown={(event) => event.stopPropagation()}
-                                />
-                              }
-                            >
-                              {pendingFileKey === file.key ? (
-                                <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
-                              ) : (
-                                <MoreHorizontalIcon />
-                              )}
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="min-w-48">
-                              <DropdownMenuGroup>
-                                {file.status === "processing" &&
-                                  file.sourceStatus !== "cancel_requested" &&
-                                  onCancelIndexing && (
-                                    <DropdownMenuItem
-                                      disabled={!file.datasetId}
-                                      onClick={() => onCancelIndexing(file)}
-                                    >
-                                      <CircleStopIcon />
-                                      Stop processing
-                                    </DropdownMenuItem>
-                                  )}
-                                {file.status === "failed" && onRetryIndexing && (
-                                  <DropdownMenuItem
-                                    disabled={!file.datasetId}
-                                    onClick={() => onRetryIndexing(file)}
-                                  >
-                                    <RefreshCwIcon />
-                                    Retry indexing
-                                  </DropdownMenuItem>
-                                )}
-                                {file.status === "success" &&
-                                  onReprocessIndexing && (
-                                    <DropdownMenuItem
-                                      disabled={!file.datasetId}
-                                      onClick={() => onReprocessIndexing(file)}
-                                    >
-                                      <RefreshCwIcon />
-                                      Reprocess file
-                                    </DropdownMenuItem>
-                                  )}
-                                {file.sourceStatus === "cancel_requested" && (
-                                  <DropdownMenuItem disabled>
-                                    <CircleStopIcon />
-                                    Stop requested
-                                  </DropdownMenuItem>
-                                )}
-                                {onDeleteFile && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      variant="destructive"
-                                      disabled={!file.datasetId}
-                                      onClick={() => onDeleteFile(file)}
-                                    >
-                                      <Trash2Icon />
-                                      Delete file
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuGroup>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        {onDeleteFile && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            disabled={
+                              !file.datasetId ||
+                              Boolean(bulkProgress) ||
+                              actionPending
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onDeleteFile(file);
+                            }}
+                            onKeyDown={(event) => event.stopPropagation()}
+                            aria-label={`Delete ${file.name}`}
+                            title={`Delete ${file.name}`}
+                          >
+                            <Trash2Icon />
+                          </Button>
                         )}
                       </div>
                     </TableCell>
-                  </TableRow>
-                ))}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

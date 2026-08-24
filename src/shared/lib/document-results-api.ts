@@ -11,6 +11,7 @@ import type {
 
 type IngestedDataSelector = {
   organizationId: string;
+  workspaceId: string;
   bucket: string;
   objectKey: string;
   documentId?: string | null;
@@ -29,7 +30,11 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 function parseBbox(value: unknown): NumericBbox | undefined {
-  if (!Array.isArray(value) || value.length !== 4 || !value.every(isFiniteNumber)) {
+  if (
+    !Array.isArray(value) ||
+    value.length !== 4 ||
+    !value.every(isFiniteNumber)
+  ) {
     return undefined;
   }
   const bbox: NumericBbox = [value[0], value[1], value[2], value[3]];
@@ -45,20 +50,28 @@ function parsePolygon(value: unknown): [number, number][] | undefined {
       isFiniteNumber(point[0]) &&
       isFiniteNumber(point[1]),
   );
-  return points.length === value.length && points.length >= 3 ? points : undefined;
+  return points.length === value.length && points.length >= 3
+    ? points
+    : undefined;
 }
 
 function parseLayoutBlock(value: unknown): LayoutBlock | null {
-  if (!isRecord(value) || typeof value.component_id !== "string" || !value.component_id) {
+  if (
+    !isRecord(value) ||
+    typeof value.component_id !== "string" ||
+    !value.component_id
+  ) {
     return null;
   }
 
-  const page = Number.isInteger(value.page) && (value.page as number) >= 0
-    ? value.page as number
-    : null;
-  const blockIndex = Number.isInteger(value.block_index) && (value.block_index as number) >= 0
-    ? value.block_index as number
-    : null;
+  const page =
+    Number.isInteger(value.page) && (value.page as number) >= 0
+      ? (value.page as number)
+      : null;
+  const blockIndex =
+    Number.isInteger(value.block_index) && (value.block_index as number) >= 0
+      ? (value.block_index as number)
+      : null;
   const bbox = parseBbox(value.bbox);
   const pageBbox = parseBbox(value.page_bbox);
   const polygon = parsePolygon(value.polygon);
@@ -70,7 +83,9 @@ function parseLayoutBlock(value: unknown): LayoutBlock | null {
     block_index: blockIndex,
     type: typeof value.type === "string" && value.type ? value.type : "Block",
     text: typeof value.text === "string" ? value.text : "",
-    ...(typeof value.semantic_text === "string" ? { semantic_text: value.semantic_text } : {}),
+    ...(typeof value.semantic_text === "string"
+      ? { semantic_text: value.semantic_text }
+      : {}),
     ...(typeof value.html === "string" ? { html: value.html } : {}),
     ...(bbox ? { bbox } : {}),
     ...(pageBbox ? { page_bbox: pageBbox } : {}),
@@ -87,15 +102,18 @@ function parseJsonText(text: string, contentType: string): unknown {
 }
 
 function parseDocument(value: unknown): IngestedDocumentMetadata | null {
-  if (!isRecord(value)
-    || typeof value.document_id !== "string"
-    || typeof value.organization_id !== "string"
-    || typeof value.file_name !== "string"
-    || typeof value.bucket !== "string"
-    || typeof value.object_key !== "string"
-    || typeof value.current_status !== "string"
-    || !isNullableString(value.latest_run_id)
-    || !Number.isInteger(value.size_bytes)) return null;
+  if (
+    !isRecord(value) ||
+    typeof value.document_id !== "string" ||
+    typeof value.organization_id !== "string" ||
+    typeof value.file_name !== "string" ||
+    typeof value.bucket !== "string" ||
+    typeof value.object_key !== "string" ||
+    typeof value.current_status !== "string" ||
+    !isNullableString(value.latest_run_id) ||
+    !Number.isInteger(value.size_bytes)
+  )
+    return null;
 
   return {
     document_id: value.document_id,
@@ -111,10 +129,12 @@ function parseDocument(value: unknown): IngestedDocumentMetadata | null {
 
 function parseProcessingRun(value: unknown): IngestedProcessingRun | null {
   if (value === null || value === undefined) return null;
-  if (!isRecord(value)
-    || typeof value.run_id !== "string"
-    || typeof value.status !== "string"
-    || !isNullableString(value.error_message)) {
+  if (
+    !isRecord(value) ||
+    typeof value.run_id !== "string" ||
+    typeof value.status !== "string" ||
+    !isNullableString(value.error_message)
+  ) {
     throw new Error("Corpus returned an invalid processing run.");
   }
   return {
@@ -124,12 +144,16 @@ function parseProcessingRun(value: unknown): IngestedProcessingRun | null {
   };
 }
 
-export function parseIngestedDocumentPayload(value: unknown): ParsedDocumentResult {
-  if (!isRecord(value)) throw new Error("Corpus returned an invalid document result.");
+export function parseIngestedDocumentPayload(
+  value: unknown,
+): ParsedDocumentResult {
+  if (!isRecord(value))
+    throw new Error("Corpus returned an invalid document result.");
   if (typeof value.error === "string" && value.error) {
-    const message = typeof value.message === "string" && value.message
-      ? value.message
-      : value.error.split("_").join(" ");
+    const message =
+      typeof value.message === "string" && value.message
+        ? value.message
+        : value.error.split("_").join(" ");
     throw new Error(message);
   }
 
@@ -139,10 +163,12 @@ export function parseIngestedDocumentPayload(value: unknown): ParsedDocumentResu
   }
 
   const contents = value.contents.map((item) => {
-    if (!isRecord(item)
-      || typeof item.content_id !== "string"
-      || typeof item.type !== "string"
-      || typeof item.text !== "string") {
+    if (
+      !isRecord(item) ||
+      typeof item.content_id !== "string" ||
+      typeof item.type !== "string" ||
+      typeof item.text !== "string"
+    ) {
       throw new Error("Corpus returned invalid parsed content.");
     }
     return { contentId: item.content_id, type: item.type, text: item.text };
@@ -152,32 +178,51 @@ export function parseIngestedDocumentPayload(value: unknown): ParsedDocumentResu
   let blocks: LayoutBlock[] = [];
   if (blocksContent) {
     const parsed = parseJsonText(blocksContent.text, "blocks");
-    if (!Array.isArray(parsed)) throw new Error("Corpus blocks content must be an array.");
-    blocks = parsed.map(parseLayoutBlock).filter((block): block is LayoutBlock => Boolean(block));
+    if (!Array.isArray(parsed))
+      throw new Error("Corpus blocks content must be an array.");
+    blocks = parsed
+      .map(parseLayoutBlock)
+      .filter((block): block is LayoutBlock => Boolean(block));
   }
 
-  const readingOrderContent = contents.find((item) => item.type === "reading_order");
+  const readingOrderContent = contents.find(
+    (item) => item.type === "reading_order",
+  );
   let readingOrder: string[] = [];
   if (readingOrderContent) {
     const parsed = parseJsonText(readingOrderContent.text, "reading_order");
-    if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === "string")) {
-      throw new Error("Corpus reading order content must be an array of component IDs.");
+    if (
+      !Array.isArray(parsed) ||
+      !parsed.every((item) => typeof item === "string")
+    ) {
+      throw new Error(
+        "Corpus reading order content must be an array of component IDs.",
+      );
     }
     readingOrder = parsed;
   }
 
   if (readingOrder.length) {
-    const blocksById = new Map(blocks.map((block) => [block.component_id, block]));
+    const blocksById = new Map(
+      blocks.map((block) => [block.component_id, block]),
+    );
     const ordered = readingOrder
       .map((componentId) => blocksById.get(componentId))
       .filter((block): block is LayoutBlock => Boolean(block));
     const orderedIds = new Set(ordered.map((block) => block.component_id));
-    blocks = [...ordered, ...blocks.filter((block) => !orderedIds.has(block.component_id))];
+    blocks = [
+      ...ordered,
+      ...blocks.filter((block) => !orderedIds.has(block.component_id)),
+    ];
   }
 
-  const summary = isRecord(value.content_summary) && Array.isArray(value.content_summary.content_types)
-    ? value.content_summary.content_types.filter((item): item is string => typeof item === "string")
-    : contents.map((item) => item.type);
+  const summary =
+    isRecord(value.content_summary) &&
+    Array.isArray(value.content_summary.content_types)
+      ? value.content_summary.content_types.filter(
+          (item): item is string => typeof item === "string",
+        )
+      : contents.map((item) => item.type);
 
   return {
     document,
@@ -195,8 +240,10 @@ async function getHttpError(response: Response, operation: string) {
   if (!responseText) return fallback;
   try {
     const payload: unknown = JSON.parse(responseText);
-    if (isRecord(payload) && typeof payload.detail === "string") return payload.detail;
-    if (isRecord(payload) && typeof payload.message === "string") return payload.message;
+    if (isRecord(payload) && typeof payload.detail === "string")
+      return payload.detail;
+    if (isRecord(payload) && typeof payload.message === "string")
+      return payload.message;
   } catch {
     return responseText;
   }
@@ -209,7 +256,8 @@ export async function presignFileForPreview(
   workspaceId: string,
   signal?: AbortSignal,
 ): Promise<InlinePreview> {
-  if (!workspaceId.trim()) throw new Error("A workspace is required to preview this file.");
+  if (!workspaceId.trim())
+    throw new Error("A workspace is required to preview this file.");
   const response = await authFetch("/api/document/files/presign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -222,15 +270,18 @@ export async function presignFileForPreview(
     }),
     signal,
   });
-  if (!response.ok) throw new Error(await getHttpError(response, "Preview URL"));
+  if (!response.ok)
+    throw new Error(await getHttpError(response, "Preview URL"));
 
   const payload: unknown = await response.json();
-  if (!isRecord(payload)
-    || typeof payload.url !== "string"
-    || typeof payload.key !== "string"
-    || !isNullableString(payload.bucket)
-    || !Number.isInteger(payload.expires_in)
-    || payload.force_download !== false) {
+  if (
+    !isRecord(payload) ||
+    typeof payload.url !== "string" ||
+    typeof payload.key !== "string" ||
+    !isNullableString(payload.bucket) ||
+    !Number.isInteger(payload.expires_in) ||
+    payload.force_download !== false
+  ) {
     throw new Error("Document Service returned an invalid preview URL.");
   }
 
@@ -253,6 +304,7 @@ export async function getIngestedDocumentData(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       organization_id: selector.organizationId,
+      workspace_id: selector.workspaceId,
       bucket: selector.bucket,
       object_key: selector.objectKey,
       ...(selector.documentId ? { document_id: selector.documentId } : {}),
@@ -261,6 +313,7 @@ export async function getIngestedDocumentData(
     }),
     signal,
   });
-  if (!response.ok) throw new Error(await getHttpError(response, "Parsed document"));
+  if (!response.ok)
+    throw new Error(await getHttpError(response, "Parsed document"));
   return parseIngestedDocumentPayload(await response.json());
 }

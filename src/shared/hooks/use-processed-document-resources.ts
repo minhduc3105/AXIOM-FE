@@ -46,13 +46,15 @@ export function useProcessedDocumentResources({
   const [preview, setPreview] = useState<InspectorResource<InlinePreview>>(
     idleInspectorResource,
   );
-  const [parsing, setParsing] = useState<InspectorResource<ParsedDocumentResult>>(
-    idleInspectorResource,
-  );
+  const [parsing, setParsing] = useState<
+    InspectorResource<ParsedDocumentResult>
+  >(idleInspectorResource);
   const previewCache = useRef(new Map<string, InlinePreview>());
   const parsingCache = useRef(new Map<string, ParsedDocumentResult>());
   const completed = result?.status?.trim().toLowerCase() === "completed";
-  const parsingCacheKey = file ? `${file.key}:${result?.run_id ?? "no-run"}` : null;
+  const parsingCacheKey = file
+    ? `${file.key}:${result?.run_id ?? "no-run"}`
+    : null;
 
   useEffect(() => {
     if (!file || !completed || getSourcePreviewKind(file) === "unsupported") {
@@ -97,12 +99,16 @@ export function useProcessedDocumentResources({
     }
     const controller = new AbortController();
     setParsing({ status: "loading", data: null, error: null });
-    void getIngestedDocumentData({
-      organizationId,
-      bucket,
-      objectKey: file.key,
-      documentId: result?.document_id,
-    }, controller.signal)
+    void getIngestedDocumentData(
+      {
+        organizationId,
+        workspaceId,
+        bucket,
+        objectKey: file.key,
+        documentId: result?.document_id,
+      },
+      controller.signal,
+    )
       .then((data) => {
         parsingCache.current.set(parsingCacheKey, data);
         setParsing({ status: "success", data, error: null });
@@ -117,7 +123,16 @@ export function useProcessedDocumentResources({
         }
       });
     return () => controller.abort();
-  }, [bucket, completed, file, organizationId, parsingAttempt, parsingCacheKey, result?.document_id]);
+  }, [
+    bucket,
+    completed,
+    file,
+    organizationId,
+    parsingAttempt,
+    parsingCacheKey,
+    result?.document_id,
+    workspaceId,
+  ]);
 
   const retryPreview = useCallback(() => {
     if (file) previewCache.current.delete(`${bucket}:${file.key}`);

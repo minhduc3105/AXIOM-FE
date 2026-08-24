@@ -1141,7 +1141,9 @@ export function useIngestionWorkflow(
                 connectorConfig: {
                   account: state.snowflakeConnection.account.trim(),
                   user: state.snowflakeConnection.user.trim(),
-                  warehouse: optionalString(state.snowflakeConnection.warehouse),
+                  warehouse: optionalString(
+                    state.snowflakeConnection.warehouse,
+                  ),
                   database: optionalString(state.snowflakeConnection.database),
                   schema: optionalString(state.snowflakeConnection.schema),
                   role: optionalString(state.snowflakeConnection.role),
@@ -1160,7 +1162,9 @@ export function useIngestionWorkflow(
                 connectorConfig: {
                   account: state.snowflakeConnection.account.trim(),
                   user: state.snowflakeConnection.user.trim(),
-                  warehouse: optionalString(state.snowflakeConnection.warehouse),
+                  warehouse: optionalString(
+                    state.snowflakeConnection.warehouse,
+                  ),
                   database: optionalString(state.snowflakeConnection.database),
                   schema: optionalString(state.snowflakeConnection.schema),
                   role: optionalString(state.snowflakeConnection.role),
@@ -1342,12 +1346,7 @@ export function useIngestionWorkflow(
         });
       }
     }
-  }, [
-    beginRequest,
-    listS3Page,
-    state.ingestionJob,
-    state.s3BrowserStatus,
-  ]);
+  }, [beginRequest, listS3Page, state.ingestionJob, state.s3BrowserStatus]);
 
   const loadMoreS3Files = useCallback(async () => {
     if (
@@ -1513,6 +1512,7 @@ export function useIngestionWorkflow(
 
           const refreshedResults = await getDocumentProcessingStatuses(
             batch.organization_id,
+            batch.workspace_id,
             batch.bucket,
             objectKeys,
             signal,
@@ -1703,7 +1703,9 @@ export function useIngestionWorkflow(
                   private_key_passphrase: optionalString(
                     state.snowflakeConnection.privateKeyPassphrase,
                   ),
-                  warehouse: optionalString(state.snowflakeConnection.warehouse),
+                  warehouse: optionalString(
+                    state.snowflakeConnection.warehouse,
+                  ),
                   database: optionalString(state.snowflakeConnection.database),
                   schema: optionalString(state.snowflakeConnection.schema),
                   role: optionalString(state.snowflakeConnection.role),
