@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createChatRoute,
   createDataRoute,
   createReportsRoute,
   createMemoryRoute,
@@ -78,6 +79,23 @@ describe("tools routing", () => {
 });
 
 describe("application routing", () => {
+  it.each(["/", "/chat"])("opens %s as a blank chat composer", (path) => {
+    expect(parseAppRoute(path)).toEqual({
+      surface: "chat",
+      page: "compose",
+      sessionId: null,
+    });
+  });
+
+  it("parses a chat conversation and keeps /chat as the composer URL", () => {
+    expect(parseAppRoute("/chat/conversation-42")).toEqual({
+      surface: "chat",
+      page: "conversation",
+      sessionId: "conversation-42",
+    });
+    expect(getAppRoutePath(createChatRoute())).toBe("/chat");
+  });
+
   it("parses the models path as its own surface", () => {
     expect(parseAppRoute("/models")).toEqual({
       surface: "models",

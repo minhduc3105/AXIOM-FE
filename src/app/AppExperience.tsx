@@ -24,7 +24,6 @@ import { SettingsPage } from "@/features/auth/components/SettingsPage";
 import { useAuth } from "@/features/auth/model/AuthProvider";
 import { AppShell } from "./AppShell";
 import {
-  createChatHomeRoute,
   createChatRoute,
   createDataDocumentRoute,
   createDataRoute,
@@ -100,6 +99,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const [toolsViewState, setToolsViewState] = useState<ToolCatalogViewState>(
     defaultToolCatalogViewState,
   );
+  const [processInspectorOpen, setProcessInspectorOpen] = useState(false);
   const skipNextHydrationRef = useRef<string | null>(null);
   const llmModelOptions: ChatModelOption[] = useMemo(
     () =>
@@ -166,14 +166,25 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     route.surface,
   ]);
 
+  useEffect(() => {
+    setProcessInspectorOpen(false);
+  }, [route.sessionId, route.surface]);
+
+  useEffect(() => {
+    if (
+      route.surface === "chat" &&
+      route.page === "compose" &&
+      chat.stage !== "welcome"
+    ) {
+      chat.newChat();
+    }
+  }, [chat.newChat, chat.stage, route.sessionId, route.surface]);
+
   const newChat = useCallback(() => {
+    setProcessInspectorOpen(false);
     chat.newChat();
     navigate(createChatRoute());
   }, [chat.newChat, navigate]);
-
-  const openHome = useCallback(() => {
-    navigate(createChatHomeRoute());
-  }, [navigate]);
 
   const openData = useCallback(() => {
     navigate(createDataRoute());
@@ -257,6 +268,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
 
   const openConversation = useCallback(
     (conversationId: string) => {
+      setProcessInspectorOpen(false);
       navigate(createChatRoute(conversationId));
     },
     [navigate],
@@ -267,6 +279,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       if (route.surface !== "chat" || route.sessionId !== conversationId) {
         return;
       }
+      setProcessInspectorOpen(false);
       chat.newChat();
       navigate(createChatRoute());
     },
@@ -326,8 +339,11 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       activeStage={chat.stage}
       surface={route.surface}
       activeConversationId={route.surface === "chat" ? route.sessionId : null}
-      showPrimaryNavigation={route.surface === "chat" && route.page === "home"}
-      onHome={openHome}
+      processInspectorOpen={processInspectorOpen}
+      showInspectorToggle={
+        route.surface === "chat" && route.page === "conversation"
+      }
+      onInspectorOpen={() => setProcessInspectorOpen(true)}
       onNewChat={newChat}
       onConversationOpen={openConversation}
       onConversationDeleted={handleConversationDeleted}
@@ -358,7 +374,9 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
           history={chat.history}
           error={chat.error}
           loading={chat.loading}
-          mode={route.page === "home" ? "home" : "chat"}
+          processInspectorOpen={processInspectorOpen}
+          onProcessInspectorOpen={() => setProcessInspectorOpen(true)}
+          onProcessInspectorClose={() => setProcessInspectorOpen(false)}
           engine={chatEngine}
           executionMode={chatExecutionMode}
           models={llmModelOptions}
@@ -373,7 +391,6 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
           onApproveAndRun={chat.approveAndRun}
           onRetryProcess={chat.retryProcess}
           onCloseEvidence={chat.closeEvidence}
-          onData={openData}
         />
       ) : route.surface === "data" ? (
         route.page === "document" ? (
@@ -407,7 +424,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       ) : route.surface === "organization" ? (
         <OrganizationUsersPage
           initialTab={route.tab}
-          onBack={openHome}
+          onBack={newChat}
           organizationName={scope?.organization.name ?? user.organization_id}
         />
       ) : route.page === "detail" && route.toolName ? (

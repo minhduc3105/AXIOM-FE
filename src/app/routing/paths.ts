@@ -78,7 +78,7 @@ export function parseAppRoute(pathname: string, search = ""): AppRoute {
       : { surface: "chat", page: "compose", sessionId: null };
   }
 
-  return { surface: "chat", page: "home", sessionId: null };
+  return { surface: "chat", page: "compose", sessionId: null };
 }
 
 export function getAppRoutePath(route: AppRoute) {
@@ -104,7 +104,6 @@ export function getAppRoutePath(route: AppRoute) {
       ? `/${ROUTE_SEGMENTS.tools}/${encodeURIComponent(route.toolName)}`
       : `/${ROUTE_SEGMENTS.tools}`;
   }
-  if (route.page === "home") return "/";
   return route.sessionId
     ? `/${ROUTE_SEGMENTS.chat}/${route.sessionId}`
     : `/${ROUTE_SEGMENTS.chat}`;
@@ -114,10 +113,6 @@ export function createChatRoute(sessionId: string | null = null): AppRoute {
   return sessionId
     ? { surface: "chat", page: "conversation", sessionId }
     : { surface: "chat", page: "compose", sessionId: null };
-}
-
-export function createChatHomeRoute(): AppRoute {
-  return { surface: "chat", page: "home", sessionId: null };
 }
 
 export function createDataRoute(): AppRoute {

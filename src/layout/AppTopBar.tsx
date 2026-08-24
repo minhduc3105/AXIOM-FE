@@ -6,6 +6,9 @@ import {
   FileTextIcon,
   MessageSquareIcon,
   MoonIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  PanelRightOpenIcon,
   SettingsIcon,
   SunIcon,
   WrenchIcon,
@@ -25,11 +28,11 @@ import type { AppScopeContext } from "@/shared/types/appScope";
 
 type AppTopBarProps = {
   route: AppRoute;
-  showPrimaryNavigation?: boolean;
-  onHome: () => void;
-  onNewChat: () => void;
-  onData: () => void;
-  onReports: () => void;
+  navigationOpen: boolean;
+  onNavigationToggle: () => void;
+  showNavigationToggle?: boolean;
+  showInspectorToggle?: boolean;
+  onInspectorOpen?: () => void;
   scope: AppScopeContext | null;
   workspaces: AssignedWorkspace[];
   selectedWorkspace: AssignedWorkspace | null;
@@ -96,11 +99,11 @@ function getPageContext(route: AppRoute) {
 
 export function AppTopBar({
   route,
-  showPrimaryNavigation = false,
-  onHome,
-  onNewChat,
-  onData,
-  onReports,
+  navigationOpen,
+  onNavigationToggle,
+  showNavigationToggle = false,
+  showInspectorToggle = false,
+  onInspectorOpen,
   scope,
   workspaces,
   selectedWorkspace,
@@ -112,28 +115,45 @@ export function AppTopBar({
   const PageIcon = pageContext.icon;
   const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
   const themeLabel = `Use ${nextTheme} theme`;
+  const navigationLabel = navigationOpen
+    ? "Close workspace navigation"
+    : "Open workspace navigation";
 
   return (
     <header
-      className={cn(
-        "sticky top-0 z-30 h-16 shrink-0 bg-[#f4efe5]/18 text-foreground backdrop-blur-md dark:bg-[#11110f]/18",
-        showPrimaryNavigation && "h-28 md:h-14",
-      )}
+      className="sticky top-0 z-30 h-16 shrink-0 bg-[#f4efe5]/18 text-foreground backdrop-blur-md dark:bg-[#11110f]/18"
       aria-label="Application toolbar"
     >
       <div
         className={cn(
-          "grid h-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-6 py-2 pl-16 md:px-6 xl:grid-cols-[1fr_auto_1fr]",
-          showPrimaryNavigation &&
-            "grid-rows-[40px_40px] py-2 md:grid-rows-1 md:py-0",
+          "grid h-full min-w-0 items-center gap-2 px-3 py-2 md:px-6",
+          showNavigationToggle
+            ? "grid-cols-[auto_minmax(0,1fr)_auto]"
+            : "grid-cols-[minmax(0,1fr)_auto]",
         )}
       >
-        <div
-          className={cn(
-            "row-start-1 min-w-0 pr-24 md:col-start-1 md:pr-0",
-            showPrimaryNavigation && "md:hidden xl:block",
-          )}
-        >
+        {showNavigationToggle && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-10 shrink-0 md:hidden"
+                  aria-label={navigationLabel}
+                  aria-expanded={navigationOpen}
+                  onClick={onNavigationToggle}
+                />
+              }
+            >
+              {navigationOpen ? <PanelLeftCloseIcon /> : <PanelLeftOpenIcon />}
+            </TooltipTrigger>
+            <TooltipContent>{navigationLabel}</TooltipContent>
+          </Tooltip>
+        )}
+
+        <div className="min-w-0">
           <div className="flex min-w-0 items-start gap-1">
             <span className="grid size-9 shrink-0 place-items-center rounded-md text-primary">
               <PageIcon className="size-6" />
@@ -149,43 +169,27 @@ export function AppTopBar({
           </div>
         </div>
 
-        {showPrimaryNavigation && (
-          <nav
-            className="col-span-2 row-start-2 flex min-w-0 items-center gap-1 overflow-x-auto md:col-span-1 md:col-start-1 md:row-start-1 xl:col-start-2 xl:grid xl:w-80 xl:grid-cols-4 xl:gap-0 xl:overflow-visible"
-            aria-label="Workspace sections"
-          >
-            <Button
-              className="h-10 px-3 text-foreground xl:w-full"
-              variant="ghost"
-              onClick={onHome}
-            >
-              Homepage
-            </Button>
-            <Button
-              className="h-10 px-3 text-foreground xl:w-full"
-              variant="ghost"
-              onClick={onNewChat}
-            >
-              Chat
-            </Button>
-            <Button
-              className="h-10 px-3 text-foreground xl:w-full"
-              variant="ghost"
-              onClick={onData}
-            >
-              Data
-            </Button>
-            <Button
-              className="h-10 px-3 text-foreground xl:w-full"
-              variant="ghost"
-              onClick={onReports}
-            >
-              Report
-            </Button>
-          </nav>
-        )}
-
-        <div className="row-start-1 flex min-w-0 items-center justify-self-end gap-2 md:col-start-2 xl:col-start-3">
+        <div className="flex min-w-0 items-center justify-self-end gap-2">
+          {showInspectorToggle && onInspectorOpen && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="size-10 shrink-0 bg-card text-foreground"
+                    aria-label="Open Logs & Files"
+                    aria-expanded={false}
+                    onClick={onInspectorOpen}
+                  />
+                }
+              >
+                <PanelRightOpenIcon />
+              </TooltipTrigger>
+              <TooltipContent>Open Logs &amp; Files</TooltipContent>
+            </Tooltip>
+          )}
           <AppScopeBar
             scope={scope}
             workspaces={workspaces}

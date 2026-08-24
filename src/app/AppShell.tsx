@@ -14,7 +14,9 @@ type AppShellProps = {
   activeStage: ChatStage;
   surface: AppSurface;
   activeConversationId: string | null;
-  onHome: () => void;
+  processInspectorOpen: boolean;
+  showInspectorToggle: boolean;
+  onInspectorOpen: () => void;
   onNewChat: () => void;
   onConversationOpen: (conversationId: string) => void;
   onConversationDeleted: (conversationId: string) => void;
@@ -22,7 +24,6 @@ type AppShellProps = {
   onReports: () => void;
   onMemory: () => void;
   onModels: () => void;
-  showPrimaryNavigation?: boolean;
   onTools: () => void;
   onSettings: () => void;
   onOrganizationAdministration: () => void;
@@ -41,7 +42,9 @@ export function AppShell({
   activeStage,
   surface,
   activeConversationId,
-  onHome,
+  processInspectorOpen,
+  showInspectorToggle,
+  onInspectorOpen,
   onNewChat,
   onConversationOpen,
   onConversationDeleted,
@@ -49,7 +52,6 @@ export function AppShell({
   onReports,
   onMemory,
   onModels,
-  showPrimaryNavigation = false,
   onTools,
   onSettings,
   onOrganizationAdministration,
@@ -62,29 +64,23 @@ export function AppShell({
   onLogout,
   children,
 }: AppShellProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(false);
 
   return (
     <TooltipProvider>
       <main
-        className="relative isolate min-h-screen w-full max-w-full overflow-x-clip bg-[#f4efe5] text-[#191915] dark:bg-[#11110f] dark:text-[#eee8dc]"
-        data-rail-expanded={expanded}
+        className={cn(
+          "grid min-h-dvh w-full max-w-full grid-cols-1 overflow-x-clip bg-background text-foreground transition-[grid-template-columns] duration-200 ease-out md:grid-cols-[56px_minmax(0,1fr)]",
+          navigationOpen && "xl:grid-cols-[260px_minmax(0,1fr)]",
+        )}
+        data-rail-expanded={navigationOpen}
       >
-        <div
-          className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_78%_8%,rgba(36,86,232,0.18),transparent_32%),radial-gradient(circle_at_12%_74%,rgba(120,75,18,0.14),transparent_34%),linear-gradient(135deg,#f4efe5,#fffaf0)] dark:bg-[radial-gradient(circle_at_76%_10%,rgba(120,149,255,0.16),transparent_34%),linear-gradient(135deg,#11110f,#1a1a17)]"
-          aria-hidden="true"
-        />
-        <div
-          className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(rgba(25,25,21,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(25,25,21,0.035)_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(circle_at_50%_18%,black,transparent_72%)]"
-          aria-hidden="true"
-        />
         <WorkspaceRail
           activeStage={activeStage}
           surface={surface}
-          expanded={expanded}
+          expanded={navigationOpen}
           activeConversationId={activeConversationId}
-          onExpandedChange={setExpanded}
-          onHome={onHome}
+          onExpandedChange={setNavigationOpen}
           onNewChat={onNewChat}
           onConversationOpen={onConversationOpen}
           onConversationDeleted={onConversationDeleted}
@@ -99,19 +95,15 @@ export function AppShell({
           onLogout={onLogout}
         />
         <div
-          className={cn(
-            "relative z-10 flex min-h-dvh min-w-0 flex-col [--app-top-bar-height:4rem] transition-[margin-left] duration-500 ease-out md:ml-[76px]",
-            showPrimaryNavigation && "max-md:[--app-top-bar-height:7rem]",
-            expanded && "md:ml-[304px]",
-          )}
+          className="relative z-10 flex min-h-dvh min-w-0 flex-col [--app-top-bar-height:4rem]"
         >
           <AppTopBar
             route={route}
-            showPrimaryNavigation={showPrimaryNavigation}
-            onHome={onHome}
-            onNewChat={onNewChat}
-            onData={onData}
-            onReports={onReports}
+            navigationOpen={navigationOpen}
+            onNavigationToggle={() => setNavigationOpen((open) => !open)}
+            showNavigationToggle
+            showInspectorToggle={showInspectorToggle && !processInspectorOpen}
+            onInspectorOpen={onInspectorOpen}
             scope={scope}
             workspaces={workspaces}
             selectedWorkspace={selectedWorkspace}
