@@ -222,7 +222,8 @@ function isFilePurgePreviewResponse(
     !isNonNegativeInteger(value.total_size_bytes) ||
     !Array.isArray(value.files) ||
     value.files.length !== value.file_count
-  ) return false;
+  )
+    return false;
   return value.files.every(
     (item) =>
       isRecord(item) &&
@@ -252,7 +253,8 @@ function isFilePurgeOperationResponse(
     value.items.length !== value.file_count ||
     typeof value.created_at !== "string" ||
     !isNullableString(value.finished_at)
-  ) return false;
+  )
+    return false;
   return value.items.every(
     (item) =>
       isRecord(item) &&
@@ -307,64 +309,71 @@ function isReprocessIndexingJobResponse(
 }
 
 function isDataSourceDto(value: unknown): value is DataSourceDto {
-  return isRecord(value)
-    && typeof value.id === "string"
-    && value.id.length > 0
-    && typeof value.organization_id === "string"
-    && typeof value.workspace_id === "string"
-    && isNullableString(value.name)
-    && typeof value.datasource_type === "string"
-    && (value.status === undefined || typeof value.status === "string")
-    && (value.current_profile_version === undefined
-      || value.current_profile_version === null
-      || isPositiveInteger(value.current_profile_version))
-    && (value.credentials_configured === undefined
-      || typeof value.credentials_configured === "boolean")
-    && (value.connector_config === undefined || isRecord(value.connector_config))
-    && typeof value.created_at === "string"
-    && typeof value.updated_at === "string";
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    value.id.length > 0 &&
+    typeof value.organization_id === "string" &&
+    typeof value.workspace_id === "string" &&
+    isNullableString(value.name) &&
+    typeof value.datasource_type === "string" &&
+    (value.status === undefined || typeof value.status === "string") &&
+    (value.current_profile_version === undefined ||
+      value.current_profile_version === null ||
+      isPositiveInteger(value.current_profile_version)) &&
+    (value.credentials_configured === undefined ||
+      typeof value.credentials_configured === "boolean") &&
+    (value.connector_config === undefined ||
+      isRecord(value.connector_config)) &&
+    typeof value.created_at === "string" &&
+    typeof value.updated_at === "string"
+  );
 }
 
 function isDataSourceFileDto(value: unknown) {
-  return isRecord(value)
-    && typeof value.key === "string"
-    && typeof value.name === "string"
-    && isNonNegativeInteger(value.size)
-    && isNullableString(value.last_modified)
-    && isNullableString(value.etag)
-    && typeof value.presigned_url === "string";
+  return (
+    isRecord(value) &&
+    typeof value.key === "string" &&
+    typeof value.name === "string" &&
+    isNonNegativeInteger(value.size) &&
+    isNullableString(value.last_modified) &&
+    isNullableString(value.etag) &&
+    typeof value.presigned_url === "string"
+  );
 }
 
 function isDataSourceFilesResponseDto(
   value: unknown,
 ): value is DataSourceFilesResponseDto {
-  if (!isRecord(value)
-    || typeof value.organization_id !== "string"
-    || typeof value.datasource_id !== "string"
-    || typeof value.bucket !== "string"
-    || !isNonNegativeInteger(value.count)
-    || !Array.isArray(value.files)
-    || value.files.length !== value.count
-    || !value.files.every(isDataSourceFileDto)
-    || !isPositiveInteger(value.page)
-    || !isPositiveInteger(value.page_size)
-    || value.page_size > 100
-    || !isNonNegativeInteger(value.total_count)
-    || !isNonNegativeInteger(value.total_pages)
-    || !isNonNegativeInteger(value.total_unfiltered_count)
-    || !isRecord(value.pagination)) return false;
-  return value.pagination.page === value.page
-    && value.pagination.page_size === value.page_size
-    && value.pagination.total_count === value.total_count
-    && value.pagination.total_pages === value.total_pages
-    && value.total_pages === Math.ceil(value.total_count / value.page_size)
-    && value.total_unfiltered_count >= value.total_count;
+  if (
+    !isRecord(value) ||
+    typeof value.organization_id !== "string" ||
+    typeof value.datasource_id !== "string" ||
+    typeof value.bucket !== "string" ||
+    !isNonNegativeInteger(value.count) ||
+    !Array.isArray(value.files) ||
+    value.files.length !== value.count ||
+    !value.files.every(isDataSourceFileDto) ||
+    !isPositiveInteger(value.page) ||
+    !isPositiveInteger(value.page_size) ||
+    value.page_size > 100 ||
+    !isNonNegativeInteger(value.total_count) ||
+    !isNonNegativeInteger(value.total_pages) ||
+    !isNonNegativeInteger(value.total_unfiltered_count) ||
+    !isRecord(value.pagination)
+  )
+    return false;
+  return (
+    value.pagination.page === value.page &&
+    value.pagination.page_size === value.page_size &&
+    value.pagination.total_count === value.total_count &&
+    value.pagination.total_pages === value.total_pages &&
+    value.total_pages === Math.ceil(value.total_count / value.page_size) &&
+    value.total_unfiltered_count >= value.total_count
+  );
 }
 
-async function getJson<T>(
-  url: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function getJson<T>(url: string, options: RequestInit = {}): Promise<T> {
   const response = await authFetch(url, {
     ...options,
     headers: {
@@ -380,7 +389,10 @@ async function getJson<T>(
       if (isRecord(body)) {
         if (typeof body.detail === "string") {
           detail = ` ${body.detail}`;
-        } else if (isRecord(body.detail) && typeof body.detail.message === "string") {
+        } else if (
+          isRecord(body.detail) &&
+          typeof body.detail.message === "string"
+        ) {
           detail = ` ${body.detail.message}`;
         }
       }
@@ -415,8 +427,7 @@ function getFileName(key: string) {
 
 function getFileType(name: string) {
   const segments = name.split(".");
-  const extension =
-    name.includes(".") ? segments[segments.length - 1] : null;
+  const extension = name.includes(".") ? segments[segments.length - 1] : null;
   return extension ? `${extension.toUpperCase()} file` : "File";
 }
 
@@ -446,7 +457,9 @@ export function normalizeFile(
   },
 ): DataFile {
   const name = context.name ?? getFileName(file.key);
-  const normalizedProcessingStatus = processingStatus?.status?.trim().toLowerCase();
+  const normalizedProcessingStatus = processingStatus?.status
+    ?.trim()
+    .toLowerCase();
   return {
     key: file.key,
     name,
@@ -528,10 +541,7 @@ async function listOrganizationFiles(
   );
 }
 
-async function listIngestionJobs(
-  organizationId: string,
-  signal: AbortSignal,
-) {
+async function listIngestionJobs(organizationId: string, signal: AbortSignal) {
   return getJson<IngestionJobDto[]>(
     `${documentApiBaseUrl}/ingestions?organization_id=${encodeURIComponent(organizationId)}`,
     { signal },
@@ -555,6 +565,10 @@ export async function getProcessingStatuses(
   objectKeys: string[],
   signal: AbortSignal,
 ) {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) {
+    throw new Error("A workspace ID is required for processing status.");
+  }
   const batches = chunkObjectKeys(objectKeys);
   const responses = await Promise.all(
     batches.map((batch) =>
@@ -565,7 +579,7 @@ export async function getProcessingStatuses(
           signal,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            workspace_id: workspaceId,
+            workspace_id: normalizedWorkspaceId,
             bucket,
             object_keys: batch,
           }),
@@ -597,7 +611,9 @@ export async function getDataFilesForJob(
       statuses = [];
     }
   }
-  const statusByKey = new Map(statuses.map((status) => [status.object_key, status]));
+  const statusByKey = new Map(
+    statuses.map((status) => [status.object_key, status]),
+  );
   return result.files.map((file) =>
     normalizeFile(file, statusByKey.get(file.key), {
       organizationId: result.organization_id,
@@ -628,7 +644,10 @@ export async function getDataSourceFiles(
     `${documentApiBaseUrl}/datasources/${encodeURIComponent(datasourceId)}/files?${searchParams}`,
     { signal },
   );
-  if (!isDataSourceFilesResponseDto(payload) || payload.datasource_id !== datasourceId) {
+  if (
+    !isDataSourceFilesResponseDto(payload) ||
+    payload.datasource_id !== datasourceId
+  ) {
     throw new Error("The data source files response was invalid.");
   }
   const response = payload;
@@ -644,7 +663,8 @@ export async function getDataSourceFiles(
       );
     } catch (error) {
       if (signal.aborted) throw error;
-      warning = "Processing status is temporarily unavailable. File inventory is still current.";
+      warning =
+        "Processing status is temporarily unavailable. File inventory is still current.";
     }
   }
 

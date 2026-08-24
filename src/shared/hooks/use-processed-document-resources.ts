@@ -44,9 +44,9 @@ export function useProcessedDocumentResources({
   const [preview, setPreview] = useState<InspectorResource<InlinePreview>>(
     idleInspectorResource,
   );
-  const [parsing, setParsing] = useState<InspectorResource<ParsedDocumentResult>>(
-    idleInspectorResource,
-  );
+  const [parsing, setParsing] = useState<
+    InspectorResource<ParsedDocumentResult>
+  >(idleInspectorResource);
   const previewCache = useRef(new Map<string, InlinePreview>());
   const parsingCache = useRef(new Map<string, ParsedDocumentResult>());
   const completed = result?.status?.trim().toLowerCase() === "completed";
@@ -120,7 +120,15 @@ export function useProcessedDocumentResources({
         }
       });
     return () => controller.abort();
-  }, [bucket, completed, file, parsingAttempt, parsingCacheKey, result?.document_id, workspaceId]);
+  }, [
+    bucket,
+    completed,
+    file,
+    parsingAttempt,
+    parsingCacheKey,
+    result?.document_id,
+    workspaceId,
+  ]);
 
   const retryPreview = useCallback(() => {
     if (previewCacheKey) previewCache.current.delete(previewCacheKey);

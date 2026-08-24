@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -39,6 +39,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
+import { useGlobalIngestion } from "@/features/ingestion/model/GlobalIngestionProvider";
 import type {
   DataSourceProfileType,
   SavedDataSourceProfile,
@@ -573,6 +574,7 @@ export function DataSourcesWorkspace({
     action: FileAction;
   } | null>(null);
   const [bulkProgress, setBulkProgress] = useState<BulkProgress | null>(null);
+  const { jobs: globalIngestionJobs } = useGlobalIngestion();
   const sourceCounts = useDataSourceFileCounts(datasources);
   const selectedSource =
     visibleSources.find((datasource) => datasource.id === selectedId) ??
@@ -686,6 +688,25 @@ export function DataSourcesWorkspace({
     setSelectedFileKeys([]);
   }, [query.page, query.pageSize, query.search, query.sortBy, query.sortOrder, selectedId]);
 
+  const uploadActivityKey = useMemo(
+    () =>
+      globalIngestionJobs
+        .filter((job) => job.source === "upload")
+        .map((job) =>
+          [
+            job.id,
+            job.status,
+            job.errorMessage ?? "",
+            job.retry ?? "",
+            ...job.objects.map((object) =>
+              [object.key, object.status, object.errorMessage ?? ""].join(":"),
+            ),
+          ].join("|"),
+        )
+        .join("||"),
+    [globalIngestionJobs],
+  );
+
   const confirmForget = () => {
     if (!forgetProfile || forgetPending) return;
     setForgetPending(true);
@@ -711,10 +732,15 @@ export function DataSourcesWorkspace({
     }
   };
 
-  const refreshFileInventory = () => {
+  const refreshFileInventory = useCallback(() => {
     onRefresh();
     if (!isAggregate) backendFiles.refresh();
-  };
+  }, [backendFiles.refresh, isAggregate, onRefresh]);
+
+  useEffect(() => {
+    if (!uploadActivityKey) return;
+    refreshFileInventory();
+  }, [refreshFileInventory, uploadActivityKey]);
 
   const pollIndexingJob = async (
     datasetId: string,
@@ -1144,6 +1170,7 @@ export function DataSourcesWorkspace({
               selectedFileKeys={selectedFileKeys}
               onSelectedFileKeysChange={setSelectedFileKeys}
               pendingFileKey={pendingFileAction?.key ?? null}
+              pendingAction={pendingFileAction?.action}
               bulkProgress={bulkProgress}
             />
           )}

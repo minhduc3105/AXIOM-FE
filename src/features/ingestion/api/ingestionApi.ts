@@ -271,7 +271,8 @@ export async function uploadFiles(
   const normalizedOrganizationId = organizationId.trim();
   if (!normalizedOrganizationId)
     throw new Error("VITE_AXIOM_ORGANIZATION_ID is not configured.");
-  if (!workspaceId.trim()) throw new Error("Choose a workspace before uploading.");
+  if (!workspaceId.trim())
+    throw new Error("Choose a workspace before uploading.");
   if (!files.length)
     throw new Error("Choose at least one file before uploading.");
 

@@ -25,7 +25,10 @@ import {
   getDocumentProcessingUiStatus,
   isTerminalProcessingStatus,
 } from "./globalIngestionProcessing";
-import { createGlobalIngestionJob, globalIngestionReducer } from "./globalIngestionReducer";
+import {
+  createGlobalIngestionJob,
+  globalIngestionReducer,
+} from "./globalIngestionReducer";
 import {
   readStoredIngestionJobs,
   writeStoredIngestionJobs,
@@ -84,7 +87,9 @@ function waitForNextProcessingCheck(signal: AbortSignal) {
       "abort",
       () => {
         window.clearTimeout(timer);
-        reject(new DOMException("The status check was cancelled.", "AbortError"));
+        reject(
+          new DOMException("The status check was cancelled.", "AbortError"),
+        );
       },
       { once: true },
     );
@@ -98,7 +103,9 @@ function waitForNextS3JobCheck(signal: AbortSignal) {
       "abort",
       () => {
         window.clearTimeout(timer);
-        reject(new DOMException("The status check was cancelled.", "AbortError"));
+        reject(
+          new DOMException("The status check was cancelled.", "AbortError"),
+        );
       },
       { once: true },
     );
@@ -117,7 +124,10 @@ export function GlobalIngestionProvider({
   const [state, dispatch] = useReducer(
     globalIngestionReducer,
     { organizationId, workspaceId },
-    ({ organizationId: initialOrganizationId, workspaceId: initialWorkspaceId }) => ({
+    ({
+      organizationId: initialOrganizationId,
+      workspaceId: initialWorkspaceId,
+    }) => ({
       jobs: readStoredIngestionJobs(initialOrganizationId, initialWorkspaceId),
     }),
   );
@@ -154,70 +164,75 @@ export function GlobalIngestionProvider({
     writeStoredIngestionJobs(organizationId, workspaceId, state.jobs);
   }, [hydratedScope, organizationId, scopeKey, state.jobs, workspaceId]);
 
-  const monitorDocumentProcessing = useCallback(async (
-    jobId: string,
-    batch: DocumentProcessingBatch,
-  ) => {
-    controllersRef.current.get(jobId)?.abort();
-    const controller = new AbortController();
-    controllersRef.current.set(jobId, controller);
-    const resultsByKey = new Map(
-      batch.files.map((file) => [
-        file.key,
-        createPendingProcessingStatus(file.key),
-      ]),
-    );
+  const monitorDocumentProcessing = useCallback(
+    async (jobId: string, batch: DocumentProcessingBatch) => {
+      controllersRef.current.get(jobId)?.abort();
+      const controller = new AbortController();
+      controllersRef.current.set(jobId, controller);
+      const resultsByKey = new Map(
+        batch.files.map((file) => [
+          file.key,
+          createPendingProcessingStatus(file.key),
+        ]),
+      );
 
-    try {
-      while (!controller.signal.aborted) {
-        const objectKeys = batch.files
-          .map((file) => file.key)
-          .filter(
-            (key) => !isTerminalProcessingStatus(resultsByKey.get(key)),
+      try {
+        while (!controller.signal.aborted) {
+          const objectKeys = batch.files
+            .map((file) => file.key)
+            .filter(
+              (key) => !isTerminalProcessingStatus(resultsByKey.get(key)),
+            );
+          if (!objectKeys.length) return;
+
+          const refreshed = await getDocumentProcessingStatuses(
+            batch.workspace_id,
+            batch.bucket,
+            objectKeys,
+            controller.signal,
           );
-        if (!objectKeys.length) return;
-
-        const refreshed = await getDocumentProcessingStatuses(
-          batch.workspace_id,
-          batch.bucket,
-          objectKeys,
-          controller.signal,
-        );
-        refreshed.forEach((result) => resultsByKey.set(result.object_key, result));
-        const results = batch.files.map(
-          (file) =>
-            resultsByKey.get(file.key) ??
-            createPendingProcessingStatus(file.key),
-        );
-        dispatch({ type: "PROCESSING_UPDATED", jobId, results });
-        if (getDocumentProcessingUiStatus(results) !== "polling") return;
-        await waitForNextProcessingCheck(controller.signal);
+          refreshed.forEach((result) =>
+            resultsByKey.set(result.object_key, result),
+          );
+          const results = batch.files.map(
+            (file) =>
+              resultsByKey.get(file.key) ??
+              createPendingProcessingStatus(file.key),
+          );
+          dispatch({ type: "PROCESSING_UPDATED", jobId, results });
+          if (getDocumentProcessingUiStatus(results) !== "polling") return;
+          await waitForNextProcessingCheck(controller.signal);
+        }
+      } catch (error) {
+        if (!isAbortError(error)) {
+          dispatch({
+            type: "JOB_NEEDS_ATTENTION",
+            jobId,
+            retry: "retry_processing",
+            message: getErrorMessage(
+              error,
+              "Unable to refresh document processing status.",
+            ),
+          });
+        }
+      } finally {
+        if (controllersRef.current.get(jobId) === controller) {
+          controllersRef.current.delete(jobId);
+        }
       }
-    } catch (error) {
-      if (!isAbortError(error)) {
-        dispatch({
-          type: "JOB_NEEDS_ATTENTION",
-          jobId,
-          retry: "retry_processing",
-          message: getErrorMessage(
-            error,
-            "Unable to refresh document processing status.",
-          ),
-        });
-      }
-    } finally {
-      if (controllersRef.current.get(jobId) === controller) {
-        controllersRef.current.delete(jobId);
-      }
-    }
-  }, []);
+    },
+    [],
+  );
 
   const prepareS3Processing = useCallback(
     async (jobId: string, accepted: IngestionJobResponse) => {
       const controller = new AbortController();
       controllersRef.current.set(jobId, controller);
       try {
-        const files = await getAllFilesForJob(accepted.job_id, controller.signal);
+        const files = await getAllFilesForJob(
+          accepted.job_id,
+          controller.signal,
+        );
         const batch = createConnectorProcessingBatch(accepted, files);
         dispatch({ type: "PROCESSING_READY", jobId, batch });
         void monitorDocumentProcessing(jobId, batch);
@@ -272,7 +287,10 @@ export function GlobalIngestionProvider({
             type: "JOB_NEEDS_ATTENTION",
             jobId,
             retry: "retry_job_status",
-            message: getErrorMessage(error, "Unable to refresh the S3 import status."),
+            message: getErrorMessage(
+              error,
+              "Unable to refresh the S3 import status.",
+            ),
           });
         }
       } finally {
@@ -286,14 +304,18 @@ export function GlobalIngestionProvider({
 
   const startUpload = useCallback(
     async (files: IngestionFile[]) => {
-      if (!files.length || !organizationId.trim() || !workspaceId.trim()) return;
+      if (!files.length || !organizationId.trim() || !workspaceId.trim())
+        return;
       const job = createGlobalIngestionJob({
         id: createJobId(),
         source: "upload",
         title: `${files.length} uploaded file${files.length === 1 ? "" : "s"}`,
         objects: files.map((file) => ({ key: file.name, name: file.name })),
       });
-      dispatch({ type: "JOB_CREATED", job: { ...job, status: "transferring" } });
+      dispatch({
+        type: "JOB_CREATED",
+        job: { ...job, status: "transferring" },
+      });
       closeDialog();
 
       try {
@@ -310,7 +332,10 @@ export function GlobalIngestionProvider({
           type: "JOB_FAILED",
           jobId: job.id,
           retry: "start_new_upload",
-          message: getErrorMessage(error, "Unable to upload the selected files."),
+          message: getErrorMessage(
+            error,
+            "Unable to upload the selected files.",
+          ),
         });
       }
     },
@@ -373,7 +398,13 @@ export function GlobalIngestionProvider({
         void monitorS3Import(job.id, accepted.job_id);
       }
     },
-    [closeDialog, monitorS3Import, organizationId, prepareS3Processing, workspaceId],
+    [
+      closeDialog,
+      monitorS3Import,
+      organizationId,
+      prepareS3Processing,
+      workspaceId,
+    ],
   );
 
   const retryJob = useCallback(
@@ -408,7 +439,12 @@ export function GlobalIngestionProvider({
           });
       }
     },
-    [monitorDocumentProcessing, monitorS3Import, prepareS3Processing, state.jobs],
+    [
+      monitorDocumentProcessing,
+      monitorS3Import,
+      prepareS3Processing,
+      state.jobs,
+    ],
   );
 
   const dismissJob = useCallback((jobId: string) => {
