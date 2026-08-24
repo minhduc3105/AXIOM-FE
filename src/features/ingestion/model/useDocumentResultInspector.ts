@@ -27,7 +27,6 @@ export function useDocumentResultInspector(
   const selectedFile = batch.files.find((file) => file.key === selectedKey) ?? null;
   const selectedResult = selectedKey ? resultsByKey.get(selectedKey) ?? null : null;
   const resources = useProcessedDocumentResources({
-    organizationId: batch.organization_id,
     workspaceId: batch.workspace_id,
     bucket: batch.bucket,
     file: selectedFile,

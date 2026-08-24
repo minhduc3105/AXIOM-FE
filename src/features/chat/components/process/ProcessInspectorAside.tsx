@@ -296,7 +296,7 @@ function RuntimeInlineSection({
       <h4 className="text-xs font-medium text-[#6d685e] dark:text-[#aaa397]">
         {label}
       </h4>
-      <pre className="max-h-[220px] min-h-[96px] min-w-0 overflow-auto rounded-lg bg-[#f4f4f2] p-3 text-xs leading-5 text-[#191915] [scrollbar-width:thin] dark:bg-[#11110f] dark:text-[#eee8dc]">
+      <pre className="max-h-[220px] min-h-[96px] min-w-0 overflow-auto rounded-lg bg-[#f4f4f2] p-3 text-xs leading-5 text-[#191915] dark:bg-[#11110f] dark:text-[#eee8dc]">
         <code>{value || "No data captured."}</code>
       </pre>
     </section>

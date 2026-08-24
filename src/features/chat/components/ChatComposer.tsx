@@ -155,7 +155,7 @@ export function ChatComposer({
     >
       {files.length > 0 && (
         <div
-          className="flex min-w-0 gap-2 overflow-x-auto px-2 pb-1 [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]"
+          className="flex min-w-0 gap-2 overflow-x-auto px-2 pb-1"
           aria-label="Selected files"
         >
           {files.map((file, index) => {
@@ -187,7 +187,7 @@ export function ChatComposer({
         </div>
       )}
       <Textarea
-        className="max-h-40 min-h-12 w-full resize-none overflow-y-auto border-0 bg-transparent px-4 py-3 text-base leading-6 text-[#191915] shadow-none [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin] placeholder:text-[#8a8275] focus-visible:ring-0 dark:bg-transparent dark:text-[#eee8dc] dark:placeholder:text-[#aaa397] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:hover:bg-[#c7bdad] dark:[&::-webkit-scrollbar-thumb]:hover:bg-[#4a493f]"
+        className="max-h-40 min-h-12 w-full resize-none overflow-y-auto border-0 bg-transparent px-4 py-3 text-base leading-6 text-[#191915] shadow-none placeholder:text-[#8a8275] focus-visible:ring-0 dark:bg-transparent dark:text-[#eee8dc] dark:placeholder:text-[#aaa397]"
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={submitFromKeyboard}

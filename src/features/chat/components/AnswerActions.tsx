@@ -78,7 +78,7 @@ function GeneratedFilesDialog({ files }: { files: WorkspaceFile[] }) {
           </DialogTitle>
         </DialogHeader>
         <div className="max-h-[calc(100dvh-140px)] overflow-y-auto pr-1">
-          <div className="flex min-w-0 gap-3 overflow-x-auto pb-2 [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]">
+          <div className="flex min-w-0 gap-3 overflow-x-auto pb-2">
             {files.map((file) => (
               <GeneratedFileCard file={file} key={`${file.url}:${file.name}`} />
             ))}

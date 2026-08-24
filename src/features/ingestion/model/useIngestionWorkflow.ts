@@ -1511,7 +1511,6 @@ export function useIngestionWorkflow(
           if (objectKeys.length === 0) return;
 
           const refreshedResults = await getDocumentProcessingStatuses(
-            batch.organization_id,
             batch.workspace_id,
             batch.bucket,
             objectKeys,

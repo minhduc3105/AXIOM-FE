@@ -53,7 +53,7 @@ export function WorkspaceFileList({
       )}
       <div
         className={cn(
-          "flex min-w-0 gap-2 overflow-x-auto [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]",
+          "flex min-w-0 gap-2 overflow-x-auto",
           compact ? "p-0 pb-1" : "p-2 pb-3",
         )}
       >

@@ -23,7 +23,7 @@ export function IngestionDocumentPage({
   sourceLabel,
   onBack,
 }: IngestionDocumentPageProps) {
-  const { organizationId, workspaceId } = useGlobalIngestion();
+  const { workspaceId } = useGlobalIngestion();
   const file = useMemo<ProcessingFile | null>(() => {
     if (!objectKey || !bucket) return null;
     return {
@@ -37,7 +37,6 @@ export function IngestionDocumentPage({
     [documentId, file],
   );
   const resources = useProcessedDocumentResources({
-    organizationId,
     workspaceId,
     bucket,
     file,

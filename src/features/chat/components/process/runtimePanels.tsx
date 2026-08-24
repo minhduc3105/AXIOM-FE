@@ -697,7 +697,7 @@ function CodeViewport({ value }: { value: string }) {
     <div className="grid h-full min-w-0 grid-rows-[minmax(0,1fr)_auto]">
       <div
         ref={viewportRef}
-        className="min-w-0 overflow-auto [scrollbar-color:#6d685e_#11110f] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#11110f] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#6d685e]"
+        className="min-w-0 overflow-auto"
         onScroll={handleScroll}
       >
         <div className="inline-block min-w-max">

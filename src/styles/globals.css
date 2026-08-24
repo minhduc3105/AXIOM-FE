@@ -106,6 +106,9 @@
   --sidebar-border: #393831;
   --sidebar-ring: #8da5ff;
   --success: #16834c;
+  --scrollbar-size: 6px;
+  --scrollbar-thumb: #c7bca9;
+  --scrollbar-thumb-hover: #b3a894;
 }
 
 .dark {
@@ -152,6 +155,9 @@
   --sidebar-border: #30302a;
   --sidebar-ring: #7895ff;
   --success: #51c980;
+  --scrollbar-size: 6px;
+  --scrollbar-thumb: #4a4438;
+  --scrollbar-thumb-hover: #625a4d;
 }
 
 @layer base {
@@ -164,4 +170,112 @@
   html {
     @apply font-sans;
   }
+}
+
+:where(
+  html,
+  body,
+  textarea,
+  [class*="overflow-auto"],
+  [class*="overflow-scroll"],
+  [class*="overflow-x-auto"],
+  [class*="overflow-x-scroll"],
+  [class*="overflow-y-auto"],
+  [class*="overflow-y-scroll"]
+) {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+:where(
+  html,
+  body,
+  textarea,
+  [class*="overflow-auto"],
+  [class*="overflow-scroll"],
+  [class*="overflow-x-auto"],
+  [class*="overflow-x-scroll"],
+  [class*="overflow-y-auto"],
+  [class*="overflow-y-scroll"]
+)::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+:where(
+  html,
+  body,
+  textarea,
+  [class*="overflow-auto"],
+  [class*="overflow-scroll"],
+  [class*="overflow-x-auto"],
+  [class*="overflow-x-scroll"],
+  [class*="overflow-y-auto"],
+  [class*="overflow-y-scroll"]
+)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:where(
+  html,
+  body,
+  textarea,
+  [class*="overflow-auto"],
+  [class*="overflow-scroll"],
+  [class*="overflow-x-auto"],
+  [class*="overflow-x-scroll"],
+  [class*="overflow-y-auto"],
+  [class*="overflow-y-scroll"]
+)::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+}
+
+:where(
+  html,
+  body,
+  textarea,
+  [class*="overflow-auto"],
+  [class*="overflow-scroll"],
+  [class*="overflow-x-auto"],
+  [class*="overflow-x-scroll"],
+  [class*="overflow-y-auto"],
+  [class*="overflow-y-scroll"]
+)::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+[data-slot="scroll-area-scrollbar"] {
+  background: transparent;
+  padding: 0;
+}
+
+[data-slot="scroll-area-scrollbar"][data-orientation="vertical"] {
+  width: var(--scrollbar-size);
+}
+
+[data-slot="scroll-area-scrollbar"][data-orientation="horizontal"] {
+  height: var(--scrollbar-size);
+}
+
+[data-slot="scroll-area-thumb"] {
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+}
+
+[data-slot="scroll-area-thumb"]:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+:where(
+  button,
+  a[href],
+  [role="button"],
+  [role="link"],
+  [role="menuitem"],
+  [role="option"],
+  [role="tab"],
+  [data-interactive]
+):not(:disabled):not([aria-disabled="true"]):not([data-disabled]) {
+  cursor: pointer;
 }
