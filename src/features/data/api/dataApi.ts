@@ -550,7 +550,7 @@ async function listDataSources(organizationId: string, signal: AbortSignal) {
 }
 
 export async function getProcessingStatuses(
-  organizationId: string,
+  workspaceId: string,
   bucket: string,
   objectKeys: string[],
   signal: AbortSignal,
@@ -565,7 +565,7 @@ export async function getProcessingStatuses(
           signal,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            organization_id: organizationId,
+            workspace_id: workspaceId,
             bucket,
             object_keys: batch,
           }),
@@ -587,7 +587,7 @@ export async function getDataFilesForJob(
   if (result.files.length > 0) {
     try {
       statuses = await getProcessingStatuses(
-        result.organization_id,
+        workspaceId,
         result.bucket,
         result.files.map((file) => file.key),
         signal,
@@ -637,7 +637,7 @@ export async function getDataSourceFiles(
   if (response.files.length > 0) {
     try {
       processingStatuses = await getProcessingStatuses(
-        response.organization_id,
+        workspaceId,
         response.bucket,
         response.files.map((file) => file.key),
         signal,
@@ -927,7 +927,7 @@ export async function getDataDashboard(
   if (scoped.files.length > 0) {
     try {
       processingStatuses = await getProcessingStatuses(
-        filesResponse.organization_id,
+        workspaceId,
         filesResponse.bucket,
         scoped.files.map((file) => file.key),
         signal,

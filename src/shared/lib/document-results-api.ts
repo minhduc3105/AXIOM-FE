@@ -10,7 +10,7 @@ import type {
 } from "@/shared/types/document-results";
 
 type IngestedDataSelector = {
-  organizationId: string;
+  workspaceId: string;
   bucket: string;
   objectKey: string;
   documentId?: string | null;
@@ -248,11 +248,15 @@ export async function getIngestedDocumentData(
   selector: IngestedDataSelector,
   signal?: AbortSignal,
 ): Promise<ParsedDocumentResult> {
+  const workspaceId = selector.workspaceId.trim();
+  if (!workspaceId) {
+    throw new Error("A workspace is required to load parsed content.");
+  }
   const response = await authFetch("/api/corpus/documents/ingested-data", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      organization_id: selector.organizationId,
+      workspace_id: workspaceId,
       bucket: selector.bucket,
       object_key: selector.objectKey,
       ...(selector.documentId ? { document_id: selector.documentId } : {}),

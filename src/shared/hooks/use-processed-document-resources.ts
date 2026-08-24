@@ -29,13 +29,11 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export function useProcessedDocumentResources({
-  organizationId,
   workspaceId,
   bucket,
   file,
   result,
 }: {
-  organizationId: string;
   workspaceId: string;
   bucket: string;
   file: ProcessingFile | null;
@@ -52,25 +50,30 @@ export function useProcessedDocumentResources({
   const previewCache = useRef(new Map<string, InlinePreview>());
   const parsingCache = useRef(new Map<string, ParsedDocumentResult>());
   const completed = result?.status?.trim().toLowerCase() === "completed";
-  const parsingCacheKey = file ? `${file.key}:${result?.run_id ?? "no-run"}` : null;
+  const previewCacheKey = file
+    ? `${workspaceId}:${bucket}:${file.key}`
+    : null;
+  const parsingCacheKey = file
+    ? `${workspaceId}:${bucket}:${file.key}:${result?.run_id ?? "no-run"}`
+    : null;
 
   useEffect(() => {
     if (!file || !completed || getSourcePreviewKind(file) === "unsupported") {
       setPreview(idleInspectorResource());
       return;
     }
-    const cacheKey = `${bucket}:${file.key}`;
-    const cached = previewCache.current.get(cacheKey);
+    if (!previewCacheKey) return;
+    const cached = previewCache.current.get(previewCacheKey);
     if (cached && cached.expiresAt > Date.now() + PREVIEW_EXPIRY_BUFFER_MS) {
       setPreview({ status: "success", data: cached, error: null });
       return;
     }
-    previewCache.current.delete(cacheKey);
+    previewCache.current.delete(previewCacheKey);
     const controller = new AbortController();
     setPreview({ status: "loading", data: cached ?? null, error: null });
     void presignFileForPreview(bucket, file.key, workspaceId, controller.signal)
       .then((data) => {
-        previewCache.current.set(cacheKey, data);
+        previewCache.current.set(previewCacheKey, data);
         setPreview({ status: "success", data, error: null });
       })
       .catch((error: unknown) => {
@@ -83,7 +86,7 @@ export function useProcessedDocumentResources({
         }
       });
     return () => controller.abort();
-  }, [bucket, completed, file, previewAttempt, workspaceId]);
+  }, [bucket, completed, file, previewAttempt, previewCacheKey, workspaceId]);
 
   useEffect(() => {
     if (!file || !completed || !parsingCacheKey) {
@@ -98,7 +101,7 @@ export function useProcessedDocumentResources({
     const controller = new AbortController();
     setParsing({ status: "loading", data: null, error: null });
     void getIngestedDocumentData({
-      organizationId,
+      workspaceId,
       bucket,
       objectKey: file.key,
       documentId: result?.document_id,
@@ -117,12 +120,12 @@ export function useProcessedDocumentResources({
         }
       });
     return () => controller.abort();
-  }, [bucket, completed, file, organizationId, parsingAttempt, parsingCacheKey, result?.document_id]);
+  }, [bucket, completed, file, parsingAttempt, parsingCacheKey, result?.document_id, workspaceId]);
 
   const retryPreview = useCallback(() => {
-    if (file) previewCache.current.delete(`${bucket}:${file.key}`);
+    if (previewCacheKey) previewCache.current.delete(previewCacheKey);
     setPreviewAttempt((attempt) => attempt + 1);
-  }, [bucket, file]);
+  }, [previewCacheKey]);
   const retryParsing = useCallback(() => {
     if (parsingCacheKey) parsingCache.current.delete(parsingCacheKey);
     setParsingAttempt((attempt) => attempt + 1);

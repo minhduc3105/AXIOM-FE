@@ -433,15 +433,15 @@ export async function getIngestionJob(
 const CORPUS_STATUS_BATCH_SIZE = 100;
 
 export async function getDocumentProcessingStatuses(
-  organizationId: string,
+  workspaceId: string,
   bucket: string,
   objectKeys: string[],
   signal?: AbortSignal,
 ): Promise<DocumentProcessingStatus[]> {
-  const normalizedOrganizationId = organizationId.trim();
+  const normalizedWorkspaceId = workspaceId.trim();
   const normalizedBucket = bucket.trim();
-  if (!normalizedOrganizationId)
-    throw new Error("An organization ID is required for processing status.");
+  if (!normalizedWorkspaceId)
+    throw new Error("A workspace ID is required for processing status.");
   if (!normalizedBucket)
     throw new Error("A bucket is required for processing status.");
   if (!objectKeys.length)
@@ -464,7 +464,7 @@ export async function getDocumentProcessingStatuses(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          organization_id: normalizedOrganizationId,
+          workspace_id: normalizedWorkspaceId,
           bucket: normalizedBucket,
           object_keys: batch,
         }),
