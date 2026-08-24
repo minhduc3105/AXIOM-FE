@@ -70,7 +70,7 @@ export function AppShell({
     <TooltipProvider>
       <main
         className={cn(
-          "grid min-h-dvh w-full max-w-full grid-cols-1 overflow-x-clip bg-background text-foreground transition-[grid-template-columns] duration-200 ease-out md:grid-cols-[56px_minmax(0,1fr)]",
+          "grid min-h-dvh w-full max-w-full grid-cols-1 overflow-x-clip bg-background text-foreground transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none md:grid-cols-[56px_minmax(0,1fr)]",
           navigationOpen && "xl:grid-cols-[260px_minmax(0,1fr)]",
         )}
         data-rail-expanded={navigationOpen}

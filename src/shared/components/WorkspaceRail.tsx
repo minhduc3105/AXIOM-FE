@@ -1,29 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   SettingsIcon,
   LogOutIcon,
-  LoaderCircleIcon,
-  MoreHorizontalIcon,
-  PencilIcon,
-  PinIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
-  ChevronDownIcon,
-  Trash2Icon,
 } from "lucide-react";
 import type { AuthUser } from "@/features/auth/model/types";
 import type { ChatStage } from "@/features/chat/model/types";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,9 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -43,15 +24,9 @@ import {
 } from "@/components/ui/sheet";
 import type { AppSurface } from "@/app/routing/types";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
-import {
-  deleteConversation,
-  listConversationsPage,
-  updateConversation,
-} from "@/shared/lib/intelligence-api";
 import { cn } from "@/shared/lib/utils";
-import type { ConversationSummary } from "@/shared/types/intelligence";
 import { WorkspacePrimaryNavigation } from "./workspace-rail/WorkspacePrimaryNavigation";
-import { toast } from "sonner";
+import { WorkspaceConversationList } from "./workspace-rail/WorkspaceConversationList";
 
 type WorkspaceRailProps = {
   activeStage: ChatStage;
@@ -72,198 +47,6 @@ type WorkspaceRailProps = {
   user: AuthUser | null;
   onLogout: () => void;
 };
-
-const conversationPageLimit = 20;
-
-function appendUniqueConversations(
-  current: ConversationSummary[],
-  next: ConversationSummary[],
-) {
-  const seen = new Set(current.map((item) => item.conversation_id));
-  return [
-    ...current,
-    ...next.filter((item) => {
-      if (seen.has(item.conversation_id)) return false;
-      seen.add(item.conversation_id);
-      return true;
-    }),
-  ];
-}
-
-function isPinnedConversation(conversation: ConversationSummary) {
-  return conversation.metadata?.pinned === true;
-}
-
-function ConversationGroup({
-  label,
-  conversations,
-  activeConversationId,
-  activeStage,
-  actionPending,
-  onOpen,
-  onRename,
-  onTogglePinned,
-  onDelete,
-  hideLabel = false,
-}: {
-  label: string;
-  conversations: ConversationSummary[];
-  activeConversationId: string | null;
-  activeStage: ChatStage;
-  actionPending: string | null;
-  onOpen: (conversationId: string) => void;
-  onRename: (
-    conversation: ConversationSummary,
-    title: string,
-  ) => Promise<boolean>;
-  onTogglePinned: (conversation: ConversationSummary) => void;
-  onDelete: (conversation: ConversationSummary) => void;
-  hideLabel?: boolean;
-}) {
-  const [editingConversationId, setEditingConversationId] = useState<
-    string | null
-  >(null);
-  const [editingTitle, setEditingTitle] = useState("");
-
-  if (conversations.length === 0) return null;
-
-  const startRename = (conversation: ConversationSummary) => {
-    setEditingConversationId(conversation.conversation_id);
-    setEditingTitle(conversation.title || "");
-  };
-
-  const finishRename = async (conversation: ConversationSummary) => {
-    if (editingConversationId !== conversation.conversation_id) return;
-    const nextTitle = editingTitle.trim();
-    if (!nextTitle || nextTitle === (conversation.title || "")) {
-      setEditingConversationId(null);
-      return;
-    }
-
-    if (await onRename(conversation, nextTitle)) {
-      setEditingConversationId(null);
-    }
-  };
-
-  return (
-    <div className="mb-2 last:mb-0">
-      {!hideLabel && (
-        <div className="mb-1 h-8 px-2 text-[13px] font-medium leading-8 text-muted-foreground">
-          {label}
-        </div>
-      )}
-      <div className="grid gap-0.5">
-        {conversations.map((conversation) => {
-          const title = conversation.title || "Untitled conversation";
-          const pinned = isPinnedConversation(conversation);
-          const busy = actionPending === conversation.conversation_id;
-          const editing =
-            editingConversationId === conversation.conversation_id;
-          const active =
-            conversation.conversation_id === activeConversationId &&
-            activeStage !== "welcome";
-
-          return (
-            <div
-              className={cn(
-                "group flex h-9 min-w-0 w-full items-center overflow-hidden rounded-lg pr-1 text-muted-foreground transition-colors data-[active=true]:bg-muted/80 data-[active=true]:text-foreground dark:data-[active=true]:bg-muted/55",
-                !editing &&
-                  "hover:bg-muted/60 hover:text-foreground dark:hover:bg-muted/40",
-              )}
-              data-active={!editing && active}
-              key={conversation.conversation_id}
-            >
-              {editing ? (
-                <Input
-                  aria-label="Conversation name"
-                  autoFocus
-                  className="h-8 min-w-0 flex-1 !shrink border-0 bg-transparent px-2.5 text-[13px] font-medium shadow-none focus-visible:!border-0 focus-visible:!ring-0"
-                  value={editingTitle}
-                  disabled={busy}
-                  onChange={(event) => setEditingTitle(event.target.value)}
-                  onBlur={() => void finishRename(conversation)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      void finishRename(conversation);
-                    }
-                    if (event.key === "Escape") {
-                      event.preventDefault();
-                      setEditingConversationId(null);
-                    }
-                  }}
-                />
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 min-w-0 flex-1 !shrink justify-start overflow-hidden rounded-lg px-2.5 text-left text-[13px] font-normal hover:bg-transparent hover:text-inherit"
-                  onClick={() => onOpen(conversation.conversation_id)}
-                  title={title}
-                >
-                  <span className="block min-w-0 truncate">{title}</span>
-                </Button>
-              )}
-              {!editing && (
-                <>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          className="size-7 !w-0 shrink-0 !p-0 opacity-0 pointer-events-none transition-[width,opacity] duration-150 hover:bg-muted focus-visible:!w-7 focus-visible:opacity-100 focus-visible:pointer-events-auto group-hover:!w-7 group-hover:opacity-100 group-hover:pointer-events-auto data-[popup-open]:!w-7 data-[popup-open]:opacity-100 data-[popup-open]:pointer-events-auto"
-                          aria-label={`Open conversation actions for ${title}`}
-                          disabled={busy}
-                        />
-                      }
-                    >
-                      {busy ? (
-                        <LoaderCircleIcon
-                          className="animate-spin"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <MoreHorizontalIcon aria-hidden="true" />
-                      )}
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="end"
-                      className="w-44 border-[#d8d0c2] bg-[#fffdf8] text-[#191915] dark:border-[#38372f] dark:bg-[#171714] dark:text-[#eee8dc]"
-                    >
-                      <DropdownMenuItem
-                        onClick={() => startRename(conversation)}
-                      >
-                        <PencilIcon />
-                        Rename
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => onTogglePinned(conversation)}
-                      >
-                        <PinIcon />
-                        {pinned ? "Unpin chat" : "Pin chat"}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => onDelete(conversation)}
-                      >
-                        <Trash2Icon />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 type RailContentProps = WorkspaceRailProps & {
   moreMenuSide?: "right" | "bottom";
@@ -289,218 +72,6 @@ function RailContent({
   onLogout,
   moreMenuSide,
 }: RailContentProps) {
-  const conversationsScrollRef = useRef<HTMLDivElement | null>(null);
-  const loadingConversationPagesRef = useRef(
-    new Map<number, AbortSignal | null>(),
-  );
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [conversationsLoading, setConversationsLoading] = useState(false);
-  const [conversationsLoadingMore, setConversationsLoadingMore] =
-    useState(false);
-  const [conversationsError, setConversationsError] = useState<string | null>(
-    null,
-  );
-  const [conversationPage, setConversationPage] = useState(1);
-  const [hasMoreConversations, setHasMoreConversations] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ConversationSummary | null>(
-    null,
-  );
-  const [conversationActionPending, setConversationActionPending] = useState<
-    string | null
-  >(null);
-  const [recentWorkExpanded, setRecentWorkExpanded] = useState(true);
-
-  const loadConversationPage = useCallback(
-    async (page: number, signal?: AbortSignal) => {
-      if (loadingConversationPagesRef.current.has(page)) return;
-      const requestOwner = signal ?? null;
-      loadingConversationPagesRef.current.set(page, requestOwner);
-      if (page === 1) {
-        setConversationsLoading(true);
-        setConversationsError(null);
-      } else {
-        setConversationsLoadingMore(true);
-      }
-
-      try {
-        const payload = await listConversationsPage(
-          { page, limit: conversationPageLimit },
-          signal,
-        );
-        const items = Array.isArray(payload.items) ? payload.items : [];
-        setConversations((current) =>
-          page === 1 ? items : appendUniqueConversations(current, items),
-        );
-        setConversationPage(payload.pagination?.page ?? page);
-        setHasMoreConversations(
-          payload.pagination?.has_next ??
-            items.length === conversationPageLimit,
-        );
-        setConversationsError(null);
-      } catch (error: unknown) {
-        if (error instanceof DOMException && error.name === "AbortError")
-          return;
-        setConversationsError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load recent work.",
-        );
-      } finally {
-        if (loadingConversationPagesRef.current.get(page) !== requestOwner)
-          return;
-        loadingConversationPagesRef.current.delete(page);
-        if (page === 1) setConversationsLoading(false);
-        else setConversationsLoadingMore(false);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (!expanded) return;
-    const controller = new AbortController();
-    void loadConversationPage(1, controller.signal);
-
-    return () => {
-      controller.abort();
-      if (loadingConversationPagesRef.current.get(1) === controller.signal) {
-        loadingConversationPagesRef.current.delete(1);
-      }
-    };
-  }, [activeStage, expanded, loadConversationPage]);
-
-  const loadNextConversationPage = useCallback(() => {
-    if (
-      conversationsLoading ||
-      conversationsLoadingMore ||
-      conversationsError ||
-      !hasMoreConversations
-    )
-      return;
-    void loadConversationPage(conversationPage + 1);
-  }, [
-    conversationPage,
-    conversationsError,
-    conversationsLoading,
-    conversationsLoadingMore,
-    hasMoreConversations,
-    loadConversationPage,
-  ]);
-
-  useEffect(() => {
-    if (!expanded) return;
-    const viewport = conversationsScrollRef.current?.querySelector<HTMLElement>(
-      "[data-slot='scroll-area-viewport']",
-    );
-    if (!viewport) return;
-
-    const handleScroll = () => {
-      const remaining =
-        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-      if (remaining < 96) loadNextConversationPage();
-    };
-
-    viewport.addEventListener("scroll", handleScroll);
-    handleScroll();
-    return () => viewport.removeEventListener("scroll", handleScroll);
-  }, [conversations.length, expanded, loadNextConversationPage]);
-
-  const replaceConversation = useCallback(
-    (nextConversation: ConversationSummary) => {
-      setConversations((current) =>
-        current.map((conversation) =>
-          conversation.conversation_id === nextConversation.conversation_id
-            ? {
-                ...conversation,
-                ...nextConversation,
-                metadata: nextConversation.metadata ?? conversation.metadata,
-              }
-            : conversation,
-        ),
-      );
-    },
-    [],
-  );
-
-  const renameConversation = useCallback(
-    async (conversation: ConversationSummary, title: string) => {
-      setConversationActionPending(conversation.conversation_id);
-      try {
-        const updated = await updateConversation(conversation.conversation_id, {
-          title,
-        });
-        replaceConversation(updated);
-        toast.success("Conversation renamed.");
-        return true;
-      } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Unable to rename conversation.",
-        );
-        return false;
-      } finally {
-        setConversationActionPending(null);
-      }
-    },
-    [replaceConversation],
-  );
-
-  const togglePinnedConversation = useCallback(
-    async (conversation: ConversationSummary) => {
-      setConversationActionPending(conversation.conversation_id);
-      const pinned = isPinnedConversation(conversation);
-      try {
-        const updated = await updateConversation(conversation.conversation_id, {
-          metadata: { ...conversation.metadata, pinned: !pinned },
-        });
-        replaceConversation(updated);
-        toast.success(
-          pinned ? "Conversation unpinned." : "Conversation pinned.",
-        );
-      } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Unable to update conversation.",
-        );
-      } finally {
-        setConversationActionPending(null);
-      }
-    },
-    [replaceConversation],
-  );
-
-  const confirmDeleteConversation = useCallback(async () => {
-    if (!deleteTarget) return;
-    const conversationId = deleteTarget.conversation_id;
-    setConversationActionPending(conversationId);
-    try {
-      await deleteConversation(conversationId);
-      setConversations((current) =>
-        current.filter(
-          (conversation) => conversation.conversation_id !== conversationId,
-        ),
-      );
-      setDeleteTarget(null);
-      onConversationDeleted?.(conversationId);
-      toast.success("Conversation deleted.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to delete conversation.",
-      );
-    } finally {
-      setConversationActionPending(null);
-    }
-  }, [deleteTarget, onConversationDeleted]);
-
-  const pinnedConversations = conversations.filter(isPinnedConversation);
-  const recentConversations = conversations.filter(
-    (conversation) => !isPinnedConversation(conversation),
-  );
-
   return (
     <div
       className={cn(
@@ -578,140 +149,13 @@ function RailContent({
         onOrganizationAdministration={onOrganizationAdministration}
       />
 
-      <Dialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete conversation?</DialogTitle>
-            <DialogDescription>
-              This removes {deleteTarget?.title || "this conversation"} and its
-              messages. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDeleteTarget(null)}
-              disabled={
-                conversationActionPending === deleteTarget?.conversation_id
-              }
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => void confirmDeleteConversation()}
-              disabled={
-                conversationActionPending === deleteTarget?.conversation_id
-              }
-            >
-              {conversationActionPending === deleteTarget?.conversation_id && (
-                <LoaderCircleIcon
-                  data-icon="inline-start"
-                  className="animate-spin"
-                />
-              )}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <section
-        className={cn(
-          "min-h-0 min-w-0 overflow-hidden transition-opacity duration-300",
-          expanded ? "flex flex-col opacity-100" : "hidden",
-        )}
-        aria-label="Conversation vault"
-      >
-        <div className="min-h-0 min-w-0 flex-1" ref={conversationsScrollRef}>
-          <ScrollArea className="h-full min-h-0 w-full min-w-0 overflow-hidden pr-1 [&_[data-slot=scroll-area-viewport]]:pr-3 [&_[data-slot=scroll-area-scrollbar]]:w-1.5 [&_[data-slot=scroll-area-thumb]]:bg-border/70">
-            {!conversationsLoading &&
-              !conversationsError &&
-              pinnedConversations.length > 0 && (
-                <ConversationGroup
-                  label="Pinned"
-                  conversations={pinnedConversations}
-                  activeConversationId={activeConversationId}
-                  activeStage={activeStage}
-                  actionPending={conversationActionPending}
-                  onOpen={onConversationOpen}
-                  onRename={renameConversation}
-                  onTogglePinned={togglePinnedConversation}
-                  onDelete={setDeleteTarget}
-                />
-              )}
-
-            <Button
-              type="button"
-              variant="ghost"
-              className="mb-1 h-8 w-full justify-start gap-1 rounded-lg px-2 text-[13px] font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground aria-expanded:bg-transparent aria-expanded:text-muted-foreground dark:aria-expanded:bg-transparent"
-              aria-label={`${recentWorkExpanded ? "Collapse" : "Expand"} recent work`}
-              aria-expanded={recentWorkExpanded}
-              onClick={() => setRecentWorkExpanded((current) => !current)}
-            >
-              <span>Recent work</span>
-              <ChevronDownIcon
-                className={cn(
-                  "size-3.5 transition-transform duration-150",
-                  !recentWorkExpanded && "-rotate-90",
-                )}
-                aria-hidden="true"
-              />
-            </Button>
-
-            {recentWorkExpanded && (
-              <>
-                {conversationsLoading && conversations.length === 0 ? (
-                  <div className="grid gap-1.5" aria-live="polite">
-                    {Array.from({ length: 3 }).map((_, index) => (
-                      <Skeleton className="h-9 rounded-lg" key={index} />
-                    ))}
-                  </div>
-                ) : conversationsError && conversations.length === 0 ? (
-                  <Alert variant="destructive">
-                    <AlertDescription>
-                      Unable to load recent work
-                    </AlertDescription>
-                  </Alert>
-                ) : recentConversations.length === 0 ? (
-                  <Alert>
-                    <AlertDescription>No recent work yet</AlertDescription>
-                  </Alert>
-                ) : (
-                  <ConversationGroup
-                    label="Recent work"
-                    conversations={recentConversations}
-                    activeConversationId={activeConversationId}
-                    activeStage={activeStage}
-                    actionPending={conversationActionPending}
-                    onOpen={onConversationOpen}
-                    onRename={renameConversation}
-                    onTogglePinned={togglePinnedConversation}
-                    onDelete={setDeleteTarget}
-                    hideLabel
-                  />
-                )}
-                {conversationsLoadingMore && (
-                  <div className="grid gap-1.5 pb-2" aria-live="polite">
-                    <Skeleton className="h-9 rounded-lg" />
-                    <Skeleton className="h-9 rounded-lg" />
-                  </div>
-                )}
-                {conversationsError && (
-                  <Alert className="mb-2" variant="destructive">
-                    <AlertDescription>Unable to load more</AlertDescription>
-                  </Alert>
-                )}
-              </>
-            )}
-          </ScrollArea>
-        </div>
-      </section>
+      <WorkspaceConversationList
+        activeConversationId={activeConversationId}
+        activeStage={activeStage}
+        expanded={expanded}
+        onConversationDeleted={onConversationDeleted}
+        onConversationOpen={onConversationOpen}
+      />
 
       <div
         className={cn(
@@ -752,7 +196,7 @@ function UserSessionMenu({
             type="button"
             variant="ghost"
             className={cn(
-              "h-9 min-w-0 rounded-lg p-0.5 text-left text-[#191915] hover:bg-muted aria-expanded:bg-muted dark:text-[#eee8dc] dark:hover:bg-muted/50 dark:aria-expanded:bg-muted/50",
+              "h-9 min-w-0 cursor-pointer rounded-lg p-0.5 text-left text-[#191915] hover:bg-muted aria-expanded:bg-muted dark:text-[#eee8dc] dark:hover:bg-muted/50 dark:aria-expanded:bg-muted/50",
               expanded
                 ? "w-full justify-start gap-2"
                 : "size-9 justify-center p-0",
@@ -778,7 +222,12 @@ function UserSessionMenu({
         </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-64 border-[#d8d0c2] bg-[#fffdf8] text-[#191915] dark:border-[#38372f] dark:bg-[#171714] dark:text-[#eee8dc]"
+        className={cn(
+          "border-[#d8d0c2] bg-[#fffdf8] text-[#191915] shadow-sm dark:border-[#38372f] dark:bg-[#171714] dark:text-[#eee8dc]",
+          expanded
+            ? "max-w-[calc(100vw-1rem)]"
+            : "w-64 max-w-[calc(100vw-1rem)]",
+        )}
         side={expanded ? "top" : "right"}
         align="start"
         sideOffset={8}
@@ -890,7 +339,7 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
         )}
         <Sheet open={props.expanded} onOpenChange={props.onExpandedChange}>
           <SheetContent
-            className="!w-[min(260px,calc(100vw-16px))] gap-0 border-border bg-card p-0"
+            className="!w-[min(260px,calc(100vw-16px))] gap-0 border-border bg-card p-0 ease-out motion-reduce:transition-none motion-reduce:data-ending-style:translate-x-0 motion-reduce:data-starting-style:translate-x-0"
             side="left"
             showCloseButton={false}
           >

@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WorkspaceRail } from "./WorkspaceRail";
@@ -73,15 +80,18 @@ describe("WorkspaceRail", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it("opens workspace navigation from the collapsed desktop rail", async () => {
     const actor = userEvent.setup();
     renderRail();
 
-    await actor.click(
-      screen.getByRole("button", { name: "Open workspace navigation" }),
-    );
+    const toggle = screen.getByRole("button", {
+      name: "Open workspace navigation",
+    });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    await actor.click(toggle);
 
     expect(callbacks.onExpandedChange).toHaveBeenCalledWith(true);
   });
@@ -90,9 +100,11 @@ describe("WorkspaceRail", () => {
     const actor = userEvent.setup();
     renderRail({ expanded: true });
 
-    await actor.click(
-      screen.getByRole("button", { name: "Close workspace navigation" }),
-    );
+    const toggle = screen.getByRole("button", {
+      name: "Close workspace navigation",
+    });
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    await actor.click(toggle);
 
     expect(callbacks.onExpandedChange).toHaveBeenCalledWith(false);
   });
@@ -112,19 +124,41 @@ describe("WorkspaceRail", () => {
   });
 
   it("opens secondary destinations from More", async () => {
-    const actor = userEvent.setup();
+    const actor = userEvent.setup({ skipHover: true });
     renderRail({ expanded: true });
 
     await actor.click(screen.getByRole("button", { name: "More" }));
 
     expect(await screen.findByRole("menuitem", { name: "Memory" })).toBeTruthy();
-    expect(screen.getByRole("menuitem", { name: "Tools" })).toBeTruthy();
-    expect(screen.getByRole("menuitem", { name: "Organization" })).toBeTruthy();
-    await actor.click(screen.getByRole("menuitem", { name: "Models" }));
+    await actor.click(await screen.findByRole("menuitem", { name: "Models" }));
     expect(callbacks.onModels).toHaveBeenCalledOnce();
   });
 
-  it("collapses recent work and keeps conversation actions in its overflow menu", async () => {
+  it("opens More only after a deliberate hover and closes after leaving it", () => {
+    vi.useFakeTimers();
+    renderRail({ expanded: true });
+
+    const more = screen.getByRole("button", { name: "More" });
+    fireEvent.pointerEnter(more);
+
+    expect(screen.queryByRole("menuitem", { name: "Memory" })).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(screen.getByRole("menuitem", { name: "Memory" })).toBeTruthy();
+    expect(
+      document.querySelector('[role="presentation"][data-base-ui-inert]'),
+    ).toBeNull();
+
+    fireEvent.pointerLeave(more);
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("keeps Pin directly on the conversation row and out of its action menu", async () => {
     const actor = userEvent.setup();
     intelligenceApi.listConversationsPage.mockResolvedValue({
       items: [
@@ -152,13 +186,15 @@ describe("WorkspaceRail", () => {
     });
     expect(conversation.getAttribute("title")).toBe("Research summary");
     expect(
-      screen.queryByRole("button", { name: "Pin conversation Research summary" }),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Pin conversation Research summary" }),
+    ).toBeTruthy();
 
     await actor.click(
       screen.getByRole("button", { name: "Open conversation actions for Research summary" }),
     );
-    expect(await screen.findByRole("menuitem", { name: "Pin chat" })).toBeTruthy();
+    expect(await screen.findByRole("menuitem", { name: "Rename" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: /Pin chat|Unpin chat/ })).toBeNull();
     await actor.keyboard("{Escape}");
 
     await actor.click(screen.getByRole("button", { name: "Collapse recent work" }));
@@ -174,6 +210,19 @@ describe("WorkspaceRail", () => {
       await screen.findByRole("button", { name: "Collapse recent work" }),
     ).toBeTruthy();
     expect(await screen.findByText("No recent work yet")).toBeTruthy();
+  });
+
+  it("opens the account menu within the available viewport", async () => {
+    const actor = userEvent.setup();
+    renderRail({ expanded: true });
+
+    await actor.click(
+      screen.getByRole("button", { name: "Open user session menu" }),
+    );
+
+    expect(await screen.findByText("admin@axiom.local")).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Settings" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Log out" })).toBeTruthy();
   });
 
 });
