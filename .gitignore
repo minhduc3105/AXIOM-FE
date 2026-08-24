@@ -5,3 +5,5 @@ dist/
 .superpowers/
 docs/superpowers/
 .agents/
+.codegraph/
+docs/
