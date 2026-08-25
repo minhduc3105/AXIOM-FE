@@ -64,6 +64,19 @@ describe("GlobalIngestionDock", () => {
     window.sessionStorage.clear();
   });
 
+  it("renders a compact toolbar launcher without viewport positioning", () => {
+    renderDock(createJob("processing"));
+
+    const launcher = screen.getByRole("button", {
+      name: "Open ingestion jobs",
+    });
+
+    expect(launcher.className).toContain("h-9");
+    expect(launcher.className).toContain("rounded-md");
+    expect(launcher.className).not.toContain("fixed");
+    expect(launcher.className).not.toContain("bottom-");
+  });
+
   it("keeps detail unavailable until an object is indexed", async () => {
     const actor = userEvent.setup();
     renderDock(createJob("processing"));
@@ -77,20 +90,11 @@ describe("GlobalIngestionDock", () => {
     ).toBeNull();
   });
 
-  it("opens the document page for an indexed object", async () => {
-    const actor = userEvent.setup();
-    let opened: [string, string] | null = null;
-    renderDock(createJob("indexed"), (jobId, objectKey) => {
-      opened = [jobId, objectKey];
-    });
+  it("hides completed work because the inventory is the durable history", () => {
+    renderDock(createJob("indexed"));
 
-    await actor.click(
-      screen.getByRole("button", { name: "Open ingestion jobs" }),
-    );
-    await actor.click(
-      screen.getByRole("button", { name: "View details for invoice.pdf" }),
-    );
-
-    expect(opened).toEqual(["job-1", "uploads/invoice.pdf"]);
+    expect(
+      screen.queryByRole("button", { name: "Open ingestion jobs" }),
+    ).toBeNull();
   });
 });

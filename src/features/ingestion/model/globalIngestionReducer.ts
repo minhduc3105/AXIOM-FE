@@ -179,29 +179,34 @@ export function globalIngestionReducer(
         };
       });
     case "PROCESSING_UPDATED":
-      return replaceJob(state, action.jobId, (job) => {
-        const resultsByKey = new Map(
-          action.results.map((result) => [result.object_key, result]),
-        );
-        const objects = job.objects.map((object) => {
-          const result = resultsByKey.get(object.key);
-          if (!result) return object;
+      {
+        const nextState = replaceJob(state, action.jobId, (job) => {
+          const resultsByKey = new Map(
+            action.results.map((result) => [result.object_key, result]),
+          );
+          const objects = job.objects.map((object) => {
+            const result = resultsByKey.get(object.key);
+            if (!result) return object;
+            return {
+              ...object,
+              status: getObjectStatus(result),
+              runId: result.run_id,
+              documentId: result.document_id,
+              errorMessage: result.error_message,
+            };
+          });
           return {
-            ...object,
-            status: getObjectStatus(result),
-            runId: result.run_id,
-            documentId: result.document_id,
-            errorMessage: result.error_message,
+            ...job,
+            objects,
+            status: deriveGlobalIngestionJobStatus(objects),
+            errorMessage: null,
+            retry: null,
           };
         });
         return {
-          ...job,
-          objects,
-          status: deriveGlobalIngestionJobStatus(objects),
-          errorMessage: null,
-          retry: null,
+          jobs: nextState.jobs.filter((job) => job.status !== "complete"),
         };
-      });
+      }
     case "JOB_NEEDS_ATTENTION":
       return replaceJob(state, action.jobId, (job) => ({
         ...job,
@@ -212,6 +217,11 @@ export function globalIngestionReducer(
       return replaceJob(state, action.jobId, (job) => ({
         ...job,
         status: "failed",
+        objects: job.objects.map((object) =>
+          object.status === "waiting" || object.status === "processing"
+            ? { ...object, status: "failed", errorMessage: action.message }
+            : object,
+        ),
         errorMessage: action.message,
         retry: action.retry,
       }));

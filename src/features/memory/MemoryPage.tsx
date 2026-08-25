@@ -374,21 +374,15 @@ export function MemoryPage() {
 
   return (
     <section
-      className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6"
+      className="min-h-0 px-4 py-4 sm:px-6 md:p-6"
       aria-label="Memory management"
     >
-      <div className="mx-auto grid w-full max-w-[1440px] gap-6">
-        <header className="border-b pb-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                Memory management
-              </h1>
-              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Review, retrieve and govern durable context for the signed-in
-                workspace.
-              </p>
-            </div>
+      <div className="mx-auto grid w-full max-w-[1440px] gap-4">
+        <header className="border-b pb-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <p className="text-sm font-semibold text-foreground">
+              Memory status
+            </p>
             <div className="flex flex-wrap items-center gap-2">
               <ServiceBadge label="Intent API" status={status.intent} />
               <ServiceBadge label="ReMe" status={status.reme} />
@@ -403,7 +397,10 @@ export function MemoryPage() {
               </Button>
             </div>
           </div>
-          <div className="mt-6 grid gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-2 xl:grid-cols-4">
+          <ul
+            className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground"
+            aria-label="Memory status counters"
+          >
             <Metric
               label="Canonical memories"
               value={memories.length}
@@ -428,7 +425,7 @@ export function MemoryPage() {
               }
               icon={<WorkflowIcon />}
             />
-          </div>
+          </ul>
         </header>
         {error && (
           <Alert variant="destructive" className="rounded-[18px]">
@@ -693,15 +690,11 @@ function Metric({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-18 items-center gap-3 bg-card px-4 py-3">
-      <span className="grid size-8 place-items-center rounded-md bg-primary/10 text-primary">
-        {icon}
-      </span>
-      <div>
-        <div className="text-lg font-semibold tabular-nums">{value}</div>
-        <div className="text-xs text-muted-foreground">{label}</div>
-      </div>
-    </div>
+    <li className="flex items-center gap-1.5">
+      <span className="text-muted-foreground">{icon}</span>
+      <span className="font-semibold tabular-nums text-foreground">{value}</span>
+      <span>{label}</span>
+    </li>
   );
 }
 function InventoryList({

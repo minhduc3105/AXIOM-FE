@@ -61,6 +61,10 @@ const fixtures = vi.hoisted(() => {
   };
 });
 
+const workspaceComponent = vi.hoisted(() => ({
+  render: vi.fn(),
+}));
+
 vi.mock("./model/DataWorkspaceProvider", () => ({
   useDataWorkspace: () => ({
     workspaces: [fixtures.workspace],
@@ -99,7 +103,10 @@ vi.mock("@/shared/hooks/use-data-source-profiles", () => ({
 }));
 
 vi.mock("./components/DataSourcesWorkspace", () => ({
-  DataSourcesWorkspace: () => <div data-testid="data-sources-workspace" />,
+  DataSourcesWorkspace: (props: unknown) => {
+    workspaceComponent.render(props);
+    return <div data-testid="data-sources-workspace" />;
+  },
 }));
 
 import { DataPage } from "./DataPage";
@@ -107,6 +114,7 @@ import { DataPage } from "./DataPage";
 describe("DataPage health summary", () => {
   afterEach(() => {
     fixtures.selectedWorkspace = fixtures.workspace;
+    workspaceComponent.render.mockClear();
     cleanup();
   });
 
@@ -117,12 +125,46 @@ describe("DataPage health summary", () => {
       </TooltipProvider>,
     );
 
-    expect(screen.getByLabelText(/all files: 2/i)).toBeTruthy();
-    expect(screen.getByLabelText(/ready: 1/i)).toBeTruthy();
-    expect(screen.getByLabelText(/failed: 1/i)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /failed: 1/i })).toBeNull();
     expect(screen.getByTestId("data-sources-workspace")).toBeTruthy();
     expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
+  it("passes workspace-wide health counts into the inventory workspace", () => {
+    render(
+      <TooltipProvider>
+        <DataPage organizationId="org-1" onCreateIngestion={vi.fn()} />
+      </TooltipProvider>,
+    );
+
+    expect(workspaceComponent.render).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        summary: {
+          loading: false,
+          total: 2,
+          ready: 1,
+          processing: 0,
+          failed: 1,
+        },
+      }),
+    );
+  });
+
+  it("passes the ingestion launcher into the inventory toolbar", () => {
+    render(
+      <TooltipProvider>
+        <DataPage
+          organizationId="org-1"
+          onCreateIngestion={vi.fn()}
+          ingestionControl={<div data-testid="ingestion-control" />}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(workspaceComponent.render).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        ingestionControl: expect.anything(),
+      }),
+    );
   });
 
   it("keeps every workspace-scoped inventory action unavailable without a workspace", () => {

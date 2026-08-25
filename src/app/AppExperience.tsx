@@ -453,6 +453,9 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
             organizationId={user.organization_id}
             onCreateIngestion={openDataIngestion}
             onOpenDocument={openDataDocument}
+            ingestionControl={
+              <GlobalIngestionDock onOpenDetails={openIngestionDocument} />
+            }
           />
         )
       ) : route.surface === "reports" ? (
@@ -495,7 +498,6 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
         )}
       </AppShell>
       <IngestionDialog />
-      <GlobalIngestionDock onOpenDetails={openIngestionDocument} />
     </>
   );
 }

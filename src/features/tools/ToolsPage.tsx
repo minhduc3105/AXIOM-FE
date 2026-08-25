@@ -62,6 +62,23 @@ type ToolsPageProps = {
 
 type BulkToolAction = "enable" | "disable";
 
+function getCatalogScrollContainer() {
+  return document.querySelector<HTMLElement>("[data-testid='app-content-outlet']");
+}
+
+function getCatalogScrollTop() {
+  return getCatalogScrollContainer()?.scrollTop ?? window.scrollY;
+}
+
+function setCatalogScrollTop(top: number) {
+  const container = getCatalogScrollContainer();
+  if (container) {
+    container.scrollTop = top;
+    return;
+  }
+  window.scrollTo({ top, behavior: "auto" });
+}
+
 type BulkProgress = {
   action: BulkToolAction;
   total: number;
@@ -236,7 +253,7 @@ export function ToolsPage({
 
     const outerFrame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        window.scrollTo({ top: restoreScrollRef.current, behavior: "auto" });
+        setCatalogScrollTop(restoreScrollRef.current);
         restoreScrollRef.current = 0;
       });
     });
@@ -340,9 +357,12 @@ export function ToolsPage({
       ? Math.round((bulkProgress.completed / bulkProgress.total) * 100)
       : 0;
   const handleOpenTool = (toolName: string) => {
-    const returnViewState = { ...filtersRef.current, scrollY: window.scrollY };
+    const returnViewState = {
+      ...filtersRef.current,
+      scrollY: getCatalogScrollTop(),
+    };
     onViewStateChange(returnViewState);
-    window.scrollTo({ top: 0, behavior: "instant" });
+    setCatalogScrollTop(0);
     onOpenTool(toolName, returnViewState);
   };
   const clearFilters = () => {
@@ -351,21 +371,17 @@ export function ToolsPage({
 
   return (
     <section
-      className="relative min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden px-5 pb-12 pt-4 sm:px-8 md:pt-6"
+      className="relative min-h-0 w-full overflow-x-hidden px-4 py-4 sm:px-6 md:p-6"
       aria-label="Tools catalog"
     >
-      <div className="mx-auto grid w-full max-w-[1360px] gap-6">
-        <Card className="gap-0 rounded-xl bg-card p-0 shadow-sm">
-          <header className="grid gap-5 p-5 sm:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Tool management
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                    Tools
-                  </h1>
+      <div className="mx-auto grid w-full max-w-[1360px] gap-4">
+        <Card className="gap-0 rounded-lg bg-card p-0 shadow-none">
+          <header className="grid gap-3 p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">
+                  Catalog status
+                </span>
                   <Badge
                     variant="outline"
                     className="h-6 rounded-full bg-muted px-2.5 text-[10px] font-medium tabular-nums text-muted-foreground"
@@ -378,19 +394,10 @@ export function ToolsPage({
                   >
                     {disabledTools.length} disabled
                   </Badge>
-                </div>
-                <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Control which methods are available to AXIOM workflows. Open a
-                  tool card to inspect its read-only details.
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Availability scope:{" "}
-                  <span className="font-medium text-muted-foreground">
-                    {availabilityScope.organizationName}
-                  </span>{" "}
-                  · {availabilityScope.workspaceName}. Changes apply to the
-                  current Methods-Hub process.
-                </p>
+                <span className="max-w-full truncate text-xs text-muted-foreground">
+                  {availabilityScope.organizationName} ·{" "}
+                  {availabilityScope.workspaceName}
+                </span>
               </div>
               <Button
                 variant="outline"
@@ -406,7 +413,7 @@ export function ToolsPage({
                 {isRefreshing ? "Updating catalog…" : "Refresh"}
               </Button>
             </div>
-            <div className="grid gap-3 border-t pt-4 xl:grid-cols-[minmax(240px,1fr)_minmax(390px,auto)] xl:items-center">
+            <div className="grid gap-3 border-t pt-3 xl:grid-cols-[minmax(240px,1fr)_minmax(390px,auto)] xl:items-center">
               <div className="relative min-w-0">
                 <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
