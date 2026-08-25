@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createInvestigation, loadConversationHistory } from "./chatApi";
+import {
+  createInvestigation,
+  loadConversationHistory,
+} from "./chatApi";
+import { createConversation } from "@/shared/lib/intelligence-api";
+import { getChatError } from "../model/chatError";
 
 function sseResponse(events: Record<string, unknown>[]) {
   const body = events
@@ -14,6 +19,218 @@ function sseResponse(events: Record<string, unknown>[]) {
 describe("createInvestigation", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("retains structured HTTP error code and retryability without exposing server text", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "runtime_unavailable",
+              message: "internal runtime allocation failure",
+              retryable: true,
+            },
+          }),
+          { status: 503, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    await expect(
+      createInvestigation("Explain PostgreSQL", "conversation-1"),
+    ).rejects.toMatchObject({
+      name: "ChatApiError",
+      status: 503,
+      code: "runtime_unavailable",
+      retryable: true,
+      message: "Chat request failed.",
+      cause: "internal runtime allocation failure",
+    });
+  });
+
+  it("retains structured SSE failure code and retryability without exposing server text", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        sseResponse([
+          {
+            type: "response.failed",
+            error: {
+              code: "runtime_unavailable",
+              message: "runtime pool drain details",
+              retryable: true,
+            },
+          },
+        ]),
+      ),
+    );
+
+    await expect(
+      createInvestigation("Explain PostgreSQL", "conversation-1"),
+    ).rejects.toMatchObject({
+      name: "ChatApiError",
+      status: null,
+      code: "runtime_unavailable",
+      retryable: true,
+      message: "Chat request failed.",
+      cause: "runtime pool drain details",
+    });
+  });
+
+  it.each(["response.cancelled", "response.canceled"])(
+    "normalizes %s into the existing non-retryable stopped response",
+    async (type) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          sseResponse([
+            {
+              type,
+              error: {
+                code: "upstream_cancelled",
+                message: "worker cancellation details",
+                retryable: true,
+              },
+            },
+          ]),
+        ),
+      );
+
+      let failure: unknown;
+      try {
+        await createInvestigation("Explain PostgreSQL", "conversation-1");
+      } catch (error) {
+        failure = error;
+      }
+
+      expect(failure).toMatchObject({
+        name: "ChatApiError",
+        status: null,
+        code: "cancelled",
+        retryable: false,
+        cause: "worker cancellation details",
+      });
+      expect(getChatError(failure)).toMatchObject({
+        kind: "cancelled",
+        code: "cancelled",
+        retryable: false,
+        message: "That response was stopped.",
+      });
+    },
+  );
+
+  it("keeps structured create-conversation failures available to the chat error mapper", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "runtime_unavailable",
+              message: "allocator routing diagnostic",
+              retryable: true,
+            },
+          }),
+          { status: 503, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    let failure: unknown;
+    try {
+      await createConversation("Explain PostgreSQL");
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).toMatchObject({
+      name: "IntelligenceApiError",
+      status: 503,
+      code: "runtime_unavailable",
+      retryable: true,
+      cause: "allocator routing diagnostic",
+    });
+    expect(getChatError(failure)).toMatchObject({
+      kind: "unavailable",
+      code: "runtime_unavailable",
+      retryable: true,
+    });
+  });
+
+  it("keeps structured conversation-history failures available to the chat error mapper", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            detail: {
+              code: "history_temporarily_unavailable",
+              message: "history shard diagnostic",
+              retryable: true,
+            },
+          }),
+          { status: 502, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    let failure: unknown;
+    try {
+      await loadConversationHistory("conversation-1");
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).toMatchObject({
+      name: "IntelligenceApiError",
+      status: 502,
+      code: "history_temporarily_unavailable",
+      retryable: true,
+      cause: "history shard diagnostic",
+    });
+    expect(getChatError(failure)).toMatchObject({
+      kind: "busy",
+      code: "history_temporarily_unavailable",
+      retryable: true,
+    });
+  });
+
+  it("cancels an active stream reader and ignores its late read after abort", async () => {
+    let resolveRead!: (value: ReadableStreamReadResult<Uint8Array>) => void;
+    const reader = {
+      read: vi.fn(
+        () =>
+          new Promise<ReadableStreamReadResult<Uint8Array>>((resolve) => {
+            resolveRead = resolve;
+          }),
+      ),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({ ok: true, body: { getReader: () => reader } }) as unknown as Response,
+      ),
+    );
+    const controller = new AbortController();
+    const pending = createInvestigation(
+      "Explain PostgreSQL",
+      "conversation-1",
+      "auto",
+      "thinking",
+      controller.signal,
+    );
+
+    await vi.waitFor(() => expect(reader.read).toHaveBeenCalledOnce());
+    controller.abort();
+    resolveRead({ done: true, value: undefined });
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(reader.cancel).toHaveBeenCalledOnce();
   });
 
   it("returns a completed outcome when the orchestrator answers directly", async () => {
@@ -531,6 +748,80 @@ describe("createInvestigation", () => {
       investigation: {
         intent: "instant_engine",
         specMarkdown: "",
+      },
+    });
+  });
+
+  it("hydrates failed and cancelled history as typed errors, retaining partial output only", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            items: [
+              storedMessage({
+                message_id: "message-user-failed",
+                role: "user",
+                status: "created",
+                content: { input: "Create a report", execution_mode: "instant" },
+              }),
+              storedMessage({
+                message_id: "message-assistant-failed",
+                role: "assistant",
+                status: "failed",
+                content: {
+                  type: "response.failed",
+                  output_text: "Partial report output",
+                  error: {
+                    code: "runtime_unavailable",
+                    message: "runtime pool drain details",
+                    retryable: true,
+                  },
+                },
+              }),
+              storedMessage({
+                message_id: "message-user-cancelled",
+                role: "user",
+                status: "created",
+                content: { input: "Continue", execution_mode: "instant" },
+              }),
+              storedMessage({
+                message_id: "message-assistant-cancelled",
+                role: "assistant",
+                status: "cancelled",
+                content: {
+                  type: "response.failed",
+                  error: { message: "client aborted" },
+                },
+              }),
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const snapshot = await loadConversationHistory("conversation-1");
+
+    expect(snapshot.turns).toHaveLength(2);
+    expect(snapshot.turns[0]).toMatchObject({
+      result: { markdown: "Partial report output" },
+      error: {
+        kind: "unavailable",
+        code: "runtime_unavailable",
+        retryable: true,
+        message: "Chat is temporarily unavailable. Please try again in a moment.",
+        cause: "runtime pool drain details",
+      },
+    });
+    expect(snapshot.turns[1]).toMatchObject({
+      result: null,
+      error: {
+        kind: "cancelled",
+        code: "cancelled",
+        retryable: false,
+        message: "That response was stopped.",
+        cause: "client aborted",
       },
     });
   });

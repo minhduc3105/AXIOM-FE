@@ -182,41 +182,23 @@ export function AppTopBar({
         </div>
 
         <div className="flex min-w-0 items-center justify-self-end gap-2">
-          {showInspectorToggle && onInspectorOpen && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="size-10 shrink-0 bg-card text-foreground"
-                    aria-label="Open Logs & Files"
-                    aria-expanded={false}
-                    onClick={onInspectorOpen}
-                  />
-                }
-              >
-                <PanelRightOpenIcon />
-              </TooltipTrigger>
-              <TooltipContent>Open Logs &amp; Files</TooltipContent>
-            </Tooltip>
-          )}
-          <AppScopeBar
-            scope={scope}
-            workspaces={workspaces}
-            selectedWorkspace={selectedWorkspace}
-            workspacesLoading={workspacesLoading}
-            onWorkspaceSelect={onWorkspaceSelect}
-          />
+          <div className="hidden min-w-0 sm:flex">
+            <AppScopeBar
+              scope={scope}
+              workspaces={workspaces}
+              selectedWorkspace={selectedWorkspace}
+              workspacesLoading={workspacesLoading}
+              onWorkspaceSelect={onWorkspaceSelect}
+            />
+          </div>
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
-                  className="size-10 shrink-0 bg-card text-foreground"
+                  className="size-10 shrink-0 text-foreground"
                   aria-label={themeLabel}
                   onClick={() => setTheme(nextTheme)}
                 />
@@ -228,6 +210,27 @@ export function AppTopBar({
               {themeLabel}
             </TooltipContent>
           </Tooltip>
+          {showInspectorToggle && onInspectorOpen && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-10 shrink-0 text-foreground"
+                    aria-label="Open Logs & Files"
+                    aria-controls="process-inspector"
+                    aria-expanded={false}
+                    onClick={onInspectorOpen}
+                  />
+                }
+              >
+                <PanelRightOpenIcon />
+              </TooltipTrigger>
+              <TooltipContent>Open Logs &amp; Files</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
     </header>

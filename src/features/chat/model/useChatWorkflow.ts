@@ -6,6 +6,8 @@ import {
   reviseInvestigation,
   runWorkflow,
 } from "../api/chatApi";
+import { createConversation } from "@/shared/lib/intelligence-api";
+import { getChatError, type ChatError } from "./chatError";
 import type {
   ChatAttachment,
   ChatEngine,
@@ -29,6 +31,7 @@ const initialState: ChatWorkflowState = {
   processEvents: createProcessEvents(),
   result: null,
   history: [],
+  historyLoading: false,
   loading: false,
   error: null,
 };
@@ -39,7 +42,9 @@ type Action =
       investigation: Investigation;
       conversationId: string | null;
       executionMode: ChatExecutionMode;
+      replaceCurrent: boolean;
     }
+  | { type: "conversation/created"; conversationId: string }
   | {
       type: "submit/stream";
       investigation: Investigation;
@@ -61,11 +66,10 @@ type Action =
   | { type: "process/start"; specification: EditableSpecification }
   | { type: "process/events"; events: ProcessEvent[] }
   | { type: "process/success"; result: MockResult; evidenceOpen: boolean }
-  | { type: "request/failure"; message: string }
+  | { type: "request/failure"; error: ChatError }
   | {
       type: "conversation/load-start";
       conversationId: string;
-      investigation: Investigation;
     }
   | {
       type: "conversation/load-cached";
@@ -77,6 +81,7 @@ type Action =
       history: ChatTurn[];
       investigation: Investigation | null;
       result: MockResult | null;
+      error: ChatError | null;
       processEvents: ProcessEvent[];
       pendingInvestigation: Investigation | null;
       pendingQuestion: string | null;
@@ -94,38 +99,38 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         ...state,
         activeConversationId: action.conversationId,
         executionMode: action.executionMode,
-        stage: action.executionMode === "instant" ? "process" : "pending",
+        stage: "pending",
         evidenceOpen: false,
         investigation: action.investigation,
-        draft:
-          action.executionMode === "thinking"
-            ? {
-                intent: action.investigation.intent,
-                specMarkdown: action.investigation.specMarkdown,
-              }
-            : null,
+        draft: null,
         approvedSpecification: null,
         processEvents: createProcessEvents(),
         result: null,
         history:
-          state.investigation && state.result
+          !action.replaceCurrent &&
+          state.investigation &&
+          (state.result || state.error)
             ? [
                 ...state.history,
                 {
                   executionMode: state.executionMode,
                   investigation: state.investigation,
                   result: state.result,
+                  error: state.error,
                   processEvents: state.processEvents,
                 },
               ]
             : state.history,
         loading: true,
+        historyLoading: false,
         error: null,
       };
+    case "conversation/created":
+      return { ...state, activeConversationId: action.conversationId };
     case "submit/stream":
       return {
         ...state,
-        stage: action.executionMode === "instant" ? "process" : "result",
+        stage: "result",
         evidenceOpen: false,
         investigation: action.investigation,
         draft: null,
@@ -225,22 +230,24 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
             ? markActiveProcessEventFailed(state.processEvents)
             : state.processEvents,
         loading: false,
-        error: action.message,
+        historyLoading: false,
+        error: action.error,
       };
     case "conversation/load-start":
       return {
         ...state,
         activeConversationId: action.conversationId,
         executionMode: "thinking",
-        stage: "pending",
+        stage: "welcome",
         evidenceOpen: false,
-        investigation: action.investigation,
+        investigation: null,
         draft: null,
         approvedSpecification: null,
         processEvents: createProcessEvents(),
         result: null,
         history: [],
-        loading: true,
+        historyLoading: true,
+        loading: false,
         error: null,
       };
     case "conversation/load-cached":
@@ -248,11 +255,12 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         ...state,
         ...action.cached,
         activeConversationId: action.conversationId,
+        historyLoading: true,
         loading: true,
         error: null,
       };
     case "conversation/load-success":
-      if (action.investigation && action.result) {
+      if (action.investigation && (action.result || action.error)) {
         return {
           ...state,
           executionMode: action.pendingExecutionMode,
@@ -265,7 +273,8 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           result: action.result,
           history: action.history,
           loading: action.pendingResponse,
-          error: null,
+          historyLoading: false,
+          error: action.error,
         };
       }
       if (action.pendingInvestigation) {
@@ -284,6 +293,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           result: null,
           history: action.history,
           loading: false,
+          historyLoading: false,
           error: null,
         };
       }
@@ -291,8 +301,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         return {
           ...state,
           executionMode: action.pendingExecutionMode,
-          stage:
-            action.pendingExecutionMode === "instant" ? "process" : "pending",
+          stage: "pending",
           evidenceOpen: false,
           investigation:
             action.pendingExecutionMode === "instant"
@@ -304,10 +313,16 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           result: null,
           history: action.history,
           loading: true,
+          historyLoading: false,
           error: null,
         };
       }
-      return { ...initialState, error: null };
+      return {
+        ...initialState,
+        activeConversationId: state.activeConversationId,
+        history: action.history,
+        historyLoading: false,
+      };
     case "evidence/open":
       return state.result ? { ...state, evidenceOpen: true } : state;
     case "evidence/close":
@@ -378,7 +393,14 @@ function attachFilesToInvestigation(
 }
 
 function isAbortError(error: unknown) {
-  return error instanceof DOMException && error.name === "AbortError";
+  return (
+    error instanceof DOMException
+      ? error.name === "AbortError"
+      : typeof error === "object" &&
+        error !== null &&
+        "name" in error &&
+        error.name === "AbortError"
+  );
 }
 
 function markActiveProcessEventFailed(events: ProcessEvent[]): ProcessEvent[] {
@@ -415,7 +437,7 @@ type CachedConversationState = Pick<
 
 const conversationStateCache = new Map<string, CachedConversationState>();
 
-type LastSubmission = {
+export type ChatSubmission = {
   question: string;
   conversationId: string | null;
   engine: ChatEngine;
@@ -424,7 +446,10 @@ type LastSubmission = {
   organizationId?: string | null;
   workspaceId?: string | null;
   modelAlias?: string | null;
+  onConversationCreated?: (conversationId: string) => void;
 };
+
+type LastSubmission = Omit<ChatSubmission, "onConversationCreated">;
 
 function cacheConversationState(state: ChatWorkflowState) {
   if (!state.activeConversationId || state.stage === "welcome") return;
@@ -471,24 +496,31 @@ export function useChatWorkflow() {
     requestRef.current = null;
   }, []);
 
+  const ownsRequest = useCallback(
+    (controller: AbortController) =>
+      requestRef.current === controller && !controller.signal.aborted,
+    [],
+  );
+
   useEffect(() => cancelCurrentRequest, [cancelCurrentRequest]);
 
   const submitQuestion = useCallback(
-    async (
-      question: string,
-      conversationId: string | null = null,
-      engine: ChatEngine = "auto",
-      files: File[] = [],
-      organizationId?: string | null,
-      workspaceId?: string | null,
-      modelAlias?: string | null,
-      executionMode: ChatExecutionMode = "instant",
-    ) => {
+    async (submission: ChatSubmission, replaceCurrent = false) => {
+      const {
+        question,
+        engine,
+        files,
+        organizationId,
+        workspaceId,
+        modelAlias,
+        executionMode,
+        onConversationCreated,
+      } = submission;
       cancelCurrentRequest();
       const attachments = chatAttachmentsFromFiles(files);
       lastSubmissionRef.current = {
         question,
-        conversationId,
+        conversationId: submission.conversationId,
         engine,
         executionMode,
         files,
@@ -504,11 +536,33 @@ export function useChatWorkflow() {
           executionMode === "instant"
             ? instantEngineInvestigation(question, attachments)
             : optimisticInvestigation(question, attachments),
-        conversationId,
+        conversationId: submission.conversationId,
         executionMode,
+        replaceCurrent,
       });
 
       try {
+        let conversationId = submission.conversationId;
+        if (!conversationId) {
+          const conversation = await createConversation(
+            question.slice(0, 80),
+            controller.signal,
+          );
+          if (!ownsRequest(controller)) return;
+          conversationId = conversation.conversation_id;
+          lastSubmissionRef.current = {
+            question,
+            conversationId,
+            engine,
+            executionMode,
+            files,
+            organizationId,
+            workspaceId,
+            modelAlias,
+          };
+          dispatch({ type: "conversation/created", conversationId });
+          if (ownsRequest(controller)) onConversationCreated?.(conversationId);
+        }
         const outcome = await createInvestigation(
           question,
           conversationId,
@@ -520,7 +574,8 @@ export function useChatWorkflow() {
             organizationId,
             workspaceId,
             modelAlias,
-            onOutputText: (result) =>
+            onOutputText: (result) => {
+              if (!ownsRequest(controller)) return;
               dispatch({
                 type: "submit/stream",
                 investigation:
@@ -532,11 +587,15 @@ export function useChatWorkflow() {
                       ),
                 result,
                 executionMode,
-              }),
-            onProcessEvents: (events) =>
-              dispatch({ type: "process/events", events }),
+              });
+            },
+            onProcessEvents: (events) => {
+              if (!ownsRequest(controller)) return;
+              dispatch({ type: "process/events", events });
+            },
           },
         );
+        if (!ownsRequest(controller)) return;
         if (outcome.kind === "completed") {
           dispatch({
             type: "submit/completed",
@@ -558,20 +617,17 @@ export function useChatWorkflow() {
           });
         }
       } catch (error) {
-        if (!isAbortError(error)) {
+        if (ownsRequest(controller) && !isAbortError(error)) {
           dispatch({
             type: "request/failure",
-            message:
-              error instanceof Error
-                ? error.message
-                : "Unable to create investigation.",
+            error: getChatError(error),
           });
         }
       } finally {
         if (requestRef.current === controller) requestRef.current = null;
       }
     },
-    [cancelCurrentRequest],
+    [cancelCurrentRequest, ownsRequest],
   );
 
   const startProcess = useCallback(
@@ -584,25 +640,26 @@ export function useChatWorkflow() {
       try {
         const result = await runWorkflow(
           specification,
-          (events) => dispatch({ type: "process/events", events }),
+          (events) => {
+            if (!ownsRequest(controller)) return;
+            dispatch({ type: "process/events", events });
+          },
           controller.signal,
         );
+        if (!ownsRequest(controller)) return;
         dispatch({ type: "process/success", result, evidenceOpen: false });
       } catch (error) {
-        if (!isAbortError(error)) {
+        if (ownsRequest(controller) && !isAbortError(error)) {
           dispatch({
             type: "request/failure",
-            message:
-              error instanceof Error
-                ? error.message
-                : "The workflow request failed.",
+            error: getChatError(error),
           });
         }
       } finally {
         if (requestRef.current === controller) requestRef.current = null;
       }
     },
-    [cancelCurrentRequest],
+    [cancelCurrentRequest, ownsRequest],
   );
 
   const updateSpecification = useCallback(
@@ -644,15 +701,13 @@ export function useChatWorkflow() {
           state.investigation.question,
           controller.signal,
         );
+        if (!ownsRequest(controller)) return;
         dispatch({ type: "draft/revise-success", investigation });
       } catch (error) {
-        if (!isAbortError(error)) {
+        if (ownsRequest(controller) && !isAbortError(error)) {
           dispatch({
             type: "request/failure",
-            message:
-              error instanceof Error
-                ? error.message
-                : "Unable to revise the specification.",
+            error: getChatError(error),
           });
         }
       } finally {
@@ -661,6 +716,7 @@ export function useChatWorkflow() {
     },
     [
       cancelCurrentRequest,
+      ownsRequest,
       state.draft,
       state.investigation,
       state.loading,
@@ -677,8 +733,11 @@ export function useChatWorkflow() {
     if (!specification.intent || !specification.specMarkdown) {
       dispatch({
         type: "request/failure",
-        message:
-          "Intent and specification are required before running the workflow.",
+        error: getChatError(
+          new Error(
+            "Intent and specification are required before running the workflow.",
+          ),
+        ),
       });
       return;
     }
@@ -687,24 +746,18 @@ export function useChatWorkflow() {
 
   const retryProcess = useCallback(() => {
     if (state.loading) return;
+    const submission = lastSubmissionRef.current;
+    if (!submission || submission.conversationId !== state.activeConversationId) {
+      return;
+    }
     if (state.executionMode === "thinking" && state.approvedSpecification) {
       void startProcess(state.approvedSpecification);
       return;
     }
-    const submission = lastSubmissionRef.current;
-    if (!submission || submission.executionMode !== "instant") return;
-    void submitQuestion(
-      submission.question,
-      submission.conversationId,
-      submission.engine,
-      submission.files,
-      submission.organizationId,
-      submission.workspaceId,
-      submission.modelAlias,
-      submission.executionMode,
-    );
+    void submitQuestion(submission, true);
   }, [
     startProcess,
+    state.activeConversationId,
     state.approvedSpecification,
     state.executionMode,
     state.loading,
@@ -714,6 +767,7 @@ export function useChatWorkflow() {
   const loadConversation = useCallback(
     async (conversationId: string) => {
       cancelCurrentRequest();
+      lastSubmissionRef.current = null;
       const controller = new AbortController();
       requestRef.current = controller;
       const cached = conversationStateCache.get(conversationId) ?? null;
@@ -727,9 +781,6 @@ export function useChatWorkflow() {
         dispatch({
           type: "conversation/load-start",
           conversationId,
-          investigation: optimisticInvestigation(
-            "Loading conversation history...",
-          ),
         });
       }
 
@@ -738,9 +789,11 @@ export function useChatWorkflow() {
           conversationId,
           controller.signal,
         );
+        if (!ownsRequest(controller)) return;
         let shouldContinuePolling = true;
 
         while (shouldContinuePolling) {
+          if (!ownsRequest(controller)) return;
           const activeTurn = snapshot.turns[snapshot.turns.length - 1] || null;
           const hasHydratedContent =
             Boolean(activeTurn || snapshot.pendingInvestigation) || !cached;
@@ -752,6 +805,7 @@ export function useChatWorkflow() {
                 : snapshot.turns,
               investigation: activeTurn?.investigation || null,
               result: activeTurn?.result || null,
+              error: activeTurn?.error || null,
               processEvents: activeTurn?.processEvents || createProcessEvents(),
               pendingInvestigation: snapshot.pendingInvestigation,
               pendingQuestion: snapshot.pendingQuestion,
@@ -770,31 +824,31 @@ export function useChatWorkflow() {
           );
           if (shouldContinuePolling) {
             await waitForPendingConversationPoll(controller.signal);
+            if (!ownsRequest(controller)) return;
             snapshot = await loadConversationHistory(
               conversationId,
               controller.signal,
             );
+            if (!ownsRequest(controller)) return;
           }
         }
       } catch (error) {
-        if (!isAbortError(error)) {
+        if (ownsRequest(controller) && !isAbortError(error)) {
           dispatch({
             type: "request/failure",
-            message:
-              error instanceof Error
-                ? error.message
-                : "Unable to load conversation history.",
+            error: getChatError(error),
           });
         }
       } finally {
         if (requestRef.current === controller) requestRef.current = null;
       }
     },
-    [cancelCurrentRequest],
+    [cancelCurrentRequest, ownsRequest],
   );
 
   const newChat = useCallback(() => {
     cancelCurrentRequest();
+    lastSubmissionRef.current = null;
     dispatch({ type: "chat/new" });
   }, [cancelCurrentRequest]);
 
@@ -807,8 +861,18 @@ export function useChatWorkflow() {
     [],
   );
 
+  const lastSubmission = lastSubmissionRef.current;
+  const canRetry = Boolean(
+    lastSubmission &&
+      lastSubmission.conversationId === state.activeConversationId,
+  ) &&
+    !state.loading &&
+    !state.historyLoading &&
+    state.error?.retryable === true;
+
   return {
     ...state,
+    canRetry,
     submitQuestion,
     updateSpecification,
     resetSpecification,

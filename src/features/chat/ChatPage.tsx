@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ChatComposer } from "./components/ChatComposer";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { ProcessInspectorAside } from "./components/ProcessStepPanel";
@@ -20,6 +20,11 @@ import type {
   MockResult,
   ProcessEvent,
 } from "./model/types";
+import type { ChatError } from "./model/chatError";
+import type {
+  ProcessInspectorItem,
+  ProcessStepSelectionHandler,
+} from "./components/process/processEvents";
 import { cn } from "@/shared/lib/utils";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 
@@ -32,8 +37,13 @@ type ChatPageProps = {
   processEvents: ProcessEvent[];
   result: MockResult | null;
   history: ChatTurn[];
-  error: string | null;
+  error: ChatError | null;
+  historyLoading: boolean;
   loading: boolean;
+  canRetry: boolean;
+  inspectorItems: ProcessInspectorItem[];
+  activeProcessEventKey: string | null;
+  onProcessEventSelect: ProcessStepSelectionHandler;
   processInspectorOpen: boolean;
   onProcessInspectorOpen: () => void;
   onProcessInspectorClose: () => void;
@@ -58,7 +68,12 @@ export function ChatPage({
   result,
   history,
   error,
+  historyLoading,
   loading,
+  canRetry,
+  inspectorItems,
+  activeProcessEventKey,
+  onProcessEventSelect,
   processInspectorOpen,
   onProcessInspectorOpen,
   onProcessInspectorClose,
@@ -73,61 +88,23 @@ export function ChatPage({
   onCloseEvidence,
 }: ChatPageProps) {
   const chatMainRef = useRef<HTMLDivElement>(null);
-  const [inspectedProcessStep, setInspectedProcessStep] = useState<{
-    key: string;
-    event: ProcessEvent;
-  } | null>(null);
   const processSignature = useMemo(
     () => processEvents.map((event) => event.status).join("-"),
     [processEvents],
   );
   const resultScrollSignature = result?.markdown.length ?? 0;
-  const inspectableProcessEvents = useMemo(
-    () => [
-      ...history.flatMap((turn, index) =>
-        (turn.processEvents ?? []).map((event) => ({
-          key: `history-${index}:${event.id}`,
-          event,
-        })),
-      ),
-      ...processEvents.map((event) => ({ key: `current:${event.id}`, event })),
-    ],
-    [history, processEvents],
-  );
-  function handleProcessEventSelect(event: ProcessEvent, key: string) {
-    setInspectedProcessStep({ event, key });
+  function handleProcessEventSelect(...args: Parameters<ProcessStepSelectionHandler>) {
+    onProcessEventSelect(...args);
     onProcessInspectorOpen();
   }
   const desktopInspector = useMediaQuery("(min-width: 1280px)");
 
   useEffect(() => {
-    if (processInspectorOpen || inspectableProcessEvents.length === 0) return;
-    setInspectedProcessStep(null);
-  }, [inspectableProcessEvents.length, processInspectorOpen]);
-
-  useEffect(() => {
-    if (!processInspectorOpen || inspectedProcessStep) return;
-    const latestStep = inspectableProcessEvents[inspectableProcessEvents.length - 1];
-    if (latestStep) setInspectedProcessStep(latestStep);
-  }, [inspectableProcessEvents, inspectedProcessStep, processInspectorOpen]);
-
-  useEffect(() => {
-    if (!inspectedProcessStep) return;
-    const latestStep = inspectableProcessEvents.find(
-      (step) => step.key === inspectedProcessStep.key,
-    );
-    if (!latestStep) {
-      setInspectedProcessStep(null);
-      return;
-    }
-    if (latestStep.event !== inspectedProcessStep.event) {
-      setInspectedProcessStep(latestStep);
-    }
-  }, [inspectableProcessEvents, inspectedProcessStep]);
-
-  useEffect(() => {
+    const reducedMotion = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
     if (stage === "welcome") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
       return;
     }
 
@@ -136,13 +113,16 @@ export function ChatPage({
       if (chatMain && typeof chatMain.scrollTo === "function") {
         chatMain.scrollTo({
           top: chatMain.scrollHeight,
-          behavior: loading ? "auto" : "smooth",
+          behavior: loading || reducedMotion ? "auto" : "smooth",
         });
       }
     });
     return () => window.cancelAnimationFrame(frame);
   }, [history.length, loading, processSignature, resultScrollSignature, stage]);
 
+  if (historyLoading || (stage === "welcome" && error)) {
+    return <ConversationHistoryStatus loading={historyLoading} error={error} />;
+  }
   if (stage === "welcome") {
     return (
       <EmptyChatWorkspace
@@ -157,9 +137,9 @@ export function ChatPage({
 
   const inspector = (
     <ProcessInspectorAside
-      items={inspectableProcessEvents}
+      items={inspectorItems}
       conversationId={conversationId}
-      activeProcessEventKey={inspectedProcessStep?.key}
+      activeProcessEventKey={activeProcessEventKey}
       onProcessEventSelect={handleProcessEventSelect}
       onClose={onProcessInspectorClose}
     />
@@ -170,15 +150,7 @@ export function ChatPage({
       className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-hidden bg-background"
       aria-label="Investigation workspace"
     >
-      <div
-        className={cn(
-          "grid h-full min-h-0 min-w-0 transition-[grid-template-columns] duration-200 ease-out",
-          processInspectorOpen && desktopInspector
-            ? "xl:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)]"
-            : "grid-cols-1",
-        )}
-      >
-        <div className="flex min-h-0 min-w-0 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-col">
           <div
             ref={chatMainRef}
             className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
@@ -196,7 +168,7 @@ export function ChatPage({
                   key={`${turn.investigation.question}-${index}`}
                   turn={turn}
                   processEventKeyPrefix={`history-${index}`}
-                  activeProcessEventKey={inspectedProcessStep?.key}
+                  activeProcessEventKey={activeProcessEventKey}
                   onProcessEventSelect={handleProcessEventSelect}
                 />
               ))}
@@ -207,75 +179,37 @@ export function ChatPage({
                   question={investigation.question}
                 />
 
-                {stage === "pending" && (
-                  <ReviewCard stage="pending" investigation={investigation} />
-                )}
-                {stage === "intent" && draft && (
-                  <ReviewCard
-                    stage="intent"
-                    investigation={investigation}
-                    draft={draft}
-                    error={error}
-                    loading={loading}
-                    onSpecificationChange={onSpecificationChange}
-                    onSpecificationRevise={onSpecificationRevise}
-                    onReset={onResetSpecification}
-                    onRun={onApproveAndRun}
-                  />
-                )}
-                {stage === "process" && (
-                  <ReviewCard
-                    stage="process"
-                    investigation={investigation}
-                    events={processEvents}
-                    activeProcessEventKey={inspectedProcessStep?.key}
-                    processEventKeyPrefix="current"
-                    error={error}
-                    onProcessEventSelect={handleProcessEventSelect}
-                    onRetry={onRetryProcess}
-                  />
-                )}
-                {stage === "result" && result && (
-                  <div
-                    className={cn(
-                      "grid items-start gap-6",
-                      evidenceOpen &&
-                        !processInspectorOpen &&
-                        "xl:grid-cols-[minmax(0,1fr)_392px]",
-                    )}
-                  >
-                    <ReviewCard
-                      stage="result"
-                      investigation={investigation}
-                      events={processEvents}
-                      activeProcessEventKey={inspectedProcessStep?.key}
-                      processEventKeyPrefix="current"
-                      onProcessEventSelect={handleProcessEventSelect}
-                      result={result}
-                      responseComplete={!loading}
-                    />
-                    {evidenceOpen && !processInspectorOpen && (
-                      <EvidencePanel
-                        result={result}
-                        onClose={onCloseEvidence}
-                      />
-                    )}
-                  </div>
+                <ReviewCard
+                  stage={stage}
+                  investigation={investigation}
+                  draft={draft}
+                  events={processEvents}
+                  activeProcessEventKey={activeProcessEventKey}
+                  processEventKeyPrefix="current"
+                  error={error}
+                  loading={loading}
+                  result={result}
+                  responseComplete={stage === "result" && !loading}
+                  canRetry={canRetry}
+                  onProcessEventSelect={handleProcessEventSelect}
+                  onSpecificationChange={onSpecificationChange}
+                  onSpecificationRevise={onSpecificationRevise}
+                  onReset={onResetSpecification}
+                  onRun={onApproveAndRun}
+                  onRetry={onRetryProcess}
+                />
+                {stage === "result" && result && evidenceOpen && !processInspectorOpen && (
+                  <EvidencePanel result={result} onClose={onCloseEvidence} />
                 )}
 
-                {stage === "pending" && error && (
-                  <p
-                    className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700"
-                    role="alert"
-                  >
-                    {error}
-                  </p>
-                )}
               </section>
             </div>
           </div>
 
-          <div className="shrink-0 border-t border-border bg-background/95 px-4 py-3 md:px-8">
+          <div
+            className="shrink-0 bg-background/95 px-4 py-3 md:px-8"
+            data-chat-composer-dock
+          >
             <div className="mx-auto w-full max-w-5xl">
               <ChatComposer
                 className="w-full"
@@ -293,21 +227,11 @@ export function ChatPage({
               />
             </div>
           </div>
-        </div>
-
-        {processInspectorOpen && desktopInspector && (
-          <aside
-            data-process-inspector
-            className="min-h-0 min-w-0 overflow-hidden border-l border-border bg-card"
-            aria-label="Process details"
-          >
-            {inspector}
-          </aside>
-        )}
       </div>
       {processInspectorOpen && !desktopInspector && (
         <Sheet open onOpenChange={(open) => !open && onProcessInspectorClose()}>
           <SheetContent
+            id="process-inspector"
             className="!w-[min(480px,100vw)] border-border bg-card p-0"
             side="right"
             showCloseButton={false}
@@ -323,6 +247,46 @@ export function ChatPage({
           </SheetContent>
         </Sheet>
       )}
+    </section>
+  );
+}
+
+function ConversationHistoryStatus({
+  loading,
+  error,
+}: {
+  loading: boolean;
+  error: ChatError | null;
+}) {
+  return (
+    <section
+      className="grid min-h-[calc(100dvh-var(--app-top-bar-height))] w-full place-items-start overflow-hidden px-5 pt-[clamp(12rem,30vh,32rem)]"
+      aria-label="Conversation history"
+    >
+      <div
+        aria-busy={loading}
+        aria-live="polite"
+        className="flex items-center gap-2 text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-180 motion-reduce:animate-none"
+        data-chat-response
+        data-response-state={loading ? "history-loading" : "error"}
+      >
+        {loading ? (
+          <>
+            <span className="flex gap-1" aria-hidden="true">
+              {[0, 1, 2].map((dot) => (
+                <span
+                  className="size-1.5 rounded-full bg-muted-foreground/70 motion-safe:animate-pulse motion-reduce:animate-none"
+                  key={dot}
+                  style={{ animationDelay: `${dot * 120}ms` }}
+                />
+              ))}
+            </span>
+            <span>Loading conversation…</span>
+          </>
+        ) : (
+          <span role="alert">{error?.message}</span>
+        )}
+      </div>
     </section>
   );
 }
@@ -390,7 +354,9 @@ function HistoryTurn({
         processEventKeyPrefix={processEventKeyPrefix}
         onProcessEventSelect={onProcessEventSelect}
         result={turn.result}
+        error={turn.error}
         responseComplete
+        loading={false}
       />
     </section>
   );

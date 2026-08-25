@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -10,7 +9,6 @@ import {
   ChevronRightIcon,
   DownloadIcon,
   FolderOpenIcon,
-  InfoIcon,
   TerminalSquareIcon,
   XIcon,
 } from "lucide-react";
@@ -84,7 +82,9 @@ export function ProcessInspectorAside({
         rowRect.top -
         viewportRect.top -
         (viewport.clientHeight - rowRect.height) / 2,
-      behavior: "smooth",
+      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
     });
   }
 
@@ -127,10 +127,10 @@ export function ProcessInspectorAside({
         onValueChange={(value) =>
           setActiveTab(value === "files" ? "files" : "analysis")
         }
-        className="min-h-0 flex-1 gap-0"
+        className="flex min-h-0 flex-1 flex-col gap-0"
       >
         <div className="flex items-center justify-between gap-2 px-3 py-2">
-          <TabsList className="h-8 rounded-xl bg-[#ece7dd] p-1 dark:bg-[#292923]">
+          <TabsList variant="line" className="h-8 p-0">
             <TabsTrigger value="analysis" className="px-2">
               <TerminalSquareIcon data-icon="inline-start" />
               Analysis Details
@@ -168,9 +168,9 @@ export function ProcessInspectorAside({
         </div>
         <Separator />
 
-        <TabsContent value="analysis" className="m-0 min-h-0">
+        <TabsContent value="analysis" className="m-0 min-h-0 flex-1 overflow-hidden">
           <ScrollArea ref={analysisScrollArea} className="h-full min-h-0 pr-2">
-            <ol className="grid gap-2 p-3" aria-label="Analysis details">
+            <ol className="divide-y divide-border/70" aria-label="Analysis details">
               {visibleItems.length > 0 ? (
                 visibleItems.map((item) => (
                   <ProcessInspectorStepRow
@@ -191,7 +191,7 @@ export function ProcessInspectorAside({
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="files" className="m-0 min-h-0">
+        <TabsContent value="files" className="m-0 min-h-0 flex-1 overflow-hidden">
           <ScrollArea className="h-full min-h-0 pr-2">
             <div className="p-3">
               {files.length > 0 ? (
@@ -223,16 +223,13 @@ function ProcessInspectorStepRow({
   const Icon = processStatusIcon(item.event.status);
 
   return (
-    <li ref={rowRef}>
+    <li ref={rowRef} className={cn(selected && "bg-muted/70")}>
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         className={cn(
-          "group flex min-h-10 w-full items-center gap-2 rounded-t-xl border px-3 py-2 text-left transition-colors",
-          selected || expanded
-            ? "border-[#2456e8]/30 bg-white dark:border-[#7895ff]/30 dark:bg-[#20201c]"
-            : "border-[#d8d0c2]/70 bg-white/60 hover:border-[#d8d0c2] hover:bg-white dark:border-[#38372f]/70 dark:bg-[#20201c]/50 dark:hover:bg-[#20201c]",
-          !expanded && "rounded-b-xl",
+          "group flex min-h-10 w-full items-center gap-2 rounded-none px-3 py-2 text-left transition-colors",
+          expanded && "bg-muted/70",
         )}
         aria-current={selected ? "step" : undefined}
         aria-expanded={expanded}
@@ -252,7 +249,7 @@ function ProcessInspectorStepRow({
           <Icon
             className={cn(
               "size-2.5",
-              item.event.status === "running" && "animate-spin",
+              item.event.status === "running" && "animate-spin motion-reduce:animate-none",
             )}
           />
         </span>
@@ -269,7 +266,7 @@ function ProcessInspectorStepRow({
         </span>
       </Button>
       {expanded && (
-        <div className="grid gap-3 rounded-b-xl border border-t-0 border-[#2456e8]/30 bg-white px-3 pb-3 pt-2 dark:border-[#7895ff]/30 dark:bg-[#20201c]">
+        <div className="grid gap-3 border-t border-border/70 px-3 pb-3 pt-2">
           <RuntimeInlineSection
             label="Arguments:"
             value={argumentPreviewText(item.event.inputs)}
@@ -360,9 +357,8 @@ function sessionIdFromValue(value: unknown): string {
 
 function EmptyInspectorDetail({ label }: { label: string }) {
   return (
-    <Alert className="min-h-[180px] items-center justify-center border-dashed text-center">
-      <InfoIcon />
-      <AlertDescription>{label}</AlertDescription>
-    </Alert>
+    <div className="grid min-h-[180px] place-items-center px-3 text-center text-sm text-muted-foreground">
+      {label}
+    </div>
   );
 }

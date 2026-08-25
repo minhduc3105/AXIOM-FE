@@ -6,8 +6,30 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppExperience } from "./AppExperience";
 
 const mocks = vi.hoisted(() => ({
-  createConversation: vi.fn(),
   submitQuestion: vi.fn(),
+  workflow: {
+    activeConversationId: null as string | null,
+    stage: "welcome" as "welcome" | "pending",
+    evidenceOpen: false,
+    investigation: null,
+    draft: null,
+    processEvents: [],
+    result: null,
+    history: [],
+    error: null,
+    historyLoading: false,
+    loading: false,
+    canRetry: false,
+    loadConversation: vi.fn(),
+    newChat: vi.fn(),
+    submitQuestion: vi.fn(),
+    updateSpecification: vi.fn(),
+    reviseSpecification: vi.fn(),
+    resetSpecification: vi.fn(),
+    approveAndRun: vi.fn(),
+    retryProcess: vi.fn(),
+    closeEvidence: vi.fn(),
+  },
 }));
 
 type ChatPageStubProps = {
@@ -85,32 +107,12 @@ vi.mock("@/shared/hooks/use-app-scope", () => ({
   useAppScope: () => null,
 }));
 
-vi.mock("@/shared/lib/intelligence-api", () => ({
-  createConversation: mocks.createConversation,
+vi.mock("@/shared/hooks/use-media-query", () => ({
+  useMediaQuery: () => true,
 }));
 
 vi.mock("@/features/chat/model/useChatWorkflow", () => ({
-  useChatWorkflow: () => ({
-    activeConversationId: null,
-    stage: "welcome",
-    evidenceOpen: false,
-    investigation: null,
-    draft: null,
-    processEvents: [],
-    result: null,
-    history: [],
-    error: null,
-    loading: false,
-    loadConversation: vi.fn(),
-    newChat: vi.fn(),
-    submitQuestion: mocks.submitQuestion,
-    updateSpecification: vi.fn(),
-    reviseSpecification: vi.fn(),
-    resetSpecification: vi.fn(),
-    approveAndRun: vi.fn(),
-    retryProcess: vi.fn(),
-    closeEvidence: vi.fn(),
-  }),
+  useChatWorkflow: () => mocks.workflow,
 }));
 
 vi.mock("@/app/AppShell", () => ({
@@ -153,12 +155,15 @@ describe("AppExperience chat controls", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    mocks.workflow = {
+      ...mocks.workflow,
+      activeConversationId: null,
+      stage: "welcome",
+    };
   });
 
   it("submits the model and reasoning selected from the chat top bar", async () => {
     const actor = userEvent.setup();
-    mocks.createConversation.mockResolvedValue({ conversation_id: "conversation-42" });
-
     render(
       <AppExperience
         route={{ surface: "chat", page: "compose", sessionId: null }}
@@ -172,17 +177,54 @@ describe("AppExperience chat controls", () => {
     await actor.click(screen.getByRole("button", { name: "Select Thinking" }));
     await actor.click(screen.getByRole("button", { name: "Submit question" }));
 
-    await waitFor(() =>
-      expect(mocks.submitQuestion).toHaveBeenCalledWith(
-        "Compare reports",
-        "conversation-42",
-        "auto",
-        [],
-        "org-1",
-        "workspace-1",
-        "provider:model-secondary",
-        "thinking",
-      ),
+    await waitFor(() => {
+      expect(mocks.workflow.submitQuestion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          question: "Compare reports",
+          conversationId: null,
+          engine: "auto",
+          files: [],
+          organizationId: "org-1",
+          workspaceId: "workspace-1",
+          modelAlias: "provider:model-secondary",
+          executionMode: "thinking",
+          onConversationCreated: expect.any(Function),
+        }),
+      );
+    });
+  });
+
+  it("keeps an optimistic new conversation while its route navigation is in flight", async () => {
+    const actor = userEvent.setup();
+    const navigate = vi.fn();
+    const view = render(
+      <AppExperience
+        route={{ surface: "chat", page: "compose", sessionId: null }}
+        navigate={navigate}
+      />,
     );
+
+    await actor.click(screen.getByRole("button", { name: "Submit question" }));
+    const submission = mocks.workflow.submitQuestion.mock.calls[0]?.[0];
+    mocks.workflow = {
+      ...mocks.workflow,
+      activeConversationId: "conversation-new",
+      stage: "pending",
+    };
+
+    submission.onConversationCreated("conversation-new");
+    view.rerender(
+      <AppExperience
+        route={{ surface: "chat", page: "compose", sessionId: null }}
+        navigate={navigate}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionId: "conversation-new" }),
+      );
+      expect(mocks.workflow.newChat).not.toHaveBeenCalled();
+    });
   });
 });

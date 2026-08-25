@@ -145,6 +145,41 @@ describe("AppTopBar", () => {
     expect(shellCallbacks.onInspectorOpen).toHaveBeenCalledOnce();
   });
 
+  it("orders scope, theme, and Logs & Files as ghost utility controls", () => {
+    renderTopBar({
+      route: { surface: "chat", page: "conversation", sessionId: "chat-42" },
+      showInspectorToggle: true,
+    });
+
+    const toolbar = screen.getByRole("banner", { name: "Application toolbar" });
+    const controls = Array.from(toolbar.querySelectorAll("button")).map((button) =>
+      button.getAttribute("aria-label"),
+    );
+    const theme = screen.getByRole("button", { name: "Use dark theme" });
+    const logs = screen.getByRole("button", { name: "Open Logs & Files" });
+
+    expect(controls).toEqual([
+      "Switch workspace. Current workspace: Evidence Review",
+      "Use dark theme",
+      "Open Logs & Files",
+    ]);
+    expect(theme.className).not.toContain("bg-card");
+    expect(logs.className).not.toContain("bg-card");
+    expect(logs.getAttribute("aria-controls")).toBe("process-inspector");
+  });
+
+  it("hides application scope below the mobile breakpoint", () => {
+    renderTopBar({
+      route: { surface: "chat", page: "conversation", sessionId: "chat-42" },
+      showInspectorToggle: true,
+    });
+
+    const scope = screen.getByLabelText("Current application scope");
+
+    expect(scope.parentElement?.className).toContain("hidden");
+    expect(scope.parentElement?.className).toContain("sm:flex");
+  });
+
   it("shows chat controls without the redundant Chat page context", () => {
     renderTopBar({
       route: { surface: "chat", page: "compose", sessionId: null },

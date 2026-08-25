@@ -35,6 +35,7 @@ type AppShellProps = {
   onWorkspaceSelect: (workspaceId: string) => void;
   onLogout: () => void;
   chatControls?: ReactNode;
+  desktopInspector?: ReactNode;
   children: ReactNode;
 };
 
@@ -64,6 +65,7 @@ export function AppShell({
   onWorkspaceSelect,
   onLogout,
   chatControls,
+  desktopInspector,
   children,
 }: AppShellProps) {
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -97,25 +99,42 @@ export function AppShell({
           onLogout={onLogout}
         />
         <div
-          className="relative z-10 flex min-h-dvh min-w-0 flex-col [--app-top-bar-height:4rem]"
+          className={cn(
+            "grid min-h-dvh min-w-0 transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
+            desktopInspector
+              ? "xl:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)]"
+              : "grid-cols-1",
+          )}
         >
-          <AppTopBar
-            route={route}
-            navigationOpen={navigationOpen}
-            onNavigationToggle={() => setNavigationOpen((open) => !open)}
-            showNavigationToggle
-            showInspectorToggle={showInspectorToggle && !processInspectorOpen}
-            onInspectorOpen={onInspectorOpen}
-            scope={scope}
-            workspaces={workspaces}
-            selectedWorkspace={selectedWorkspace}
-            workspacesLoading={workspacesLoading}
-            onWorkspaceSelect={onWorkspaceSelect}
-            chatControls={chatControls}
-          />
-          <div className="min-h-[calc(100dvh-var(--app-top-bar-height))] min-w-0 flex-1">
-            {children}
+          <div className="relative z-10 flex min-h-dvh min-w-0 flex-col [--app-top-bar-height:4rem]">
+            <AppTopBar
+              route={route}
+              navigationOpen={navigationOpen}
+              onNavigationToggle={() => setNavigationOpen((open) => !open)}
+              showNavigationToggle
+              showInspectorToggle={showInspectorToggle && !processInspectorOpen}
+              onInspectorOpen={onInspectorOpen}
+              scope={scope}
+              workspaces={workspaces}
+              selectedWorkspace={selectedWorkspace}
+              workspacesLoading={workspacesLoading}
+              onWorkspaceSelect={onWorkspaceSelect}
+              chatControls={chatControls}
+            />
+            <div className="min-h-[calc(100dvh-var(--app-top-bar-height))] min-w-0 flex-1">
+              {children}
+            </div>
           </div>
+          {desktopInspector && (
+            <aside
+              id="process-inspector"
+              className="h-dvh min-h-0 min-w-0 overflow-hidden border-l border-border bg-card"
+              data-process-inspector
+              aria-label="Process details"
+            >
+              {desktopInspector}
+            </aside>
+          )}
         </div>
       </main>
     </TooltipProvider>

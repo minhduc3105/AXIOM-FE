@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ProcessEvent } from "../model/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,12 +8,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  CheckIcon,
   ClipboardIcon,
   ExternalLinkIcon,
   FileTextIcon,
   FolderOpenIcon,
   ImageIcon,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   extractWorkspaceFiles,
   workspaceFileFromArtifact,
@@ -31,26 +37,57 @@ export function AnswerActions({
   artifacts: string[];
 }) {
   const [copied, setCopied] = useState(false);
+  const resetTimerRef = useRef<number | null>(null);
   const files = mergeGeneratedFiles(extractWorkspaceFiles(events), artifacts);
+
+  useEffect(
+    () => () => {
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+      }
+    },
+    [],
+  );
 
   async function handleCopy() {
     await copyText(markdown);
+    if (resetTimerRef.current !== null) {
+      window.clearTimeout(resetTimerRef.current);
+    }
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+    resetTimerRef.current = window.setTimeout(() => {
+      setCopied(false);
+      resetTimerRef.current = null;
+    }, 1400);
   }
 
+  const copyLabel = copied ? "Response copied" : "Copy response";
+
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-[#6d685e] dark:text-[#aaa397]">
-      <Button
-        type="button"
-        variant="ghost"
-        size="xs"
-        className="h-7 px-1.5 text-[#6d685e] hover:text-[#191915] dark:text-[#aaa397] dark:hover:text-[#eee8dc]"
-        onClick={handleCopy}
-      >
-        <ClipboardIcon data-icon="inline-start" />
-        {copied ? "Copied" : "Copy"}
-      </Button>
+    <div
+      className="mt-1 flex flex-wrap items-center gap-1 text-xs text-[#6d685e] dark:text-[#aaa397]"
+      data-answer-actions
+    >
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={copyLabel}
+              className="-ml-1 text-[#6d685e] hover:text-[#191915] dark:text-[#aaa397] dark:hover:text-[#eee8dc]"
+              onClick={() => void handleCopy()}
+            />
+          }
+        >
+          {copied ? <CheckIcon /> : <ClipboardIcon />}
+        </TooltipTrigger>
+        <TooltipContent>{copyLabel}</TooltipContent>
+      </Tooltip>
+      <span className="sr-only" aria-live="polite">
+        {copied ? "Response copied" : ""}
+      </span>
       {files.length > 0 && <GeneratedFilesDialog files={files} />}
     </div>
   );
