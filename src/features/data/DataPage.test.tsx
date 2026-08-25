@@ -149,6 +149,24 @@ describe("DataPage health summary", () => {
     );
   });
 
+  it("passes the ingestion launcher into the inventory toolbar", () => {
+    render(
+      <TooltipProvider>
+        <DataPage
+          organizationId="org-1"
+          onCreateIngestion={vi.fn()}
+          ingestionControl={<div data-testid="ingestion-control" />}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(workspaceComponent.render).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        ingestionControl: expect.anything(),
+      }),
+    );
+  });
+
   it("keeps every workspace-scoped inventory action unavailable without a workspace", () => {
     fixtures.selectedWorkspace = null;
     render(

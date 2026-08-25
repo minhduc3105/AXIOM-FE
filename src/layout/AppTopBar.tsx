@@ -40,7 +40,6 @@ type AppTopBarProps = {
   workspacesLoading: boolean;
   onWorkspaceSelect: (workspaceId: string) => void;
   chatControls?: ReactNode;
-  globalControls?: ReactNode;
 };
 
 function getPageContext(route: AppRoute) {
@@ -101,7 +100,6 @@ export function AppTopBar({
   workspacesLoading,
   onWorkspaceSelect,
   chatControls,
-  globalControls,
 }: AppTopBarProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const pageContext = getPageContext(route);
@@ -167,7 +165,6 @@ export function AppTopBar({
         </div>
 
         <div className="flex min-w-0 items-center justify-self-end gap-2">
-          {globalControls}
           <div className="hidden min-w-0 sm:flex">
             <AppScopeBar
               scope={scope}

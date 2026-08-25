@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -92,6 +92,7 @@ type DataSourcesWorkspaceProps = {
   refreshing: boolean;
   onRefresh: () => void;
   onCreateIngestion: () => void;
+  ingestionControl?: ReactNode;
   onImportSource: (datasource: DataSource) => void;
   onOpenDocument: (file: DataFile, sourceLabel: string) => void;
   onConfigureSource: (
@@ -406,6 +407,7 @@ function SourceActions({
   refreshing,
   onRefresh,
   onCreateIngestion,
+  ingestionControl,
   onImportSource,
   onConfigureSource,
   onForgetProfile,
@@ -416,6 +418,7 @@ function SourceActions({
   refreshing: DataSourcesWorkspaceProps["refreshing"];
   onRefresh: DataSourcesWorkspaceProps["onRefresh"];
   onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
+  ingestionControl: DataSourcesWorkspaceProps["ingestionControl"];
   onImportSource: DataSourcesWorkspaceProps["onImportSource"];
   onConfigureSource: DataSourcesWorkspaceProps["onConfigureSource"];
   onForgetProfile: (profile: SavedDataSourceProfile) => void;
@@ -444,6 +447,7 @@ function SourceActions({
             <UploadCloudIcon data-icon="inline-start" />
             Upload files
           </Button>
+          {ingestionControl}
           <Button
             variant="outline"
             onClick={onRefresh}
@@ -545,6 +549,7 @@ export function DataSourcesWorkspace({
   refreshing,
   onRefresh,
   onCreateIngestion,
+  ingestionControl,
   onImportSource,
   onOpenDocument,
   onConfigureSource,
@@ -1111,6 +1116,7 @@ export function DataSourcesWorkspace({
                 refreshing={refreshing}
                 onRefresh={onRefresh}
                 onCreateIngestion={onCreateIngestion}
+                ingestionControl={ingestionControl}
                 onImportSource={onImportSource}
                 onConfigureSource={onConfigureSource}
                 onForgetProfile={setForgetProfile}

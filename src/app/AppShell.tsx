@@ -35,7 +35,6 @@ type AppShellProps = {
   onWorkspaceSelect: (workspaceId: string) => void;
   onLogout: () => void;
   chatControls?: ReactNode;
-  globalControls?: ReactNode;
   desktopInspector?: ReactNode;
   children: ReactNode;
 };
@@ -66,7 +65,6 @@ export function AppShell({
   onWorkspaceSelect,
   onLogout,
   chatControls,
-  globalControls,
   desktopInspector,
   children,
 }: AppShellProps) {
@@ -123,7 +121,6 @@ export function AppShell({
               workspacesLoading={workspacesLoading}
               onWorkspaceSelect={onWorkspaceSelect}
               chatControls={chatControls}
-              globalControls={globalControls}
             />
             <div
               data-testid="app-content-outlet"

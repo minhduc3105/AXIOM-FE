@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { AlertTriangleIcon, CircleAlertIcon, ServerCrashIcon } from "lucide-react";
 import {
   Alert,
@@ -24,12 +24,14 @@ type DataPageProps = {
   organizationId: string;
   onCreateIngestion: () => void;
   onOpenDocument?: (file: DataFile, sourceLabel: string) => void;
+  ingestionControl?: ReactNode;
 };
 
 export function DataPage({
   organizationId,
   onCreateIngestion,
   onOpenDocument = () => {},
+  ingestionControl,
 }: DataPageProps) {
   const [connectionDialog, setConnectionDialog] = useState<{
     type: DataSourceProfileType;
@@ -169,6 +171,7 @@ export function DataPage({
               refreshing={refreshing}
               onRefresh={refresh}
               onCreateIngestion={onCreateIngestion}
+              ingestionControl={ingestionControl}
               onImportSource={setImportDatasource}
               onOpenDocument={onOpenDocument}
               onConfigureSource={(type, profile = null) =>

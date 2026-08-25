@@ -431,6 +431,29 @@ export async function getIngestionJob(
   return payload;
 }
 
+export async function listIngestionJobs(
+  organizationId: string,
+  signal?: AbortSignal,
+): Promise<IngestionJobResponse[]> {
+  const normalizedOrganizationId = organizationId.trim();
+  if (!normalizedOrganizationId) {
+    throw new Error("VITE_AXIOM_ORGANIZATION_ID is not configured.");
+  }
+
+  const response = await authFetch(
+    `/api/document/ingestions?organization_id=${encodeURIComponent(normalizedOrganizationId)}`,
+    { method: "GET", signal },
+  );
+  if (!response.ok) {
+    throw new Error(await getHttpError(response, "Ingestion history"));
+  }
+  const payload: unknown = await response.json();
+  if (!Array.isArray(payload) || !payload.every(isIngestionJobResponse)) {
+    throw new Error("The ingestion history response was invalid.");
+  }
+  return payload;
+}
+
 const CORPUS_STATUS_BATCH_SIZE = 100;
 
 export async function getDocumentProcessingStatuses(

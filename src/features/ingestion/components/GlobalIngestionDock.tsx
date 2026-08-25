@@ -45,9 +45,16 @@ function statusBadgeVariant(status: GlobalIngestionJobStatus) {
   return "secondary" as const;
 }
 
-function ObjectStatusIcon({ status }: { status: GlobalIngestionObjectStatus }) {
+function ObjectStatusIcon({
+  status,
+  jobNeedsAttention,
+}: {
+  status: GlobalIngestionObjectStatus;
+  jobNeedsAttention: boolean;
+}) {
   if (status === "indexed") return <CheckCircle2Icon aria-hidden="true" />;
   if (status === "failed") return <XCircleIcon aria-hidden="true" />;
+  if (jobNeedsAttention) return <CircleAlertIcon aria-hidden="true" />;
   if (status === "processing") {
     return <LoaderCircleIcon className="animate-spin" aria-hidden="true" />;
   }
@@ -91,29 +98,38 @@ export function GlobalIngestionDock({
     retryJob,
     setJobsSheetOpen,
   } = useGlobalIngestion();
-  if (!jobs.length) return null;
+  const visibleJobs = jobs.filter((job) => job.status !== "complete");
+  if (!visibleJobs.length) return null;
 
-  const activeJobs = jobs.filter(
+  const activeJobs = visibleJobs.filter(
     (job) =>
       job.status === "submitting" ||
       job.status === "transferring" ||
       job.status === "processing",
   );
-  const dockLabel = activeJobs.length
-    ? `${activeJobs.length} ingestion job${activeJobs.length === 1 ? "" : "s"} active`
-    : `${jobs.length} recent ingestion job${jobs.length === 1 ? "" : "s"}`;
+  const attentionJobs = visibleJobs.filter(
+    (job) =>
+      Boolean(job.errorMessage) ||
+      job.status === "failed" ||
+      job.status === "partial_failure",
+  );
+  const dockLabel = attentionJobs.length
+    ? `${attentionJobs.length} issue${attentionJobs.length === 1 ? "" : "s"}`
+    : `${activeJobs.length} active`;
 
   return (
     <>
       <Button
         aria-label="Open ingestion jobs"
         aria-live="polite"
-        className="h-9 max-w-56 shrink-0 rounded-full border-border bg-card px-2.5 text-foreground shadow-none hover:bg-muted sm:px-3"
+        className="h-9 shrink-0 rounded-md border-border bg-card px-2.5 text-foreground shadow-none hover:bg-muted"
         type="button"
         variant="outline"
         onClick={() => setJobsSheetOpen(true)}
       >
-        {activeJobs.length ? (
+        {attentionJobs.length ? (
+          <CircleAlertIcon className="text-warning" data-icon="inline-start" />
+        ) : activeJobs.length ? (
           <LoaderCircleIcon
             className="animate-spin text-primary"
             data-icon="inline-start"
@@ -134,7 +150,7 @@ export function GlobalIngestionDock({
           </SheetHeader>
           <ScrollArea className="min-h-0 flex-1">
             <div className="flex flex-col divide-y">
-              {jobs.map((job) => (
+              {visibleJobs.map((job) => (
                 <JobRow
                   job={job}
                   key={job.id}
@@ -168,6 +184,7 @@ function JobRow({
   onOpenUpload: () => void;
   onRetry: () => void;
 }) {
+  const needsAttention = Boolean(job.errorMessage);
   return (
     <section className="flex flex-col gap-2 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -203,7 +220,10 @@ function JobRow({
                   "text-status-success",
               )}
             >
-              <ObjectStatusIcon status={object.status} />
+              <ObjectStatusIcon
+                status={object.status}
+                jobNeedsAttention={needsAttention}
+              />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">
@@ -229,6 +249,25 @@ function JobRow({
           </div>
         ))}
       </div>
+      {job.status !== "complete" && (
+        <div className="flex items-center gap-2">
+          {job.retry ? (
+            <Button
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={
+                job.retry === "start_new_upload" ? onOpenUpload : onRetry
+              }
+            >
+              {job.retry === "start_new_upload" ? "Upload again" : "Retry"}
+            </Button>
+          ) : null}
+          <Button size="sm" type="button" variant="ghost" onClick={onDismiss}>
+            Dismiss
+          </Button>
+        </div>
+      )}
     </section>
   );
 }
