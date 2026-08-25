@@ -147,7 +147,7 @@ function WorkspaceConversationRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="w-44 border-[#d8d0c2] bg-[#fffdf8] text-[#191915] dark:border-[#38372f] dark:bg-[#171714] dark:text-[#eee8dc]"
+              className="w-44 border-border bg-popover text-popover-foreground"
             >
               <DropdownMenuItem onClick={startRename}>
                 <PencilIcon />

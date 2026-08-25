@@ -91,7 +91,7 @@ export function ChatComposer({
   return (
     <form
       className={cn(
-        "grid min-h-[100px] w-full gap-2 rounded-[20px] border border-[#d8d0c2]/80 bg-[#fffdf8]/95 p-2 shadow-sm backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/95",
+        "grid min-h-[100px] w-full gap-2 rounded-[20px] border border-border bg-card p-2 shadow-sm",
         className,
       )}
       onSubmit={submit}
@@ -108,10 +108,10 @@ export function ChatComposer({
             return (
               <Badge
                 variant="outline"
-                className="h-8 max-w-[320px] shrink-0 gap-2 rounded-full border-[#d8d0c2]/80 bg-[#f4efe5]/80 px-3 text-[#4f4a42] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1]"
+                className="h-8 max-w-[320px] shrink-0 gap-2 rounded-full border-border bg-secondary px-3 text-secondary-foreground"
                 key={`${file.name}-${file.size}-${index}`}
               >
-                <FileTypeIcon className="size-3.5 shrink-0 text-[#2456e8] dark:text-[#7895ff]" />
+                <FileTypeIcon className="size-3.5 shrink-0 text-primary" />
                 <span className="max-w-[240px] truncate">{file.name}</span>
                 <Button
                   type="button"
@@ -130,7 +130,7 @@ export function ChatComposer({
         </div>
       )}
       <Textarea
-        className="max-h-40 min-h-12 w-full resize-none overflow-y-auto border-0 bg-transparent px-4 py-3 text-base leading-6 text-[#191915] shadow-none placeholder:text-[#8a8275] focus-visible:ring-0 dark:bg-transparent dark:text-[#eee8dc] dark:placeholder:text-[#aaa397]"
+        className="max-h-40 min-h-12 w-full resize-none border-0 bg-transparent px-4 py-3 text-base leading-6 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={submitFromKeyboard}
@@ -153,7 +153,7 @@ export function ChatComposer({
             render={<label htmlFor={fileInputId} />}
             nativeButton={false}
             variant="outline"
-            className="size-10 rounded-full border-[#d8d0c2]/80 bg-[#f4efe5]/70 p-0 text-[#4f4a42] shadow-none hover:bg-[#ebe4d8] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1] dark:hover:bg-white/10"
+            className="size-10 rounded-full border-border bg-secondary p-0 text-secondary-foreground shadow-none hover:bg-muted"
             aria-label="Attach files"
             disabled={disabled}
           >
@@ -165,7 +165,7 @@ export function ChatComposer({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-10 min-w-[128px] justify-between rounded-full border-[#d8d0c2]/80 bg-[#f4efe5]/70 px-3 text-[#4f4a42] shadow-none hover:bg-[#ebe4d8] dark:border-[#38372f] dark:bg-white/5 dark:text-[#d5cec1] dark:hover:bg-white/10"
+                  className="h-10 min-w-[128px] justify-between rounded-full border-border bg-secondary px-3 text-secondary-foreground shadow-none hover:bg-muted"
                   aria-label="Select response type"
                   disabled={disabled}
                 />
@@ -187,7 +187,7 @@ export function ChatComposer({
         </div>
         <div className="flex shrink-0 items-center">
           <Button
-            className="size-10 shrink-0 rounded-full bg-[#2456e8] text-white shadow-sm hover:bg-[#1d48c7]"
+            className="size-10 shrink-0 rounded-full shadow-sm"
             type="submit"
             aria-label="Send"
             disabled={sendDisabled}

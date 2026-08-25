@@ -239,10 +239,12 @@ function ProcessInspectorStepRow({
           className={cn(
             "grid size-4 shrink-0 place-items-center rounded-full border",
             item.event.status === "done"
-              ? "border-emerald-500 text-emerald-600 dark:text-emerald-300"
+              ? "border-status-success/35 bg-status-success/10 text-status-success"
               : item.event.status === "failed"
-                ? "border-red-500 text-red-600 dark:text-red-300"
-                : "border-[#c7bca9] text-[#6d685e] dark:border-[#4a4438] dark:text-[#aaa397]",
+                ? "border-destructive/35 bg-destructive/10 text-destructive"
+                : item.event.status === "running"
+                  ? "border-info/35 bg-info/10 text-info"
+                  : "border-border bg-muted text-muted-foreground",
           )}
           aria-hidden="true"
         >
@@ -253,10 +255,10 @@ function ProcessInspectorStepRow({
             )}
           />
         </span>
-        <strong className="min-w-0 flex-1 truncate text-sm font-medium text-[#191915] dark:text-[#eee8dc]">
+        <strong className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
           {item.event.label}
         </strong>
-        <span className="flex shrink-0 items-center gap-1 text-xs text-[#9b9488] dark:text-[#aaa397]">
+        <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
           {expanded ? "Hide" : "Show"}
           {expanded ? (
             <ChevronDownIcon className="size-3.5" />
@@ -290,10 +292,10 @@ function RuntimeInlineSection({
 }) {
   return (
     <section className="grid min-w-0 gap-1.5">
-      <h4 className="text-xs font-medium text-[#6d685e] dark:text-[#aaa397]">
+      <h4 className="text-xs font-medium text-muted-foreground">
         {label}
       </h4>
-      <pre className="max-h-[220px] min-h-[96px] min-w-0 overflow-auto rounded-lg bg-[#f4f4f2] p-3 text-xs leading-5 text-[#191915] dark:bg-[#11110f] dark:text-[#eee8dc]">
+      <pre className="max-h-[220px] min-h-[96px] min-w-0 overflow-auto rounded-lg bg-code-surface p-3 text-xs leading-5 text-code-foreground">
         <code>{value || "No data captured."}</code>
       </pre>
     </section>

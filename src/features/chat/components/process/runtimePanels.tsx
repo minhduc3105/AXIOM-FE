@@ -40,7 +40,7 @@ export function RuntimeOutputPanel({ event }: { event: ProcessEvent }) {
   if (code?.content && !isExecutionCodeEvent(event)) {
     return (
       <div className="grid gap-3">
-        <div className="flex items-center gap-2 text-xs font-medium text-[#6d685e] dark:text-[#aaa397]">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Code2Icon className="size-3.5" />
           <span>{code.name || "Generated code"}</span>
           {code.language && <span>{code.language}</span>}
@@ -118,8 +118,8 @@ function ToolOutputPanel({
     <ScrollArea className="h-full min-h-0 w-full min-w-0 pr-3">
       <div className="grid min-w-0 gap-3">
         {message && (
-          <div className="rounded-xl border border-[#d8d0c2]/80 bg-white/75 p-3 dark:border-[#38372f]/80 dark:bg-[#20201c]/75">
-            <div className="mb-1.5 text-[11px] font-semibold uppercase text-[#6d685e] dark:text-[#aaa397]">
+          <div className="rounded-xl border border-border bg-card p-3">
+            <div className="mb-1.5 text-[11px] font-semibold uppercase text-muted-foreground">
               Message
             </div>
             <p className="whitespace-pre-wrap break-words text-sm leading-6">
@@ -138,8 +138,8 @@ function ToolOutputPanel({
           <StructuredValue value={normalized.result} />
         )}
 
-        <details className="rounded-xl border border-[#d8d0c2]/80 bg-white/55 p-3 dark:border-[#38372f]/80 dark:bg-[#20201c]/55">
-          <summary className="cursor-pointer text-xs font-semibold uppercase text-[#6d685e] dark:text-[#aaa397]">
+        <details className="rounded-xl border border-border bg-secondary p-3">
+          <summary className="cursor-pointer text-xs font-semibold uppercase text-muted-foreground">
             Raw JSON
           </summary>
           <div className="mt-3">
@@ -253,11 +253,11 @@ function toolOutputSections(value: unknown): ToolOutputSectionData[] {
 
 function OutputFact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-xl border border-[#d8d0c2]/80 bg-white/75 p-3 dark:border-[#38372f]/80 dark:bg-[#20201c]/75">
-      <div className="mb-1.5 text-[11px] font-semibold uppercase text-[#6d685e] dark:text-[#aaa397]">
+    <div className="min-w-0 rounded-xl border border-border bg-card p-3">
+      <div className="mb-1.5 text-[11px] font-semibold uppercase text-muted-foreground">
         {label}
       </div>
-      <div className="truncate text-sm font-medium text-[#191915] dark:text-[#eee8dc]">
+      <div className="truncate text-sm font-medium text-foreground">
         {value}
       </div>
     </div>
@@ -269,9 +269,9 @@ function ToolOutputSection({ section }: { section: ToolOutputSectionData }) {
   const arrayValue = Array.isArray(value) ? value : null;
 
   return (
-    <section className="min-w-0 rounded-xl border border-[#d8d0c2]/80 bg-white/75 p-3 dark:border-[#38372f]/80 dark:bg-[#20201c]/75">
+    <section className="min-w-0 rounded-xl border border-border bg-card p-3">
       <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
-        <h4 className="truncate text-[11px] font-semibold uppercase text-[#6d685e] dark:text-[#aaa397]">
+        <h4 className="truncate text-[11px] font-semibold uppercase text-muted-foreground">
           {section.title}
         </h4>
         {arrayValue && (
@@ -296,7 +296,7 @@ function ToolOutputSection({ section }: { section: ToolOutputSectionData }) {
 function ToolArrayPreview({ value }: { value: unknown[] }) {
   if (value.length === 0) {
     return (
-      <span className="text-sm italic text-[#6d685e] dark:text-[#aaa397]">
+      <span className="text-sm italic text-muted-foreground">
         None
       </span>
     );
@@ -307,7 +307,7 @@ function ToolArrayPreview({ value }: { value: unknown[] }) {
     <div className="grid min-w-0 gap-2">
       {visibleItems.map((item, index) => (
         <div
-          className="min-w-0 rounded-lg border border-[#d8d0c2]/70 bg-[#fffdf8]/80 p-2.5 dark:border-[#38372f]/70 dark:bg-[#1a1a17]/80"
+          className="min-w-0 rounded-lg border border-border bg-card p-2.5"
           key={index}
         >
           {isRecord(item) ? (
@@ -318,7 +318,7 @@ function ToolArrayPreview({ value }: { value: unknown[] }) {
         </div>
       ))}
       {value.length > visibleItems.length && (
-        <div className="text-xs text-[#6d685e] dark:text-[#aaa397]">
+        <div className="text-xs text-muted-foreground">
           {value.length - visibleItems.length} more item
           {value.length - visibleItems.length === 1 ? "" : "s"} in raw JSON.
         </div>
@@ -353,10 +353,10 @@ function ToolRecordPreview({
         <dl className="grid min-w-0 gap-2 sm:grid-cols-2">
           {facts.slice(0, compact ? 4 : 10).map(([key, item]) => (
             <div className="min-w-0" key={key}>
-              <dt className="text-[11px] font-semibold uppercase text-[#6d685e] dark:text-[#aaa397]">
+              <dt className="text-[11px] font-semibold uppercase text-muted-foreground">
                 {formatDetailLabel(key)}
               </dt>
-              <dd className="mt-0.5 truncate text-sm text-[#191915] dark:text-[#eee8dc]">
+              <dd className="mt-0.5 truncate text-sm text-foreground">
                 {compactRuntimeValue(item)}
               </dd>
             </div>
@@ -386,7 +386,7 @@ function TextPreview({
   const limit = compact ? 320 : 900;
   const clipped = value.length > limit;
   return (
-    <p className="max-w-full whitespace-pre-wrap break-words text-sm leading-6 text-[#191915] dark:text-[#eee8dc]">
+    <p className="max-w-full whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
       {clipped ? `${value.slice(0, limit).trimEnd()}...` : value}
     </p>
   );
@@ -490,7 +490,7 @@ function LabeledTerminalBlock({
         fill && "h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]",
       )}
     >
-      <div className="text-[11px] font-semibold uppercase text-[#6d685e] dark:text-[#aaa397]">
+      <div className="text-[11px] font-semibold uppercase text-muted-foreground">
         {label}
       </div>
       <TerminalBlock value={value} fill={fill} />
@@ -500,7 +500,7 @@ function LabeledTerminalBlock({
 
 function EmptyRuntimeDetail({ label }: { label: string }) {
   return (
-    <div className="flex min-h-[180px] items-center justify-center gap-2 rounded-xl border border-dashed border-[#d8d0c2] px-4 py-6 text-sm text-[#6d685e] dark:border-[#38372f] dark:text-[#aaa397]">
+    <div className="flex min-h-[180px] items-center justify-center gap-2 rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
       <InfoIcon className="size-4" />
       <span>{label}</span>
     </div>
@@ -516,7 +516,7 @@ function StructuredValue({
 }) {
   if (value === null || value === undefined) {
     return (
-      <span className="text-sm italic text-[#6d685e] dark:text-[#aaa397]">
+      <span className="text-sm italic text-muted-foreground">
         Not provided
       </span>
     );
@@ -541,11 +541,11 @@ function StructuredValue({
   if (typeof value === "string") {
     if (value.startsWith("artifact://")) {
       return (
-        <div className="min-w-0 rounded-lg border border-[#d8d0c2] bg-white px-3 py-2 dark:border-[#38372f] dark:bg-[#20201c]">
+        <div className="min-w-0 rounded-lg border border-border bg-card px-3 py-2">
           <div className="truncate text-sm font-medium">
             {artifactName(value)}
           </div>
-          <div className="truncate font-mono text-[11px] text-[#6d685e] dark:text-[#aaa397]">
+          <div className="truncate font-mono text-[11px] text-muted-foreground">
             {value}
           </div>
         </div>
@@ -553,7 +553,7 @@ function StructuredValue({
     }
 
     return (
-      <div className="whitespace-pre-wrap break-words text-sm leading-6 text-[#191915] dark:text-[#eee8dc]">
+      <div className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
         {value}
       </div>
     );
@@ -562,7 +562,7 @@ function StructuredValue({
   if (Array.isArray(value)) {
     if (value.length === 0) {
       return (
-        <span className="text-sm italic text-[#6d685e] dark:text-[#aaa397]">
+        <span className="text-sm italic text-muted-foreground">
           None
         </span>
       );
@@ -591,7 +591,7 @@ function StructuredValue({
       <div className="grid gap-2">
         {value.map((item, index) => (
           <div
-            className="rounded-xl border border-[#d8d0c2]/80 bg-white/75 p-3 dark:border-[#38372f]/80 dark:bg-[#20201c]/75"
+            className="rounded-xl border border-border bg-card p-3"
             key={index}
           >
             <StructuredValue value={item} depth={depth + 1} />
@@ -608,7 +608,7 @@ function StructuredValue({
   const entries = Object.entries(value);
   if (entries.length === 0) {
     return (
-      <span className="text-sm italic text-[#6d685e] dark:text-[#aaa397]">
+      <span className="text-sm italic text-muted-foreground">
         No details
       </span>
     );
@@ -624,10 +624,10 @@ function StructuredValue({
     >
       {entries.map(([key, item]) => (
         <div
-          className="min-w-0 rounded-xl border border-[#d8d0c2]/80 bg-white/75 p-3 dark:border-[#38372f]/80 dark:bg-[#20201c]/75"
+          className="min-w-0 rounded-xl border border-border bg-card p-3"
           key={key}
         >
-          <div className="mb-1.5 text-[11px] font-semibold uppercase text-[#6d685e] dark:text-[#aaa397]">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase text-muted-foreground">
             {formatDetailLabel(key)}
           </div>
           <StructuredValue value={item} depth={depth + 1} />
@@ -647,7 +647,7 @@ function TerminalBlock({
   return (
     <div
       className={cn(
-        "w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-[#26231d] bg-[#11110f] shadow-inner",
+        "w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-border bg-code-surface shadow-inner",
         fill ? "h-full min-h-0" : "max-h-[360px] min-h-[180px]",
       )}
     >
@@ -701,7 +701,7 @@ function CodeViewport({ value }: { value: string }) {
         onScroll={handleScroll}
       >
         <div className="inline-block min-w-max">
-          <pre className="p-4 text-xs leading-5 text-[#eee8dc]">
+          <pre className="p-4 text-xs leading-5 text-code-foreground">
             <code>{value}</code>
           </pre>
         </div>

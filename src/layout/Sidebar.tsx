@@ -24,11 +24,11 @@ export function Sidebar({
   onSettings,
 }: SidebarProps) {
   return (
-    <aside className="fixed bottom-3 left-3 top-3 z-40 hidden w-80 overflow-hidden rounded-[28px] border border-[#393831]/80 bg-[#0b0b0a]/95 p-4 text-[#eee8dc] shadow-[0_24px_70px_rgba(0,0,0,0.26)] md:block">
+    <aside className="fixed bottom-3 left-3 top-3 z-40 hidden w-80 overflow-hidden rounded-[28px] border border-sidebar-border bg-sidebar p-4 text-sidebar-foreground shadow-lg md:block">
       <div className="grid gap-4">
         <Brand />
         <Button
-          className="h-12 justify-start rounded-2xl bg-[#7895ff] text-[#0e142c] hover:bg-[#9aafff]"
+          className="h-12 justify-start rounded-2xl"
           onClick={onNewChat}
         >
           + &nbsp; New chat
@@ -36,11 +36,11 @@ export function Sidebar({
       </div>
 
       <section className="mt-6">
-        <span className="text-xs text-[#eee8dc]/65">Conversation vault</span>
+        <span className="text-xs text-muted-foreground">Conversation vault</span>
         <ScrollArea className="mt-3 h-[min(300px,38vh)]">
           {conversations.map((conversation, index) => (
             <Button
-              className={`mb-2 min-h-14 w-full justify-start gap-3 rounded-2xl border border-transparent px-3 text-left text-[#eee8dc]/75 hover:border-[#7895ff]/30 hover:bg-white/10 hover:text-white ${index === 0 && active !== "welcome" ? "border-[#7895ff]/40 bg-white/10 text-white" : ""}`}
+              className={`mb-2 min-h-14 w-full justify-start gap-3 rounded-2xl border border-transparent px-3 text-left text-sidebar-foreground/75 hover:border-primary/25 hover:bg-sidebar-accent hover:text-sidebar-foreground ${index === 0 && active !== "welcome" ? "border-primary/25 bg-sidebar-accent text-sidebar-foreground" : ""}`}
               key={conversation}
             >
               <Icon name="message" size={24} />
@@ -52,7 +52,7 @@ export function Sidebar({
 
       <div className="mt-6 grid gap-2">
         <Button
-          className="h-12 justify-start gap-3 rounded-2xl text-[#eee8dc]/80 hover:bg-white/10 hover:text-white"
+          className="h-12 justify-start gap-3 rounded-2xl text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
           variant="ghost"
           onClick={onIngestion}
         >
@@ -60,7 +60,7 @@ export function Sidebar({
           <span>Data</span>
         </Button>
         <Button
-          className="h-12 justify-start gap-3 rounded-2xl text-[#eee8dc]/80 hover:bg-white/10 hover:text-white"
+          className="h-12 justify-start gap-3 rounded-2xl text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
           variant="ghost"
           onClick={onSettings}
         >
@@ -69,7 +69,7 @@ export function Sidebar({
         </Button>
       </div>
 
-      <div className="absolute bottom-4 left-4 right-4 flex items-center gap-3 border-t border-white/10 pt-4">
+      <div className="absolute bottom-4 left-4 right-4 flex items-center gap-3 border-t border-sidebar-border pt-4">
         <img
           className="size-11 rounded-full object-cover"
           src="https://www.figma.com/api/mcp/asset/456e95e3-44c6-4626-9d3e-f10a9b6c8e2e"
@@ -77,7 +77,7 @@ export function Sidebar({
         />
         <span>Son Nguyen</span>
         <Button
-          className="ml-auto size-10 rounded-xl text-[#eee8dc]/80 hover:bg-white/10 hover:text-white"
+          className="ml-auto size-10 rounded-xl text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
           variant="ghost"
           aria-label="Log out"
         >

@@ -231,7 +231,7 @@ export function ModelServiceSetupPipeline({
                 className={cn(
                   "grid size-7 place-items-center rounded-full border text-xs font-semibold",
                   step.state === "complete"
-                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    ? "border-status-success bg-status-success text-primary-foreground"
                     : step.state === "next"
                       ? "border-primary bg-primary text-primary-foreground"
                       : "text-muted-foreground",

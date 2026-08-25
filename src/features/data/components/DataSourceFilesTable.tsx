@@ -101,20 +101,20 @@ function FileVisual({ file }: { file: DataFile }) {
     case "csv":
     case "xlsx":
       Icon = FileSpreadsheetIcon;
-      iconClassName = "text-emerald-700 dark:text-emerald-400";
+      iconClassName = "text-muted-foreground group-hover:text-primary";
       break;
     case "pdf":
       Icon = FileTextIcon;
-      iconClassName = "text-rose-700 dark:text-rose-400";
+      iconClassName = "text-muted-foreground group-hover:text-primary";
       break;
     case "docx":
     case "txt":
       Icon = FileTextIcon;
-      iconClassName = "text-sky-700 dark:text-sky-400";
+      iconClassName = "text-muted-foreground group-hover:text-primary";
       break;
     case "md":
       Icon = FileCodeIcon;
-      iconClassName = "text-violet-700 dark:text-violet-400";
+      iconClassName = "text-muted-foreground group-hover:text-primary";
       break;
     case "png":
     case "jpg":

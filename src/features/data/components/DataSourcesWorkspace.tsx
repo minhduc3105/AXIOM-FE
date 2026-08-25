@@ -335,8 +335,8 @@ function SourceIdentity({
     <>
       <span
         className={cn(
-          "grid size-9 shrink-0 place-items-center rounded-md border bg-white text-muted-foreground",
-          selected && "border-primary/25 bg-white text-primary",
+          "grid size-9 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground",
+          selected && "border-primary/25 bg-primary/10 text-primary",
         )}
       >
         <SourceIcon datasource={datasource} className="size-4" />
@@ -1060,7 +1060,7 @@ export function DataSourcesWorkspace({
                       className={cn(
                         "relative h-auto min-h-16 w-full justify-start gap-3 overflow-hidden rounded-lg border px-3 py-2.5 text-left",
                         selected
-                          ? "border-primary/30 bg-white text-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-primary"
+                          ? "border-primary/30 bg-primary/10 text-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-primary"
                           : "border-transparent hover:border-border hover:bg-muted/50",
                       )}
                     >
@@ -1080,7 +1080,7 @@ export function DataSourcesWorkspace({
           <header className="p-4 sm:p-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
               <div className="flex min-w-0 items-start gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-white text-primary">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-card text-primary">
                   <SourceIcon datasource={selectedSource} className="size-5" />
                 </span>
                 <div className="min-w-0">

@@ -75,7 +75,7 @@ function RailContent({
   return (
     <div
       className={cn(
-        "h-full min-h-0 text-[#191915] dark:text-[#eee8dc]",
+        "h-full min-h-0 text-sidebar-foreground",
         expanded
           ? "grid min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 px-2 py-2"
           : "flex w-full flex-col items-center gap-1 px-2 py-2",
@@ -196,7 +196,7 @@ function UserSessionMenu({
             type="button"
             variant="ghost"
             className={cn(
-              "h-9 min-w-0 cursor-pointer rounded-lg p-0.5 text-left text-[#191915] hover:bg-muted aria-expanded:bg-muted dark:text-[#eee8dc] dark:hover:bg-muted/50 dark:aria-expanded:bg-muted/50",
+              "h-9 min-w-0 cursor-pointer rounded-lg p-0.5 text-left text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground aria-expanded:bg-sidebar-accent aria-expanded:text-sidebar-accent-foreground",
               expanded
                 ? "w-full justify-start gap-2"
                 : "size-9 justify-center p-0",
@@ -216,14 +216,14 @@ function UserSessionMenu({
           )}
         >
           <strong className="truncate text-sm">{label}</strong>
-          <span className="truncate text-xs text-[#8a8377] dark:text-[#eee8dc]/55">
+          <span className="truncate text-xs text-muted-foreground">
             {user?.org_role || "org_member"}
           </span>
         </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         className={cn(
-          "border-[#d8d0c2] bg-[#fffdf8] text-[#191915] shadow-sm dark:border-[#38372f] dark:bg-[#171714] dark:text-[#eee8dc]",
+          "border-border bg-popover text-popover-foreground shadow-sm",
           expanded
             ? "max-w-[calc(100vw-1rem)]"
             : "w-64 max-w-[calc(100vw-1rem)]",
@@ -233,17 +233,17 @@ function UserSessionMenu({
         sideOffset={8}
       >
         <div className="grid gap-1 px-2 py-2">
-          <span className="truncate text-sm font-semibold text-[#191915] dark:text-[#eee8dc]">
+          <span className="truncate text-sm font-semibold text-popover-foreground">
             {label}
           </span>
-          <span className="truncate text-xs font-normal text-[#6d685e] dark:text-[#eee8dc]/60">
+          <span className="truncate text-xs font-normal text-muted-foreground">
             {user?.email}
           </span>
-          <span className="truncate text-xs font-normal text-[#8a8377] dark:text-[#eee8dc]/50">
+          <span className="truncate text-xs font-normal text-muted-foreground/80">
             Org: {user?.organization_id || "unknown"}
           </span>
         </div>
-        <DropdownMenuSeparator className="bg-[#d8d0c2] dark:bg-[#38372f]" />
+        <DropdownMenuSeparator className="bg-border" />
         <DropdownMenuItem
           className="cursor-pointer gap-2 px-2 py-2"
           onClick={onSettings}
@@ -252,7 +252,7 @@ function UserSessionMenu({
           Settings
         </DropdownMenuItem>
         <DropdownMenuItem
-          className="cursor-pointer gap-2 px-2 py-2 text-[#9d2f2f] focus:bg-[#fff1f1] focus:text-[#9d2f2f] dark:text-[#ff9a9a] dark:focus:bg-[#351b1b] dark:focus:text-[#ffb3b3]"
+          className="cursor-pointer gap-2 px-2 py-2"
           onClick={() => void onLogout()}
           variant="destructive"
         >
@@ -331,7 +331,7 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
       <>
         {!mobile && (
           <aside
-            className="hidden h-dvh min-h-0 w-full overflow-hidden border-r border-border bg-card text-foreground md:block xl:hidden"
+            className="hidden h-dvh min-h-0 w-full overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:block xl:hidden"
             data-expanded={false}
           >
             <RailContent {...props} expanded={false} />
@@ -339,7 +339,7 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
         )}
         <Sheet open={props.expanded} onOpenChange={props.onExpandedChange}>
           <SheetContent
-            className="!w-[min(260px,calc(100vw-16px))] gap-0 border-border bg-card p-0 ease-out motion-reduce:transition-none motion-reduce:data-ending-style:translate-x-0 motion-reduce:data-starting-style:translate-x-0"
+            className="!w-[min(260px,calc(100vw-16px))] gap-0 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground ease-out motion-reduce:transition-none motion-reduce:data-ending-style:translate-x-0 motion-reduce:data-starting-style:translate-x-0"
             side="left"
             showCloseButton={false}
           >
@@ -359,7 +359,7 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
   return (
     <aside
       className={cn(
-        "hidden h-dvh min-h-0 w-full overflow-hidden border-r border-border bg-card text-foreground xl:block",
+        "hidden h-dvh min-h-0 w-full overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground xl:block",
       )}
       data-expanded={props.expanded}
     >

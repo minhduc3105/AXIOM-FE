@@ -29,7 +29,7 @@ export function MarkdownContent({ markdown, compact }: MarkdownContentProps) {
   return (
     <article
       className={cn(
-        "flex min-w-0 flex-col text-[#191915] dark:text-[#eee8dc]",
+        "flex min-w-0 flex-col text-foreground",
         compact ? "gap-3" : "gap-5",
       )}
     >
@@ -250,7 +250,7 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
       <ListTag
         start={block.ordered ? block.start : undefined}
         className={cn(
-          "grid gap-2 pl-5 text-[#5f5a50] dark:text-[#aaa397]",
+          "grid gap-2 pl-5 text-muted-foreground",
           block.ordered ? "list-decimal" : "list-disc",
           compact ? "text-sm leading-relaxed" : "text-base leading-relaxed",
         )}
@@ -266,7 +266,7 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
   if (block.type === "rule") {
     return (
       <Separator
-        className="my-7 bg-[#d8d0c2] dark:bg-[#38372f]"
+        className="my-7 bg-border"
         key={`${block.type}-${index}`}
       />
     );
@@ -275,15 +275,15 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
   if (block.type === "table") {
     return (
       <div
-        className="max-w-full overflow-hidden rounded-[18px] border border-[#d8d0c2]/80 bg-[#fffdf8]/80 dark:border-[#38372f] dark:bg-white/[0.03]"
+        className="max-w-full overflow-hidden rounded-[18px] border border-border bg-card"
         key={`${block.type}-${index}`}
       >
         <Table className="min-w-[560px]">
-          <TableHeader className="bg-[#f4efe5]/80 text-[#25241f] dark:bg-[#292923] dark:text-[#eee8dc]">
+          <TableHeader className="bg-secondary text-secondary-foreground">
             <TableRow className="hover:bg-transparent">
               {block.headers.map((header, cellIndex) => (
                 <TableHead
-                  className="h-auto border-[#d8d0c2]/80 px-4 py-3 font-semibold whitespace-normal dark:border-[#38372f]"
+                  className="h-auto border-border px-4 py-3 font-semibold whitespace-normal"
                   key={`${header}-${cellIndex}`}
                   scope="col"
                 >
@@ -292,7 +292,7 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
               ))}
             </TableRow>
           </TableHeader>
-          <TableBody className="text-[#5f5a50] dark:text-[#aaa397]">
+          <TableBody className="text-muted-foreground">
             {block.rows.map((row, rowIndex) => (
               <TableRow key={`${row.join("-")}-${rowIndex}`}>
                 {row.map((cell, cellIndex) => (
@@ -314,7 +314,7 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
   return (
     <p
       className={cn(
-        "w-full text-[#5f5a50] dark:text-[#aaa397]",
+        "w-full text-muted-foreground",
         compact ? "text-sm leading-relaxed" : "text-base leading-relaxed",
       )}
       key={`${block.type}-${index}`}
@@ -342,7 +342,7 @@ function renderInline(text: string, keyPrefix = "inline") {
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
         <code
-          className="rounded-md bg-[#f4efe5] px-1.5 py-0.5 text-[0.92em] text-[#191915] dark:bg-[#292923] dark:text-[#eee8dc]"
+          className="rounded-md bg-secondary px-1.5 py-0.5 text-[0.92em] text-secondary-foreground"
           key={key}
         >
           {part.slice(1, -1)}

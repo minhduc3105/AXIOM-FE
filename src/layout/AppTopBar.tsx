@@ -125,7 +125,7 @@ export function AppTopBar({
 
   return (
     <header
-      className="sticky top-0 z-30 h-16 shrink-0 bg-[#f4efe5]/18 text-foreground backdrop-blur-md dark:bg-[#11110f]/18"
+      className="sticky top-0 z-30 h-16 shrink-0 border-b border-border/70 bg-background text-foreground"
       aria-label="Application toolbar"
     >
       <div
