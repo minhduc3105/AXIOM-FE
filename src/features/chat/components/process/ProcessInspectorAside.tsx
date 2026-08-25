@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -129,7 +128,7 @@ export function ProcessInspectorAside({
         }
         className="flex min-h-0 flex-1 flex-col gap-0"
       >
-        <div className="flex items-center justify-between gap-2 px-3 py-2">
+        <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-3">
           <TabsList variant="line" className="h-8 p-0">
             <TabsTrigger value="analysis" className="px-2">
               <TerminalSquareIcon data-icon="inline-start" />
@@ -166,7 +165,6 @@ export function ProcessInspectorAside({
             )}
           </div>
         </div>
-        <Separator />
 
         <TabsContent value="analysis" className="m-0 min-h-0 flex-1 overflow-hidden">
           <ScrollArea ref={analysisScrollArea} className="h-full min-h-0 pr-2">
