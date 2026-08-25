@@ -247,7 +247,7 @@ describe("ChatPage", () => {
     expect(screen.queryByRole("button", { name: "Copy response" })).toBeNull();
   });
 
-  it("shows history loading without a fake user turn or skeleton", () => {
+  it("shows history loading at the top of the chat column without a fake turn", () => {
     render(
       <ChatPage
         {...chatPageProps({
@@ -258,7 +258,12 @@ describe("ChatPage", () => {
       />,
     );
 
-    expect(screen.getByText("Loading conversation…")).toBeTruthy();
+    const loading = screen.getByText("Loading conversation…");
+    const contentColumn = loading.closest("[data-chat-response]")?.parentElement;
+
+    expect(contentColumn?.className).toContain("max-w-5xl");
+    expect(contentColumn?.className).toContain("py-6");
+    expect(contentColumn?.className).not.toContain("pt-[clamp(");
     expect(screen.queryByText("Loading conversation history...")).toBeNull();
     expect(screen.queryByTestId("skeleton")).toBeNull();
   });

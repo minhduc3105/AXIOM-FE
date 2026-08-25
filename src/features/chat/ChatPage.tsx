@@ -260,32 +260,34 @@ function ConversationHistoryStatus({
 }) {
   return (
     <section
-      className="grid min-h-[calc(100dvh-var(--app-top-bar-height))] w-full place-items-start overflow-hidden px-5 pt-[clamp(12rem,30vh,32rem)]"
+      className="min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-hidden bg-background"
       aria-label="Conversation history"
     >
-      <div
-        aria-busy={loading}
-        aria-live="polite"
-        className="flex items-center gap-2 text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-180 motion-reduce:animate-none"
-        data-chat-response
-        data-response-state={loading ? "history-loading" : "error"}
-      >
-        {loading ? (
-          <>
-            <span className="flex gap-1" aria-hidden="true">
-              {[0, 1, 2].map((dot) => (
-                <span
-                  className="size-1.5 rounded-full bg-muted-foreground/70 motion-safe:animate-pulse motion-reduce:animate-none"
-                  key={dot}
-                  style={{ animationDelay: `${dot * 120}ms` }}
-                />
-              ))}
-            </span>
-            <span>Loading conversation…</span>
-          </>
-        ) : (
-          <span role="alert">{error?.message}</span>
-        )}
+      <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-8">
+        <div
+          aria-busy={loading}
+          aria-live="polite"
+          className="flex items-center gap-2 text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-180 motion-reduce:animate-none"
+          data-chat-response
+          data-response-state={loading ? "history-loading" : "error"}
+        >
+          {loading ? (
+            <>
+              <span className="flex gap-1" aria-hidden="true">
+                {[0, 1, 2].map((dot) => (
+                  <span
+                    className="size-1.5 rounded-full bg-muted-foreground/70 motion-safe:animate-pulse motion-reduce:animate-none"
+                    key={dot}
+                    style={{ animationDelay: `${dot * 120}ms` }}
+                  />
+                ))}
+              </span>
+              <span>Loading conversation…</span>
+            </>
+          ) : (
+            <span role="alert">{error?.message}</span>
+          )}
+        </div>
       </div>
     </section>
   );
