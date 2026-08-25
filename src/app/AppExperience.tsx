@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatPage } from "@/features/chat/ChatPage";
+import { ChatModelReasoningSelector } from "@/features/chat/components/ChatModelReasoningSelector";
+import { ProcessInspectorAside } from "@/features/chat/components/process/ProcessInspectorAside";
+import { toChatModelOptions } from "@/features/chat/model/chatModelOptions";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
+import { useProcessInspector } from "@/features/chat/model/useProcessInspector";
 import { DataPage } from "@/features/data/DataPage";
 import { GlobalIngestionDock } from "@/features/ingestion/components/GlobalIngestionDock";
 import { IngestionDocumentPage } from "@/features/ingestion/components/IngestionDocumentPage";
@@ -24,7 +28,6 @@ import { SettingsPage } from "@/features/auth/components/SettingsPage";
 import { useAuth } from "@/features/auth/model/AuthProvider";
 import { AppShell } from "./AppShell";
 import {
-  createChatHomeRoute,
   createChatRoute,
   createDataDocumentRoute,
   createDataRoute,
@@ -37,7 +40,6 @@ import {
   createToolsRoute,
 } from "./routing/paths";
 import type { AppRoute } from "./routing/types";
-import { createConversation } from "@/shared/lib/intelligence-api";
 import type {
   ChatEngine,
   ChatExecutionMode,
@@ -49,6 +51,7 @@ import {
   normalizeExecutionMode,
 } from "@/features/chat/model/executionMode";
 import { useAppScope } from "@/shared/hooks/use-app-scope";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { useDataWorkspace } from "@/features/data/model/DataWorkspaceProvider";
 import type { DataFile } from "@/features/data/model/types";
 import { getRouteWorkspaceScope } from "./scope";
@@ -100,18 +103,23 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const [toolsViewState, setToolsViewState] = useState<ToolCatalogViewState>(
     defaultToolCatalogViewState,
   );
+  const [processInspectorOpen, setProcessInspectorOpen] = useState(false);
+  const desktopInspector = useMediaQuery("(min-width: 1280px)");
+  const processInspector = useProcessInspector(chat.history, chat.processEvents);
   const skipNextHydrationRef = useRef<string | null>(null);
   const llmModelOptions: ChatModelOption[] = useMemo(
     () =>
-      Object.values(llmRegistry.modelsByProvider)
-        .flat()
-        .filter((model) => model.capability === "llm")
-        .map((model) => ({
-          id: model.resource_id,
-          alias: model.resource_id,
-          label: model.name || model.model_id,
-          status: model.status,
-        })),
+      toChatModelOptions(
+        Object.values(llmRegistry.modelsByProvider)
+          .flat()
+          .filter((model) => model.capability === "llm")
+          .map((model) => ({
+            id: model.resource_id,
+            alias: model.resource_id,
+            label: model.name || model.model_id,
+            status: model.status,
+          })),
+      ),
     [llmRegistry.modelsByProvider],
   );
 
@@ -166,14 +174,34 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     route.surface,
   ]);
 
+  useEffect(() => {
+    setProcessInspectorOpen(false);
+  }, [route.sessionId, route.surface]);
+
+  useEffect(() => {
+    if (
+      route.surface === "chat" &&
+      route.page === "compose" &&
+      chat.activeConversationId &&
+      chat.stage !== "welcome"
+    ) {
+      if (skipNextHydrationRef.current === chat.activeConversationId) return;
+      chat.newChat();
+    }
+  }, [
+    chat.activeConversationId,
+    chat.newChat,
+    chat.stage,
+    route.surface === "chat" ? route.page : null,
+    route.sessionId,
+    route.surface,
+  ]);
+
   const newChat = useCallback(() => {
+    setProcessInspectorOpen(false);
     chat.newChat();
     navigate(createChatRoute());
   }, [chat.newChat, navigate]);
-
-  const openHome = useCallback(() => {
-    navigate(createChatHomeRoute());
-  }, [navigate]);
 
   const openData = useCallback(() => {
     navigate(createDataRoute());
@@ -257,6 +285,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
 
   const openConversation = useCallback(
     (conversationId: string) => {
+      setProcessInspectorOpen(false);
       navigate(createChatRoute(conversationId));
     },
     [navigate],
@@ -267,6 +296,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       if (route.surface !== "chat" || route.sessionId !== conversationId) {
         return;
       }
+      setProcessInspectorOpen(false);
       chat.newChat();
       navigate(createChatRoute());
     },
@@ -278,33 +308,39 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     setChatExecutionMode((mode) => normalizeExecutionMode(engine, mode));
   }, []);
 
+  const openProcessInspector = useCallback(() => {
+    processInspector.selectLatestProcessEvent();
+    setProcessInspectorOpen(true);
+  }, [processInspector]);
+
+  const selectProcessEvent = useCallback(
+    (...args: Parameters<typeof processInspector.selectProcessEvent>) => {
+      processInspector.selectProcessEvent(...args);
+      setProcessInspectorOpen(true);
+    },
+    [processInspector],
+  );
+
   const submitQuestion = useCallback(
-    async (
+    (
       question: string,
       engine: ChatEngine,
       files: File[] = [],
-      modelAlias?: string | null,
-      executionMode?: ChatExecutionMode,
     ) => {
-      let conversationId = route.surface === "chat" ? route.sessionId : null;
-
-      if (!conversationId) {
-        const conversation = await createConversation(question.slice(0, 80));
-        conversationId = conversation.conversation_id;
-        skipNextHydrationRef.current = conversationId;
-        navigate(createChatRoute(conversationId));
-      }
-
-      chat.submitQuestion(
+      void chat.submitQuestion({
         question,
-        conversationId,
         engine,
         files,
-        auth.user?.organization_id,
-        dataWorkspace.selectedWorkspace?.id,
-        modelAlias,
-        executionMode ?? chatExecutionMode,
-      );
+        conversationId: route.surface === "chat" ? route.sessionId : null,
+        organizationId: auth.user?.organization_id,
+        workspaceId: dataWorkspace.selectedWorkspace?.id,
+        modelAlias: selectedModelAlias,
+        executionMode: chatExecutionMode,
+        onConversationCreated: (conversationId) => {
+          skipNextHydrationRef.current = conversationId;
+          navigate(createChatRoute(conversationId));
+        },
+      });
     },
     [
       auth.user?.organization_id,
@@ -313,6 +349,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       dataWorkspace.selectedWorkspace?.id,
       navigate,
       route,
+      selectedModelAlias,
     ],
   );
 
@@ -326,8 +363,22 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       activeStage={chat.stage}
       surface={route.surface}
       activeConversationId={route.surface === "chat" ? route.sessionId : null}
-      showPrimaryNavigation={route.surface === "chat" && route.page === "home"}
-      onHome={openHome}
+      processInspectorOpen={processInspectorOpen}
+      desktopInspector={
+        processInspectorOpen && desktopInspector ? (
+          <ProcessInspectorAside
+            items={processInspector.items}
+            conversationId={route.surface === "chat" ? route.sessionId : null}
+            activeProcessEventKey={processInspector.activeProcessEventKey}
+            onProcessEventSelect={selectProcessEvent}
+            onClose={() => setProcessInspectorOpen(false)}
+          />
+        ) : undefined
+      }
+      showInspectorToggle={
+        route.surface === "chat" && route.page === "conversation"
+      }
+      onInspectorOpen={openProcessInspector}
       onNewChat={newChat}
       onConversationOpen={openConversation}
       onConversationDeleted={handleConversationDeleted}
@@ -345,6 +396,17 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       workspacesLoading={dataWorkspace.loading}
       onWorkspaceSelect={dataWorkspace.selectWorkspace}
       onLogout={auth.logout}
+      chatControls={
+        route.surface === "chat" ? (
+          <ChatModelReasoningSelector
+            models={llmModelOptions}
+            selectedModelAlias={selectedModelAlias}
+            executionMode={chatExecutionMode}
+            onModelChange={setSelectedModelAlias}
+            onExecutionModeChange={setChatExecutionMode}
+          />
+        ) : undefined
+      }
     >
         {route.surface === "chat" ? (
         <ChatPage
@@ -357,23 +419,24 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
           result={chat.result}
           history={chat.history}
           error={chat.error}
+          historyLoading={chat.historyLoading}
           loading={chat.loading}
-          mode={route.page === "home" ? "home" : "chat"}
+          canRetry={chat.canRetry}
+          inspectorItems={processInspector.items}
+          activeProcessEventKey={processInspector.activeProcessEventKey}
+          onProcessEventSelect={selectProcessEvent}
+          processInspectorOpen={processInspectorOpen}
+          onProcessInspectorOpen={openProcessInspector}
+          onProcessInspectorClose={() => setProcessInspectorOpen(false)}
           engine={chatEngine}
-          executionMode={chatExecutionMode}
-          models={llmModelOptions}
-          selectedModelAlias={selectedModelAlias}
           onSubmit={submitQuestion}
           onEngineChange={changeChatEngine}
-          onExecutionModeChange={setChatExecutionMode}
-          onModelChange={setSelectedModelAlias}
           onSpecificationChange={chat.updateSpecification}
           onSpecificationRevise={chat.reviseSpecification}
           onResetSpecification={chat.resetSpecification}
           onApproveAndRun={chat.approveAndRun}
           onRetryProcess={chat.retryProcess}
           onCloseEvidence={chat.closeEvidence}
-          onData={openData}
         />
       ) : route.surface === "data" ? (
         route.page === "document" ? (
@@ -407,7 +470,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       ) : route.surface === "organization" ? (
         <OrganizationUsersPage
           initialTab={route.tab}
-          onBack={openHome}
+          onBack={newChat}
           organizationName={scope?.organization.name ?? user.organization_id}
         />
       ) : route.page === "detail" && route.toolName ? (

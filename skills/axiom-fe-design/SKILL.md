@@ -23,6 +23,19 @@ Do not use this for backend-only AXIOM work or SDK changes without a frontend su
 - Avoid decorative hero sections, oversized marketing cards, gradient ornaments, and one-note purple/blue washes.
 - Preserve the Figma prototype's important interaction model: chat in the main work area, review surfaces in stable cards, detail inspection beside the work when comparison matters, ingestion as a staged workspace.
 
+## Minimal Interface Standard
+
+- AXIOM is an operational product: use neutral surfaces, one brand accent, and semantic status colors.
+- Apply 60-30-10 as a system-level visual balance: neutral app base dominates, secondary surfaces provide structure, and brand or semantic emphasis stays limited. Brand color is for true primary actions, links, focus, and small active indicators; system icons stay neutral unless they communicate a state.
+- Status colors must remain meaningfully distinct, but use low-chroma foregrounds with restrained tinted surfaces instead of full-color panels.
+- Forbid decorative gradients or images, marketing bento layouts, heavy shadow, glass effects, and oversized headings. Require compact typography, moderate radii, and thin borders; use solid semantic tokens unless a visual treatment has a documented functional purpose.
+- Keep default buttons restrained; use the brand treatment only for true primary actions.
+- Motion should stay within 150–220ms with ease-out timing, prioritizing opacity and transform, and must respect reduced-motion preferences.
+- QA every interface responsively, in light and dark themes, and with Vietnamese and English text expansion.
+- Clickable buttons, links, menu items, selectable rows, and other clickable controls must expose pointer affordance; disabled controls must not look clickable.
+- Native overflow and `ScrollArea` must use the same slim scrollbar visual language in light and dark themes.
+- Integrate this standard with the existing AXIOM rules without duplicating or weakening them.
+
 ## Design Skill Protocol
 
 - If the user invokes `gpt-taste` or `design-taste-frontend`, read that named skill first, then adapt it to AXIOM's product-workflow context.

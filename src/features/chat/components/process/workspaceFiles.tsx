@@ -31,7 +31,7 @@ export function WorkspaceFileList({
   return (
     <section
       className={cn(
-        "overflow-hidden border border-[#d8d0c2]/80 bg-[#fffdf8]/60 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/55",
+        "overflow-hidden border border-border bg-card",
         compact
           ? "rounded-xl border-0 bg-transparent dark:bg-transparent"
           : "rounded-2xl",
@@ -39,10 +39,10 @@ export function WorkspaceFileList({
       aria-label="Workspace files"
     >
       {!compact && (
-        <div className="flex items-center justify-between gap-3 border-b border-[#d8d0c2]/70 px-3 py-2.5 dark:border-[#38372f]/70">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
-            <FolderOpenIcon className="size-4 shrink-0 text-[#6d685e] dark:text-[#aaa397]" />
-            <strong className="truncate text-sm font-semibold text-[#191915] dark:text-[#eee8dc]">
+            <FolderOpenIcon className="size-4 shrink-0 text-muted-foreground" />
+            <strong className="truncate text-sm font-semibold text-foreground">
               Workspace files
             </strong>
           </div>
@@ -53,7 +53,7 @@ export function WorkspaceFileList({
       )}
       <div
         className={cn(
-          "flex min-w-0 gap-2 overflow-x-auto [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]",
+          "flex min-w-0 gap-2 overflow-x-auto",
           compact ? "p-0 pb-1" : "p-2 pb-3",
         )}
       >
@@ -68,13 +68,13 @@ export function WorkspaceFileList({
 function WorkspaceFileCard({ file }: { file: WorkspaceFile }) {
   if (file.type === "image") {
     return (
-      <article className="w-[min(360px,82vw)] shrink-0 overflow-hidden rounded-xl border border-[#d8d0c2]/80 bg-white/75 dark:border-[#38372f]/80 dark:bg-[#20201c]/75">
-        <div className="flex min-w-0 items-start justify-between gap-2 border-b border-[#d8d0c2]/70 px-3 py-2 dark:border-[#38372f]/70">
+      <article className="w-[min(360px,82vw)] shrink-0 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="flex min-w-0 items-start justify-between gap-2 border-b border-border px-3 py-2">
           <div className="min-w-0">
-            <strong className="block truncate text-sm font-medium text-[#191915] dark:text-[#eee8dc]">
+            <strong className="block truncate text-sm font-medium text-foreground">
               {file.name}
             </strong>
-            <span className="block truncate text-xs text-[#9b9488] dark:text-[#aaa397]">
+            <span className="block truncate text-xs text-muted-foreground">
               image
             </span>
           </div>
@@ -89,7 +89,7 @@ function WorkspaceFileCard({ file }: { file: WorkspaceFile }) {
           </Button>
         </div>
         <a
-          className="grid aspect-[16/9] place-items-center bg-[#f7f3eb] dark:bg-[#11110f]"
+          className="grid aspect-[16/9] place-items-center bg-secondary"
           href={file.url}
           rel="noreferrer"
           target="_blank"
@@ -106,13 +106,13 @@ function WorkspaceFileCard({ file }: { file: WorkspaceFile }) {
   }
 
   return (
-    <div className="group flex min-h-14 w-[min(360px,82vw)] shrink-0 items-center gap-3 rounded-xl border border-[#d8d0c2]/80 bg-white/75 px-3 py-2.5 text-left dark:border-[#38372f]/80 dark:bg-[#20201c]/75">
-      <FileTextIcon className="size-4 shrink-0 text-[#2456e8] dark:text-[#7895ff]" />
+    <div className="group flex min-h-14 w-[min(360px,82vw)] shrink-0 items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-left">
+      <FileTextIcon className="size-4 shrink-0 text-primary" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-[#191915] dark:text-[#eee8dc]">
+        <span className="block truncate text-sm font-medium text-foreground">
           {file.name}
         </span>
-        <span className="block truncate text-xs text-[#9b9488] dark:text-[#aaa397]">
+        <span className="block truncate text-xs text-muted-foreground">
           {file.type || "file"}
         </span>
       </span>

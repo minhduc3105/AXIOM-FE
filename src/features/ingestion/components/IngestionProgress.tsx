@@ -23,7 +23,7 @@ export function IngestionProgress({
 
   return (
     <nav
-      className="my-5 grid grid-cols-1 gap-2 rounded-3xl border border-[#d8d0c2] bg-[#fffdf8]/80 p-2 shadow-[0_16px_44px_rgba(24,24,18,0.06)] sm:grid-cols-3 dark:border-[#38372f] dark:bg-[#1a1a17]/80"
+      className="my-5 grid grid-cols-1 gap-2 rounded-3xl border border-border bg-card p-2 shadow-sm sm:grid-cols-3"
       aria-label="Ingestion progress"
     >
       {steps.map((step, index) => {
@@ -40,11 +40,11 @@ export function IngestionProgress({
             type="button"
             key={step.id}
             className={cn(
-              "h-16 min-w-0 flex-col items-start rounded-2xl border border-[#d8d0c2] bg-[#f4efe5] px-4 py-3 text-left text-[#25241f] hover:bg-[#e9e2d5] disabled:cursor-not-allowed disabled:opacity-55 dark:border-[#38372f] dark:bg-[#292923] dark:text-[#eee8dc] dark:hover:bg-[#303029]",
+              "h-16 min-w-0 flex-col items-start rounded-2xl border border-border bg-secondary px-4 py-3 text-left text-secondary-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55",
               state === "active" &&
-                "border-[#2456e8] bg-[#2456e8] text-white hover:bg-[#1d48c7] dark:border-[#7895ff] dark:bg-[#7895ff] dark:text-[#0e142c]",
+                "border-primary bg-primary text-primary-foreground hover:bg-brand-strong",
               state === "complete" &&
-                "border-[#2456e8]/30 bg-[#eef2ff] text-[#1018a2] dark:border-[#7895ff]/30 dark:bg-[#202844] dark:text-[#dfe6ff]",
+                "border-primary/25 bg-primary/10 text-primary",
             )}
             disabled={index > furthest}
             onClick={() => onNavigate(step.id)}

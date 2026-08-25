@@ -11,6 +11,32 @@ const gatewayApiBaseUrl = (
 const INTELLIGENCE_API_BASE_URL =
   `${gatewayApiBaseUrl}/intelligence-service`.replace(/\/$/, "");
 
+export class IntelligenceApiError extends Error {
+  readonly code: string | null;
+  readonly retryable: boolean | null;
+  readonly cause: unknown;
+
+  constructor(
+    message: string,
+    readonly status: number,
+    {
+      code = null,
+      retryable = null,
+      cause = null,
+    }: {
+      code?: string | null;
+      retryable?: boolean | null;
+      cause?: unknown;
+    } = {},
+  ) {
+    super(message);
+    this.name = "IntelligenceApiError";
+    this.code = code;
+    this.retryable = retryable;
+    this.cause = cause;
+  }
+}
+
 export function intelligenceApiUrl(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${INTELLIGENCE_API_BASE_URL}${normalizedPath}`;
@@ -35,7 +61,7 @@ export async function listConversationsPage(
     { signal },
   );
   if (!response.ok) {
-    throw new Error(`AXIOM returned ${response.status}.`);
+    throw await intelligenceApiError(response);
   }
   return (await response.json()) as ConversationListResponse;
 }
@@ -59,7 +85,7 @@ export async function createConversation(
     },
   );
   if (!response.ok) {
-    throw new Error(`AXIOM returned ${response.status}.`);
+    throw await intelligenceApiError(response);
   }
   return (await response.json()) as ConversationSummary;
 }
@@ -87,7 +113,7 @@ export async function updateConversation(
     },
   );
   if (!response.ok) {
-    throw new Error(`AXIOM returned ${response.status}.`);
+    throw new IntelligenceApiError(`AXIOM returned ${response.status}.`, response.status);
   }
   return (await response.json()) as ConversationSummary;
 }
@@ -103,7 +129,7 @@ export async function deleteConversation(
     { method: "DELETE", signal },
   );
   if (!response.ok) {
-    throw new Error(`AXIOM returned ${response.status}.`);
+    throw new IntelligenceApiError(`AXIOM returned ${response.status}.`, response.status);
   }
 }
 
@@ -118,8 +144,57 @@ export async function listConversationMessages(
     { signal },
   );
   if (!response.ok) {
-    throw new Error(`AXIOM returned ${response.status}.`);
+    throw await intelligenceApiError(response);
   }
   const payload = (await response.json()) as MessageListResponse;
   return Array.isArray(payload.items) ? payload.items : [];
+}
+
+async function intelligenceApiError(response: Response) {
+  const fallback = `AXIOM returned ${response.status}.`;
+  try {
+    const text = await response.text();
+    if (!text) return new IntelligenceApiError(fallback, response.status);
+
+    try {
+      const payload = asRecord(JSON.parse(text));
+      const error = asRecord(payload.error);
+      const detail = asRecord(payload.detail);
+      return new IntelligenceApiError(fallback, response.status, {
+        code:
+          stringValue(error.code) ||
+          stringValue(detail.code) ||
+          stringValue(payload.code) ||
+          null,
+        retryable:
+          booleanValue(error.retryable) ??
+          booleanValue(detail.retryable) ??
+          booleanValue(payload.retryable) ??
+          null,
+        cause:
+          stringValue(error.message) ||
+          stringValue(detail.message) ||
+          stringValue(payload.message) ||
+          text,
+      });
+    } catch {
+      return new IntelligenceApiError(fallback, response.status, { cause: text });
+    }
+  } catch {
+    return new IntelligenceApiError(fallback, response.status, { cause: fallback });
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function booleanValue(value: unknown) {
+  return typeof value === "boolean" ? value : null;
 }

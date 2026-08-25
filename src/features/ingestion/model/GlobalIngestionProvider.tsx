@@ -186,7 +186,6 @@ export function GlobalIngestionProvider({
           if (!objectKeys.length) return;
 
           const refreshed = await getDocumentProcessingStatuses(
-            batch.organization_id,
             batch.workspace_id,
             batch.bucket,
             objectKeys,

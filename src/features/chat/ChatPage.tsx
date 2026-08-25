@@ -1,24 +1,32 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ChatComposer } from "./components/ChatComposer";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { ProcessInspectorAside } from "./components/ProcessStepPanel";
 import { ReviewCard } from "./components/ReviewCard";
 import { UserMessage } from "./components/UserMessage";
-import { WelcomeWorkspace } from "./components/WelcomeWorkspace";
-import { Button } from "@/components/ui/button";
-import { PanelRightOpenIcon } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import type {
   ChatStage,
   ChatEngine,
-  ChatExecutionMode,
-  ChatModelOption,
   ChatTurn,
   EditableSpecification,
   Investigation,
   MockResult,
   ProcessEvent,
 } from "./model/types";
+import type { ChatError } from "./model/chatError";
+import type {
+  ProcessInspectorItem,
+  ProcessStepSelectionHandler,
+} from "./components/process/processEvents";
 import { cn } from "@/shared/lib/utils";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
 
 type ChatPageProps = {
   conversationId: string | null;
@@ -29,30 +37,25 @@ type ChatPageProps = {
   processEvents: ProcessEvent[];
   result: MockResult | null;
   history: ChatTurn[];
-  error: string | null;
+  error: ChatError | null;
+  historyLoading: boolean;
   loading: boolean;
-  mode: "home" | "chat";
+  canRetry: boolean;
+  inspectorItems: ProcessInspectorItem[];
+  activeProcessEventKey: string | null;
+  onProcessEventSelect: ProcessStepSelectionHandler;
+  processInspectorOpen: boolean;
+  onProcessInspectorOpen: () => void;
+  onProcessInspectorClose: () => void;
   engine: ChatEngine;
-  executionMode: ChatExecutionMode;
-  models: ChatModelOption[];
-  selectedModelAlias: string | null;
-  onSubmit: (
-    value: string,
-    engine: ChatEngine,
-    files: File[],
-    modelAlias?: string | null,
-    executionMode?: ChatExecutionMode,
-  ) => void;
+  onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
   onEngineChange: (engine: ChatEngine) => void;
-  onExecutionModeChange: (mode: ChatExecutionMode) => void;
-  onModelChange: (modelAlias: string | null) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
   onSpecificationRevise: (feedback: string) => void;
   onResetSpecification: () => void;
   onApproveAndRun: () => void;
   onRetryProcess: () => void;
   onCloseEvidence: () => void;
-  onData: () => void;
 };
 
 export function ChatPage({
@@ -65,76 +68,43 @@ export function ChatPage({
   result,
   history,
   error,
+  historyLoading,
   loading,
-  mode,
+  canRetry,
+  inspectorItems,
+  activeProcessEventKey,
+  onProcessEventSelect,
+  processInspectorOpen,
+  onProcessInspectorOpen,
+  onProcessInspectorClose,
   engine,
-  executionMode,
-  models,
-  selectedModelAlias,
   onSubmit,
   onEngineChange,
-  onExecutionModeChange,
-  onModelChange,
   onSpecificationChange,
   onSpecificationRevise,
   onResetSpecification,
   onApproveAndRun,
   onRetryProcess,
   onCloseEvidence,
-  onData,
 }: ChatPageProps) {
-  const chatMainRef = useRef<HTMLElement>(null);
-  const [inspectedProcessStep, setInspectedProcessStep] = useState<{
-    key: string;
-    event: ProcessEvent;
-  } | null>(null);
+  const chatMainRef = useRef<HTMLDivElement>(null);
   const processSignature = useMemo(
     () => processEvents.map((event) => event.status).join("-"),
     [processEvents],
   );
   const resultScrollSignature = result?.markdown.length ?? 0;
-  const inspectableProcessEvents = useMemo(
-    () => [
-      ...history.flatMap((turn, index) =>
-        (turn.processEvents ?? []).map((event) => ({
-          key: `history-${index}:${event.id}`,
-          event,
-        })),
-      ),
-      ...processEvents.map((event) => ({ key: `current:${event.id}`, event })),
-    ],
-    [history, processEvents],
-  );
-  const processInspectorOpen = Boolean(inspectedProcessStep);
-  const canOpenProcessInspector = inspectableProcessEvents.length > 0;
-
-  function handleProcessEventSelect(event: ProcessEvent, key: string) {
-    setInspectedProcessStep({ event, key });
+  function handleProcessEventSelect(...args: Parameters<ProcessStepSelectionHandler>) {
+    onProcessEventSelect(...args);
+    onProcessInspectorOpen();
   }
-
-  function handleOpenProcessInspector() {
-    const latestStep = inspectableProcessEvents[inspectableProcessEvents.length - 1];
-    if (!latestStep) return;
-    setInspectedProcessStep(latestStep);
-  }
+  const desktopInspector = useMediaQuery("(min-width: 1280px)");
 
   useEffect(() => {
-    if (!inspectedProcessStep) return;
-    const latestStep = inspectableProcessEvents.find(
-      (step) => step.key === inspectedProcessStep.key,
-    );
-    if (!latestStep) {
-      setInspectedProcessStep(null);
-      return;
-    }
-    if (latestStep.event !== inspectedProcessStep.event) {
-      setInspectedProcessStep(latestStep);
-    }
-  }, [inspectableProcessEvents, inspectedProcessStep]);
-
-  useEffect(() => {
+    const reducedMotion = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
     if (stage === "welcome") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
       return;
     }
 
@@ -143,240 +113,200 @@ export function ChatPage({
       if (chatMain && typeof chatMain.scrollTo === "function") {
         chatMain.scrollTo({
           top: chatMain.scrollHeight,
-          behavior: loading ? "auto" : "smooth",
+          behavior: loading || reducedMotion ? "auto" : "smooth",
         });
       }
     });
     return () => window.cancelAnimationFrame(frame);
   }, [history.length, loading, processSignature, resultScrollSignature, stage]);
 
-  if (mode === "home") {
-    return (
-      <section
-        className="min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden"
-        aria-label="Investigation welcome"
-      >
-        <WelcomeWorkspace
-          engine={engine}
-          executionMode={executionMode}
-          models={models}
-          selectedModelAlias={selectedModelAlias}
-          onEngineChange={onEngineChange}
-          onExecutionModeChange={onExecutionModeChange}
-          onModelChange={onModelChange}
-          onSubmit={onSubmit}
-          onData={onData}
-        />
-      </section>
-    );
+  if (historyLoading || (stage === "welcome" && error)) {
+    return <ConversationHistoryStatus loading={historyLoading} error={error} />;
   }
-
   if (stage === "welcome") {
     return (
       <EmptyChatWorkspace
         engine={engine}
-        executionMode={executionMode}
-        models={models}
-        selectedModelAlias={selectedModelAlias}
         loading={loading}
         onEngineChange={onEngineChange}
-        onExecutionModeChange={onExecutionModeChange}
-        onModelChange={onModelChange}
         onSubmit={onSubmit}
       />
     );
   }
   if (!investigation) return null;
 
+  const inspector = (
+    <ProcessInspectorAside
+      items={inspectorItems}
+      conversationId={conversationId}
+      activeProcessEventKey={activeProcessEventKey}
+      onProcessEventSelect={handleProcessEventSelect}
+      onClose={onProcessInspectorClose}
+    />
+  );
+
   return (
     <section
-      ref={chatMainRef}
-      className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-y-auto overflow-x-hidden bg-transparent [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]"
+      className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-hidden bg-background"
       aria-label="Investigation workspace"
     >
-      <div
-        className={cn(
-          "mx-auto grid min-h-full gap-5 transition-[width] duration-300 ease-out max-sm:w-[calc(100%_-_24px)]",
-          processInspectorOpen
-            ? "w-[calc(100%_-_40px)] xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] 2xl:w-[calc(100%_-_64px)]"
-            : evidenceOpen && stage === "result"
-              ? "w-[min(1480px,calc(100%_-_56px))]"
-              : "w-[min(980px,calc(100%_-_56px))]",
-        )}
-      >
-        <div className="flex min-h-full flex-col gap-4 pb-4 pt-8 md:pt-10">
+      <div className="flex h-full min-h-0 min-w-0 flex-col">
           <div
-            className="min-h-0 flex-1 overflow-visible pr-2"
+            ref={chatMainRef}
+            className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
           >
-            <div className="flex flex-col gap-10 pb-6">
+            <div
+              className={cn(
+                "mx-auto flex w-full min-w-0 flex-col gap-10 px-4 py-6 md:px-8 md:py-8",
+                evidenceOpen && stage === "result" && !processInspectorOpen
+                  ? "max-w-[1480px]"
+                  : "max-w-5xl",
+              )}
+            >
               {history.map((turn, index) => (
                 <HistoryTurn
                   key={`${turn.investigation.question}-${index}`}
                   turn={turn}
                   processEventKeyPrefix={`history-${index}`}
-                  activeProcessEventKey={inspectedProcessStep?.key}
+                  activeProcessEventKey={activeProcessEventKey}
                   onProcessEventSelect={handleProcessEventSelect}
                 />
               ))}
 
-              <section className="flex flex-col gap-6">
+              <section className="flex min-w-0 flex-col gap-6">
                 <UserMessage
                   attachments={investigation.attachments}
                   question={investigation.question}
                 />
 
-                {stage === "pending" && (
-                  <ReviewCard stage="pending" investigation={investigation} />
-                )}
-                {stage === "intent" && draft && (
-                  <ReviewCard
-                    stage="intent"
-                    investigation={investigation}
-                    draft={draft}
-                    error={error}
-                    loading={loading}
-                    onSpecificationChange={onSpecificationChange}
-                    onSpecificationRevise={onSpecificationRevise}
-                    onReset={onResetSpecification}
-                    onRun={onApproveAndRun}
-                  />
-                )}
-                {stage === "process" && (
-                  <ReviewCard
-                    stage="process"
-                    investigation={investigation}
-                    events={processEvents}
-                    activeProcessEventKey={inspectedProcessStep?.key}
-                    processEventKeyPrefix="current"
-                    error={error}
-                    onProcessEventSelect={handleProcessEventSelect}
-                    onRetry={onRetryProcess}
-                  />
-                )}
-                {stage === "result" && result && (
-                  <div
-                    className={cn(
-                      "grid items-start gap-6",
-                      evidenceOpen &&
-                        !processInspectorOpen &&
-                        "xl:grid-cols-[minmax(0,1fr)_392px]",
-                    )}
-                  >
-                    <ReviewCard
-                      stage="result"
-                      investigation={investigation}
-                      events={processEvents}
-                      activeProcessEventKey={inspectedProcessStep?.key}
-                      processEventKeyPrefix="current"
-                      onProcessEventSelect={handleProcessEventSelect}
-                      result={result}
-                      responseComplete={!loading}
-                    />
-                    {evidenceOpen && !processInspectorOpen && (
-                      <EvidencePanel
-                        result={result}
-                        onClose={onCloseEvidence}
-                      />
-                    )}
-                  </div>
+                <ReviewCard
+                  stage={stage}
+                  investigation={investigation}
+                  draft={draft}
+                  events={processEvents}
+                  activeProcessEventKey={activeProcessEventKey}
+                  processEventKeyPrefix="current"
+                  error={error}
+                  loading={loading}
+                  result={result}
+                  responseComplete={stage === "result" && !loading}
+                  canRetry={canRetry}
+                  onProcessEventSelect={handleProcessEventSelect}
+                  onSpecificationChange={onSpecificationChange}
+                  onSpecificationRevise={onSpecificationRevise}
+                  onReset={onResetSpecification}
+                  onRun={onApproveAndRun}
+                  onRetry={onRetryProcess}
+                />
+                {stage === "result" && result && evidenceOpen && !processInspectorOpen && (
+                  <EvidencePanel result={result} onClose={onCloseEvidence} />
                 )}
 
-                {stage === "pending" && error && (
-                  <p
-                    className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700"
-                    role="alert"
-                  >
-                    {error}
-                  </p>
-                )}
               </section>
             </div>
           </div>
 
-          <ChatComposer
-            className="sticky bottom-4 z-20 shrink-0"
-            engine={engine}
-            executionMode={executionMode}
-            models={models}
-            selectedModelAlias={selectedModelAlias}
-            sendDisabled={loading}
-            onEngineChange={onEngineChange}
-            onExecutionModeChange={onExecutionModeChange}
-            onModelChange={onModelChange}
-            onSubmit={onSubmit}
-            placeholder={
-              loading
-                ? "AXIOM is working..."
-                : stage === "result"
-                  ? "Ask a follow-up or start another investigation..."
-                  : "Message AXIOM..."
-            }
-          />
-        </div>
-
-        {inspectedProcessStep && (
-          <aside
-            data-process-inspector
-            className="min-h-0 min-w-0 max-w-full pb-4 pt-8 max-xl:pt-0 md:pt-10"
-            aria-label="Process details"
+          <div
+            className="shrink-0 bg-background/95 px-4 py-3 md:px-8"
+            data-chat-composer-dock
           >
-            <div className="sticky top-8 h-[calc(100dvh-var(--app-top-bar-height)-4rem)] min-h-0 min-w-0 max-w-full md:top-10">
-              <ProcessInspectorAside
-                items={inspectableProcessEvents}
-                conversationId={conversationId}
-                activeProcessEventKey={inspectedProcessStep.key}
-                onProcessEventSelect={handleProcessEventSelect}
-                onClose={() => setInspectedProcessStep(null)}
+            <div className="mx-auto w-full max-w-5xl">
+              <ChatComposer
+                className="w-full"
+                engine={engine}
+                sendDisabled={loading}
+                onEngineChange={onEngineChange}
+                onSubmit={onSubmit}
+                placeholder={
+                  loading
+                    ? "AXIOM is working..."
+                    : stage === "result"
+                      ? "Ask a follow-up or start another investigation..."
+                      : "Message AXIOM..."
+                }
               />
             </div>
-          </aside>
-        )}
+          </div>
       </div>
-      {!processInspectorOpen && canOpenProcessInspector && (
-        <Button
-          type="button"
-          variant="outline"
-          className="fixed right-5 top-24 z-30 rounded-2xl border-[#d8d0c2] bg-white/92 px-4 shadow-[0_10px_30px_rgba(24,24,18,0.12)] backdrop-blur-xl hover:bg-[#f7f3eb] dark:border-[#38372f] dark:bg-[#20201c]/92 dark:hover:bg-[#292923]"
-          onClick={handleOpenProcessInspector}
-        >
-          <PanelRightOpenIcon data-icon="inline-start" />
-          Logs & Files
-        </Button>
+      {processInspectorOpen && !desktopInspector && (
+        <Sheet open onOpenChange={(open) => !open && onProcessInspectorClose()}>
+          <SheetContent
+            id="process-inspector"
+            className="!w-[min(480px,100vw)] border-border bg-card p-0"
+            side="right"
+            showCloseButton={false}
+            aria-label="Logs & Files"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Logs &amp; Files</SheetTitle>
+              <SheetDescription>
+                Review analysis details and generated files for this chat.
+              </SheetDescription>
+            </SheetHeader>
+            {inspector}
+          </SheetContent>
+        </Sheet>
       )}
+    </section>
+  );
+}
+
+function ConversationHistoryStatus({
+  loading,
+  error,
+}: {
+  loading: boolean;
+  error: ChatError | null;
+}) {
+  return (
+    <section
+      className="min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-hidden bg-background"
+      aria-label="Conversation history"
+    >
+      <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-8">
+        <div
+          aria-busy={loading}
+          aria-live="polite"
+          className="flex items-center gap-2 text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-180 motion-reduce:animate-none"
+          data-chat-response
+          data-response-state={loading ? "history-loading" : "error"}
+        >
+          {loading ? (
+            <>
+              <span className="flex gap-1" aria-hidden="true">
+                {[0, 1, 2].map((dot) => (
+                  <span
+                    className="size-1.5 rounded-full bg-muted-foreground/70 motion-safe:animate-pulse motion-reduce:animate-none"
+                    key={dot}
+                    style={{ animationDelay: `${dot * 120}ms` }}
+                  />
+                ))}
+              </span>
+              <span>Loading conversation…</span>
+            </>
+          ) : (
+            <span role="alert">{error?.message}</span>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
 
 function EmptyChatWorkspace({
   engine,
-  executionMode,
   onSubmit,
   onEngineChange,
-  onExecutionModeChange,
-  models,
-  selectedModelAlias,
-  onModelChange,
   loading,
 }: {
   engine: ChatEngine;
-  executionMode: ChatExecutionMode;
-  models: ChatModelOption[];
-  selectedModelAlias: string | null;
-  onSubmit: (
-    value: string,
-    engine: ChatEngine,
-    files: File[],
-    modelAlias?: string | null,
-    executionMode?: ChatExecutionMode,
-  ) => void;
+  onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
   onEngineChange: (engine: ChatEngine) => void;
-  onExecutionModeChange: (mode: ChatExecutionMode) => void;
-  onModelChange: (modelAlias: string | null) => void;
   loading: boolean;
 }) {
   return (
     <section
-      className="grid min-h-[calc(100dvh-var(--app-top-bar-height))] w-full place-items-center overflow-hidden px-5 py-10"
+      className="grid min-h-[calc(100dvh-var(--app-top-bar-height))] w-full items-start justify-items-center overflow-hidden px-5 pb-10 pt-[clamp(12rem,30vh,32rem)]"
       aria-label="New chat"
     >
       <div className="flex w-full max-w-3xl flex-col items-center gap-8">
@@ -391,13 +321,8 @@ function EmptyChatWorkspace({
         </div>
         <ChatComposer
           engine={engine}
-          executionMode={executionMode}
-          models={models}
-          selectedModelAlias={selectedModelAlias}
           onSubmit={onSubmit}
           onEngineChange={onEngineChange}
-          onExecutionModeChange={onExecutionModeChange}
-          onModelChange={onModelChange}
           disabled={loading}
           placeholder="Message AXIOM..."
         />
@@ -431,7 +356,9 @@ function HistoryTurn({
         processEventKeyPrefix={processEventKeyPrefix}
         onProcessEventSelect={onProcessEventSelect}
         result={turn.result}
+        error={turn.error}
         responseComplete
+        loading={false}
       />
     </section>
   );

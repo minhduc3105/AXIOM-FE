@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     server: {
-      allowedHosts: ["axiom.iselab.site", "tuananh5173.iselab.site"],
+      allowedHosts: ["axiom.iselab.site", "tuananh5173.iselab.site", "honganh5173.iselab.site"],
       proxy: {
         "/data-intelligence-api": {
           target: dataIntelligenceApiTarget,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ProcessEvent } from "../model/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,12 +8,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  CheckIcon,
   ClipboardIcon,
   ExternalLinkIcon,
   FileTextIcon,
   FolderOpenIcon,
   ImageIcon,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   extractWorkspaceFiles,
   workspaceFileFromArtifact,
@@ -31,26 +37,57 @@ export function AnswerActions({
   artifacts: string[];
 }) {
   const [copied, setCopied] = useState(false);
+  const resetTimerRef = useRef<number | null>(null);
   const files = mergeGeneratedFiles(extractWorkspaceFiles(events), artifacts);
+
+  useEffect(
+    () => () => {
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+      }
+    },
+    [],
+  );
 
   async function handleCopy() {
     await copyText(markdown);
+    if (resetTimerRef.current !== null) {
+      window.clearTimeout(resetTimerRef.current);
+    }
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+    resetTimerRef.current = window.setTimeout(() => {
+      setCopied(false);
+      resetTimerRef.current = null;
+    }, 1400);
   }
 
+  const copyLabel = copied ? "Response copied" : "Copy response";
+
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-[#6d685e] dark:text-[#aaa397]">
-      <Button
-        type="button"
-        variant="ghost"
-        size="xs"
-        className="h-7 px-1.5 text-[#6d685e] hover:text-[#191915] dark:text-[#aaa397] dark:hover:text-[#eee8dc]"
-        onClick={handleCopy}
-      >
-        <ClipboardIcon data-icon="inline-start" />
-        {copied ? "Copied" : "Copy"}
-      </Button>
+    <div
+      className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground"
+      data-answer-actions
+    >
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={copyLabel}
+              className="-ml-1 text-muted-foreground hover:text-foreground"
+              onClick={() => void handleCopy()}
+            />
+          }
+        >
+          {copied ? <CheckIcon /> : <ClipboardIcon />}
+        </TooltipTrigger>
+        <TooltipContent>{copyLabel}</TooltipContent>
+      </Tooltip>
+      <span className="sr-only" aria-live="polite">
+        {copied ? "Response copied" : ""}
+      </span>
       {files.length > 0 && <GeneratedFilesDialog files={files} />}
     </div>
   );
@@ -65,20 +102,20 @@ function GeneratedFilesDialog({ files }: { files: WorkspaceFile[] }) {
         type="button"
         variant="ghost"
         size="xs"
-        className="h-7 px-1.5 text-[#2456e8] hover:text-[#1d48c7] dark:text-[#7895ff] dark:hover:text-[#9aafff]"
+        className="h-7 px-1.5 text-primary hover:text-brand-strong"
         onClick={() => setOpen(true)}
       >
         <FolderOpenIcon data-icon="inline-start" />
         View Files ({files.length})
       </Button>
-      <DialogContent className="max-h-[min(860px,calc(100dvh-2rem))] max-w-[min(920px,calc(100vw-2rem))] gap-5 overflow-hidden rounded-2xl border-[#d8d0c2] bg-[#fffdf8] p-5 dark:border-[#38372f] dark:bg-[#1a1a17] sm:max-w-[min(920px,calc(100vw-2rem))]">
+      <DialogContent className="max-h-[min(860px,calc(100dvh-2rem))] max-w-[min(920px,calc(100vw-2rem))] gap-5 overflow-hidden rounded-2xl border-border bg-card p-5 sm:max-w-[min(920px,calc(100vw-2rem))]">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
             Generated Files ({files.length})
           </DialogTitle>
         </DialogHeader>
         <div className="max-h-[calc(100dvh-140px)] overflow-y-auto pr-1">
-          <div className="flex min-w-0 gap-3 overflow-x-auto pb-2 [scrollbar-color:#c7bca9_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#c7bca9] dark:[scrollbar-color:#4a4438_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-[#4a4438]">
+          <div className="flex min-w-0 gap-3 overflow-x-auto pb-2">
             {files.map((file) => (
               <GeneratedFileCard file={file} key={`${file.url}:${file.name}`} />
             ))}
@@ -93,44 +130,44 @@ function GeneratedFileCard({ file }: { file: WorkspaceFile }) {
   if (file.type !== "image") {
     return (
       <a
-        className="flex min-h-14 w-[min(340px,82vw)] shrink-0 items-center gap-3 rounded-xl bg-[#f7f3eb] px-3 py-2.5 text-left transition-colors hover:bg-[#f0e9dc] dark:bg-[#20201c] dark:hover:bg-[#292923]"
+        className="flex min-h-14 w-[min(340px,82vw)] shrink-0 items-center gap-3 rounded-xl bg-secondary px-3 py-2.5 text-left transition-colors hover:bg-muted"
         href={file.url}
         rel="noreferrer"
         target="_blank"
       >
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white text-[#6d685e] dark:bg-[#292923] dark:text-[#aaa397]">
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-card text-muted-foreground">
           <FileTextIcon className="size-4" />
         </span>
         <span className="min-w-0 flex-1">
-          <strong className="block truncate text-sm font-medium text-[#191915] dark:text-[#eee8dc]">
+          <strong className="block truncate text-sm font-medium text-foreground">
             {file.name}
           </strong>
-          <span className="block truncate text-xs text-[#6d685e] dark:text-[#aaa397]">
+          <span className="block truncate text-xs text-muted-foreground">
             {file.type || "file"}
           </span>
         </span>
-        <ExternalLinkIcon className="size-3.5 shrink-0 text-[#6d685e] dark:text-[#aaa397]" />
+        <ExternalLinkIcon className="size-3.5 shrink-0 text-muted-foreground" />
       </a>
     );
   }
 
   return (
     <a
-      className="w-[min(340px,82vw)] shrink-0 overflow-hidden rounded-xl border border-[#d8d0c2] bg-white text-left transition-colors hover:border-[#2456e8]/35 dark:border-[#38372f] dark:bg-[#20201c] dark:hover:border-[#7895ff]/35"
+      className="w-[min(340px,82vw)] shrink-0 overflow-hidden rounded-xl border border-border bg-card text-left transition-colors hover:border-primary/35"
       href={file.url}
       rel="noreferrer"
       target="_blank"
     >
-      <div className="border-b border-[#d8d0c2]/80 px-3 py-2 dark:border-[#38372f]/80">
-        <strong className="block truncate text-sm font-medium text-[#191915] dark:text-[#eee8dc]">
+      <div className="border-b border-border px-3 py-2">
+        <strong className="block truncate text-sm font-medium text-foreground">
           {file.name}
         </strong>
-        <span className="flex items-center gap-1 text-xs text-[#6d685e] dark:text-[#aaa397]">
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <ImageIcon className="size-3" />
           Image
         </span>
       </div>
-      <div className="grid aspect-[16/9] place-items-center bg-[#f7f3eb] dark:bg-[#11110f]">
+      <div className="grid aspect-[16/9] place-items-center bg-secondary">
         <img
           alt={file.name}
           className="h-full w-full object-contain"

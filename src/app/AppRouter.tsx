@@ -8,7 +8,7 @@ import {
   getSafeReturnTo,
   type AuthRoute,
 } from "./routing/browserRoutes";
-import { createChatHomeRoute, createDataRoute } from "./routing/paths";
+import { createChatRoute, createDataRoute } from "./routing/paths";
 import type { AppRoute } from "./routing/types";
 import { useBrowserRoute } from "./routing/useBrowserRoute";
 
@@ -33,9 +33,9 @@ export function AppRouter({ renderApp }: AppRouterProps) {
           reason: auth.sessionEndReason,
         }
       : null;
-  const authenticatedHomeRoute =
+  const authenticatedComposeRoute =
     auth.status === "authenticated" && route.kind === "auth"
-      ? createChatHomeRoute()
+      ? createChatRoute()
       : null;
   const isLegacyIngestionPath =
     route.kind === "app" &&
@@ -50,11 +50,11 @@ export function AppRouter({ renderApp }: AppRouterProps) {
       navigate(protectedLoginRoute, { replace: true });
       return;
     }
-    if (authenticatedHomeRoute) {
-      navigate({ kind: "app", route: authenticatedHomeRoute }, { replace: true });
+    if (authenticatedComposeRoute) {
+      navigate({ kind: "app", route: authenticatedComposeRoute }, { replace: true });
     }
   }, [
-    authenticatedHomeRoute,
+    authenticatedComposeRoute,
     isLegacyIngestionPath,
     navigate,
     protectedLoginRoute,
@@ -102,7 +102,7 @@ export function AppRouter({ renderApp }: AppRouterProps) {
     );
   }
 
-  const appRoute = authenticatedHomeRoute ?? (route.kind === "app" ? route.route : null);
+  const appRoute = authenticatedComposeRoute ?? (route.kind === "app" ? route.route : null);
   if (!appRoute) return null;
   return <>{renderApp(appRoute, navigateApp)}</>;
 }
