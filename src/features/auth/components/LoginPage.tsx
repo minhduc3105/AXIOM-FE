@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
-import { LoaderCircleIcon, LogInIcon } from 'lucide-react'
+import { LoaderCircleIcon } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/model/AuthProvider'
@@ -94,22 +94,13 @@ export function LoginPage({
   }
 
   return (
-    <AuthShell>
+    <AuthShell title="Sign in" titleId={loginHeadingId}>
       <form
-        className="grid gap-5"
+        className="grid gap-4"
         onSubmit={handleSubmit}
         aria-busy={submitting}
         aria-labelledby={loginHeadingId}
       >
-        <div>
-          <h1 id={loginHeadingId} className="text-2xl font-semibold tracking-tight">
-            Sign in to AXIOM
-          </h1>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Use your account to access its organizations.
-          </p>
-        </div>
-
         {alertError ? (
           <Alert ref={alertRef} tabIndex={-1} variant="destructive">
             <AlertDescription>{alertError.userMessage}</AlertDescription>
@@ -120,9 +111,12 @@ export function LoginPage({
           id="axiom-login-email"
           name="email"
           label="Email"
+          labelClassName="sr-only"
           type="email"
           inputMode="email"
           autoComplete="email"
+          placeholder="Email"
+          className="h-13 rounded-xl bg-background px-4 text-base hover:border-slate-400 focus-visible:ring-primary/10 md:text-base"
           value={email}
           error={emailError}
           required
@@ -136,10 +130,12 @@ export function LoginPage({
           id="axiom-login-password"
           name="password"
           label="Password"
+          labelClassName="sr-only"
           autoComplete="current-password"
+          placeholder="Password"
+          className="h-13 rounded-xl bg-background px-4 text-base hover:border-slate-400 focus-visible:ring-primary/10 md:text-base"
           value={password}
           error={passwordError}
-          minLength={8}
           required
           onChange={(event) => {
             setPassword(event.target.value)
@@ -147,28 +143,26 @@ export function LoginPage({
           }}
         />
 
-        <Button className="h-10" disabled={submitting} type="submit">
+        <Button className="mt-2 h-13 rounded-xl text-base font-semibold hover:bg-brand-strong" disabled={submitting} type="submit">
           {submitting ? (
             <LoaderCircleIcon
               className="animate-spin motion-reduce:animate-none"
               data-icon="inline-start"
               aria-hidden="true"
             />
-          ) : (
-            <LogInIcon data-icon="inline-start" aria-hidden="true" />
-          )}
+          ) : null}
           {submitting ? 'Signing in…' : 'Sign in'}
         </Button>
 
         {submitting ? <span className="sr-only" role="status">Signing in…</span> : null}
 
-        <div className="border-t border-border pt-4">
+        <div className="mt-4 flex justify-center">
           <a
             className="w-fit rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             href={registerHref}
             onClick={handleRegister}
           >
-            Create an account
+            Create your organization
           </a>
         </div>
       </form>

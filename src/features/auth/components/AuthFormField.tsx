@@ -14,6 +14,7 @@ export type AuthFormFieldProps = Omit<
 > & {
   id: string
   label: string
+  labelClassName?: string
   hint?: string
   error?: string | null
   inputRef?: Ref<HTMLInputElement>
@@ -23,6 +24,7 @@ export type AuthFormFieldProps = Omit<
 export function AuthFormField({
   id,
   label,
+  labelClassName,
   hint,
   error,
   inputRef,
@@ -34,7 +36,7 @@ export function AuthFormField({
 
   return (
     <Field data-invalid={Boolean(error)}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldLabel className={labelClassName} htmlFor={id}>{label}</FieldLabel>
       <div className="relative">
         <Input
           {...inputProps}
