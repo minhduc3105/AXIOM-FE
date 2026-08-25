@@ -86,20 +86,8 @@ export function SettingsPage() {
   }
 
   return (
-    <main className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
+    <main className="min-h-0 px-4 py-4 sm:px-6 md:p-6">
       <div className="mx-auto grid w-full max-w-4xl gap-5">
-        <header className={cn(panelClass, "p-5 sm:p-6")}>
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            Personal
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Settings
-          </h1>
-          <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-            Review your account context, password, and interface preferences.
-          </p>
-        </header>
-
         <section className={cn(panelClass, "overflow-hidden")} aria-labelledby="account-settings-title">
           <header className="flex items-start gap-3 border-b border-border p-5">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-secondary text-muted-foreground">

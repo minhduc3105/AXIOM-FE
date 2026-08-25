@@ -64,7 +64,7 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
 
   if (loading && !tool) {
     return (
-      <section className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
+      <section className="min-h-0 px-4 py-4 sm:px-6 md:p-6">
         <ToolDetailSkeleton />
       </section>
     );
@@ -74,7 +74,7 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
     const toolNotFound = errorKind === "tool_not_found" || !error;
     const methodsHubUnavailable = errorKind === "methods_hub_unavailable";
     return (
-      <section className="grid min-h-[calc(100dvh-var(--app-top-bar-height))] place-items-center px-5 py-12">
+      <section className="grid min-h-0 place-items-center px-4 py-8 sm:px-6 md:p-6">
         <div className="max-w-md text-center">
           <CircleAlertIcon className="mx-auto size-8 text-muted-foreground" />
           <h1 className="mt-4 text-xl font-semibold">
@@ -114,10 +114,10 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
 
   return (
     <section
-      className="relative min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden px-5 pb-12 pt-4 sm:px-8 md:pt-6"
+      className="relative min-h-0 w-full overflow-x-hidden px-4 py-4 sm:px-6 md:p-6"
       aria-label={`${displayName} details`}
     >
-      <div className="mx-auto grid w-full min-w-0 max-w-[1360px] gap-6">
+      <div className="mx-auto grid w-full min-w-0 max-w-[1360px] gap-4">
         <Button
           variant="ghost"
           className="h-9 w-fit rounded-full px-3 text-text-secondary"
@@ -127,17 +127,16 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
           Back to Tools
         </Button>
 
-        <Card className="gap-0 rounded-xl border border-line bg-card p-0 shadow-sm">
-        <header className="grid min-w-0 gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <Card className="gap-0 rounded-lg border border-line bg-card p-0 shadow-none">
+        <header className="grid min-w-0 gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div className="flex w-full min-w-0 max-w-full items-start gap-3 sm:gap-4">
             <ToolKindIcon
               kind={tool.kind}
-              className="size-12 rounded-xl sm:size-14 [&_svg]:size-6"
+              className="size-10 rounded-lg sm:size-12 [&_svg]:size-5"
             />
             <div className="min-w-0">
-              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Tool catalog</p>
               <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-                <h1 className="min-w-0 max-w-full break-words text-xl font-semibold leading-tight text-foreground sm:text-3xl">
+                <h1 className="min-w-0 max-w-full break-words text-xl font-semibold leading-tight text-foreground sm:text-2xl">
                   {displayName}
                 </h1>
                 <Badge
@@ -150,12 +149,12 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
               <code className="mt-1.5 block break-all text-xs text-muted-foreground">
                 {tool.name}
               </code>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-text-secondary">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
                 {tool.description}
               </p>
             </div>
           </div>
-          <div className="flex w-full shrink-0 flex-col gap-2 border-t border-line pt-4 sm:w-auto sm:min-w-52 sm:border-t-0 sm:pt-0 lg:self-start lg:justify-self-end">
+          <div className="flex w-full shrink-0 flex-col gap-2 border-t border-line pt-3 sm:w-auto sm:min-w-52 sm:border-t-0 sm:pt-0 lg:self-start lg:justify-self-end">
             <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant="outline"

@@ -35,6 +35,13 @@ describe('SettingsPage', () => {
     vi.clearAllMocks()
   })
 
+  it('starts with account settings instead of repeating the global Settings title', () => {
+    render(<SettingsPage />)
+
+    expect(screen.queryByRole('heading', { name: 'Settings', level: 1 })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Personal profile', level: 2 })).toBeTruthy()
+  })
+
   it('keeps a mismatched password confirmation in Settings without submitting', async () => {
     const actor = userEvent.setup()
     render(<SettingsPage />)

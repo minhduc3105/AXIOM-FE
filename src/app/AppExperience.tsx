@@ -407,6 +407,9 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
           />
         ) : undefined
       }
+      globalControls={
+        <GlobalIngestionDock onOpenDetails={openIngestionDocument} />
+      }
     >
         {route.surface === "chat" ? (
         <ChatPage
@@ -495,7 +498,6 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
         )}
       </AppShell>
       <IngestionDialog />
-      <GlobalIngestionDock onOpenDetails={openIngestionDocument} />
     </>
   );
 }

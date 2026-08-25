@@ -657,7 +657,7 @@ export function OrganizationUsersPage({
 
   if (!canManage) {
     return (
-      <main className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
+      <main className="min-h-0 px-4 py-4 sm:px-6 md:p-6">
         <section className="mx-auto grid max-w-3xl gap-5">
           <Card>
             <CardHeader>
@@ -706,10 +706,11 @@ export function OrganizationUsersPage({
   const membershipError = Object.values(membershipErrors)[0];
 
   return (
-    <main className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
-      <div className="mx-auto grid w-full max-w-6xl gap-6">
-        <OrganizationAdministrationHeader user={user} />
-        <div className="flex flex-wrap items-center justify-end gap-2">
+    <main className="min-h-0 px-4 py-4 sm:px-6 md:p-6">
+      <div className="mx-auto grid w-full max-w-6xl gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+          <OrganizationAdministrationHeader />
+          <div className="flex flex-wrap items-center justify-end gap-2">
           {refreshing && (
             <Badge
               variant="outline"
@@ -728,6 +729,7 @@ export function OrganizationUsersPage({
             <RefreshCwIcon className={cn(loading && "animate-spin")} />
             Refresh
           </Button>
+          </div>
         </div>
         {error && (
           <Alert variant="destructive">
@@ -897,33 +899,14 @@ export function OrganizationUsersPage({
   );
 }
 
-function OrganizationAdministrationHeader({ user }: { user: AuthUser }) {
+function OrganizationAdministrationHeader() {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <Avatar size="lg">
-            <AvatarFallback className="bg-muted text-sm font-semibold text-primary">
-              {initials(user.display_name || user.email)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              Organization administration
-            </p>
-            <CardTitle className="mt-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl">
-              Organization administration
-            </CardTitle>
-            <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-              Configure people and workspace access.
-            </p>
-          </div>
-        </div>
-        <Badge variant="outline" className="shrink-0 rounded-full text-primary">
-          <ShieldCheckIcon className="size-3.5" /> Organization admin
-        </Badge>
-      </CardHeader>
-    </Card>
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <p className="text-sm font-semibold text-foreground">Organization access</p>
+      <Badge variant="outline" className="shrink-0 rounded-full text-primary">
+        <ShieldCheckIcon className="size-3.5" /> Organization admin
+      </Badge>
+    </div>
   );
 }
 

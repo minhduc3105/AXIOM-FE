@@ -1,9 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  AlertTriangleIcon,
-  CircleAlertIcon,
-  ServerCrashIcon,
-} from "lucide-react";
+import { AlertTriangleIcon, CircleAlertIcon, ServerCrashIcon } from "lucide-react";
 import {
   Alert,
   AlertAction,
@@ -12,7 +8,6 @@ import {
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DataEmptyState } from "./components/DataEmptyState";
-import { DataMetrics } from "./components/DataMetrics";
 import { DataSourcesWorkspace } from "./components/DataSourcesWorkspace";
 import { DataSourceConnectionDialog } from "./components/DataSourceConnectionDialog";
 import { DataSourceImportDialog } from "./components/DataSourceImportDialog";
@@ -30,20 +25,6 @@ type DataPageProps = {
   onCreateIngestion: () => void;
   onOpenDocument?: (file: DataFile, sourceLabel: string) => void;
 };
-
-function formatAggregateSize(bytes: number) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B stored";
-
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const unitIndex = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1,
-  );
-  const value = bytes / 1024 ** unitIndex;
-  return `${new Intl.NumberFormat("en", {
-    maximumFractionDigits: 1,
-  }).format(value)} ${units[unitIndex]} stored`;
-}
 
 export function DataPage({
   organizationId,
@@ -74,27 +55,24 @@ export function DataPage({
     refresh: refreshProfiles,
     remove: removeProfile,
   } = useDataSourceProfiles(organizationId);
+  const initialLoading = loading && !activeSnapshot;
+  const refreshing = loading && Boolean(activeSnapshot);
   const summary = useMemo(() => {
     return {
+      loading: initialLoading,
       total: files.length,
       ready: files.filter((file) => file.status === "success").length,
       processing: files.filter((file) => file.status === "processing").length,
       failed: files.filter((file) => file.status === "failed").length,
-      totalSize: formatAggregateSize(
-        files.reduce((total, file) => total + file.size, 0),
-      ),
     };
-  }, [files]);
-
-  const initialLoading = loading && !activeSnapshot;
-  const refreshing = loading && Boolean(activeSnapshot);
+  }, [files, initialLoading]);
 
   return (
     <section
-      className="min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden px-4 pb-12 pt-4 sm:px-6 md:pt-6"
+      className="flex h-full min-h-0 w-full flex-col overflow-hidden px-4 py-4 sm:px-6 md:p-6"
       aria-label="Data management"
     >
-      <div className="mx-auto grid w-full gap-6">
+      <div className="mx-auto flex min-h-0 w-full flex-1 flex-col gap-3">
         {workspace.error && (
           <Alert variant="destructive">
             <ServerCrashIcon />
@@ -143,26 +121,27 @@ export function DataPage({
           </Alert>
         )}
 
-        {activeSnapshot?.warnings.map((warning) => (
-          <Alert key={warning} className="border-warning/30 bg-warning/10">
+        {activeSnapshot?.warnings.length ? (
+          <Alert className="border-warning/30 bg-warning/10">
             <AlertTriangleIcon className="text-warning" />
             <AlertTitle>Partial service availability</AlertTitle>
-            <AlertDescription>{warning}</AlertDescription>
+            <AlertDescription>
+              {activeSnapshot.warnings.length === 1 ? (
+                activeSnapshot.warnings[0]
+              ) : (
+                <ul className="list-disc space-y-1 pl-4">
+                  {activeSnapshot.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              )}
+            </AlertDescription>
           </Alert>
-        ))}
-
-        <DataMetrics
-          loading={initialLoading}
-          total={summary.total}
-          ready={summary.ready}
-          processing={summary.processing}
-          failed={summary.failed}
-          totalSize={summary.totalSize}
-        />
+        ) : null}
 
         <section
           id="data-file-inventory"
-          className="overflow-hidden rounded-lg border bg-card shadow-sm"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card"
           aria-label="Data inventory"
         >
           {!workspaceId ? (
@@ -183,6 +162,7 @@ export function DataPage({
               files={files}
               jobs={ingestionJobs}
               profiles={profiles}
+              summary={summary}
               loading={initialLoading}
               dataLoading={loading}
               profileError={profileError}

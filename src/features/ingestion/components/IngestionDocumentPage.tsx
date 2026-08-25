@@ -60,7 +60,7 @@ export function IngestionDocumentPage({
   }
 
   return (
-    <div className="h-[calc(100dvh-var(--app-top-bar-height)-1rem)] min-h-[620px] min-w-0 p-3 sm:p-4">
+    <div className="h-full min-h-0 min-w-0 p-3 sm:p-4">
       <DocumentResultViewer
         className="min-h-0"
         file={file}

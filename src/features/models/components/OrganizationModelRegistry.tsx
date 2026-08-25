@@ -461,17 +461,16 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
             : null;
 
   return (
-    <section className="grid gap-6" aria-labelledby="model-service-title">
-      <Card className={cn(modelServiceSurface, "rounded-[28px]")}>
-        <header className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-              <h1
+    <section className="grid gap-4" aria-labelledby="model-service-title">
+      <Card className={cn(modelServiceSurface, "rounded-lg shadow-none")}>
+        <header className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+              <p
                 id="model-service-title"
-                className="truncate text-2xl font-semibold tracking-tight sm:text-3xl"
+                className="text-sm font-semibold text-foreground"
               >
-                Models
-              </h1>
+                Organization model registry
+              </p>
               <Badge variant="outline" className="max-w-full">
                 <Building2Icon className="size-3.5 shrink-0" />
                 <span className="truncate">
@@ -487,11 +486,6 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
               >
                 {systemStatus.label}
               </Badge>
-            </div>
-            <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Manage the models, provider connections, and workload defaults
-              available to this organization.
-            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button

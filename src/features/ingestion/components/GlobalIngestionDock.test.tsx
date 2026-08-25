@@ -64,6 +64,19 @@ describe("GlobalIngestionDock", () => {
     window.sessionStorage.clear();
   });
 
+  it("renders a compact toolbar launcher without viewport positioning", () => {
+    renderDock(createJob("processing"));
+
+    const launcher = screen.getByRole("button", {
+      name: "Open ingestion jobs",
+    });
+
+    expect(launcher.className).toContain("h-9");
+    expect(launcher.className).toContain("rounded-full");
+    expect(launcher.className).not.toContain("fixed");
+    expect(launcher.className).not.toContain("bottom-");
+  });
+
   it("keeps detail unavailable until an object is indexed", async () => {
     const actor = userEvent.setup();
     renderDock(createJob("processing"));

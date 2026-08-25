@@ -173,20 +173,16 @@ export function ReportsPage({
   };
 
   return (
-    <section className="relative min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
-      <div className="mx-auto grid w-full max-w-[1240px] gap-6">
-        <header className="rounded-[28px] border border-border bg-card p-5 shadow-sm sm:p-7">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <span className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+    <section className="relative min-h-0 px-4 py-4 sm:px-6 md:p-6">
+      <div className="mx-auto grid w-full max-w-[1240px] gap-4">
+        <header className="rounded-lg border border-border bg-card px-4 py-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="max-w-full truncate rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                 {workspaceName || workspaceId || "Choose a workspace"}
               </span>
-              <h1 className="mt-3 text-3xl font-semibold text-foreground sm:text-4xl">
+              <p className="text-sm font-semibold text-foreground">
                 Automated PDF reports
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Every run analyzes only the newest workspace file and creates a
-                compact PDF report with the important findings and charts.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

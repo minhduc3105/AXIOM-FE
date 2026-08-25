@@ -107,12 +107,21 @@ export function GlobalIngestionDock({
     <>
       <Button
         aria-label="Open ingestion jobs"
-        className="fixed right-4 bottom-4 shadow-md"
+        aria-live="polite"
+        className="h-9 max-w-56 shrink-0 rounded-full border-border bg-card px-2.5 text-foreground shadow-none hover:bg-muted sm:px-3"
         type="button"
+        variant="outline"
         onClick={() => setJobsSheetOpen(true)}
       >
-        <ListTodoIcon data-icon="inline-start" />
-        <span>{dockLabel}</span>
+        {activeJobs.length ? (
+          <LoaderCircleIcon
+            className="animate-spin text-primary"
+            data-icon="inline-start"
+          />
+        ) : (
+          <ListTodoIcon className="text-primary" data-icon="inline-start" />
+        )}
+        <span className="hidden max-w-36 truncate sm:inline">{dockLabel}</span>
       </Button>
       <Sheet open={jobsSheetOpen} onOpenChange={setJobsSheetOpen}>
         <SheetContent className="w-full p-0 sm:max-w-xl gap-0">

@@ -303,8 +303,8 @@ export function DataSourceFilesTable({
   };
 
   return (
-    <div className="min-w-0">
-      <div className="flex flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="shrink-0 flex flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <Field className="min-w-0 flex-1 lg:max-w-md">
           <FieldLabel htmlFor={searchId} className="sr-only">
             Search data source files
@@ -400,9 +400,13 @@ export function DataSourceFilesTable({
         />
       ) : (
         <>
-          <div aria-busy={loading}>
-            <Table className="min-w-[920px]">
-              <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--border)]">
+          <div
+            data-testid="data-file-table-viewport"
+            aria-busy={loading}
+            className="min-h-0 flex-1 overflow-x-auto"
+          >
+            <table className="flex h-full min-w-[1000px] flex-col text-sm">
+              <TableHeader className="table w-full table-fixed shrink-0 bg-card shadow-[0_1px_0_0_var(--border)]">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="h-11 w-12 bg-card px-4">
                     <Checkbox
@@ -414,11 +418,11 @@ export function DataSourceFilesTable({
                     />
                   </TableHead>
                   {(
-                    [
+                  [
                       ["name", "File", "w-[42%]"],
-                      [null, "Status", ""],
-                      ["last_modified", "Updated", ""],
-                      ["size", "Size", "text-right"],
+                      [null, "Status", "w-36"],
+                      ["last_modified", "Updated", "w-44"],
+                      ["size", "Size", "w-28 text-right"],
                     ] as const
                   ).map(([field, label, className]) => (
                     <TableHead
@@ -456,7 +460,10 @@ export function DataSourceFilesTable({
                   </TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody
+                data-testid="data-file-table-body"
+                className="block min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]"
+              >
                 {files.map((file) => {
                   const actionPending = pendingFileKey === file.key;
                   const cancelPending = actionPending && pendingAction === "cancel";
@@ -477,14 +484,14 @@ export function DataSourceFilesTable({
                     }
                     onClick={(event) => handleRowClick(event, file)}
                     onKeyDown={(event) => handleRowKeyDown(event, file)}
-                    className={cn(
-                      "group outline-none",
+                      className={cn(
+                      "group table w-full table-fixed outline-none",
                       selectedFileKeySet.has(file.key) && "bg-primary/5",
                       file.canInspect &&
                         "focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                     )}
                   >
-                    <TableCell className="px-4 py-3">
+                    <TableCell className="w-12 px-4 py-3">
                       <Checkbox
                         checked={selectedFileKeySet.has(file.key)}
                         disabled={!file.datasetId || selectionDisabled}
@@ -494,7 +501,7 @@ export function DataSourceFilesTable({
                         aria-label={`Select ${file.name}`}
                       />
                     </TableCell>
-                    <TableCell className="max-w-0 px-4 py-3">
+                    <TableCell className="w-[42%] max-w-0 px-4 py-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <FileVisual file={file} />
                         <div className="min-w-0">
@@ -520,18 +527,18 @@ export function DataSourceFilesTable({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-3">
+                    <TableCell className="w-36 px-4 py-3">
                       <div className="grid justify-items-start gap-1">
                         <StatusBadge status={file.status} />
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-muted-foreground">
+                    <TableCell className="w-44 px-4 py-3 text-sm text-muted-foreground">
                       {formatDate(file.lastModified)}
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-right text-sm font-medium tabular-nums">
+                    <TableCell className="w-28 px-4 py-3 text-right text-sm font-medium tabular-nums">
                       {formatFileSize(file.size)}
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-right">
+                    <TableCell className="w-40 px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
                         {onCancelIndexing &&
                           !retryPending &&
@@ -676,7 +683,7 @@ export function DataSourceFilesTable({
                   );
                 })}
               </TableBody>
-            </Table>
+            </table>
           </div>
           <Separator />
           <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
