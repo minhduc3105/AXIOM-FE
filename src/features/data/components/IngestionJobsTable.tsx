@@ -44,7 +44,7 @@ function formatSourceType(value: string) {
 function IngestionJobsSkeleton() {
   return (
     <Table className="min-w-[840px]">
-      <TableHeader className="bg-[#f4efe5]/70 dark:bg-white/4">
+      <TableHeader className="bg-secondary">
         <TableRow className="hover:bg-transparent">
           {[
             "Source",
@@ -56,7 +56,7 @@ function IngestionJobsSkeleton() {
           ].map((heading) => (
             <TableHead
               key={heading}
-              className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]"
+              className="h-11 px-4 text-xs font-semibold text-muted-foreground"
             >
               {heading}
             </TableHead>
@@ -101,21 +101,21 @@ export function IngestionJobsTable({
 
   return (
     <Table className="min-w-[840px]">
-      <TableHeader className="bg-[#f4efe5]/70 dark:bg-white/4">
+      <TableHeader className="bg-secondary">
         <TableRow className="hover:bg-transparent">
-          <TableHead className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
+          <TableHead className="h-11 px-4 text-xs font-semibold text-muted-foreground">
             Source
           </TableHead>
-          <TableHead className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
+          <TableHead className="h-11 px-4 text-xs font-semibold text-muted-foreground">
             Status
           </TableHead>
-          <TableHead className="h-11 px-4 text-right text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
+          <TableHead className="h-11 px-4 text-right text-xs font-semibold text-muted-foreground">
             Records pulled
           </TableHead>
-          <TableHead className="h-11 px-4 text-right text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
+          <TableHead className="h-11 px-4 text-right text-xs font-semibold text-muted-foreground">
             Objects written
           </TableHead>
-          <TableHead className="h-11 px-4 text-xs font-semibold text-[#6d685e] dark:text-[#aaa397]">
+          <TableHead className="h-11 px-4 text-xs font-semibold text-muted-foreground">
             Updated
           </TableHead>
           <TableHead className="h-11 w-14 px-4">
@@ -127,15 +127,15 @@ export function IngestionJobsTable({
         {jobs.map((job) => (
           <TableRow
             key={job.job_id}
-            className="group hover:bg-[#f4efe5]/52 dark:hover:bg-white/4"
+            className="group hover:bg-secondary/70"
           >
             <TableCell className="px-4 py-3.5">
               <div className="flex items-center gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-[12px] border border-[#d8d0c2]/84 bg-[#f4efe5]/86 text-[#2456e8] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.36)] transition-transform duration-500 ease-out group-hover:scale-105 dark:border-[#38372f] dark:bg-[#292923] dark:text-[#9aafff]">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-[12px] border border-border bg-secondary text-primary shadow-sm transition-transform duration-500 ease-out group-hover:scale-105">
                   <Layers3Icon className="size-4" />
                 </span>
                 <div className="grid gap-0.5">
-                  <strong className="text-sm font-medium text-[#191915] dark:text-[#f4efe5]">
+                  <strong className="text-sm font-medium text-foreground">
                     {formatSourceType(job.datasource_type)}
                   </strong>
                 </div>
@@ -152,7 +152,7 @@ export function IngestionJobsTable({
             <TableCell className="px-4 py-3.5 text-right font-medium tabular-nums">
               {job.objects_written.toLocaleString()}
             </TableCell>
-            <TableCell className="px-4 py-3.5 text-sm text-[#625d53] dark:text-[#c5bcaf]">
+            <TableCell className="px-4 py-3.5 text-sm text-muted-foreground">
               {formatDate(job.updated_at)}
             </TableCell>
             <TableCell className="px-4 py-3.5 text-right">

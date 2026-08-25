@@ -192,7 +192,7 @@ export function ModelServiceAssignments({
                               {formatCheckedAt(option.model.updated_at)}
                             </span>
                             {readiness.level !== "ready" && (
-                              <span className="mt-1 block text-xs leading-5 text-amber-700 dark:text-amber-300">
+                              <span className="mt-1 block text-xs leading-5 text-status-warning">
                                 {readiness.detail} Next: {readiness.nextAction}
                               </span>
                             )}

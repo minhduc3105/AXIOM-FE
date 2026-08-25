@@ -18,4 +18,11 @@ describe("ProcessInspectorAside", () => {
 
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("uses line tabs without a pill container", () => {
+    render(<ProcessInspectorAside items={[]} />);
+
+    const tabList = screen.getByRole("tablist");
+    expect(tabList.getAttribute("data-variant")).toBe("line");
+  });
 });

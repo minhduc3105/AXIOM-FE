@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WorkspaceRail } from "./WorkspaceRail";
@@ -10,12 +17,13 @@ vi.mock("@/shared/hooks/use-media-query", () => ({
 
 const intelligenceApi = vi.hoisted(() => ({
   listConversationsPage: vi.fn(),
+  updateConversation: vi.fn(),
 }));
 
 vi.mock("@/shared/lib/intelligence-api", () => ({
   deleteConversation: vi.fn(),
   listConversationsPage: intelligenceApi.listConversationsPage,
-  updateConversation: vi.fn(),
+  updateConversation: intelligenceApi.updateConversation,
 }));
 
 const callbacks = {
@@ -73,15 +81,18 @@ describe("WorkspaceRail", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it("opens workspace navigation from the collapsed desktop rail", async () => {
     const actor = userEvent.setup();
     renderRail();
 
-    await actor.click(
-      screen.getByRole("button", { name: "Open workspace navigation" }),
-    );
+    const toggle = screen.getByRole("button", {
+      name: "Open workspace navigation",
+    });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    await actor.click(toggle);
 
     expect(callbacks.onExpandedChange).toHaveBeenCalledWith(true);
   });
@@ -90,9 +101,11 @@ describe("WorkspaceRail", () => {
     const actor = userEvent.setup();
     renderRail({ expanded: true });
 
-    await actor.click(
-      screen.getByRole("button", { name: "Close workspace navigation" }),
-    );
+    const toggle = screen.getByRole("button", {
+      name: "Close workspace navigation",
+    });
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    await actor.click(toggle);
 
     expect(callbacks.onExpandedChange).toHaveBeenCalledWith(false);
   });
@@ -112,19 +125,41 @@ describe("WorkspaceRail", () => {
   });
 
   it("opens secondary destinations from More", async () => {
-    const actor = userEvent.setup();
+    const actor = userEvent.setup({ skipHover: true });
     renderRail({ expanded: true });
 
     await actor.click(screen.getByRole("button", { name: "More" }));
 
     expect(await screen.findByRole("menuitem", { name: "Memory" })).toBeTruthy();
-    expect(screen.getByRole("menuitem", { name: "Tools" })).toBeTruthy();
-    expect(screen.getByRole("menuitem", { name: "Organization" })).toBeTruthy();
-    await actor.click(screen.getByRole("menuitem", { name: "Models" }));
+    await actor.click(await screen.findByRole("menuitem", { name: "Models" }));
     expect(callbacks.onModels).toHaveBeenCalledOnce();
   });
 
-  it("collapses recent work and keeps conversation actions in its overflow menu", async () => {
+  it("opens More only after a deliberate hover and closes after leaving it", () => {
+    vi.useFakeTimers();
+    renderRail({ expanded: true });
+
+    const more = screen.getByRole("button", { name: "More" });
+    fireEvent.pointerEnter(more);
+
+    expect(screen.queryByRole("menuitem", { name: "Memory" })).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(screen.getByRole("menuitem", { name: "Memory" })).toBeTruthy();
+    expect(
+      document.querySelector('[role="presentation"][data-base-ui-inert]'),
+    ).toBeNull();
+
+    fireEvent.pointerLeave(more);
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("keeps Pin directly on the conversation row and out of its action menu", async () => {
     const actor = userEvent.setup();
     intelligenceApi.listConversationsPage.mockResolvedValue({
       items: [
@@ -152,19 +187,143 @@ describe("WorkspaceRail", () => {
     });
     expect(conversation.getAttribute("title")).toBe("Research summary");
     expect(
-      screen.queryByRole("button", { name: "Pin conversation Research summary" }),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Pin conversation Research summary" }),
+    ).toBeTruthy();
 
     await actor.click(
       screen.getByRole("button", { name: "Open conversation actions for Research summary" }),
     );
-    expect(await screen.findByRole("menuitem", { name: "Pin chat" })).toBeTruthy();
+    expect(await screen.findByRole("menuitem", { name: "Rename" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: /Pin chat|Unpin chat/ })).toBeNull();
     await actor.keyboard("{Escape}");
 
     await actor.click(screen.getByRole("button", { name: "Collapse recent work" }));
     expect(screen.queryByRole("button", { name: "Research summary" })).toBeNull();
     await actor.click(screen.getByRole("button", { name: "Expand recent work" }));
     expect(await screen.findByRole("button", { name: "Research summary" })).toBeTruthy();
+  });
+
+  it("collapses pinned conversations independently from recent work", async () => {
+    const actor = userEvent.setup();
+    intelligenceApi.listConversationsPage.mockResolvedValue({
+      items: [
+        {
+          conversation_id: "pinned-chat",
+          title: "Pinned research",
+          status: "active",
+          updated_at: "2026-08-24T10:00:00Z",
+          metadata: { pinned: true },
+        },
+        {
+          conversation_id: "recent-chat",
+          title: "Recent research",
+          status: "active",
+          updated_at: "2026-08-24T09:00:00Z",
+          metadata: {},
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 20,
+        total_items: 2,
+        total_pages: 1,
+        has_next: false,
+        has_previous: false,
+      },
+    });
+    renderRail({ expanded: true });
+
+    const toggle = await screen.findByRole("button", {
+      name: "Collapse pinned conversations",
+    });
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+
+    await actor.click(toggle);
+    expect(screen.queryByRole("button", { name: "Pinned research" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Recent research" })).toBeTruthy();
+
+    await actor.click(
+      screen.getByRole("button", { name: "Expand pinned conversations" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Pinned research" }),
+    ).toBeTruthy();
+  });
+
+  it("marks pinned rows with a conversation icon", async () => {
+    intelligenceApi.listConversationsPage.mockResolvedValue({
+      items: [
+        {
+          conversation_id: "pinned-chat",
+          title: "Pinned research",
+          status: "active",
+          updated_at: "2026-08-24T10:00:00Z",
+          metadata: { pinned: true },
+        },
+        {
+          conversation_id: "recent-chat",
+          title: "Recent research",
+          status: "active",
+          updated_at: "2026-08-24T09:00:00Z",
+          metadata: {},
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 20,
+        total_items: 2,
+        total_pages: 1,
+        has_next: false,
+        has_previous: false,
+      },
+    });
+    renderRail({ expanded: true });
+
+    const pinned = await screen.findByRole("button", { name: "Pinned research" });
+    const recent = screen.getByRole("button", { name: "Recent research" });
+
+    expect(
+      within(pinned).getByRole("img", { name: "Pinned conversation" }),
+    ).toBeTruthy();
+    expect(
+      within(recent).queryByRole("img", { name: "Pinned conversation" }),
+    ).toBeNull();
+  });
+
+  it("keeps the pin action visible with one loading indicator while a pin change is pending", async () => {
+    const actor = userEvent.setup();
+    intelligenceApi.listConversationsPage.mockResolvedValue({
+      items: [
+        {
+          conversation_id: "chat-1",
+          title: "Research summary",
+          status: "active",
+          updated_at: "2026-08-24T09:00:00Z",
+          metadata: {},
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 20,
+        total_items: 1,
+        total_pages: 1,
+        has_next: false,
+        has_previous: false,
+      },
+    });
+    intelligenceApi.updateConversation.mockReturnValue(new Promise(() => {}));
+    renderRail({ expanded: true });
+
+    const pinAction = await screen.findByRole("button", {
+      name: "Pin conversation Research summary",
+    });
+    await actor.click(pinAction);
+
+    expect(document.querySelectorAll("svg.animate-spin")).toHaveLength(1);
+    expect(pinAction.classList.contains("!w-7")).toBe(true);
+    expect(pinAction.classList.contains("opacity-100")).toBe(true);
+    expect(pinAction.classList.contains("mr-1")).toBe(true);
   });
 
   it("keeps the Recent work toggle available when the conversation vault is empty", async () => {
@@ -174,6 +333,19 @@ describe("WorkspaceRail", () => {
       await screen.findByRole("button", { name: "Collapse recent work" }),
     ).toBeTruthy();
     expect(await screen.findByText("No recent work yet")).toBeTruthy();
+  });
+
+  it("opens the account menu within the available viewport", async () => {
+    const actor = userEvent.setup();
+    renderRail({ expanded: true });
+
+    await actor.click(
+      screen.getByRole("button", { name: "Open user session menu" }),
+    );
+
+    expect(await screen.findByText("admin@axiom.local")).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Settings" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Log out" })).toBeTruthy();
   });
 
 });

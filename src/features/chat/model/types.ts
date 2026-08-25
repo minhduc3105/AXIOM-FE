@@ -79,7 +79,8 @@ export type MockResult = {
 export type ChatTurn = {
   executionMode: ChatExecutionMode;
   investigation: Investigation;
-  result: MockResult;
+  result: MockResult | null;
+  error: ChatError | null;
   processEvents?: ProcessEvent[];
 };
 
@@ -94,6 +95,8 @@ export type ChatWorkflowState = {
   processEvents: ProcessEvent[];
   result: MockResult | null;
   history: ChatTurn[];
+  historyLoading: boolean;
   loading: boolean;
-  error: string | null;
+  error: ChatError | null;
 };
+import type { ChatError } from "./chatError";

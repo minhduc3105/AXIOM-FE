@@ -14,6 +14,7 @@ import {
   WrenchIcon,
 } from "lucide-react";
 import { useTheme } from "@/app/ThemeProvider";
+import type { ReactNode } from "react";
 import type { AppRoute } from "@/app/routing/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,7 @@ type AppTopBarProps = {
   selectedWorkspace: AssignedWorkspace | null;
   workspacesLoading: boolean;
   onWorkspaceSelect: (workspaceId: string) => void;
+  chatControls?: ReactNode;
 };
 
 function getPageContext(route: AppRoute) {
@@ -109,10 +111,12 @@ export function AppTopBar({
   selectedWorkspace,
   workspacesLoading,
   onWorkspaceSelect,
+  chatControls,
 }: AppTopBarProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const pageContext = getPageContext(route);
   const PageIcon = pageContext.icon;
+  const isChat = route.surface === "chat";
   const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
   const themeLabel = `Use ${nextTheme} theme`;
   const navigationLabel = navigationOpen
@@ -121,7 +125,7 @@ export function AppTopBar({
 
   return (
     <header
-      className="sticky top-0 z-30 h-16 shrink-0 bg-[#f4efe5]/18 text-foreground backdrop-blur-md dark:bg-[#11110f]/18"
+      className="sticky top-0 z-30 h-16 shrink-0 bg-background text-foreground"
       aria-label="Application toolbar"
     >
       <div
@@ -153,58 +157,48 @@ export function AppTopBar({
           </Tooltip>
         )}
 
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-start gap-1">
-            <span className="grid size-9 shrink-0 place-items-center rounded-md text-primary">
-              <PageIcon className="size-6" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-2xl font-semibold leading-6">
-                {pageContext.title}
-              </p>
-              <p className="hidden truncate text-sm leading-5 text-muted-foreground md:block">
-                {pageContext.description}
-              </p>
+        <div
+          className="min-w-0"
+          role={isChat ? "group" : undefined}
+          aria-label={isChat ? "Chat controls" : undefined}
+        >
+          {isChat ? (
+            chatControls
+          ) : (
+            <div className="flex min-w-0 items-start gap-1">
+              <span className="grid size-9 shrink-0 place-items-center rounded-md text-primary">
+                <PageIcon className="size-6" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-2xl font-semibold leading-6">
+                  {pageContext.title}
+                </p>
+                <p className="hidden truncate text-sm leading-5 text-muted-foreground md:block">
+                  {pageContext.description}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="flex min-w-0 items-center justify-self-end gap-2">
-          {showInspectorToggle && onInspectorOpen && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="size-10 shrink-0 bg-card text-foreground"
-                    aria-label="Open Logs & Files"
-                    aria-expanded={false}
-                    onClick={onInspectorOpen}
-                  />
-                }
-              >
-                <PanelRightOpenIcon />
-              </TooltipTrigger>
-              <TooltipContent>Open Logs &amp; Files</TooltipContent>
-            </Tooltip>
-          )}
-          <AppScopeBar
-            scope={scope}
-            workspaces={workspaces}
-            selectedWorkspace={selectedWorkspace}
-            workspacesLoading={workspacesLoading}
-            onWorkspaceSelect={onWorkspaceSelect}
-          />
+          <div className="hidden min-w-0 sm:flex">
+            <AppScopeBar
+              scope={scope}
+              workspaces={workspaces}
+              selectedWorkspace={selectedWorkspace}
+              workspacesLoading={workspacesLoading}
+              onWorkspaceSelect={onWorkspaceSelect}
+            />
+          </div>
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
-                  className="size-10 shrink-0 bg-card text-foreground"
+                  className="size-10 shrink-0 text-foreground"
                   aria-label={themeLabel}
                   onClick={() => setTheme(nextTheme)}
                 />
@@ -216,6 +210,27 @@ export function AppTopBar({
               {themeLabel}
             </TooltipContent>
           </Tooltip>
+          {showInspectorToggle && onInspectorOpen && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-10 shrink-0 text-foreground"
+                    aria-label="Open Logs & Files"
+                    aria-controls="process-inspector"
+                    aria-expanded={false}
+                    onClick={onInspectorOpen}
+                  />
+                }
+              >
+                <PanelRightOpenIcon />
+              </TooltipTrigger>
+              <TooltipContent>Open Logs &amp; Files</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
     </header>

@@ -17,6 +17,33 @@ import {
 } from "@/shared/lib/intelligence-api";
 import { authFetch } from "@/features/auth/model/authFetch";
 import type { IntelligenceMessage } from "@/shared/types/intelligence";
+import { getChatError, type ChatError } from "../model/chatError";
+
+export class ChatApiError extends Error {
+  readonly status: number | null;
+  readonly code: string | null;
+  readonly retryable: boolean | null;
+  readonly cause: unknown;
+
+  constructor({
+    status,
+    code = null,
+    retryable = null,
+    cause,
+  }: {
+    status: number | null;
+    code?: string | null;
+    retryable?: boolean | null;
+    cause: unknown;
+  }) {
+    super("Chat request failed.");
+    this.name = "ChatApiError";
+    this.status = status;
+    this.code = code;
+    this.retryable = retryable;
+    this.cause = cause;
+  }
+}
 
 type SseEvent = {
   type: string;
@@ -60,6 +87,11 @@ type CompletedResponse = {
   metadata: Record<string, unknown>;
   processEvents: ProcessEvent[];
   pending?: boolean;
+};
+
+type HydratedAssistantResponse = {
+  completed: CompletedResponse | null;
+  error: ChatError | null;
 };
 
 type StreamOutcome = {
@@ -225,7 +257,12 @@ export async function uploadCorpusFiles(
     ),
     { method: "POST", body: formData, signal },
   );
-  if (!response.ok) throw new Error(await responseErrorMessage(response));
+  if (!response.ok) {
+    throw new ChatApiError({
+      status: response.status,
+      ...(await responseErrorDetails(response)),
+    });
+  }
 
   const payload: unknown = await response.json();
   const data = asRecord(asRecord(payload).data);
@@ -352,7 +389,12 @@ async function postJson(path: string, body: unknown, signal?: AbortSignal) {
     body: JSON.stringify(body),
     signal,
   });
-  if (!response.ok) throw new Error(await responseErrorMessage(response));
+  if (!response.ok) {
+    throw new ChatApiError({
+      status: response.status,
+      ...(await responseErrorDetails(response)),
+    });
+  }
   return response;
 }
 
@@ -381,29 +423,47 @@ async function postJsonWithHeaders(
     body: JSON.stringify(body),
     signal,
   });
-  if (!response.ok) throw new Error(await responseErrorMessage(response));
+  if (!response.ok) {
+    throw new ChatApiError({
+      status: response.status,
+      ...(await responseErrorDetails(response)),
+    });
+  }
   return response;
 }
 
-async function responseErrorMessage(response: Response) {
+async function responseErrorDetails(response: Response) {
   const fallback = `AXIOM Intelligence API returned ${response.status}.`;
   try {
     const text = await response.text();
-    if (!text) return fallback;
+    if (!text) return { cause: fallback };
     try {
-      const payload = JSON.parse(text) as {
-        detail?: unknown;
-        error?: { message?: unknown };
+      const payload = asRecord(JSON.parse(text));
+      const error = asRecord(payload.error);
+      const detail = asRecord(payload.detail);
+      return {
+        cause:
+          stringValue(error.message) ||
+          stringValue(detail.message) ||
+          stringValue(payload.message) ||
+          text,
+        code:
+          stringValue(error.code) ||
+          stringValue(detail.code) ||
+          stringValue(payload.code) ||
+          null,
+        retryable:
+          booleanValue(error.retryable) ??
+          booleanValue(detail.retryable) ??
+          booleanValue(payload.retryable) ??
+          null,
       };
-      if (typeof payload.detail === "string") return payload.detail;
-      if (typeof payload.error?.message === "string")
-        return payload.error.message;
     } catch {
-      return text;
+      return { cause: text };
     }
-    return fallback;
+    return { cause: text };
   } catch {
-    return fallback;
+    return { cause: fallback };
   }
 }
 
@@ -430,17 +490,26 @@ async function readResponseStream(
       {},
     ).catch(() => undefined);
   };
-  signal?.addEventListener("abort", notifyCancellation);
+  const cancelReader = () => {
+    notifyCancellation();
+    void reader.cancel().catch(() => undefined);
+  };
+  signal?.addEventListener("abort", cancelReader);
+  if (signal?.aborted) cancelReader();
 
   try {
     while (true) {
       if (signal?.aborted)
         throw new DOMException("The request was aborted.", "AbortError");
       const { done, value } = await reader.read();
+      if (signal?.aborted)
+        throw new DOMException("The request was aborted.", "AbortError");
       const events = done
         ? parser.finish()
         : parser.push(decoder.decode(value, { stream: true }));
       for (const event of events) {
+        if (signal?.aborted)
+          throw new DOMException("The request was aborted.", "AbortError");
         if (typeof event.response_id === "string") {
           latestResponseId = event.response_id;
           if (signal?.aborted) notifyCancellation();
@@ -450,8 +519,12 @@ async function readResponseStream(
       if (done) break;
     }
   } finally {
-    signal?.removeEventListener("abort", notifyCancellation);
-    reader.releaseLock();
+    signal?.removeEventListener("abort", cancelReader);
+    try {
+      reader.releaseLock();
+    } catch {
+      // The reader may already be released as part of abort cleanup.
+    }
   }
 
   return outcome;
@@ -542,13 +615,26 @@ function applyStreamEvent(
     return;
   }
 
+  if (event.type === "response.cancelled" || event.type === "response.canceled") {
+    const error = asRecord(event.error);
+    throw new ChatApiError({
+      status: null,
+      code: "cancelled",
+      retryable: false,
+      cause:
+        stringValue(error.message) || "The intelligence response was stopped.",
+    });
+  }
+
   if (event.type === "response.failed") {
     const error = asRecord(event.error);
-    throw new Error(
-      typeof error.message === "string"
-        ? error.message
-        : "The intelligence response failed.",
-    );
+    throw new ChatApiError({
+      status: null,
+      code: stringValue(error.code) || null,
+      retryable: booleanValue(error.retryable),
+      cause:
+        stringValue(error.message) || "The intelligence response failed.",
+    });
   }
 }
 
@@ -1009,14 +1095,14 @@ function messagesToChatTurns(
 
     if (message.role !== "assistant") continue;
 
-    const completed = completedResponseFromMessage(message);
-    if (!completed) continue;
+    const hydrated = completedResponseFromMessage(message);
+    if (!hydrated) continue;
 
     const question =
       pendingQuestion ||
       pendingInvestigation?.question ||
       "Conversation response";
-    pendingResponse = Boolean(completed.pending);
+    pendingResponse = Boolean(hydrated.completed?.pending);
     turns.push({
       executionMode: pendingExecutionMode,
       investigation:
@@ -1029,8 +1115,9 @@ function messagesToChatTurns(
               pendingInvestigation || storedInvestigation(question),
               pendingAttachments,
             ),
-      result: completedToResult(completed),
-      processEvents: completed.processEvents,
+      result: hydrated.completed ? completedToResult(hydrated.completed) : null,
+      error: hydrated.error,
+      processEvents: hydrated.completed?.processEvents ?? processEventsFromMessage(message),
     });
     pendingQuestion = null;
     pendingAttachments = [];
@@ -1102,26 +1189,19 @@ function withAttachments(
 
 function completedResponseFromMessage(
   message: IntelligenceMessage,
-): CompletedResponse | null {
+): HydratedAssistantResponse | null {
   const content = message.content;
   const record = asRecord(content);
   const response = asRecord(record.response);
-  const error = asRecord(record.error);
-  const failedMessage =
-    stringValue(error.message) ||
-    stringValue(record.message) ||
-    stringValue(response.error);
+  const failed = isFailedAssistantStatus(message.status);
+  const error = failed ? historyErrorFromMessage(message, record, response) : null;
   const outputText =
     stringValue(record.output_text) ||
     stringValue(response.output_text) ||
-    (["failed", "cancelled", "canceled"].includes(
-      message.status.toLowerCase(),
-    )
-      ? failedMessage
-      : "") ||
-    (typeof content === "string" ? content : "");
+    (!failed && typeof content === "string" ? content : "");
 
-  if (!outputText) return null;
+  if (!outputText && !error) return null;
+  if (!outputText) return { completed: null, error };
 
   const completed = {
     responseId: message.response_id || stringValue(response.id),
@@ -1130,12 +1210,6 @@ function completedResponseFromMessage(
     metadata: {
       ...message.metadata,
       ...asRecord(record.metadata),
-      ...(message.status === "failed"
-        ? {
-            title: "AXIOM response failed",
-            summary: failedMessage || outputText,
-          }
-        : {}),
     },
     processEvents: processEventsFromMessage(message),
     pending: !isTerminalAssistantStatus(message.status),
@@ -1147,7 +1221,33 @@ function completedResponseFromMessage(
       artifactEvent,
     );
   }
-  return completed;
+  return { completed, error };
+}
+
+function historyErrorFromMessage(
+  message: IntelligenceMessage,
+  record: Record<string, unknown>,
+  response: Record<string, unknown>,
+) {
+  const error = asRecord(record.error);
+  const cancelled = ["cancelled", "canceled"].includes(
+    message.status.toLowerCase(),
+  );
+  return getChatError(
+    new ChatApiError({
+      status: null,
+      code:
+        (cancelled ? "cancelled" : stringValue(error.code)) ||
+        stringValue(record.code) ||
+        null,
+      retryable: cancelled ? false : booleanValue(error.retryable),
+      cause:
+        stringValue(error.message) ||
+        stringValue(record.message) ||
+        stringValue(response.error) ||
+        "The intelligence response failed.",
+    }),
+  );
 }
 
 function completionArtifactProcessEvent(
@@ -1193,6 +1293,12 @@ function isTerminalAssistantStatus(status: string) {
     "cancelled",
     "canceled",
   ].includes(normalized);
+}
+
+function isFailedAssistantStatus(status: string) {
+  return ["failed", "error", "cancelled", "canceled"].includes(
+    status.toLowerCase(),
+  );
 }
 
 function confirmationFromMessage(
@@ -1484,6 +1590,10 @@ function rawStringValue(value: unknown) {
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function booleanValue(value: unknown) {
+  return typeof value === "boolean" ? value : null;
 }
 
 function percentValue(value: unknown) {

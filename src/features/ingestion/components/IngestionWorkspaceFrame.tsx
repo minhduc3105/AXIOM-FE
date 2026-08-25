@@ -42,24 +42,24 @@ export function IngestionWorkspaceFrame({
             <div className="flex min-w-0 flex-wrap items-center gap-3">
               <Button
                 variant="ghost"
-                className="h-9 rounded-xl border border-[#d8d0c2] bg-[#fffdf8]/86 px-3 text-[#6d685e] shadow-[0_8px_24px_rgba(24,24,18,0.05)] hover:bg-[#f4efe5] hover:text-[#191915] dark:border-[#38372f] dark:bg-[#1a1a17]/82 dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-white"
+                className="h-9 rounded-xl border border-border bg-card px-3 text-muted-foreground shadow-sm hover:bg-secondary hover:text-foreground"
                 onClick={onBack}
                 type="button"
               >
                 <ArrowLeftIcon data-icon="inline-start" />
                 {backLabel}
               </Button>
-              <span className="inline-flex h-8 items-center rounded-lg border border-[#d8d0c2]/75 bg-[#fffdf8]/58 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2456e8] shadow-[0_8px_24px_rgba(24,24,18,0.04)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-white/6 dark:text-[#7895ff]">
+              <span className="inline-flex h-8 items-center rounded-lg border border-primary/25 bg-primary/10 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
                 Data ingestion
               </span>
-              <span className="inline-flex h-8 max-w-52 items-center truncate rounded-lg border border-[#d8d0c2]/75 bg-[#fffdf8]/58 px-3 text-xs font-semibold text-[#6d685e] dark:border-[#38372f]/80 dark:bg-white/6 dark:text-[#aaa397]">
+              <span className="inline-flex h-8 max-w-52 items-center truncate rounded-lg border border-border bg-secondary px-3 text-xs font-semibold text-muted-foreground">
                 {workspaceName}
               </span>
               <div className="min-w-0">
-                <h1 className="truncate text-base font-semibold text-[#191915] sm:text-lg dark:text-[#eee8dc]">
+                <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">
                   {title}
                 </h1>
-                <p className="truncate text-xs text-[#6d685e] dark:text-[#aaa397]">
+                <p className="truncate text-xs text-muted-foreground">
                   {repoMessage}
                 </p>
               </div>
@@ -68,8 +68,8 @@ export function IngestionWorkspaceFrame({
               className={cn(
                 "inline-flex h-8 items-center rounded-lg border px-3 text-xs font-semibold",
                 ready
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200"
-                  : "border-[#d8d0c2] bg-[#fffdf8]/70 text-[#6d685e] dark:border-[#38372f] dark:bg-white/6 dark:text-[#aaa397]",
+                  ? "border-status-success/25 bg-status-success/10 text-status-success"
+                  : "border-border bg-secondary text-muted-foreground",
               )}
             >
               {ready ? "Ready" : "Processing"}
@@ -83,7 +83,7 @@ export function IngestionWorkspaceFrame({
           </section>
           {error && (
             <p
-              className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+              className="mt-3 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-center text-sm text-destructive"
               role="alert"
             >
               {error}
@@ -102,21 +102,21 @@ export function IngestionWorkspaceFrame({
             <div className="mb-8 flex flex-wrap items-center gap-3">
               <Button
                 variant="ghost"
-                className="h-10 rounded-full border border-[#d8d0c2] bg-[#fffdf8]/86 px-4 text-[#6d685e] shadow-[0_10px_30px_rgba(24,24,18,0.06)] hover:bg-[#f4efe5] hover:text-[#191915] dark:border-[#38372f] dark:bg-[#1a1a17]/82 dark:text-[#aaa397] dark:hover:bg-white/10 dark:hover:text-white"
+                className="h-10 rounded-full border border-border bg-card px-4 text-muted-foreground shadow-sm hover:bg-secondary hover:text-foreground"
                 onClick={onBack}
                 type="button"
               >
                 <ArrowLeftIcon data-icon="inline-start" />
                 {backLabel}
               </Button>
-              <span className="inline-flex h-8 items-center rounded-full border border-[#d8d0c2]/75 bg-[#fffdf8]/58 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2456e8] shadow-[0_8px_24px_rgba(24,24,18,0.04)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-white/6 dark:text-[#7895ff]">
+              <span className="inline-flex h-8 items-center rounded-full border border-primary/25 bg-primary/10 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
                 Data ingestion
               </span>
-              <span className="inline-flex h-8 max-w-52 items-center truncate rounded-full border border-[#d8d0c2]/75 bg-[#fffdf8]/58 px-3 text-xs font-semibold text-[#6d685e] dark:border-[#38372f]/80 dark:bg-white/6 dark:text-[#aaa397]">
+              <span className="inline-flex h-8 max-w-52 items-center truncate rounded-full border border-border bg-secondary px-3 text-xs font-semibold text-muted-foreground">
                 {workspaceName}
               </span>
             </div>
-            <h1 className="mt-4 max-w-5xl text-[clamp(3rem,5vw,5.5rem)] font-semibold leading-[0.92] tracking-normal text-[#191915] dark:text-[#eee8dc]">
+            <h1 className="mt-4 max-w-5xl text-[clamp(3rem,5vw,5.5rem)] font-semibold leading-[0.92] tracking-normal text-foreground">
               {title}
             </h1>
           </div>
@@ -131,7 +131,7 @@ export function IngestionWorkspaceFrame({
         </section>
         {error && (
           <p
-            className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+            className="mt-4 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-center text-sm text-destructive"
             role="alert"
           >
             {error}

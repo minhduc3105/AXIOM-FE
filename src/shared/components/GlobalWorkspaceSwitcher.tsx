@@ -1,4 +1,4 @@
-import { CheckIcon, ChevronDownIcon, Layers3Icon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import type { AssignedWorkspace } from "@/features/auth/api/authzApi";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,17 +33,23 @@ export function GlobalWorkspaceSwitcher({
         render={
           <Button
             type="button"
-            variant="outline"
-            className="h-10 w-auto min-w-0 max-w-52 justify-start gap-2 bg-card px-2.5 text-xs font-medium text-foreground"
+            variant="ghost"
+            className="h-9 w-auto min-w-0 max-w-52 cursor-pointer justify-start gap-1 px-1.5 text-sm font-medium text-foreground hover:bg-muted/60"
             disabled={loading || workspaces.length === 0}
             aria-label={`Switch workspace. Current workspace: ${selected?.name ?? "Unavailable"}`}
           />
         }
       >
-        <span className="max-w-20 min-w-0 truncate text-sm text-left sm:max-w-32">
+        <span
+          className="max-w-20 min-w-0 truncate text-left sm:max-w-32"
+          title={currentLabel}
+        >
           {currentLabel}
         </span>
-        <ChevronDownIcon className="size-4 shrink-0" aria-hidden="true" />
+        <ChevronDownIcon
+          className="size-3.5 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"

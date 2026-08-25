@@ -191,7 +191,7 @@ function JobRow({
                 "text-muted-foreground",
                 object.status === "failed" && "text-destructive",
                 object.status === "indexed" &&
-                  "text-emerald-600 dark:text-emerald-400",
+                  "text-status-success",
               )}
             >
               <ObjectStatusIcon status={object.status} />

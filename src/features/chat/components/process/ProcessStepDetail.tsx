@@ -18,36 +18,37 @@ export function ProcessStepDetail({
 }) {
   if (!event) {
     return (
-      <div className="grid min-h-[300px] place-items-center rounded-2xl border border-dashed border-[#d8d0c2] text-sm text-[#6d685e] dark:border-[#38372f] dark:text-[#aaa397]">
+      <div className="grid min-h-[300px] place-items-center rounded-2xl border border-dashed border-border text-sm text-muted-foreground">
         No process step selected.
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-[420px] w-full max-w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-[#d8d0c2]/80 bg-[#fffdf8]/75 dark:border-[#38372f]/80 dark:bg-[#1a1a17]/65">
-      <div className="flex items-start justify-between gap-3 border-b border-[#d8d0c2]/80 px-4 py-3 dark:border-[#38372f]/80">
+    <div className="flex h-full min-h-[420px] w-full max-w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#d8d0c2] bg-white text-[#6d685e] dark:border-[#38372f] dark:bg-[#20201c] dark:text-[#aaa397]">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-border bg-secondary text-muted-foreground">
             <TerminalSquareIcon className="size-4" />
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-base font-semibold leading-6 text-[#191915] dark:text-[#eee8dc]">
+              <h3 className="truncate text-base font-semibold leading-6 text-foreground">
                 {event.label}
               </h3>
               <Badge
                 variant={event.status === "done" ? "secondary" : "outline"}
                 className={cn(
-                  event.status === "failed" &&
-                    "border-red-200 text-red-700 dark:border-red-900/70 dark:text-red-300",
+                  event.status === "done" && "border-status-success/25 bg-status-success/10 text-status-success",
+                  event.status === "running" && "border-info/25 bg-info/10 text-info",
+                  event.status === "failed" && "border-destructive/25 bg-destructive/10 text-destructive",
                 )}
               >
                 {processStatusLabel(event.status)}
               </Badge>
             </div>
             {event.detail && (
-              <p className="mt-1 text-sm leading-6 text-[#6d685e] dark:text-[#aaa397]">
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {event.detail}
               </p>
             )}
@@ -84,7 +85,7 @@ export function ProcessStepDetail({
         defaultValue={firstProcessTab(event)}
         className="min-h-0 flex-1 gap-0"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#d8d0c2]/60 px-4 py-2 dark:border-[#38372f]/70">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2">
           <TabsList variant="line" className="h-8">
             <TabsTrigger value="input">Input</TabsTrigger>
             <TabsTrigger value="output">Output</TabsTrigger>

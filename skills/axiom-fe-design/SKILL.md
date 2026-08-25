@@ -26,7 +26,9 @@ Do not use this for backend-only AXIOM work or SDK changes without a frontend su
 ## Minimal Interface Standard
 
 - AXIOM is an operational product: use neutral surfaces, one brand accent, and semantic status colors.
-- Forbid decorative gradients or images, marketing bento layouts, heavy shadow, glass effects, and oversized headings. Require compact typography, moderate radii, and thin borders.
+- Apply 60-30-10 as a system-level visual balance: neutral app base dominates, secondary surfaces provide structure, and brand or semantic emphasis stays limited. Brand color is for true primary actions, links, focus, and small active indicators; system icons stay neutral unless they communicate a state.
+- Status colors must remain meaningfully distinct, but use low-chroma foregrounds with restrained tinted surfaces instead of full-color panels.
+- Forbid decorative gradients or images, marketing bento layouts, heavy shadow, glass effects, and oversized headings. Require compact typography, moderate radii, and thin borders; use solid semantic tokens unless a visual treatment has a documented functional purpose.
 - Keep default buttons restrained; use the brand treatment only for true primary actions.
 - Motion should stay within 150–220ms with ease-out timing, prioritizing opacity and transform, and must respect reduced-motion preferences.
 - QA every interface responsively, in light and dark themes, and with Vietnamese and English text expansion.

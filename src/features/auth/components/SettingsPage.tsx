@@ -10,8 +10,7 @@ import { cn } from "@/shared/lib/utils";
 import { useRef, useState, type FormEvent } from "react";
 import { PasswordField } from "./PasswordField";
 
-const panelClass =
-  "rounded-2xl border border-[#d8d0c2]/90 bg-[#fffdf8]/88 shadow-[0_16px_46px_rgba(24,24,18,0.055)] backdrop-blur-xl dark:border-[#38372f]/80 dark:bg-[#1a1a17]/88";
+const panelClass = "rounded-2xl border border-border bg-card shadow-sm";
 
 const themeOptions: Array<{
   value: ThemePreference;
@@ -90,24 +89,24 @@ export function SettingsPage() {
     <main className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
       <div className="mx-auto grid w-full max-w-4xl gap-5">
         <header className={cn(panelClass, "p-5 sm:p-6")}>
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
             Personal
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
             Settings
           </h1>
-          <p className="mt-1.5 text-sm leading-6 text-[#625d53] dark:text-[#c5bcaf]">
+          <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
             Review your account context, password, and interface preferences.
           </p>
         </header>
 
         <section className={cn(panelClass, "overflow-hidden")} aria-labelledby="account-settings-title">
-          <header className="flex items-start gap-3 border-b border-[#e1dacc] p-5 dark:border-[#38372f]">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#edf2ff] text-[#2456e8] dark:bg-[#7895ff]/12 dark:text-[#9aafff]">
+          <header className="flex items-start gap-3 border-b border-border p-5">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-secondary text-muted-foreground">
               <UserRoundIcon className="size-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
                 Account
               </p>
               <h2 id="account-settings-title" className="mt-1 text-lg font-semibold">
@@ -115,12 +114,12 @@ export function SettingsPage() {
               </h2>
             </div>
           </header>
-          <dl className="grid divide-y divide-[#e9e2d6] text-sm dark:divide-[#38372f]">
+          <dl className="grid divide-y divide-border text-sm">
             <SettingRow label="Name" value={user.display_name || "Not provided"} />
             <SettingRow label="Email" value={user.email} />
             <SettingRow label="Organization" value={user.organization_id} />
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <dt className="text-[#777064] dark:text-[#aaa397]">Organization role</dt>
+              <dt className="text-muted-foreground">Organization role</dt>
               <dd>
                 <Badge variant="outline" className="rounded-full">
                   {user.org_role === "org_admin" ? "Organization admin" : "Organization member"}
@@ -131,18 +130,18 @@ export function SettingsPage() {
         </section>
 
         <section className={cn(panelClass, "overflow-hidden")} aria-labelledby="password-settings-title">
-          <header className="flex items-start gap-3 border-b border-[#e1dacc] p-5 dark:border-[#38372f]">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#ecf7ed] text-[#2a6d3d] dark:bg-[#75b986]/12 dark:text-[#99d9a9]">
+          <header className="flex items-start gap-3 border-b border-border p-5">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-secondary text-muted-foreground">
               <KeyRoundIcon className="size-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
                 Security
               </p>
               <h2 id="password-settings-title" className="mt-1 text-lg font-semibold">
                 Change password
               </h2>
-              <p className="mt-1 text-sm text-[#625d53] dark:text-[#c5bcaf]">
+              <p className="mt-1 text-sm text-muted-foreground">
                 You will remain signed in here; other sessions will need to sign in again when they refresh.
               </p>
             </div>
@@ -211,20 +210,20 @@ export function SettingsPage() {
                 {submittingPassword ? <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" /> : <KeyRoundIcon />}
                 {submittingPassword ? "Updating password…" : "Update password"}
               </Button>
-              <p className="text-xs leading-5 text-[#777064] dark:text-[#aaa397]">Use at least 8 characters.</p>
+              <p className="text-xs leading-5 text-muted-foreground">Use at least 8 characters.</p>
             </div>
           </form>
         </section>
 
         <section className={cn(panelClass, "overflow-hidden")} aria-labelledby="appearance-settings-title">
-          <header className="border-b border-[#e1dacc] p-5 dark:border-[#38372f]">
-            <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#777064] dark:text-[#aaa397]">
+          <header className="border-b border-border p-5">
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
               Interface
             </p>
             <h2 id="appearance-settings-title" className="mt-1 text-lg font-semibold">
               Appearance
             </h2>
-            <p className="mt-1 text-sm text-[#625d53] dark:text-[#c5bcaf]">
+            <p className="mt-1 text-sm text-muted-foreground">
               Current display: {resolvedTheme}.
             </p>
           </header>
@@ -270,7 +269,7 @@ function validatePasswordChange(draft: PasswordChangeDraft) {
 function SettingRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-      <dt className="text-[#777064] dark:text-[#aaa397]">{label}</dt>
+      <dt className="text-muted-foreground">{label}</dt>
       <dd className="max-w-full break-all font-medium text-right">{value}</dd>
     </div>
   );

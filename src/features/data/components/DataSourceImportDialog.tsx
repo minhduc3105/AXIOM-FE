@@ -85,8 +85,8 @@ function IngestionStatus({ job }: { job: IngestionJobResponse | null }) {
   if (!job) return null;
   if (job.status === "completed") {
     return (
-      <Alert className="border-emerald-500/30 bg-emerald-500/5">
-        <CheckCircle2Icon className="text-emerald-700" />
+      <Alert className="border-status-success/25 bg-status-success/10 text-status-success">
+        <CheckCircle2Icon className="text-status-success" />
         <AlertTitle>Import completed</AlertTitle>
         <AlertDescription>
           {job.objects_written.toLocaleString()} object
