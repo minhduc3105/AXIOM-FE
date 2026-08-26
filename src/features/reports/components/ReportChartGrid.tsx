@@ -35,17 +35,14 @@ const chartConfig: ChartConfig = {
 
 export function ReportChartGrid({ dashboard }: ReportChartGridProps) {
   const charts = dashboard?.charts ?? [];
-  const validCharts = charts.filter(isRenderableChart);
-  const invalidCount = charts.length - validCharts.length;
+  const validCharts = charts.filter(isRenderableChart).slice(0, 3);
 
   return (
-    <section className="grid gap-4" aria-labelledby="report-charts-heading">
+    <section className="grid gap-3" aria-labelledby="report-charts-heading">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">Evidence view</p>
-          <h2 id="report-charts-heading" className="mt-1 text-xl font-semibold">Charts from the report</h2>
+          <h2 id="report-charts-heading" className="mt-1 text-xl font-semibold">Charts</h2>
         </div>
-        {invalidCount > 0 && <span className="text-xs text-muted-foreground">{invalidCount} chart signal unavailable</span>}
       </div>
       {!validCharts.length ? (
         <Card className="border-dashed bg-card/70">
@@ -80,9 +77,7 @@ function ChartCard({ chart }: { chart: ReportDashboardSnapshot["charts"][number]
     <Card className="min-w-0 border-border/80 bg-card">
       <CardHeader>
         <CardTitle className="truncate" title={chart.title}>{chart.title}</CardTitle>
-        <CardDescription className="line-clamp-2 min-h-10">
-          {chart.description || (chart.unit ? `Measured in ${chart.unit}.` : "Extracted from the latest report.")}
-        </CardDescription>
+        {chart.description && <CardDescription className="line-clamp-2">{chart.description}</CardDescription>}
       </CardHeader>
       <CardContent className="grid gap-3">
         <ChartContainer config={chartConfig} className="h-56 w-full min-w-0">
@@ -113,10 +108,6 @@ function ChartCard({ chart }: { chart: ReportDashboardSnapshot["charts"][number]
             </PieChart>
           )}
         </ChartContainer>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>{data.length} data point{data.length === 1 ? "" : "s"}</span>
-          {chart.source_ref && <span className="max-w-[70%] truncate" title={chart.source_ref}>Source: {chart.source_ref}</span>}
-        </div>
       </CardContent>
     </Card>
   );

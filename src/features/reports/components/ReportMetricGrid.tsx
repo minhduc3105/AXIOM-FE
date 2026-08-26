@@ -43,16 +43,14 @@ const directionMeta: Record<
 };
 
 export function ReportMetricGrid({ dashboard }: ReportMetricGridProps) {
-  const metrics = dashboard?.metrics ?? [];
+  const metrics = (dashboard?.metrics ?? []).slice(0, 6);
 
   return (
-    <section className="grid gap-4" aria-labelledby="report-metrics-heading">
+    <section className="grid gap-3" aria-labelledby="report-metrics-heading">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">Extracted signals</p>
           <h2 id="report-metrics-heading" className="mt-1 text-xl font-semibold">Key metrics</h2>
         </div>
-        <span className="text-xs text-muted-foreground">From the latest report</span>
       </div>
       {!metrics.length ? (
         <Card className="border-dashed bg-card/70">
@@ -80,22 +78,17 @@ export function ReportMetricGrid({ dashboard }: ReportMetricGridProps) {
                     {metric.unit && <span className="text-sm font-normal text-muted-foreground">{metric.unit}</span>}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-3">
-                  <div className="flex min-h-6 items-center justify-between gap-2">
-                    {metric.delta && direction && DirectionIcon ? (
-                      <Badge variant="outline" className={cn("rounded-full", direction.className)}>
-                        <DirectionIcon data-icon="inline-start" aria-hidden="true" />
-                        <span className="sr-only">{direction.label}: </span>
-                        {metric.delta}
-                      </Badge>
-                    ) : metric.delta ? (
-                      <span className="text-sm font-medium text-muted-foreground">{metric.delta}</span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">No comparison available</span>
-                    )}
-                    {metric.source_ref && <span className="max-w-[45%] truncate text-right text-xs text-muted-foreground" title={metric.source_ref}>{metric.source_ref}</span>}
-                  </div>
-                  {metric.interpretation && <p className="text-sm leading-5 text-muted-foreground">{metric.interpretation}</p>}
+                <CardContent className="grid gap-2">
+                  {metric.delta && direction && DirectionIcon ? (
+                    <Badge variant="outline" className={cn("w-fit rounded-full", direction.className)}>
+                      <DirectionIcon data-icon="inline-start" aria-hidden="true" />
+                      <span className="sr-only">{direction.label}: </span>
+                      {metric.delta}
+                    </Badge>
+                  ) : metric.delta ? (
+                    <span className="text-sm font-medium text-muted-foreground">{metric.delta}</span>
+                  ) : null}
+                  {metric.interpretation && <p className="line-clamp-2 text-sm leading-5 text-muted-foreground">{metric.interpretation}</p>}
                 </CardContent>
               </Card>
             );

@@ -123,7 +123,7 @@ export function LatestReportSignal({
               <LoaderCircleIcon className="animate-spin text-muted-foreground" aria-label="Report is generating" />
             </div>
             <CardTitle className="text-2xl leading-tight sm:text-3xl">Generating report</CardTitle>
-            <CardDescription className="max-w-3xl text-sm leading-6">
+            <CardDescription className="line-clamp-2 max-w-3xl text-sm leading-6">
               Processing {processingSource.filename}. Findings will appear when the run completes.
             </CardDescription>
           </CardHeader>
@@ -163,7 +163,7 @@ export function LatestReportSignal({
   const primarySource = report.primary_source;
   const activeSource = processingSource || primarySource;
   const isProcessing = Boolean(processingSource);
-  const changes = dashboard?.changes ?? [];
+  const changes = (dashboard?.changes ?? []).slice(0, 3);
   const isFailure = report.status === "failed" && !isProcessing;
 
   return (
@@ -182,7 +182,7 @@ export function LatestReportSignal({
           <CardTitle className="text-2xl leading-tight sm:text-3xl">
             {isProcessing ? "Generating report" : dashboard?.headline.title || report.title || "Report generation"}
           </CardTitle>
-          <CardDescription className="max-w-3xl text-sm leading-6">
+          <CardDescription className="line-clamp-2 max-w-3xl text-sm leading-6">
             {isProcessing
               ? `Processing ${processingSource?.filename || "the newest workspace file"}. Findings will appear when the run completes.`
               : dashboard?.headline.summary || report.summary || "The report has not returned a summary yet."}
@@ -223,7 +223,7 @@ export function LatestReportSignal({
         <section className="grid gap-3" aria-labelledby="latest-report-changes">
           <div className="flex items-center justify-between gap-3">
             <h3 id="latest-report-changes" className="text-sm font-semibold">
-              What changed
+              Key insights
             </h3>
             {dashboard?.headline.confidence && (
               <span className="text-xs text-muted-foreground">
@@ -247,7 +247,7 @@ export function LatestReportSignal({
                     <Icon className="mt-0.5 shrink-0" aria-hidden="true" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium">{change.title}</p>
-                      <p className="mt-0.5 text-sm text-muted-foreground">{change.detail}</p>
+                      <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{change.detail}</p>
                     </div>
                   </li>
                 );
@@ -255,7 +255,7 @@ export function LatestReportSignal({
             </ul>
           ) : (
             <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
-              No change summary was extracted from this report.
+              No key insights were extracted from this report.
             </p>
           )}
         </section>
