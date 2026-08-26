@@ -21,7 +21,12 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     server: {
-      allowedHosts: ["axiom.iselab.site", "tuananh5173.iselab.site", "honganh5173.iselab.site"],
+      allowedHosts: [
+        "axiom.iselab.site",
+        "tuananh5173.iselab.site",
+        "honganh5173.iselab.site",
+        "minhduc5173.iselab.site",
+      ],
       proxy: {
         "/data-intelligence-api": {
           target: dataIntelligenceApiTarget,
@@ -62,6 +67,9 @@ export default defineConfig(({ mode }) => {
         "/model-service": {
           target: modelServiceTarget,
           changeOrigin: true,
+          // The standalone Model Service exposes /api/v2 directly. Remove
+          // the browser-only proxy prefix before forwarding upstream.
+          rewrite: (path) => path.replace(/^\/model-service/, ""),
         },
         "/storage": {
           target: storageTarget,

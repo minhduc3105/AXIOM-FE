@@ -356,12 +356,9 @@ export function ToolsPage({
     >
       <div className="mx-auto grid w-full max-w-[1360px] gap-6">
         <Card className="gap-0 rounded-xl bg-card p-0 shadow-sm">
-          <header className="grid gap-5 p-5 sm:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <header className="grid gap-3 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
-                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Tool management
-                </p>
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                     Tools
@@ -379,10 +376,6 @@ export function ToolsPage({
                     {disabledTools.length} disabled
                   </Badge>
                 </div>
-                <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Control which methods are available to AXIOM workflows. Open a
-                  tool card to inspect its read-only details.
-                </p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Availability scope:{" "}
                   <span className="font-medium text-muted-foreground">
@@ -406,7 +399,7 @@ export function ToolsPage({
                 {isRefreshing ? "Updating catalog…" : "Refresh"}
               </Button>
             </div>
-            <div className="grid gap-3 border-t pt-4 xl:grid-cols-[minmax(240px,1fr)_minmax(390px,auto)] xl:items-center">
+            <div className="grid gap-2 border-t pt-3 xl:grid-cols-[minmax(240px,1fr)_minmax(390px,auto)] xl:items-center">
               <div className="relative min-w-0">
                 <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -437,19 +430,19 @@ export function ToolsPage({
                 >
                   <ToggleGroupItem
                     value="all"
-                    className="rounded-full px-3 text-xs"
+                    className="rounded-full px-3 text-xs aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:shadow-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
                   >
                     All
                   </ToggleGroupItem>
                   <ToggleGroupItem
                     value="active"
-                    className="rounded-full px-3 text-xs"
+                    className="rounded-full px-3 text-xs aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:shadow-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
                   >
                     Active
                   </ToggleGroupItem>
                   <ToggleGroupItem
                     value="disabled"
-                    className="rounded-full px-3 text-xs"
+                    className="rounded-full px-3 text-xs aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:shadow-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
                   >
                     Disabled
                   </ToggleGroupItem>
@@ -485,7 +478,7 @@ export function ToolsPage({
             >
               <ToggleGroupItem
                 value="all"
-                className="rounded-full px-3 text-xs"
+                className="rounded-full px-3 text-xs aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:shadow-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
               >
                 <SlidersHorizontalIcon data-icon="inline-start" /> All types
               </ToggleGroupItem>
@@ -493,7 +486,7 @@ export function ToolsPage({
                 <ToggleGroupItem
                   key={toolKind}
                   value={toolKind}
-                  className="rounded-full px-3 text-xs"
+                  className="rounded-full px-3 text-xs aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:shadow-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
                 >
                   {formatToolKind(toolKind)}
                 </ToggleGroupItem>

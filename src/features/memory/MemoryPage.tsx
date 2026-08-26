@@ -238,20 +238,6 @@ export function MemoryPage() {
       /* List payload remains usable when detail is unavailable. */
     }
   };
-  const searchInventory = async () => {
-    if (!query.trim()) return refresh();
-    setBusy("search");
-    try {
-      const results = await api.searchMemories(query, {
-        type: memoryType === "all" ? undefined : memoryType,
-      });
-      setMemories(results);
-    } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : "Search failed.");
-    } finally {
-      setBusy(null);
-    }
-  };
   const removeMemory = async (memory: MemoryRecord) => {
     if (!window.confirm(`Soft-delete this ${memory.memory_type} memory?`))
       return;
@@ -374,10 +360,10 @@ export function MemoryPage() {
 
   return (
     <section
-      className="min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6"
+      className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 overflow-hidden px-5 pb-6 pt-4 sm:px-8 md:pt-6"
       aria-label="Memory management"
     >
-      <div className="mx-auto grid w-full max-w-[1440px] gap-6">
+      <div className="mx-auto flex h-full min-h-0 w-full flex-col gap-6">
         <header className="border-b pb-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -440,41 +426,41 @@ export function MemoryPage() {
         <Tabs
           value={view}
           onValueChange={(value) => setView(value as View)}
-          className="gap-0"
+          className="min-h-0 flex-1 gap-0"
         >
-          <section className={cn(panel, "overflow-hidden rounded-lg")}>
+          <section className={cn(panel, "flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg")}>
             <div className="border-b bg-muted/30 px-4 py-3">
-              <TabsList className="h-auto max-w-full overflow-x-auto rounded-md border bg-background p-1">
+              <TabsList className="h-auto w-full max-w-full flex-wrap justify-start rounded-md border bg-background p-1">
                 <TabsTrigger
                   value="inventory"
-                  className="rounded-sm px-3 text-xs"
+                  className="flex-none rounded-sm px-3 text-xs"
                 >
                   Inventory
                 </TabsTrigger>
-                <TabsTrigger value="recall" className="rounded-sm px-3 text-xs">
+                <TabsTrigger value="recall" className="flex-none rounded-sm px-3 text-xs">
                   Recall & capture
                 </TabsTrigger>
                 <TabsTrigger
                   value="experiences"
-                  className="rounded-sm px-3 text-xs"
+                  className="flex-none rounded-sm px-3 text-xs"
                 >
                   Experiences
                 </TabsTrigger>
                 <TabsTrigger
                   value="procedures"
-                  className="rounded-sm px-3 text-xs"
+                  className="flex-none rounded-sm px-3 text-xs"
                 >
                   Procedures
                 </TabsTrigger>
-                <TabsTrigger value="reme" className="rounded-sm px-3 text-xs">
+                <TabsTrigger value="reme" className="flex-none rounded-sm px-3 text-xs">
                   ReMe operations
                 </TabsTrigger>
               </TabsList>
             </div>
-            <TabsContent value="inventory">
-              <div className="grid min-w-0 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+            <TabsContent value="inventory" className="min-h-0 overflow-x-hidden overflow-y-auto">
+              <div className="grid h-full min-w-0 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
                 <section
-                  className="min-w-0 border-b lg:border-b-0 lg:border-r"
+                  className="min-w-0 border-b lg:h-full lg:overflow-y-auto lg:border-b-0 lg:border-r"
                   aria-labelledby="memory-inventory-heading"
                 >
                   <div className="border-b p-4 sm:p-5">
@@ -493,29 +479,11 @@ export function MemoryPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                      <Field className="min-w-0 flex-1">
-                        <FieldLabel htmlFor="memory-search" className="sr-only">
-                          Search memories
-                        </FieldLabel>
-                      </Field>
+                    <div className="max-w-xs">
                       <MemoryTypeDropdown
                         value={memoryType}
                         onValueChange={setMemoryType}
                       />
-                      <Button
-                        size="sm"
-                        className="h-9 rounded-full"
-                        onClick={() => void searchInventory()}
-                        disabled={busy === "search"}
-                      >
-                        {busy === "search" ? (
-                          <LoaderCircleIcon className="animate-spin" />
-                        ) : (
-                          <SearchIcon />
-                        )}{" "}
-                        Search
-                      </Button>
                     </div>
                     <InventoryList
                       memories={visibleMemories}
@@ -537,7 +505,7 @@ export function MemoryPage() {
                 />
               </div>
             </TabsContent>
-            <TabsContent value="recall">
+            <TabsContent value="recall" className="min-h-0 overflow-x-hidden overflow-y-auto">
               <RecallPanel
                 recallQuery={recallQuery}
                 setRecallQuery={setRecallQuery}
@@ -551,7 +519,7 @@ export function MemoryPage() {
                 onCapture={capture}
               />
             </TabsContent>
-            <TabsContent value="experiences">
+            <TabsContent value="experiences" className="min-h-0 overflow-x-hidden overflow-y-auto">
               <RecordPanel
                 title="Experience pool"
                 description="Reusable outcomes and lessons from completed work."
@@ -570,7 +538,7 @@ export function MemoryPage() {
                 kind="experience"
               />
             </TabsContent>
-            <TabsContent value="procedures">
+            <TabsContent value="procedures" className="min-h-0 overflow-x-hidden overflow-y-auto">
               <RecordPanel
                 title="Procedures"
                 description="Reusable workflows grounded in observed work."
@@ -589,7 +557,7 @@ export function MemoryPage() {
                 kind="procedure"
               />
             </TabsContent>
-            <TabsContent value="reme">
+            <TabsContent value="reme" className="min-h-0 overflow-x-hidden overflow-y-auto">
               <RemePanel
                 input={remeInput}
                 setInput={setRemeInput}
@@ -794,7 +762,7 @@ function Inspector({
     return (
       <aside
         aria-label="Record inspector"
-        className="grid min-h-80 place-items-center bg-muted/20 p-6 text-center"
+        className="grid h-full min-h-80 place-items-center bg-muted/20 p-6 text-center"
       >
         <div>
           <FileJsonIcon className="mx-auto size-5 text-muted-foreground" />
@@ -812,7 +780,7 @@ function Inspector({
   return (
     <aside
       aria-label={isMemory ? "Selected memory inspector" : "Record inspector"}
-      className="min-w-0 bg-muted/20 p-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-48px)] lg:overflow-y-auto"
+      className="min-w-0 bg-muted/20 p-5 lg:h-full lg:overflow-y-auto"
     >
       <div className="flex items-start justify-between gap-3 border-b pb-4">
         <div>

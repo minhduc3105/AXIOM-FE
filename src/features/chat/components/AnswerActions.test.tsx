@@ -52,4 +52,23 @@ describe("AnswerActions", () => {
     expect(screen.getByRole("button", { name: "Copy response" })).toBeTruthy();
   });
 
+  it("lets the user choose one helpfulness rating at a time", () => {
+    render(
+      <TooltipProvider>
+        <AnswerActions markdown="Answer" events={[]} artifacts={[]} />
+      </TooltipProvider>,
+    );
+
+    const helpful = screen.getByRole("button", { name: "Mark response as helpful" });
+    const unhelpful = screen.getByRole("button", { name: "Mark response as unhelpful" });
+
+    fireEvent.click(helpful);
+    expect(screen.getByRole("button", { name: "Remove helpful rating" }).getAttribute("aria-pressed")).toBe("true");
+    expect(unhelpful.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(unhelpful);
+    expect(screen.getByRole("button", { name: "Mark response as helpful" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "Remove unhelpful rating" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
 });

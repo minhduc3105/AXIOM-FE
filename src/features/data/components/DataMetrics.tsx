@@ -1,4 +1,4 @@
-import { DatabaseIcon } from "lucide-react";
+import { CircleDotIcon, DatabaseIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import type {
@@ -59,7 +59,10 @@ export function DataMetrics({
       aria-label="Data health summary"
     >
       {metrics.map((metric) => {
-        const Icon = metric.icon;
+        // Processing uses a static indicator in the summary cards. The
+        // animated status icon remains reserved for row-level live status.
+        const Icon =
+          metric.key === "processing" ? CircleDotIcon : metric.icon;
         const description =
           metric.key === "all"
             ? `${totalSize} across this workspace`

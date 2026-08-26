@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ProcessEvent } from "../model/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,8 @@ import {
   FileTextIcon,
   FolderOpenIcon,
   ImageIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
 } from "lucide-react";
 import {
   Tooltip,
@@ -37,6 +39,7 @@ export function AnswerActions({
   artifacts: string[];
 }) {
   const [copied, setCopied] = useState(false);
+  const [feedback, setFeedback] = useState<"helpful" | "unhelpful" | null>(null);
   const resetTimerRef = useRef<number | null>(null);
   const files = mergeGeneratedFiles(extractWorkspaceFiles(events), artifacts);
 
@@ -62,6 +65,11 @@ export function AnswerActions({
   }
 
   const copyLabel = copied ? "Response copied" : "Copy response";
+  const feedbackMessage = feedback === "helpful"
+    ? "Marked response as helpful"
+    : feedback === "unhelpful"
+      ? "Marked response as unhelpful"
+      : "";
 
   return (
     <div
@@ -86,10 +94,59 @@ export function AnswerActions({
         <TooltipContent>{copyLabel}</TooltipContent>
       </Tooltip>
       <span className="sr-only" aria-live="polite">
-        {copied ? "Response copied" : ""}
+        {copied ? "Response copied" : feedbackMessage}
       </span>
+      <FeedbackAction
+        active={feedback === "helpful"}
+        icon={<ThumbsUpIcon />}
+        label={feedback === "helpful" ? "Remove helpful rating" : "Mark response as helpful"}
+        onClick={() => setFeedback((current) => current === "helpful" ? null : "helpful")}
+        tooltip="Helpful"
+      />
+      <FeedbackAction
+        active={feedback === "unhelpful"}
+        icon={<ThumbsDownIcon />}
+        label={feedback === "unhelpful" ? "Remove unhelpful rating" : "Mark response as unhelpful"}
+        onClick={() => setFeedback((current) => current === "unhelpful" ? null : "unhelpful")}
+        tooltip="Not helpful"
+      />
       {files.length > 0 && <GeneratedFilesDialog files={files} />}
     </div>
+  );
+}
+
+function FeedbackAction({
+  active,
+  icon,
+  label,
+  onClick,
+  tooltip,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  tooltip: string;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={label}
+            aria-pressed={active}
+            className={active ? "text-primary hover:text-brand-strong" : "text-muted-foreground hover:text-foreground"}
+            onClick={onClick}
+          />
+        }
+      >
+        {icon}
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
   );
 }
 

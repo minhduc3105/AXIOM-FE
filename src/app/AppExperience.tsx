@@ -25,6 +25,7 @@ import { ModelsPage } from "@/features/models/ModelsPage";
 import { MemoryPage } from "@/features/memory/MemoryPage";
 import { OrganizationUsersPage } from "@/features/auth/components/OrganizationUsersPage";
 import { SettingsPage } from "@/features/auth/components/SettingsPage";
+import { ChangePasswordPage } from "@/features/auth/components/ChangePasswordPage";
 import { useAuth } from "@/features/auth/model/AuthProvider";
 import { AppShell } from "./AppShell";
 import {
@@ -275,6 +276,10 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     navigate(createSettingsRoute());
   }, [navigate]);
 
+  const openChangePassword = useCallback(() => {
+    navigate(createSettingsRoute("password"));
+  }, [navigate]);
+
   const openToolDetail = useCallback(
     (toolName: string, returnViewState: ToolCatalogViewState) => {
       setToolsViewState(returnViewState);
@@ -457,16 +462,18 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
         )
       ) : route.surface === "reports" ? (
         <ReportsPage
-          onData={openData}
           workspaceId={dataWorkspace.selectedWorkspace?.id ?? null}
-          workspaceName={dataWorkspace.selectedWorkspace?.name ?? null}
         />
       ) : route.surface === "memory" ? (
         <MemoryPage />
       ) : route.surface === "models" ? (
         <ModelsPage />
       ) : route.surface === "settings" ? (
-        <SettingsPage />
+        route.page === "password" ? (
+          <ChangePasswordPage onBack={openSettings} />
+        ) : (
+          <SettingsPage onChangePassword={openChangePassword} />
+        )
       ) : route.surface === "organization" ? (
         <OrganizationUsersPage
           initialTab={route.tab}

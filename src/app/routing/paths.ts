@@ -62,7 +62,11 @@ export function parseAppRoute(pathname: string, search = ""): AppRoute {
   }
 
   if (segments[0] === ROUTE_SEGMENTS.settings) {
-    return { surface: "settings", sessionId: null };
+    return {
+      surface: "settings",
+      page: segments[1] === "password" ? "password" : "overview",
+      sessionId: null,
+    };
   }
 
   if (segments[0] === ROUTE_SEGMENTS.organization) {
@@ -97,7 +101,11 @@ export function getAppRoutePath(route: AppRoute) {
   if (route.surface === "reports") return `/${ROUTE_SEGMENTS.reports}`;
   if (route.surface === "memory") return `/${ROUTE_SEGMENTS.memory}`;
   if (route.surface === "models") return `/${ROUTE_SEGMENTS.models}`;
-  if (route.surface === "settings") return `/${ROUTE_SEGMENTS.settings}`;
+  if (route.surface === "settings") {
+    return route.page === "password"
+      ? `/${ROUTE_SEGMENTS.settings}/password`
+      : `/${ROUTE_SEGMENTS.settings}`;
+  }
   if (route.surface === "organization") return route.tab === "overview" ? `/${ROUTE_SEGMENTS.organization}` : `/${ROUTE_SEGMENTS.organization}/${route.tab}`;
   if (route.surface === "tools") {
     return route.page === "detail" && route.toolName
@@ -152,8 +160,8 @@ export function createModelsRoute(): AppRoute {
   return { surface: "models", sessionId: null };
 }
 
-export function createSettingsRoute(): AppRoute {
-  return { surface: "settings", sessionId: null };
+export function createSettingsRoute(page: "overview" | "password" = "overview"): AppRoute {
+  return { surface: "settings", page, sessionId: null };
 }
 
 export function createOrganizationRoute(tab: "overview" | "workspaces" | "members" = "overview"): AppRoute {

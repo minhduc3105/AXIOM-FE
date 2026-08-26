@@ -8,7 +8,6 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -196,11 +195,6 @@ export function DataSourceConnectionDialog({
             {isS3 ? <CloudIcon /> : <SnowflakeIcon />}
             {isS3 ? "Connect Amazon S3" : "Connect Snowflake"}
           </DialogTitle>
-          <DialogDescription>
-            Save this connector on the server for reuse across browsers and
-            sessions. Credentials are encrypted by the backend and never
-            returned to the UI.
-          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={save}>
