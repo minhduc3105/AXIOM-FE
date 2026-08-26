@@ -34,17 +34,30 @@ export type AutoReport = {
   related_source_count: number;
 };
 
+export type AutoReportDashboardExtraction = {
+  extraction_id: string;
+  report_id: string;
+  status: "pending" | "running" | "completed" | "failed";
+  attempt_count: number;
+  error_code: string | null;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+};
+
 export type AutoReportDetail = AutoReport & {
   sources: AutoReportSource[];
   error_code: string | null;
   error_message: string | null;
   dashboard: ReportDashboardSnapshot | null;
+  dashboard_extraction: AutoReportDashboardExtraction | null;
 };
 
 export type AutoReportOverview = {
   latest_report: AutoReportDetail | null;
   recent_reports: AutoReport[];
   dashboard: ReportDashboardSnapshot | null;
+  dashboard_extraction: AutoReportDashboardExtraction | null;
   freshness: {
     newest_source_last_modified: string | null;
     dashboard_generated_at: string | null;

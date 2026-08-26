@@ -132,12 +132,21 @@ export function useReportsDashboard(
   useEffect(() => {
     // Keep pages opened during a scheduler run in sync as well as manual runs.
     const reportIsRunning = overview?.latest_report?.status === "running";
-    if (!workspaceId || (!processingSource && !reportIsRunning)) return;
+    const extractionIsRunning = ["pending", "running"].includes(
+      overview?.latest_report?.dashboard_extraction?.status ?? "",
+    );
+    if (!workspaceId || (!processingSource && !reportIsRunning && !extractionIsRunning)) return;
     const timer = window.setInterval(() => {
       void refresh();
     }, 3_000);
     return () => window.clearInterval(timer);
-  }, [overview?.latest_report?.status, processingSource, refresh, workspaceId]);
+  }, [
+    overview?.latest_report?.dashboard_extraction?.status,
+    overview?.latest_report?.status,
+    processingSource,
+    refresh,
+    workspaceId,
+  ]);
 
   const selectReport = useCallback(
     async (report: AutoReport) => {
