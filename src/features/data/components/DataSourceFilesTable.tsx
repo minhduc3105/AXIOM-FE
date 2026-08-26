@@ -390,6 +390,7 @@ export function DataSourceFilesTable({
           description="Start an ingestion to add files to this data source."
           actionLabel={onCreateIngestion ? "Add files" : undefined}
           onAction={onCreateIngestion}
+          variant="flat"
         />
       ) : totalCount === 0 ? (
         <DataEmptyState

@@ -1,4 +1,4 @@
-import { DatabaseZapIcon, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,6 +13,7 @@ type DataEmptyStateProps = {
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  variant?: "card" | "flat";
 };
 
 export function DataEmptyState({
@@ -20,14 +21,11 @@ export function DataEmptyState({
   description,
   actionLabel,
   onAction,
+  variant = "card",
 }: DataEmptyStateProps) {
-  return (
-    <div className="grid min-h-[340px] place-items-center px-5 py-12 text-center">
-      <Card className="w-full max-w-md text-center">
+  const content = (
+    <>
         <CardHeader className="items-center">
-          <span className="flex size-12 items-center justify-center rounded-xl border bg-muted text-primary">
-            <DatabaseZapIcon className="size-5" />
-          </span>
           <CardTitle>{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
@@ -39,7 +37,16 @@ export function DataEmptyState({
             </Button>
           </CardContent>
         )}
-      </Card>
+    </>
+  );
+
+  return (
+    <div className="grid min-h-[340px] place-items-center px-5 py-12 text-center">
+      {variant === "flat" ? (
+        <div className="w-full text-center">{content}</div>
+      ) : (
+        <Card className="w-full max-w-md text-center">{content}</Card>
+      )}
     </div>
   );
 }

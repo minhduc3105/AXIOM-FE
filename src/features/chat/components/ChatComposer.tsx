@@ -91,7 +91,7 @@ export function ChatComposer({
   return (
     <form
       className={cn(
-        "grid min-h-[100px] w-full gap-2 rounded-[20px] border border-border bg-card p-2 shadow-sm",
+        "grid min-h-[100px] w-full gap-0 rounded-[20px] border border-border bg-card p-2 shadow-sm transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/10",
         className,
       )}
       onSubmit={submit}
@@ -130,7 +130,7 @@ export function ChatComposer({
         </div>
       )}
       <Textarea
-        className="max-h-40 min-h-12 w-full resize-none border-0 bg-transparent px-4 py-3 text-base leading-6 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
+        className="max-h-40 min-h-12 w-full resize-none border-0 bg-transparent px-4 py-3 text-base leading-6 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent"
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={submitFromKeyboard}
@@ -139,7 +139,7 @@ export function ChatComposer({
         rows={1}
         aria-label="Ask AXIOM"
       />
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 px-1 pt-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <input
             id={fileInputId}

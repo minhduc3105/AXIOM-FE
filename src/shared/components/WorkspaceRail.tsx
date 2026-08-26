@@ -331,7 +331,7 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
       <>
         {!mobile && (
           <aside
-            className="hidden h-dvh min-h-0 w-full overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:block xl:hidden"
+            className="hidden h-dvh min-h-0 w-full self-start overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:block xl:hidden"
             data-expanded={false}
           >
             <RailContent {...props} expanded={false} />
@@ -359,7 +359,7 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
   return (
     <aside
       className={cn(
-        "hidden h-dvh min-h-0 w-full overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground xl:block",
+        "hidden h-dvh min-h-0 w-full self-start overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground xl:sticky xl:top-0 xl:block",
       )}
       data-expanded={props.expanded}
     >

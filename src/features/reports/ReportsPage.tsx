@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Clock3Icon,
-  DatabaseIcon,
   DownloadIcon,
   FileTextIcon,
-  LoaderCircleIcon,
   RefreshCwIcon,
-  SparklesIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,7 +14,6 @@ import {
   getAutoReportPdf,
   getAutoReportPolicy,
   listAutoReports,
-  runAutoReportNow,
   updateAutoReportPolicy,
   type AutoReport,
   type AutoReportDetail,
@@ -25,9 +21,7 @@ import {
 } from "./api/reportsApi";
 
 type ReportsPageProps = {
-  onData: () => void;
   workspaceId: string | null;
-  workspaceName?: string | null;
 };
 
 const statusLabels: Record<AutoReport["status"], string> = {
@@ -55,9 +49,7 @@ function errorMessage(error: unknown) {
 }
 
 export function ReportsPage({
-  onData,
   workspaceId,
-  workspaceName,
 }: ReportsPageProps) {
   const [policy, setPolicy] = useState<AutoReportPolicy | null>(null);
   const [interval, setInterval] = useState("900");
@@ -65,7 +57,6 @@ export function ReportsPage({
   const [selected, setSelected] = useState<AutoReportDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -121,34 +112,6 @@ export function ReportsPage({
     }
   };
 
-  const runNow = async () => {
-    if (!workspaceId) return;
-    setRunning(true);
-    try {
-      const result = await runAutoReportNow(workspaceId);
-      const messages = {
-        scheduled: "Report job scheduled.",
-        created: "Report job started.",
-        skipped_no_source: "No file is available in this workspace yet.",
-        skipped_already_processed: "The newest file already has a report.",
-        already_running: "A report job is already running.",
-        failed: "The report job could not be started.",
-      } as const;
-      if (result.status === "failed") {
-        toast.error(messages[result.status]);
-      } else {
-        toast.success(messages[result.status]);
-      }
-      await load();
-    } catch (requestError) {
-      toast.error("Could not start report", {
-        description: errorMessage(requestError),
-      });
-    } finally {
-      setRunning(false);
-    }
-  };
-
   const showSources = async (report: AutoReport) => {
     if (!workspaceId) return;
     try {
@@ -173,45 +136,8 @@ export function ReportsPage({
   };
 
   return (
-    <section className="relative min-h-0 px-4 py-4 sm:px-6 md:p-6">
-      <div className="mx-auto grid w-full max-w-[1240px] gap-4">
-        <header className="rounded-lg border border-border bg-card px-4 py-3">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <span className="max-w-full truncate rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                {workspaceName || workspaceId || "Choose a workspace"}
-              </span>
-              <p className="text-sm font-semibold text-foreground">
-                Automated PDF reports
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                className="rounded-full"
-                onClick={onData}
-              >
-                <DatabaseIcon data-icon="inline-start" /> Manage data
-              </Button>
-              <Button
-                className="rounded-full"
-                disabled={!workspaceId || running}
-                onClick={() => void runNow()}
-              >
-                {running ? (
-                  <LoaderCircleIcon
-                    className="animate-spin"
-                    data-icon="inline-start"
-                  />
-                ) : (
-                  <SparklesIcon data-icon="inline-start" />
-                )}
-                Dev: run report now
-              </Button>
-            </div>
-          </div>
-        </header>
-
+    <section className="relative min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
+      <div className="mx-auto grid w-full max-w-[1240px] gap-6">
         {!workspaceId ? (
           <div className="rounded-[24px] border border-dashed border-border bg-card p-8 text-center text-muted-foreground">
             Select a workspace to configure and view its reports.

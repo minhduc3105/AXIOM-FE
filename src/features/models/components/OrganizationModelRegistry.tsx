@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AuthUser } from "@/features/auth/model/types";
 import { cn } from "@/shared/lib/utils";
+import { getProviderReadiness, type ReadinessLevel } from "../model/readiness";
 import {
   createProvider,
   createProviderModel,
@@ -26,7 +27,6 @@ import {
   upsertProviderCredential,
   type ModelRegistryContext,
 } from "../api/modelServiceApi";
-import { getProviderReadiness, type ReadinessLevel } from "../model/readiness";
 import {
   normalizeProviderId,
   parseModelCapability,
@@ -461,16 +461,18 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
             : null;
 
   return (
-    <section className="grid gap-4" aria-labelledby="model-service-title">
-      <Card className={cn(modelServiceSurface, "rounded-lg shadow-none")}>
-        <header className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-              <p
+    <section className="grid gap-6" aria-labelledby="model-service-title">
+      {false && (
+        <Card className="hidden">
+        <header className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <h1
                 id="model-service-title"
-                className="text-sm font-semibold text-foreground"
+                className="truncate text-2xl font-semibold tracking-tight sm:text-3xl"
               >
-                Organization model registry
-              </p>
+                Models
+              </h1>
               <Badge variant="outline" className="max-w-full">
                 <Building2Icon className="size-3.5 shrink-0" />
                 <span className="truncate">
@@ -486,6 +488,11 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
               >
                 {systemStatus.label}
               </Badge>
+            </div>
+            <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
+              Manage the models, provider connections, and workload defaults
+              available to this organization.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -503,7 +510,8 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
             )}
           </div>
         </header>
-      </Card>
+        </Card>
+      )}
       {!canManage && (
         <Alert>
           <ShieldAlertIcon />
@@ -561,7 +569,7 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
           "gap-0 overflow-hidden rounded-[28px]",
         )}
       >
-        <div className="overflow-x-auto border-b p-2 sm:px-5">
+        <div className="flex items-center justify-between gap-3 overflow-x-auto border-b p-2 sm:px-5">
           <TabsList className="min-w-max">
             <TabsTrigger value="assignments" className="shrink-0">
               Assignments
@@ -573,6 +581,17 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
               </span>
             </TabsTrigger>
           </TabsList>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => void registry.refresh()}
+            disabled={registry.loading}
+          >
+            <RefreshCwIcon className={cn(registry.loading && "animate-spin")} />
+            Refresh
+          </Button>
         </div>
         <TabsContent value="assignments" className="m-0">
           <ModelServiceAssignments

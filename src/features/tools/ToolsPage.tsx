@@ -62,23 +62,6 @@ type ToolsPageProps = {
 
 type BulkToolAction = "enable" | "disable";
 
-function getCatalogScrollContainer() {
-  return document.querySelector<HTMLElement>("[data-testid='app-content-outlet']");
-}
-
-function getCatalogScrollTop() {
-  return getCatalogScrollContainer()?.scrollTop ?? window.scrollY;
-}
-
-function setCatalogScrollTop(top: number) {
-  const container = getCatalogScrollContainer();
-  if (container) {
-    container.scrollTop = top;
-    return;
-  }
-  window.scrollTo({ top, behavior: "auto" });
-}
-
 type BulkProgress = {
   action: BulkToolAction;
   total: number;
@@ -253,7 +236,7 @@ export function ToolsPage({
 
     const outerFrame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        setCatalogScrollTop(restoreScrollRef.current);
+        window.scrollTo({ top: restoreScrollRef.current, behavior: "auto" });
         restoreScrollRef.current = 0;
       });
     });
@@ -357,12 +340,9 @@ export function ToolsPage({
       ? Math.round((bulkProgress.completed / bulkProgress.total) * 100)
       : 0;
   const handleOpenTool = (toolName: string) => {
-    const returnViewState = {
-      ...filtersRef.current,
-      scrollY: getCatalogScrollTop(),
-    };
+    const returnViewState = { ...filtersRef.current, scrollY: window.scrollY };
     onViewStateChange(returnViewState);
-    setCatalogScrollTop(0);
+    window.scrollTo({ top: 0, behavior: "instant" });
     onOpenTool(toolName, returnViewState);
   };
   const clearFilters = () => {
@@ -371,17 +351,18 @@ export function ToolsPage({
 
   return (
     <section
-      className="relative min-h-0 w-full overflow-x-hidden px-4 py-4 sm:px-6 md:p-6"
+      className="relative min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden px-5 pb-12 pt-4 sm:px-8 md:pt-6"
       aria-label="Tools catalog"
     >
-      <div className="mx-auto grid w-full max-w-[1360px] gap-4">
-        <Card className="gap-0 rounded-lg bg-card p-0 shadow-none">
-          <header className="grid gap-3 p-4">
+      <div className="mx-auto grid w-full max-w-[1360px] gap-6">
+        <Card className="gap-0 rounded-xl bg-card p-0 shadow-sm">
+          <header className="grid gap-3 p-4 sm:p-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold text-foreground">
-                  Catalog status
-                </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                    Tools
+                  </h1>
                   <Badge
                     variant="outline"
                     className="h-6 rounded-full bg-muted px-2.5 text-[10px] font-medium tabular-nums text-muted-foreground"
@@ -394,10 +375,15 @@ export function ToolsPage({
                   >
                     {disabledTools.length} disabled
                   </Badge>
-                <span className="max-w-full truncate text-xs text-muted-foreground">
-                  {availabilityScope.organizationName} ·{" "}
-                  {availabilityScope.workspaceName}
-                </span>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Availability scope:{" "}
+                  <span className="font-medium text-muted-foreground">
+                    {availabilityScope.organizationName}
+                  </span>{" "}
+                  · {availabilityScope.workspaceName}. Changes apply to the
+                  current Methods-Hub process.
+                </p>
               </div>
               <Button
                 variant="outline"
@@ -413,7 +399,7 @@ export function ToolsPage({
                 {isRefreshing ? "Updating catalog…" : "Refresh"}
               </Button>
             </div>
-            <div className="grid gap-3 border-t pt-3 xl:grid-cols-[minmax(240px,1fr)_minmax(390px,auto)] xl:items-center">
+            <div className="grid gap-2 border-t pt-3 xl:grid-cols-[minmax(240px,1fr)_minmax(390px,auto)] xl:items-center">
               <div className="relative min-w-0">
                 <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -444,19 +430,19 @@ export function ToolsPage({
                 >
                   <ToggleGroupItem
                     value="all"
-                    className="rounded-full px-3 text-xs"
+                    className="rounded-full px-3 text-xs aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:shadow-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
                   >
                     All
                   </ToggleGroupItem>
                   <ToggleGroupItem
                     value="active"
-                    className="rounded-full px-3 text-xs"
+                    className="rounded-full px-3 text-xs aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:shadow-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
                   >
                     Active
                   </ToggleGroupItem>
                   <ToggleGroupItem
                     value="disabled"
-                    className="rounded-full px-3 text-xs"
+                    className="rounded-full px-3 text-xs aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:shadow-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
                   >
                     Disabled
                   </ToggleGroupItem>
@@ -492,7 +478,7 @@ export function ToolsPage({
             >
               <ToggleGroupItem
                 value="all"
-                className="rounded-full px-3 text-xs"
+                className="rounded-full px-3 text-xs aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:shadow-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
               >
                 <SlidersHorizontalIcon data-icon="inline-start" /> All types
               </ToggleGroupItem>
@@ -500,7 +486,7 @@ export function ToolsPage({
                 <ToggleGroupItem
                   key={toolKind}
                   value={toolKind}
-                  className="rounded-full px-3 text-xs"
+                  className="rounded-full px-3 text-xs aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:shadow-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
                 >
                   {formatToolKind(toolKind)}
                 </ToggleGroupItem>

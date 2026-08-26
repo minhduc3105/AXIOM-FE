@@ -33,5 +33,5 @@ export type AppRoute =
     }
   | { surface: "memory"; sessionId: null }
   | { surface: "models"; sessionId: null }
-  | { surface: "settings"; sessionId: null }
+  | { surface: "settings"; page: "overview" | "password"; sessionId: null }
   | { surface: "organization"; tab: OrganizationAdministrationTab; sessionId: null };

@@ -90,7 +90,7 @@ export function UploadIngestionStep() {
       className="grid min-h-[30rem] min-w-0 grid-cols-1 gap-0 lg:grid-cols-[18rem_minmax(0,1fr)]"
       data-testid="upload-ingestion-layout"
     >
-      <section className="flex min-h-0 min-w-0 flex-col gap-4 pb-6 lg:border-r lg:pr-6 lg:pb-0">
+      <section className="flex min-h-0 min-w-0 flex-col gap-4 pb-6 lg:pr-6 lg:pb-0">
         <Field>
           <FieldLabel
             htmlFor="ingestion-upload-files"
@@ -175,7 +175,7 @@ export function UploadIngestionStep() {
         </ScrollArea>
       </section>
 
-      <section className="flex min-h-0 min-w-0 flex-col gap-3 border-t pt-6 lg:border-t-0 lg:pl-7 lg:pt-0">
+      <section className="flex min-h-0 min-w-0 flex-col gap-3 pt-6 lg:pl-7 lg:pt-0">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium">File preview</p>
@@ -192,7 +192,7 @@ export function UploadIngestionStep() {
         </div>
       </section>
 
-      <div className="sticky bottom-0 flex justify-end border-t bg-popover pt-5 lg:col-span-2">
+      <div className="sticky bottom-0 flex justify-end bg-popover pt-5 lg:col-span-2">
         <Button
           size="lg"
           type="button"
