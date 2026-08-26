@@ -17,6 +17,62 @@ export type ReportTableRow = {
   status: string;
 };
 
+export type ReportDashboardConfidence = "high" | "medium" | "low";
+
+export type ReportDashboardChangeTone =
+  | "positive"
+  | "warning"
+  | "neutral"
+  | "critical";
+
+export type ReportDashboardMetricDirection = "up" | "down" | "flat";
+
+export type ReportDashboardChartType = "line" | "bar" | "donut";
+
+export type ReportDashboardSnapshot = {
+  schema_version: 1;
+  generated_at: string;
+  headline: {
+    title: string;
+    summary: string;
+    confidence?: ReportDashboardConfidence;
+  };
+  changes: Array<{
+    id: string;
+    title: string;
+    detail: string;
+    tone: ReportDashboardChangeTone;
+  }>;
+  metrics: Array<{
+    id: string;
+    label: string;
+    value: string;
+    unit?: string;
+    delta?: string;
+    delta_direction?: ReportDashboardMetricDirection;
+    interpretation?: string;
+    source_ref?: string;
+  }>;
+  charts: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    type: ReportDashboardChartType;
+    unit?: string;
+    points: Array<{
+      label: string;
+      value: number;
+      series?: string;
+    }>;
+    source_ref?: string;
+  }>;
+  coverage?: {
+    pages?: number;
+    source_count: number;
+    extracted_sections?: number;
+  };
+};
+
 export type Report = {
   id: string;
   title: string;

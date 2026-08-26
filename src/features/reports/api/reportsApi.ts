@@ -1,5 +1,6 @@
 import { authFetch } from "@/features/auth/model/authFetch";
 import { intelligenceApiUrl } from "@/shared/lib/intelligence-api";
+import type { ReportDashboardSnapshot } from "../model/types";
 
 export type AutoReportPolicy = {
   organization_id: string;
@@ -37,6 +38,19 @@ export type AutoReportDetail = AutoReport & {
   sources: AutoReportSource[];
   error_code: string | null;
   error_message: string | null;
+  dashboard: ReportDashboardSnapshot | null;
+};
+
+export type AutoReportOverview = {
+  latest_report: AutoReportDetail | null;
+  recent_reports: AutoReport[];
+  dashboard: ReportDashboardSnapshot | null;
+  freshness: {
+    newest_source_last_modified: string | null;
+    dashboard_generated_at: string | null;
+    is_current: boolean;
+  };
+  automation: AutoReportPolicy;
 };
 
 export type AutoReportRun = {
@@ -44,11 +58,13 @@ export type AutoReportRun = {
     | "scheduled"
     | "created"
     | "skipped_no_source"
+    | "skipped_no_unprocessed_source"
     | "skipped_already_processed"
     | "already_running"
     | "failed";
   report_id: string | null;
   error_code: string | null;
+  source: AutoReportSource | null;
 };
 
 class ReportsApiError extends Error {
@@ -109,9 +125,20 @@ export function listAutoReports(workspaceId: string) {
   return request<{ items: AutoReport[] }>(reportPath(workspaceId));
 }
 
-export function getAutoReport(workspaceId: string, reportId: string) {
+export function getAutoReportOverview(workspaceId: string, signal?: AbortSignal) {
+  return request<AutoReportOverview>(reportPath(workspaceId, "/overview"), {
+    signal,
+  });
+}
+
+export function getAutoReport(
+  workspaceId: string,
+  reportId: string,
+  signal?: AbortSignal,
+) {
   return request<AutoReportDetail>(
     reportPath(workspaceId, `/${encodeURIComponent(reportId)}`),
+    { signal },
   );
 }
 
