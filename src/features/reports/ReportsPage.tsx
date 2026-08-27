@@ -95,7 +95,8 @@ export function ReportsPage({
         scheduled: "Report job scheduled.",
         created: "Report job started.",
         skipped_no_source: "No file is available in this workspace yet.",
-        skipped_no_unprocessed_source: "The newest workspace file already has a report.",
+        skipped_no_unprocessed_source:
+          "The newest workspace file already has a report.",
         skipped_already_processed: "The newest file already has a report.",
         already_running: "A report job is already running.",
         failed: "The report job could not be started.",
@@ -137,7 +138,7 @@ export function ReportsPage({
       className="relative min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6"
       aria-busy={loading || refreshing}
     >
-      <div className="mx-auto grid w-full max-w-[1440px] gap-5">
+      <div className="mx-auto grid w-full gap-5">
         <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-wrap gap-2">
             <Button
