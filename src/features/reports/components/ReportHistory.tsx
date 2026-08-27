@@ -5,7 +5,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   DownloadIcon,
-  FileTextIcon,
   LoaderCircleIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +26,7 @@ type ReportHistoryProps = {
   selectedReportId?: string | null;
   loading?: boolean;
   pagination?: AutoReportPagination | null;
-  onSelect: (report: AutoReport) => void;
+  onSelect?: (report: AutoReport) => void;
   onDownload: (reportId: string) => void;
   onPageChange?: (page: number) => void;
 };
@@ -48,19 +47,6 @@ const statusVariants: Record<
   running: "secondary",
   skipped: "outline",
 };
-
-function formatDate(value: string | null) {
-  if (!value) return "Not yet";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown time";
-  return new Intl.DateTimeFormat("en", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
 
 export function ReportHistory({
   reports,
@@ -116,10 +102,18 @@ export function ReportHistory({
                     : "border-border/70 bg-background/40",
                 )}
               >
-                <button
-                  type="button"
+                <div
                   className="min-w-0 text-left"
-                  onClick={() => onSelect(report)}
+                  onClick={() => onSelect?.(report)}
+                  onKeyDown={(event) => {
+                    if (!onSelect || (event.key !== "Enter" && event.key !== " ")) {
+                      return;
+                    }
+                    event.preventDefault();
+                    onSelect(report);
+                  }}
+                  role={onSelect ? "button" : undefined}
+                  tabIndex={onSelect ? 0 : undefined}
                 >
                   <span className="flex items-center gap-2 text-sm font-medium">
                     <StatusIcon
@@ -134,18 +128,12 @@ export function ReportHistory({
                       {report.title || "Report generation"}
                     </span>
                   </span>
-                  <span className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    <FileTextIcon aria-hidden="true" />
-                    <span className="truncate">
-                      {report.primary_source?.filename ||
-                        "Waiting for newest file"}
-                    </span>
-                    <span aria-hidden="true">·</span>
-                    <span className="shrink-0">
-                      {formatDate(report.completed_at || report.created_at)}
-                    </span>
-                  </span>
-                </button>
+                  {report.summary && (
+                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                      {report.summary}
+                    </p>
+                  )}
+                </div>
                 <div className="flex items-center justify-between gap-2 sm:shrink-0 sm:justify-end">
                   <Badge
                     variant={statusVariants[report.status]}
