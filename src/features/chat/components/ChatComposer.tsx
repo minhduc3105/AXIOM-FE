@@ -1,4 +1,12 @@
-import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  KeyboardEvent,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import {
   ChevronDownIcon,
   FileIcon,
@@ -24,7 +32,7 @@ import type { ChatEngine } from "../model/types";
 const engineOptions: Array<{ value: ChatEngine; label: string }> = [
   { value: "auto", label: "Auto" },
   { value: "general", label: "General" },
-  { value: "reason", label: "Reason" },
+  // { value: "reason", label: "Reason" },
   { value: "report", label: "Report" },
 ];
 
@@ -39,11 +47,7 @@ export function ChatComposer({
   autoFocus = false,
   onStop,
 }: {
-  onSubmit: (
-    message: string,
-    engine: ChatEngine,
-    files: File[],
-  ) => void;
+  onSubmit: (message: string, engine: ChatEngine, files: File[]) => void;
   engine: ChatEngine;
   onEngineChange: (engine: ChatEngine) => void;
   placeholder?: string;
@@ -99,7 +103,9 @@ export function ChatComposer({
   };
 
   const removeFile = (index: number) => {
-    setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setFiles((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
   };
 
   return (
@@ -190,9 +196,15 @@ export function ChatComposer({
               <ChevronDownIcon data-icon="inline-end" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-[128px]">
-              <DropdownMenuRadioGroup value={engine} onValueChange={selectEngine}>
+              <DropdownMenuRadioGroup
+                value={engine}
+                onValueChange={selectEngine}
+              >
                 {engineOptions.map((option) => (
-                  <DropdownMenuRadioItem key={option.value} value={option.value}>
+                  <DropdownMenuRadioItem
+                    key={option.value}
+                    value={option.value}
+                  >
                     {option.label}
                   </DropdownMenuRadioItem>
                 ))}
