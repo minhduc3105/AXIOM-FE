@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { ChatStage } from "@/features/chat/model/types";
 import {
   deleteConversation,
   listConversationsPage,
@@ -30,11 +29,9 @@ export function isPinnedConversation(conversation: ConversationSummary) {
 }
 
 export function useWorkspaceConversations({
-  activeStage,
   expanded,
   onConversationDeleted,
 }: {
-  activeStage: ChatStage;
   expanded: boolean;
   onConversationDeleted?: (conversationId: string) => void;
 }) {
@@ -104,6 +101,9 @@ export function useWorkspaceConversations({
 
   useEffect(() => {
     if (!expanded) return;
+    // Conversation data belongs to the rail, not to the currently displayed
+    // chat stage. Keep the existing list mounted while switching chats so the
+    // sidebar does not flash a loading state or reset its scroll position.
     const controller = new AbortController();
     void loadConversationPage(1, controller.signal);
 
@@ -113,7 +113,7 @@ export function useWorkspaceConversations({
         loadingConversationPagesRef.current.delete(1);
       }
     };
-  }, [activeStage, expanded, loadConversationPage]);
+  }, [expanded, loadConversationPage]);
 
   const loadNextConversationPage = useCallback(() => {
     if (

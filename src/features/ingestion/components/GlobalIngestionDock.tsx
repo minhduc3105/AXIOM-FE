@@ -121,8 +121,7 @@ export function GlobalIngestionDock({
     <>
       <Button
         aria-label="Open ingestion jobs"
-        aria-live="polite"
-        className="h-9 shrink-0 rounded-md border-border bg-card px-2.5 text-foreground shadow-none hover:bg-muted"
+        className="fixed right-4 bottom-4 z-50 shadow-md"
         type="button"
         variant="outline"
         onClick={() => setJobsSheetOpen(true)}

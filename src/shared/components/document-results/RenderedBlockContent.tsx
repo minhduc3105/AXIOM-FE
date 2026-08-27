@@ -65,11 +65,25 @@ export function sanitizeBlockHtml(html: string) {
   return template.content.textContent?.trim() ? sanitized : null;
 }
 
-export function RenderedBlockContent({ block }: { block: LayoutBlock }) {
+export function RenderedBlockContent({
+  block,
+  contentOverride,
+}: {
+  block: LayoutBlock;
+  contentOverride?: string;
+}) {
   const sanitizedHtml = useMemo(
     () => block.html?.trim() ? sanitizeBlockHtml(block.html) : null,
     [block.html],
   );
+
+  if (contentOverride !== undefined) {
+    return (
+      <div className="whitespace-pre-wrap px-3 py-3 text-sm leading-relaxed">
+        {contentOverride || "No textual content is available for this block."}
+      </div>
+    );
+  }
 
   if (!sanitizedHtml) {
     const content = block.text

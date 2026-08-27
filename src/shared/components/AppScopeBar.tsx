@@ -32,9 +32,9 @@ function ScopeItem({
         <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
         <strong
           className={
-            kind === "Organization"
-              ? "hidden max-w-36 truncate text-sm font-medium lg:block"
-              : "max-w-44 truncate text-sm font-medium sm:max-w-52"
+              kind === "Organization"
+              ? "hidden whitespace-nowrap text-sm font-medium lg:block"
+              : "whitespace-nowrap text-sm font-medium"
           }
         >
           {name}

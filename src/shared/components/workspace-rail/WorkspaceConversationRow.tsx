@@ -210,8 +210,7 @@ export function ConversationGroup({
         {conversations.map((conversation) => (
           <WorkspaceConversationRow
             active={
-              conversation.conversation_id === activeConversationId &&
-              activeStage !== "welcome"
+              conversation.conversation_id === activeConversationId
             }
             busy={actionPending === conversation.conversation_id}
             conversation={conversation}

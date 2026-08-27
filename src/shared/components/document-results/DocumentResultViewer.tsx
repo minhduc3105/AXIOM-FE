@@ -19,6 +19,8 @@ import {
   PanelLeftOpenIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
+  PencilIcon,
+  CheckIcon,
   RefreshCwIcon,
   Rows3Icon,
 } from "lucide-react";
@@ -50,6 +52,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
@@ -176,6 +179,7 @@ export function DocumentResultViewer({
   const [parsedMode, setParsedMode] = useState("rendered");
   const [pageFilter, setPageFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [descriptionEdits, setDescriptionEdits] = useState<Record<string, string>>({});
   const [sourceCollapsed, setSourceCollapsed] = useState(false);
   const [parsedCollapsed, setParsedCollapsed] = useState(false);
 
@@ -216,6 +220,7 @@ export function DocumentResultViewer({
     setParsedMode("rendered");
     setPageFilter("all");
     setTypeFilter("all");
+    setDescriptionEdits({});
     setSourceCollapsed(false);
     setParsedCollapsed(false);
     const frame = window.requestAnimationFrame(() => {
@@ -380,6 +385,10 @@ export function DocumentResultViewer({
         onTypeFilterChange={setTypeFilter}
         onModeChange={setParsedMode}
         onActivate={activateFromCard}
+        descriptionEdits={descriptionEdits}
+        onDescriptionEdit={(componentId, description) =>
+          setDescriptionEdits((current) => ({ ...current, [componentId]: description }))
+        }
         onRetry={onRetryParsing}
       />
     </InspectorPane>
@@ -830,6 +839,8 @@ type ParsedPaneProps = {
   onTypeFilterChange: (value: string) => void;
   onModeChange: (value: string) => void;
   onActivate: (block: LayoutBlock) => void;
+  descriptionEdits: Record<string, string>;
+  onDescriptionEdit: (componentId: string, description: string) => void;
   onRetry: () => void;
 };
 
@@ -849,6 +860,8 @@ function ParsedPane({
   onTypeFilterChange,
   onModeChange,
   onActivate,
+  descriptionEdits,
+  onDescriptionEdit,
   onRetry,
 }: ParsedPaneProps) {
   if (parsing.status === "loading" && !parsing.data) {
@@ -977,6 +990,8 @@ function ParsedPane({
                       index={index}
                       active={activeComponentId === block.component_id}
                       cardRefs={cardRefs}
+                      description={descriptionEdits[block.component_id]}
+                      onDescriptionEdit={onDescriptionEdit}
                       onActivate={onActivate}
                     />
                   );
@@ -1053,13 +1068,19 @@ function ParsedBlockCard({
   active,
   cardRefs,
   onActivate,
+  description,
+  onDescriptionEdit,
 }: {
   block: LayoutBlock;
   index: number;
   active: boolean;
   cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   onActivate: (block: LayoutBlock) => void;
+  description?: string;
+  onDescriptionEdit: (componentId: string, description: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(description ?? block.text ?? block.semantic_text ?? "");
   const boxed = Boolean(block.bbox && block.page_bbox);
   const pageLabel = block.page === null ? "Page —" : `Page ${block.page + 1}`;
 
@@ -1095,6 +1116,21 @@ function ParsedBlockCard({
           <Badge variant={boxed ? "secondary" : "outline"}>
             {boxed ? "Boxed" : "No box"}
           </Badge>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="ml-auto h-7 gap-1 px-2"
+            aria-label={`Edit description for ${block.component_id}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              setDraft(description ?? block.text ?? block.semantic_text ?? "");
+              setEditing(true);
+            }}
+          >
+            <PencilIcon className="size-3.5" />
+            Edit
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -1105,7 +1141,34 @@ function ParsedBlockCard({
           {block.component_id}
         </code>
         <div className="min-w-0 overflow-hidden">
-          <RenderedBlockContent block={block} />
+          {editing ? (
+            <div className="grid gap-2 p-3" onClick={(event) => event.stopPropagation()}>
+              <Textarea
+                aria-label={`Description for ${block.component_id}`}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                rows={4}
+              />
+              <div className="flex justify-end gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={() => setEditing(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    onDescriptionEdit(block.component_id, draft);
+                    setEditing(false);
+                  }}
+                >
+                  <CheckIcon data-icon="inline-start" />
+                  Save
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <RenderedBlockContent block={block} contentOverride={description} />
+          )}
         </div>
       </CardContent>
     </Card>

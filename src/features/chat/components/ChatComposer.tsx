@@ -1,9 +1,10 @@
-import { ChangeEvent, FormEvent, KeyboardEvent, useId, useState } from "react";
+import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import {
   ChevronDownIcon,
   FileIcon,
   PaperclipIcon,
   SendIcon,
+  SquareIcon,
   SheetIcon,
   XIcon,
 } from "lucide-react";
@@ -35,6 +36,8 @@ export function ChatComposer({
   disabled = false,
   sendDisabled = disabled,
   className,
+  autoFocus = false,
+  onStop,
 }: {
   onSubmit: (
     message: string,
@@ -47,13 +50,22 @@ export function ChatComposer({
   disabled?: boolean;
   sendDisabled?: boolean;
   className?: string;
+  autoFocus?: boolean;
+  onStop?: () => void;
 }) {
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [engineMenuOpen, setEngineMenuOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputId = useId();
   const selectedEngineLabel =
     engineOptions.find((option) => option.value === engine)?.label || "Auto";
+  useEffect(() => {
+    if (autoFocus) textareaRef.current?.focus();
+  }, [autoFocus]);
+  const focusComposer = () => {
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  };
   const selectEngine = (nextEngine: string) => {
     onEngineChange(nextEngine as ChatEngine);
     setEngineMenuOpen(false);
@@ -64,6 +76,7 @@ export function ChatComposer({
       onSubmit(value.trim(), engine, files);
       setValue("");
       setFiles([]);
+      focusComposer();
     }
   };
 
@@ -74,6 +87,7 @@ export function ChatComposer({
       onSubmit(value.trim(), engine, files);
       setValue("");
       setFiles([]);
+      focusComposer();
     }
   };
 
@@ -130,6 +144,7 @@ export function ChatComposer({
         </div>
       )}
       <Textarea
+        ref={textareaRef}
         className="max-h-40 min-h-12 w-full resize-none border-0 bg-transparent px-4 py-3 text-base leading-6 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent"
         value={value}
         onChange={(event) => setValue(event.target.value)}
@@ -189,10 +204,11 @@ export function ChatComposer({
           <Button
             className="size-10 shrink-0 rounded-full shadow-sm"
             type="submit"
-            aria-label="Send"
-            disabled={sendDisabled}
+            aria-label={sendDisabled && onStop ? "Stop" : "Send"}
+            disabled={sendDisabled && !onStop}
+            onClick={sendDisabled && onStop ? onStop : undefined}
           >
-            <SendIcon />
+            {sendDisabled && onStop ? <SquareIcon /> : <SendIcon />}
           </Button>
         </div>
       </div>

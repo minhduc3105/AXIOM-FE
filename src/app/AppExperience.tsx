@@ -442,6 +442,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
           onApproveAndRun={chat.approveAndRun}
           onRetryProcess={chat.retryProcess}
           onCloseEvidence={chat.closeEvidence}
+          onStopGeneration={chat.stopGeneration}
         />
       ) : route.surface === "data" ? (
         route.page === "document" ? (
