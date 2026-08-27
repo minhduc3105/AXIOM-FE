@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   BotIcon,
   BrainCircuitIcon,
@@ -12,18 +12,13 @@ import {
 } from "lucide-react";
 import type { AppSurface } from "@/app/routing/types";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/shared/lib/utils";
 
 type WorkspacePrimaryNavigationProps = {
   expanded: boolean;
   surface: AppSurface;
   showOrganization: boolean;
+  /** @deprecated More is now an inline expanding section. */
   moreMenuSide?: "right" | "bottom";
   onNewChat: () => void;
   onData: () => void;
@@ -91,7 +86,6 @@ function NavigationButton({
 function MoreNavigationMenu({
   expanded,
   active,
-  side,
   showOrganization,
   onModels,
   onMemory,
@@ -100,7 +94,6 @@ function MoreNavigationMenu({
 }: {
   expanded: boolean;
   active: boolean;
-  side: "right" | "bottom";
   showOrganization: boolean;
   onModels: () => void;
   onMemory: () => void;
@@ -108,110 +101,52 @@ function MoreNavigationMenu({
   onOrganizationAdministration: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearOpenTimer = () => {
-    if (openTimer.current === null) return;
-    clearTimeout(openTimer.current);
-    openTimer.current = null;
+  const closeAfterNavigate = (callback: () => void) => {
+    setOpen(false);
+    callback();
   };
-
-  const clearCloseTimer = () => {
-    if (closeTimer.current === null) return;
-    clearTimeout(closeTimer.current);
-    closeTimer.current = null;
-  };
-
-  const scheduleClose = () => {
-    clearOpenTimer();
-    clearCloseTimer();
-    closeTimer.current = setTimeout(() => {
-      closeTimer.current = null;
-      setOpen(false);
-    }, 120);
-  };
-
-  const scheduleOpen = () => {
-    clearCloseTimer();
-    if (open || openTimer.current !== null) return;
-    openTimer.current = setTimeout(() => {
-      openTimer.current = null;
-      setOpen(true);
-    }, 200);
-  };
-
-  const openImmediately = () => {
-    clearOpenTimer();
-    clearCloseTimer();
-  };
-
-  useEffect(() => {
-    return () => {
-      clearOpenTimer();
-      clearCloseTimer();
-    };
-  }, []);
 
   return (
-    <DropdownMenu
-      modal={false}
-      open={open}
-      onOpenChange={(nextOpen) => {
-        openImmediately();
-        setOpen(nextOpen);
-      }}
-    >
-      <DropdownMenuTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            className={cn(
-              navigationButtonClass(expanded),
-              "cursor-pointer aria-expanded:bg-muted/70 aria-expanded:text-foreground dark:aria-expanded:bg-muted/45",
-            )}
-            data-active={active}
-            aria-label="More"
-            onPointerEnter={scheduleOpen}
-            onPointerLeave={scheduleClose}
-          />
-        }
+    <div className="grid gap-0.5">
+      <Button
+        type="button"
+        variant="ghost"
+        className={cn(
+          navigationButtonClass(expanded),
+          "cursor-pointer aria-expanded:bg-muted/70 aria-expanded:text-foreground dark:aria-expanded:bg-muted/45",
+        )}
+        data-active={active}
+        aria-label="More"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
       >
         <MoreHorizontalIcon className="size-[18px]" aria-hidden="true" />
         <NavigationLabel expanded={expanded}>More</NavigationLabel>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        className="w-48 rounded-2xl p-1.5 data-closed:pointer-events-none"
-        side={side}
-        align="start"
-        sideOffset={8}
-        onPointerEnter={openImmediately}
-        onPointerLeave={scheduleClose}
-      >
-        <DropdownMenuItem className="h-9 gap-2 rounded-lg" onClick={onModels}>
+      </Button>
+      {open && (
+        <div className={cn("grid gap-0.5", expanded ? "pl-4" : "pl-0")}>
+        <Button role="menuitem" type="button" variant="ghost" className={navigationButtonClass(expanded)} onClick={() => closeAfterNavigate(onModels)}>
           <BotIcon className="size-[18px]" />
-          Models
-        </DropdownMenuItem>
-        <DropdownMenuItem className="h-9 gap-2 rounded-lg" onClick={onMemory}>
+          <NavigationLabel expanded={expanded}>Models</NavigationLabel>
+        </Button>
+        <Button role="menuitem" type="button" variant="ghost" className={navigationButtonClass(expanded)} onClick={() => closeAfterNavigate(onMemory)}>
           <BrainCircuitIcon className="size-[18px]" />
-          Memory
-        </DropdownMenuItem>
-        <DropdownMenuItem className="h-9 gap-2 rounded-lg" onClick={onTools}>
+          <NavigationLabel expanded={expanded}>Memory</NavigationLabel>
+        </Button>
+        <Button role="menuitem" type="button" variant="ghost" className={navigationButtonClass(expanded)} onClick={() => closeAfterNavigate(onTools)}>
           <WrenchIcon className="size-[18px]" />
-          Tools
-        </DropdownMenuItem>
+          <NavigationLabel expanded={expanded}>Tools</NavigationLabel>
+        </Button>
         {showOrganization && (
-          <DropdownMenuItem
-            className="h-9 gap-2 rounded-lg"
-            onClick={onOrganizationAdministration}
-          >
+          <Button role="menuitem" type="button" variant="ghost" className={navigationButtonClass(expanded)} onClick={() => closeAfterNavigate(onOrganizationAdministration)}>
             <Building2Icon className="size-[18px]" />
-            Organization
-          </DropdownMenuItem>
+            <NavigationLabel expanded={expanded}>Organization</NavigationLabel>
+          </Button>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -264,7 +199,6 @@ export function WorkspacePrimaryNavigation({
       <MoreNavigationMenu
         expanded={expanded}
         active={secondaryActive}
-        side={moreMenuSide}
         showOrganization={showOrganization}
         onModels={onModels}
         onMemory={onMemory}

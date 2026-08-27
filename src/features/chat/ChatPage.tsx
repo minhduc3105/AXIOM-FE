@@ -56,6 +56,7 @@ type ChatPageProps = {
   onApproveAndRun: () => void;
   onRetryProcess: () => void;
   onCloseEvidence: () => void;
+  onStopGeneration?: () => void;
 };
 
 export function ChatPage({
@@ -86,6 +87,7 @@ export function ChatPage({
   onApproveAndRun,
   onRetryProcess,
   onCloseEvidence,
+  onStopGeneration,
 }: ChatPageProps) {
   const chatMainRef = useRef<HTMLDivElement>(null);
   const processSignature = useMemo(
@@ -130,6 +132,7 @@ export function ChatPage({
         loading={loading}
         onEngineChange={onEngineChange}
         onSubmit={onSubmit}
+          onStop={onStopGeneration}
       />
     );
   }
@@ -215,8 +218,10 @@ export function ChatPage({
                 className="w-full"
                 engine={engine}
                 sendDisabled={loading}
+                autoFocus={loading}
                 onEngineChange={onEngineChange}
                 onSubmit={onSubmit}
+                onStop={onStopGeneration}
                 placeholder={
                   loading
                     ? "AXIOM is working..."
@@ -298,11 +303,13 @@ function EmptyChatWorkspace({
   onSubmit,
   onEngineChange,
   loading,
+  onStop,
 }: {
   engine: ChatEngine;
   onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
   onEngineChange: (engine: ChatEngine) => void;
   loading: boolean;
+  onStop?: () => void;
 }) {
   return (
     <section
@@ -321,8 +328,9 @@ function EmptyChatWorkspace({
         </div>
         <ChatComposer
           engine={engine}
-          onSubmit={onSubmit}
-          onEngineChange={onEngineChange}
+        onSubmit={onSubmit}
+        onEngineChange={onEngineChange}
+        onStop={onStop}
           disabled={loading}
           placeholder="Message AXIOM..."
         />

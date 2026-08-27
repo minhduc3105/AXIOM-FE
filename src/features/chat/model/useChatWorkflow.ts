@@ -67,6 +67,7 @@ type Action =
   | { type: "process/events"; events: ProcessEvent[] }
   | { type: "process/success"; result: MockResult; evidenceOpen: boolean }
   | { type: "request/failure"; error: ChatError }
+  | { type: "request/stop" }
   | {
       type: "conversation/load-start";
       conversationId: string;
@@ -232,6 +233,12 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         loading: false,
         historyLoading: false,
         error: action.error,
+      };
+    case "request/stop":
+      return {
+        ...state,
+        loading: false,
+        historyLoading: false,
       };
     case "conversation/load-start":
       return {
@@ -852,6 +859,11 @@ export function useChatWorkflow() {
     dispatch({ type: "chat/new" });
   }, [cancelCurrentRequest]);
 
+  const stopGeneration = useCallback(() => {
+    cancelCurrentRequest();
+    dispatch({ type: "request/stop" });
+  }, [cancelCurrentRequest]);
+
   const openEvidence = useCallback(
     () => dispatch({ type: "evidence/open" }),
     [],
@@ -881,6 +893,7 @@ export function useChatWorkflow() {
     retryProcess,
     loadConversation,
     newChat,
+    stopGeneration,
     openEvidence,
     closeEvidence,
   };
