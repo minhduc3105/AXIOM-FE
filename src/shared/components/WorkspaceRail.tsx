@@ -22,6 +22,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { WorkspaceNavigationTooltip } from "./workspace-rail/WorkspaceNavigationTooltip";
 import type { AppSurface } from "@/app/routing/types";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { cn } from "@/shared/lib/utils";
@@ -123,17 +124,22 @@ function RailContent({
             </Button>
           </>
         ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-9 shrink-0 rounded-lg"
-            aria-label="Open workspace navigation"
-            aria-expanded={false}
-            onClick={() => onExpandedChange(true)}
+          <WorkspaceNavigationTooltip
+            expanded={false}
+            label="Open workspace navigation"
           >
-            <PanelLeftOpenIcon className="size-[18px]" />
-          </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-9 shrink-0 rounded-lg"
+              aria-label="Open workspace navigation"
+              aria-expanded={false}
+              onClick={() => onExpandedChange(true)}
+            >
+              <PanelLeftOpenIcon className="size-[18px]" />
+            </Button>
+          </WorkspaceNavigationTooltip>
         )}
       </div>
 

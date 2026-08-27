@@ -111,6 +111,19 @@ describe("WorkspaceRail", () => {
     expect(callbacks.onExpandedChange).toHaveBeenCalledWith(false);
   });
 
+  it("shows a tooltip for collapsed navigation icons", async () => {
+    const actor = userEvent.setup();
+    renderRail();
+
+    const dataButton = screen.getByRole("button", { name: "Data" });
+    await actor.hover(dataButton);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    console.log("TRIGGER", dataButton.outerHTML);
+    console.log("BODY", document.body.innerHTML.slice(-1000));
+
+    expect(await screen.findByRole("tooltip", { name: "Data" })).toBeTruthy();
+  });
+
   it("keeps only primary destinations in workspace navigation", () => {
     renderRail({ expanded: true });
 
@@ -144,7 +157,7 @@ describe("WorkspaceRail", () => {
     ).toBeNull();
   });
 
-  it("opens secondary destinations from More", async () => {
+  it("keeps More open after opening a secondary destination", async () => {
     const actor = userEvent.setup({ skipHover: true });
     renderRail({ expanded: true });
 
@@ -156,7 +169,6 @@ describe("WorkspaceRail", () => {
     await actor.click(await screen.findByRole("menuitem", { name: "Models" }));
     expect(callbacks.onModels).toHaveBeenCalledOnce();
 
-    await actor.click(screen.getByRole("button", { name: "More" }));
     await actor.click(await screen.findByRole("menuitem", { name: "Skills" }));
     expect(callbacks.onSkills).toHaveBeenCalledOnce();
   });

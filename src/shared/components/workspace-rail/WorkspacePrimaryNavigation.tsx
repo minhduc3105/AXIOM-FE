@@ -14,6 +14,7 @@ import {
 import type { AppSurface } from "@/app/routing/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/shared/lib/utils";
+import { WorkspaceNavigationTooltip } from "./WorkspaceNavigationTooltip";
 
 type WorkspacePrimaryNavigationProps = {
   expanded: boolean;
@@ -71,17 +72,46 @@ function NavigationButton({
   onClick: () => void;
 }) {
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      className={navigationButtonClass(expanded)}
-      data-active={active}
-      aria-label={label}
-      onClick={onClick}
-    >
-      <Icon className="size-[18px]" aria-hidden="true" />
-      <NavigationLabel expanded={expanded}>{label}</NavigationLabel>
-    </Button>
+    <WorkspaceNavigationTooltip expanded={expanded} label={label}>
+      <Button
+        type="button"
+        variant="ghost"
+        className={navigationButtonClass(expanded)}
+        data-active={active}
+        aria-label={label}
+        onClick={onClick}
+      >
+        <Icon className="size-[18px]" aria-hidden="true" />
+        <NavigationLabel expanded={expanded}>{label}</NavigationLabel>
+      </Button>
+    </WorkspaceNavigationTooltip>
+  );
+}
+
+function MoreNavigationItem({
+  expanded,
+  label,
+  icon: Icon,
+  onClick,
+}: {
+  expanded: boolean;
+  label: string;
+  icon: LucideIcon;
+  onClick: () => void;
+}) {
+  return (
+    <WorkspaceNavigationTooltip expanded={expanded} label={label}>
+      <Button
+        role="menuitem"
+        type="button"
+        variant="ghost"
+        className={navigationButtonClass(expanded)}
+        onClick={onClick}
+      >
+        <Icon className="size-[18px]" />
+        <NavigationLabel expanded={expanded}>{label}</NavigationLabel>
+      </Button>
+    </WorkspaceNavigationTooltip>
   );
 }
 
@@ -106,83 +136,58 @@ function MoreNavigationMenu({
 }) {
   const [open, setOpen] = useState(false);
 
-  const closeAfterNavigate = (callback: () => void) => {
-    setOpen(false);
-    callback();
-  };
-
   return (
     <div className="grid gap-0.5">
-      <Button
-        type="button"
-        variant="ghost"
-        className={cn(
-          navigationButtonClass(expanded),
-          "cursor-pointer aria-expanded:bg-muted/70 aria-expanded:text-foreground dark:aria-expanded:bg-muted/45",
-        )}
-        data-active={active}
-        aria-label="More"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <MoreHorizontalIcon className="size-[18px]" aria-hidden="true" />
-        <NavigationLabel expanded={expanded}>More</NavigationLabel>
-      </Button>
+      <WorkspaceNavigationTooltip expanded={expanded} label="More">
+        <Button
+          type="button"
+          variant="ghost"
+          className={cn(
+            navigationButtonClass(expanded),
+            "cursor-pointer aria-expanded:bg-muted/70 aria-expanded:text-foreground dark:aria-expanded:bg-muted/45",
+          )}
+          data-active={active}
+          aria-label="More"
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+        >
+          <MoreHorizontalIcon className="size-[18px]" aria-hidden="true" />
+          <NavigationLabel expanded={expanded}>More</NavigationLabel>
+        </Button>
+      </WorkspaceNavigationTooltip>
       {open && (
         <div className={cn("grid gap-0.5", expanded ? "pl-4" : "pl-0")}>
-          <Button
-            role="menuitem"
-            type="button"
-            variant="ghost"
-            className={navigationButtonClass(expanded)}
-            onClick={() => closeAfterNavigate(onModels)}
-          >
-            <BotIcon className="size-[18px]" />
-            <NavigationLabel expanded={expanded}>Models</NavigationLabel>
-          </Button>
-          <Button
-            role="menuitem"
-            type="button"
-            variant="ghost"
-            className={navigationButtonClass(expanded)}
-            onClick={() => closeAfterNavigate(onMemory)}
-          >
-            <BrainCircuitIcon className="size-[18px]" />
-            <NavigationLabel expanded={expanded}>Memory</NavigationLabel>
-          </Button>
-          <Button
-            role="menuitem"
-            type="button"
-            variant="ghost"
-            className={navigationButtonClass(expanded)}
-            onClick={() => closeAfterNavigate(onTools)}
-          >
-            <WrenchIcon className="size-[18px]" />
-            <NavigationLabel expanded={expanded}>Tools</NavigationLabel>
-          </Button>
-          <Button
-            role="menuitem"
-            type="button"
-            variant="ghost"
-            className={navigationButtonClass(expanded)}
-            onClick={() => closeAfterNavigate(onSkills)}
-          >
-            <SparklesIcon className="size-[18px]" />
-            <NavigationLabel expanded={expanded}>Skills</NavigationLabel>
-          </Button>
+          <MoreNavigationItem
+            expanded={expanded}
+            label="Models"
+            icon={BotIcon}
+            onClick={onModels}
+          />
+          <MoreNavigationItem
+            expanded={expanded}
+            label="Memory"
+            icon={BrainCircuitIcon}
+            onClick={onMemory}
+          />
+          <MoreNavigationItem
+            expanded={expanded}
+            label="Tools"
+            icon={WrenchIcon}
+            onClick={onTools}
+          />
+          <MoreNavigationItem
+            expanded={expanded}
+            label="Skills"
+            icon={SparklesIcon}
+            onClick={onSkills}
+          />
           {showOrganization && (
-            <Button
-              role="menuitem"
-              type="button"
-              variant="ghost"
-              className={navigationButtonClass(expanded)}
-              onClick={() => closeAfterNavigate(onOrganizationAdministration)}
-            >
-              <Building2Icon className="size-[18px]" />
-              <NavigationLabel expanded={expanded}>
-                Organization
-              </NavigationLabel>
-            </Button>
+            <MoreNavigationItem
+              expanded={expanded}
+              label="Organization"
+              icon={Building2Icon}
+              onClick={onOrganizationAdministration}
+            />
           )}
         </div>
       )}
