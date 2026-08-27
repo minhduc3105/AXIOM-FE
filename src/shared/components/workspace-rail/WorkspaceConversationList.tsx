@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ChatStage } from "@/features/chat/model/types";
 import { cn } from "@/shared/lib/utils";
@@ -83,7 +82,6 @@ export function WorkspaceConversationList({
     setDeleteTarget,
     togglePinnedConversation,
   } = useWorkspaceConversations({
-    activeStage,
     expanded,
     onConversationDeleted,
   });
@@ -121,8 +119,11 @@ export function WorkspaceConversationList({
           <DialogHeader>
             <DialogTitle>Delete conversation?</DialogTitle>
             <DialogDescription>
-              This removes {deleteTarget?.title || "this conversation"} and its
-              messages. This action cannot be undone.
+              This removes{" "}
+              <span className="font-semibold text-destructive">
+                &quot;{deleteTarget?.title || "this conversation"}&quot;
+              </span>{" "}
+              and its messages. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -164,7 +165,10 @@ export function WorkspaceConversationList({
         aria-label="Conversation vault"
       >
         <div className="min-h-0 min-w-0 flex-1" ref={conversationsScrollRef}>
-          <ScrollArea className="h-full min-h-0 w-full min-w-0 overflow-hidden pr-1 [&_[data-slot=scroll-area-viewport]]:pr-3 [&_[data-slot=scroll-area-scrollbar]]:w-1.5 [&_[data-slot=scroll-area-thumb]]:bg-border/70">
+          <div
+            data-slot="scroll-area-viewport"
+            className="h-full min-h-0 w-full min-w-0 overflow-y-auto overflow-x-hidden pr-3"
+          >
             {!conversationsLoading &&
               !conversationsError &&
               pinnedConversations.length > 0 && (
@@ -242,7 +246,7 @@ export function WorkspaceConversationList({
                 )}
               </>
             )}
-          </ScrollArea>
+          </div>
         </div>
       </section>
     </>

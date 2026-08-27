@@ -14,6 +14,7 @@ import {
   getAllFilesForJob,
   getDocumentProcessingStatuses,
   getIngestionJob,
+  listIngestionJobs,
   type IngestionJobResponse,
   type S3File,
   uploadFiles,
@@ -21,6 +22,7 @@ import {
 import {
   createPendingProcessingStatus,
   createConnectorProcessingBatch,
+  createRecoveredUploadProcessingBatch,
   createUploadProcessingBatch,
   getDocumentProcessingUiStatus,
   isTerminalProcessingStatus,
@@ -78,6 +80,30 @@ function getScopeKey(organizationId: string, workspaceId: string) {
 
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
+}
+
+function shouldConfirmUpload(error: unknown) {
+  if (error instanceof TypeError) return true;
+  return (
+    error instanceof Error &&
+    error.message === "Upload succeeded but the response was invalid."
+  );
+}
+
+function isMatchingUploadJob(
+  job: GlobalIngestionJob,
+  workspaceId: string,
+  candidate: IngestionJobResponse,
+) {
+  const jobCreatedAt = Date.parse(job.createdAt);
+  const candidateCreatedAt = Date.parse(candidate.created_at);
+  return (
+    candidate.datasource_type === "UPLOAD" &&
+    candidate.workspace_id === workspaceId &&
+    candidate.objects_written === job.objects.length &&
+    Number.isFinite(candidateCreatedAt) &&
+    (!Number.isFinite(jobCreatedAt) || candidateCreatedAt >= jobCreatedAt - 60_000)
+  );
 }
 
 function waitForNextProcessingCheck(signal: AbortSignal) {
@@ -224,6 +250,60 @@ export function GlobalIngestionProvider({
     [],
   );
 
+  const confirmUpload = useCallback(
+    async (job: GlobalIngestionJob) => {
+      try {
+        const candidate = (await listIngestionJobs(organizationId))
+          .filter((serverJob) => isMatchingUploadJob(job, workspaceId, serverJob))
+          .sort(
+            (left, right) =>
+              Date.parse(right.created_at) - Date.parse(left.created_at),
+          )[0];
+        if (!candidate) {
+          dispatch({
+            type: "JOB_NEEDS_ATTENTION",
+            jobId: job.id,
+            retry: "retry_upload_confirmation",
+            message:
+              "Upload connection was interrupted. Retry to check whether the files reached AXIOM.",
+          });
+          return;
+        }
+        const files = await getAllFilesForJob(candidate.job_id);
+        const batch = createRecoveredUploadProcessingBatch(candidate, files);
+        dispatch({ type: "PROCESSING_READY", jobId: job.id, batch });
+        void monitorDocumentProcessing(job.id, batch);
+      } catch (error) {
+        if (!isAbortError(error)) {
+          dispatch({
+            type: "JOB_NEEDS_ATTENTION",
+            jobId: job.id,
+            retry: "retry_upload_confirmation",
+            message: getErrorMessage(
+              error,
+              "Unable to confirm whether the upload reached AXIOM.",
+            ),
+          });
+        }
+      }
+    },
+    [monitorDocumentProcessing, organizationId, workspaceId],
+  );
+
+  useEffect(() => {
+    state.jobs
+      .filter(
+        (job) =>
+          job.source === "upload" &&
+          job.batch === null &&
+          job.retry === "start_new_upload" &&
+          job.errorMessage === "Failed to fetch",
+      )
+      .forEach((job) => {
+        void confirmUpload(job);
+      });
+  }, [confirmUpload, state.jobs]);
+
   const prepareS3Processing = useCallback(
     async (jobId: string, accepted: IngestionJobResponse) => {
       const controller = new AbortController();
@@ -328,6 +408,10 @@ export function GlobalIngestionProvider({
         dispatch({ type: "PROCESSING_READY", jobId: job.id, batch });
         void monitorDocumentProcessing(job.id, batch);
       } catch (error) {
+        if (shouldConfirmUpload(error)) {
+          void confirmUpload(job);
+          return;
+        }
         dispatch({
           type: "JOB_FAILED",
           jobId: job.id,
@@ -339,7 +423,7 @@ export function GlobalIngestionProvider({
         });
       }
     },
-    [closeDialog, monitorDocumentProcessing, organizationId, workspaceId],
+    [closeDialog, confirmUpload, monitorDocumentProcessing, organizationId, workspaceId],
   );
 
   const startS3Import = useCallback(
@@ -438,11 +522,16 @@ export function GlobalIngestionProvider({
             });
           });
       }
+      if (job.retry === "retry_upload_confirmation") {
+        dispatch({ type: "RETRYING", jobId, status: "transferring" });
+        void confirmUpload(job);
+      }
     },
     [
       monitorDocumentProcessing,
       monitorS3Import,
       prepareS3Processing,
+      confirmUpload,
       state.jobs,
     ],
   );

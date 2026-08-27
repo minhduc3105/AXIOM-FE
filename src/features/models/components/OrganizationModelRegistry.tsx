@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AuthUser } from "@/features/auth/model/types";
 import { cn } from "@/shared/lib/utils";
+import { getProviderReadiness, type ReadinessLevel } from "../model/readiness";
 import {
   createProvider,
   createProviderModel,
@@ -26,7 +27,6 @@ import {
   upsertProviderCredential,
   type ModelRegistryContext,
 } from "../api/modelServiceApi";
-import { getProviderReadiness, type ReadinessLevel } from "../model/readiness";
 import {
   normalizeProviderId,
   parseModelCapability,
@@ -462,7 +462,8 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
 
   return (
     <section className="grid gap-6" aria-labelledby="model-service-title">
-      <Card className={cn(modelServiceSurface, "rounded-[28px]")}>
+      {false && (
+        <Card className="hidden">
         <header className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -509,7 +510,8 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
             )}
           </div>
         </header>
-      </Card>
+        </Card>
+      )}
       {!canManage && (
         <Alert>
           <ShieldAlertIcon />
@@ -567,7 +569,7 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
           "gap-0 overflow-hidden rounded-[28px]",
         )}
       >
-        <div className="overflow-x-auto border-b p-2 sm:px-5">
+        <div className="flex items-center justify-between gap-3 overflow-x-auto border-b p-2 sm:px-5">
           <TabsList className="min-w-max">
             <TabsTrigger value="assignments" className="shrink-0">
               Assignments
@@ -579,6 +581,17 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
               </span>
             </TabsTrigger>
           </TabsList>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => void registry.refresh()}
+            disabled={registry.loading}
+          >
+            <RefreshCwIcon className={cn(registry.loading && "animate-spin")} />
+            Refresh
+          </Button>
         </div>
         <TabsContent value="assignments" className="m-0">
           <ModelServiceAssignments

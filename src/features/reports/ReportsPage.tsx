@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import {
   DatabaseIcon,
   LoaderCircleIcon,
+  Clock3Icon,
+  DownloadIcon,
+  FileTextIcon,
   RefreshCwIcon,
-  SparklesIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -22,11 +24,18 @@ import { ReportChartGrid } from "./components/ReportChartGrid";
 import { ReportDetailPanel } from "./components/ReportDetailPanel";
 import { ReportHistory } from "./components/ReportHistory";
 import { ReportMetricGrid } from "./components/ReportMetricGrid";
+  getAutoReport,
+  getAutoReportPdf,
+  getAutoReportPolicy,
+  listAutoReports,
+  updateAutoReportPolicy,
+  type AutoReport,
+  type AutoReportDetail,
+  type AutoReportPolicy,
+} from "./api/reportsApi";
 
 type ReportsPageProps = {
-  onData: () => void;
   workspaceId: string | null;
-  workspaceName?: string | null;
 };
 
 function formatFreshness(value: string | null) {
@@ -49,9 +58,7 @@ function actionError(error: unknown) {
 }
 
 export function ReportsPage({
-  onData,
   workspaceId,
-  workspaceName,
 }: ReportsPageProps) {
   const {
     overview,
@@ -70,6 +77,35 @@ export function ReportsPage({
     clearSelection,
   } = useReportsDashboard(workspaceId);
   const [interval, setInterval] = useState("900");
+  const [reports, setReports] = useState<AutoReport[]>([]);
+  const [selected, setSelected] = useState<AutoReportDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!workspaceId) {
+      setPolicy(null);
+      setReports([]);
+      setSelected(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const [nextPolicy, response] = await Promise.all([
+        getAutoReportPolicy(workspaceId),
+        listAutoReports(workspaceId),
+      ]);
+      setPolicy(nextPolicy);
+      setInterval(String(nextPolicy.interval_seconds));
+      setReports(response.items);
+    } catch (requestError) {
+      setError(errorMessage(requestError));
+    } finally {
+      setLoading(false);
+    }
+  }, [workspaceId]);
 
   useEffect(() => {
     if (overview?.automation) {
@@ -114,6 +150,8 @@ export function ReportsPage({
   };
 
   const handleSelect = async (report: Parameters<typeof selectReport>[0]) => {
+  const showSources = async (report: AutoReport) => {
+    if (!workspaceId) return;
     try {
       await selectReport(report);
     } catch (requestError) {
@@ -169,6 +207,8 @@ export function ReportsPage({
           </div>
         </header>
 
+    <section className="relative min-h-[calc(100dvh-var(--app-top-bar-height))] px-5 pb-12 pt-4 sm:px-8 md:pt-6">
+      <div className="mx-auto grid w-full max-w-[1240px] gap-6">
         {!workspaceId ? (
           <Empty className="min-h-[420px] rounded-2xl border border-dashed border-border bg-card/60">
             <EmptyHeader>

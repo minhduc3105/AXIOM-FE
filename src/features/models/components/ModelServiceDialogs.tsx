@@ -276,119 +276,46 @@ export function ModelServiceModelDialog({
     if (!hasErrors(nextErrors)) void onSubmit(event);
   }
   return (
-    <FormDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={model ? "Edit model" : "Add model"}
-      description={
-        model
-          ? "Update model metadata and workload limits."
-          : usesExistingProvider
-            ? `Register a model for ${provider?.display_name}. It will use this provider's connection configuration.`
-            : "Each model has its own organization connection configuration."
-      }
-      busy={busy}
-      submitLabel={model ? "Save model" : "Register model"}
-      onSubmit={validate}
-    >
-      {!model && (
-        <TextField
-          id="model-id"
-          label="Model ID"
-          placeholder="e.g. gpt-4.1-mini"
-          onChange={() => clearError(errors, "modelId", setErrors)}
-          error={errors.modelId}
-          required
-        />
-      )}
-      {!model && !usesExistingProvider && (
-        <>
-          <TextField
-            id="connection-name"
-            label="Connection name"
-            placeholder="e.g. OpenAI GPT-4.1 mini"
-            onChange={() => clearError(errors, "connectionName", setErrors)}
-            error={errors.connectionName}
-            required
-          />
-          <DropdownField
-            id="connection-source"
-            label="Connection type"
-            defaultValue="cloud"
-            options={[
-              { value: "cloud", label: "Cloud" },
-              { value: "custom", label: "Custom" },
-              { value: "local", label: "Local" },
-            ]}
-          />
-          <TextField
-            id="connection-url"
-            label="Base URL"
-            placeholder="https://api.openai.com/v1"
-            onChange={() => clearError(errors, "connectionUrl", setErrors)}
-            error={errors.connectionUrl}
-            required
-          />
-          <DropdownField
-            id="connection-protocol"
-            label="Protocol"
-            defaultValue="openai_compatible"
-            options={[
-              { value: "openai_compatible", label: "OpenAI compatible" },
-              { value: "openrouter", label: "OpenRouter" },
-              { value: "cohere_compatible", label: "Cohere compatible" },
-            ]}
-          />
-          <TextField
-            id="api-key"
-            label="API key (optional)"
-            type="password"
-            autoComplete="new-password"
-            spellCheck={false}
-          />
-        </>
-      )}
-      <TextField
-        id="model-name"
-        label="Display name"
-        defaultValue={model?.name}
-        placeholder="e.g. GPT-4.1 mini"
-        onChange={() => clearError(errors, "name", setErrors)}
-        error={errors.name}
-        required
-      />
-      <DropdownField
-        id="model-capability"
-        label="Workload"
-        defaultValue={model?.capability ?? capability}
-        error={errors.capability}
-        onValueChange={() => clearError(errors, "capability", setErrors)}
-        options={modelCapabilities.map((item) => ({
-          value: item.id,
-          label: item.label,
-        }))}
-      />
-      <TextField
-        id="max-tokens"
-        label="Max output tokens"
-        type="number"
-        min={1}
-        step={1}
-        defaultValue={model?.max_tokens?.toString()}
-        onChange={() => clearError(errors, "maxTokens", setErrors)}
-        error={errors.maxTokens || errors.limits}
-      />
-      <TextField
-        id="context-length"
-        label="Context length"
-        type="number"
-        min={1000}
-        step={1}
-        defaultValue={model?.max_context_length?.toString()}
-        onChange={() => clearError(errors, "contextLength", setErrors)}
-        error={errors.contextLength}
-      />
-    </FormDialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:h-[min(48rem,calc(100dvh-3rem))] sm:w-[min(96rem,calc(100vw-3rem))] sm:max-w-[min(96rem,calc(100vw-3rem))]">
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={validate} noValidate>
+          <DialogHeader className="shrink-0 border-b bg-muted/20 px-6 py-6 pr-14 sm:px-9 sm:py-8">
+            <div className="flex items-start gap-4">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <ServerIcon className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-xl sm:text-2xl">{model ? "Edit model" : "Add model"}</DialogTitle>
+                <DialogDescription className="mt-2 max-w-2xl leading-6">
+                  {model ? "Update model metadata and workload limits." : usesExistingProvider ? `Register a model for ${provider?.display_name}. It will use this provider's connection configuration.` : "Register a model and its organization connection in one place."}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-9 sm:py-8">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <section className="rounded-xl border bg-card p-5 sm:p-6">
+                <div className="mb-5"><p className="text-sm font-semibold">Model identity</p><p className="mt-1 text-xs text-muted-foreground">How this model appears in AXIOM.</p></div>
+                <div className="grid gap-4">
+                  {!model && <TextField id="model-id" label="Model ID" placeholder="e.g. gpt-4.1-mini" onChange={() => clearError(errors, "modelId", setErrors)} error={errors.modelId} required />}
+                  <TextField id="model-name" label="Display name" defaultValue={model?.name} placeholder="e.g. GPT-4.1 mini" onChange={() => clearError(errors, "name", setErrors)} error={errors.name} required />
+                  <DropdownField id="model-capability" label="Workload" defaultValue={model?.capability ?? capability} error={errors.capability} onValueChange={() => clearError(errors, "capability", setErrors)} options={modelCapabilities.map((item) => ({ value: item.id, label: item.label }))} />
+                </div>
+              </section>
+              <section className="rounded-xl border bg-card p-5 sm:p-6">
+                <div className="mb-5"><p className="text-sm font-semibold">Runtime limits</p><p className="mt-1 text-xs text-muted-foreground">Keep requests within the provider’s supported bounds.</p></div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                  <TextField id="max-tokens" label="Max output tokens" type="number" min={1} step={1} defaultValue={model?.max_tokens?.toString()} onChange={() => clearError(errors, "maxTokens", setErrors)} error={errors.maxTokens || errors.limits} />
+                  <TextField id="context-length" label="Context length" type="number" min={1000} step={1} defaultValue={model?.max_context_length?.toString()} onChange={() => clearError(errors, "contextLength", setErrors)} error={errors.contextLength} />
+                </div>
+              </section>
+              {!model && !usesExistingProvider && <section className="rounded-xl border bg-card p-5 sm:col-span-2 sm:p-6"><div className="mb-5"><p className="text-sm font-semibold">Connection</p><p className="mt-1 text-xs text-muted-foreground">This model will create its own organization provider connection.</p></div><div className="grid gap-4 md:grid-cols-2"><TextField id="connection-name" label="Connection name" placeholder="e.g. OpenAI production" onChange={() => clearError(errors, "connectionName", setErrors)} error={errors.connectionName} required /><DropdownField id="connection-source" label="Connection type" defaultValue="cloud" options={[{ value: "cloud", label: "Cloud" }, { value: "custom", label: "Custom" }, { value: "local", label: "Local" }]} /><TextField id="connection-url" label="Base URL" placeholder="https://api.openai.com/v1" onChange={() => clearError(errors, "connectionUrl", setErrors)} error={errors.connectionUrl} required /><DropdownField id="connection-protocol" label="Protocol" defaultValue="openai_compatible" options={[{ value: "openai_compatible", label: "OpenAI compatible" }, { value: "openrouter", label: "OpenRouter" }, { value: "cohere_compatible", label: "Cohere compatible" }]} /><TextField id="api-key" label="API key (optional)" type="password" autoComplete="new-password" spellCheck={false} /></div></section>}
+            </div>
+          </div>
+          <DialogFooter className="mx-0 mb-0 shrink-0 rounded-none px-6 py-4 sm:px-9"><Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button type="submit" disabled={busy}>{busy && <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />}{model ? "Save model" : "Register model"}</Button></DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

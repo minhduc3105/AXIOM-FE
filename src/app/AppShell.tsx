@@ -69,12 +69,13 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const [navigationOpen, setNavigationOpen] = useState(false);
+  const managesOwnScroll = surface === "chat" || surface === "data";
 
   return (
     <TooltipProvider>
       <main
         className={cn(
-          "grid min-h-dvh w-full max-w-full grid-cols-1 overflow-x-clip bg-background text-foreground transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none md:grid-cols-[56px_minmax(0,1fr)]",
+          "grid h-dvh min-h-0 w-full max-w-full grid-cols-1 overflow-hidden bg-background text-foreground transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none md:grid-cols-[56px_minmax(0,1fr)]",
           navigationOpen && "xl:grid-cols-[260px_minmax(0,1fr)]",
         )}
         data-rail-expanded={navigationOpen}
@@ -100,13 +101,13 @@ export function AppShell({
         />
         <div
           className={cn(
-            "grid min-h-dvh min-w-0 transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
+            "grid h-dvh min-h-0 min-w-0 overflow-hidden transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
             desktopInspector
               ? "xl:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)]"
               : "grid-cols-1",
           )}
         >
-          <div className="relative z-10 flex min-h-dvh min-w-0 flex-col [--app-top-bar-height:4rem]">
+          <div className="relative z-10 flex h-dvh min-h-0 min-w-0 flex-col [--app-top-bar-height:3.5rem]">
             <AppTopBar
               route={route}
               navigationOpen={navigationOpen}
@@ -121,7 +122,13 @@ export function AppShell({
               onWorkspaceSelect={onWorkspaceSelect}
               chatControls={chatControls}
             />
-            <div className="min-h-[calc(100dvh-var(--app-top-bar-height))] min-w-0 flex-1">
+            <div
+              data-testid="app-content-outlet"
+              className={cn(
+                "min-h-0 min-w-0 flex-1",
+                managesOwnScroll ? "overflow-hidden" : "overflow-y-auto",
+              )}
+            >
               {children}
             </div>
           </div>

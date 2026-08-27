@@ -24,6 +24,7 @@ const retryValues = new Set([
   "retry_processing",
   "retry_job_status",
   "retry_file_discovery",
+  "retry_upload_confirmation",
   "start_new_upload",
 ]);
 

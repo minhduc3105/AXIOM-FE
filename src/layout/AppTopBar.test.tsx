@@ -87,6 +87,20 @@ describe("AppTopBar", () => {
     expect(themeState.setTheme).toHaveBeenCalledWith("dark");
   });
 
+  it("keeps non-chat page context to a single compact toolbar line", () => {
+    renderTopBar();
+
+    const toolbar = screen.getByRole("banner", {
+      name: "Application toolbar",
+    });
+
+    expect(toolbar.className).toContain("h-14");
+    expect(screen.getByText("Data Management")).toBeTruthy();
+    expect(
+      screen.queryByText("Monitor file inventory and processing health."),
+    ).toBeNull();
+  });
+
   it("exposes the light-theme action when dark mode is active", () => {
     themeState.resolvedTheme = "dark";
     renderTopBar();

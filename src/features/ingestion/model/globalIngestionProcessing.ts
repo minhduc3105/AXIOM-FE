@@ -43,6 +43,30 @@ export function createUploadProcessingBatch(
   };
 }
 
+export function createRecoveredUploadProcessingBatch(
+  job: IngestionJobResponse,
+  filesResult: JobFilesResult,
+): DocumentProcessingBatch {
+  if (job.datasource_type !== "UPLOAD") {
+    throw new Error(
+      `Unsupported upload recovery source: ${job.datasource_type}.`,
+    );
+  }
+  return {
+    job_id: job.job_id,
+    organization_id: filesResult.organization_id,
+    workspace_id: job.workspace_id,
+    bucket: filesResult.bucket,
+    count: filesResult.count,
+    source_kind: "upload",
+    files: filesResult.files.map((file) => ({
+      key: file.key,
+      filename: null,
+      contentType: null,
+    })),
+  };
+}
+
 export function createConnectorProcessingBatch(
   job: IngestionJobResponse,
   filesResult: JobFilesResult,

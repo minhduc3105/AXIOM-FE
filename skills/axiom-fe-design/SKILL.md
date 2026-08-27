@@ -58,6 +58,7 @@ Do not use this for backend-only AXIOM work or SDK changes without a frontend su
 
 - Do not create landing pages for product workflows; the first screen should be the actual usable AXIOM surface.
 - Keep operational pages full-height and stable. Sidebars, rails, toolbars, inspectors, and stage lists should not jump as content changes.
+- Treat the topbar as continuous application chrome; avoid boxed styling that visually detaches it from the rest of the interface.
 - Inspectors must stay visually and structurally connected to the content they explain. Use in-flow sticky inspectors for claim/source review, and reserve viewport-docked inspectors for global utilities.
 - Use compact typography inside panels. Reserve large headings for page-level titles or the welcome prompt.
 - Use stable dimensions for rails, icon buttons, stage pills, counters, review cards, and connector tiles.

@@ -132,8 +132,15 @@ describe("application routing", () => {
     });
     expect(parseAppRoute("/settings")).toEqual({
       surface: "settings",
+      page: "overview",
       sessionId: null,
     });
     expect(getAppRoutePath(createSettingsRoute())).toBe("/settings");
+    expect(parseAppRoute("/settings/password")).toEqual({
+      surface: "settings",
+      page: "password",
+      sessionId: null,
+    });
+    expect(getAppRoutePath(createSettingsRoute("password"))).toBe("/settings/password");
   });
 });

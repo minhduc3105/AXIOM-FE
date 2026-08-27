@@ -34,14 +34,14 @@ export function GlobalWorkspaceSwitcher({
           <Button
             type="button"
             variant="ghost"
-            className="h-9 w-auto min-w-0 max-w-52 cursor-pointer justify-start gap-1 px-1.5 text-sm font-medium text-foreground hover:bg-muted/60"
+            className="h-9 w-auto min-w-0 cursor-pointer justify-start gap-1 px-1.5 text-sm font-medium text-foreground hover:bg-muted/60"
             disabled={loading || workspaces.length === 0}
             aria-label={`Switch workspace. Current workspace: ${selected?.name ?? "Unavailable"}`}
           />
         }
       >
         <span
-          className="max-w-20 min-w-0 truncate text-left sm:max-w-32"
+          className="min-w-0 whitespace-nowrap text-left"
           title={currentLabel}
         >
           {currentLabel}

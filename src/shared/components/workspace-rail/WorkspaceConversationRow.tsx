@@ -44,7 +44,8 @@ function WorkspaceConversationRow({
 }: WorkspaceConversationRowProps) {
   const [editing, setEditing] = useState(false);
   const [editingTitle, setEditingTitle] = useState("");
-  const title = conversation.title || "Untitled conversation";
+  const [localTitle, setLocalTitle] = useState(conversation.title || "");
+  const title = localTitle || "Untitled conversation";
   const pinned = isPinnedConversation(conversation);
 
   const startRename = () => {
@@ -52,20 +53,29 @@ function WorkspaceConversationRow({
     setEditingTitle(conversation.title || "");
   };
 
-  const finishRename = async () => {
+  const cancelRename = () => {
+    setEditing(false);
+    setEditingTitle("");
+  };
+
+  const saveRename = async () => {
     const nextTitle = editingTitle.trim();
     if (!nextTitle || nextTitle === (conversation.title || "")) {
-      setEditing(false);
+      cancelRename();
       return;
     }
 
-    if (await onRename(conversation, nextTitle)) setEditing(false);
+    // Update the row immediately so rename still feels responsive when the
+    // backend is unavailable. The API sync runs after the local commit.
+    setLocalTitle(nextTitle);
+    cancelRename();
+    await onRename(conversation, nextTitle);
   };
 
   return (
     <div
       className={cn(
-        "group flex h-9 min-w-0 w-full items-center overflow-hidden rounded-lg pr-1 text-muted-foreground transition-colors data-[active=true]:bg-muted/80 data-[active=true]:text-foreground dark:data-[active=true]:bg-muted/55",
+        "group flex h-9 min-w-0 w-full items-center overflow-hidden rounded-lg pr-1 text-muted-foreground data-[active=true]:bg-muted/80 data-[active=true]:text-foreground dark:data-[active=true]:bg-muted/55",
         !editing && "hover:bg-muted/60 hover:text-foreground dark:hover:bg-muted/40",
       )}
       data-active={!editing && active}
@@ -78,15 +88,15 @@ function WorkspaceConversationRow({
           value={editingTitle}
           disabled={busy}
           onChange={(event) => setEditingTitle(event.target.value)}
-          onBlur={() => void finishRename()}
+          onBlur={cancelRename}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
-              void finishRename();
+              void saveRename();
             }
             if (event.key === "Escape") {
               event.preventDefault();
-              setEditing(false);
+              cancelRename();
             }
           }}
         />
@@ -95,7 +105,7 @@ function WorkspaceConversationRow({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-9 min-w-0 flex-1 !shrink cursor-pointer justify-start overflow-hidden rounded-lg px-2.5 text-left text-[13px] font-normal hover:bg-transparent hover:text-inherit"
+          className="h-9 min-w-0 flex-1 !shrink cursor-pointer justify-start overflow-hidden rounded-lg px-2.5 text-left text-[13px] font-normal !transition-none hover:bg-transparent hover:text-inherit"
           onClick={() => onOpen(conversation.conversation_id)}
           aria-label={title}
           title={title}
@@ -117,7 +127,7 @@ function WorkspaceConversationRow({
             variant="ghost"
             size="icon-sm"
             className={cn(
-              "size-7 !w-0 shrink-0 !p-0 opacity-0 pointer-events-none transition-[width,opacity] duration-150 hover:bg-muted focus-visible:!w-7 focus-visible:opacity-100 focus-visible:pointer-events-auto group-hover:!w-7 group-hover:opacity-100 group-hover:pointer-events-auto cursor-pointer",
+              "size-7 !w-0 shrink-0 !p-0 opacity-0 pointer-events-none !transition-none hover:bg-muted focus-visible:!w-7 focus-visible:opacity-100 focus-visible:pointer-events-auto group-hover:!w-7 group-hover:opacity-100 group-hover:pointer-events-auto cursor-pointer",
               busy && "mr-1 !w-7 opacity-100",
             )}
             aria-label={`${pinned ? "Unpin" : "Pin"} conversation ${title}`}
@@ -137,7 +147,7 @@ function WorkspaceConversationRow({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  className="size-7 !w-0 shrink-0 !p-0 opacity-0 pointer-events-none transition-[width,opacity] duration-150 hover:bg-muted focus-visible:!w-7 focus-visible:opacity-100 focus-visible:pointer-events-auto group-hover:!w-7 group-hover:opacity-100 group-hover:pointer-events-auto data-[popup-open]:!w-7 data-[popup-open]:opacity-100 data-[popup-open]:pointer-events-auto cursor-pointer"
+                  className="size-7 !w-0 shrink-0 !p-0 opacity-0 pointer-events-none !transition-none hover:bg-muted focus-visible:!w-7 focus-visible:opacity-100 focus-visible:pointer-events-auto group-hover:!w-7 group-hover:opacity-100 group-hover:pointer-events-auto data-[popup-open]:!w-7 data-[popup-open]:opacity-100 data-[popup-open]:pointer-events-auto cursor-pointer"
                   aria-label={`Open conversation actions for ${title}`}
                   disabled={busy}
                 />
@@ -200,8 +210,7 @@ export function ConversationGroup({
         {conversations.map((conversation) => (
           <WorkspaceConversationRow
             active={
-              conversation.conversation_id === activeConversationId &&
-              activeStage !== "welcome"
+              conversation.conversation_id === activeConversationId
             }
             busy={actionPending === conversation.conversation_id}
             conversation={conversation}

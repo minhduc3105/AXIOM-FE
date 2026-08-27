@@ -135,27 +135,20 @@ describe("WorkspaceRail", () => {
     expect(callbacks.onModels).toHaveBeenCalledOnce();
   });
 
-  it("opens More only after a deliberate hover and closes after leaving it", () => {
-    vi.useFakeTimers();
+  it("opens More only after a deliberate click", async () => {
+    const actor = userEvent.setup({ skipHover: true });
     renderRail({ expanded: true });
 
     const more = screen.getByRole("button", { name: "More" });
     fireEvent.pointerEnter(more);
 
     expect(screen.queryByRole("menuitem", { name: "Memory" })).toBeNull();
-
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
+    await actor.click(more);
     expect(screen.getByRole("menuitem", { name: "Memory" })).toBeTruthy();
     expect(
       document.querySelector('[role="presentation"][data-base-ui-inert]'),
     ).toBeNull();
-
-    fireEvent.pointerLeave(more);
-    act(() => {
-      vi.advanceTimersByTime(120);
-    });
+    await actor.click(more);
     expect(more.getAttribute("aria-expanded")).toBe("false");
   });
 
