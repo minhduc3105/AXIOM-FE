@@ -13,6 +13,8 @@ export default defineConfig(({ mode }) => {
   const methodsHubTarget =
     environment.METHODS_HUB_PROXY_TARGET ?? "http://localhost:38000";
   const methodsHubAdminToken = environment.METHOD_HUB_ADMIN_TOKEN;
+  const skillRegistryTarget =
+    environment.VITE_SKILL_REGISTRY_PROXY_TARGET ?? gatewayApiTarget;
   const modelServiceTarget =
     environment.VITE_MODEL_SERVICE_PROXY_TARGET ?? gatewayApiTarget;
   const storageTarget =
@@ -64,12 +66,13 @@ export default defineConfig(({ mode }) => {
             : {}),
           rewrite: (path) => path.replace(/^\/methods-hub/, ""),
         },
+        "/skill-registry": {
+          target: skillRegistryTarget,
+          changeOrigin: true,
+        },
         "/model-service": {
           target: modelServiceTarget,
           changeOrigin: true,
-          // The standalone Model Service exposes /api/v2 directly. Remove
-          // the browser-only proxy prefix before forwarding upstream.
-          rewrite: (path) => path.replace(/^\/model-service/, ""),
         },
         "/storage": {
           target: storageTarget,

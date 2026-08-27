@@ -3,12 +3,16 @@ export type AppSurface =
   | "data"
   | "reports"
   | "tools"
+  | "skills"
   | "memory"
   | "models"
   | "settings"
   | "organization";
 
-export type OrganizationAdministrationTab = "overview" | "workspaces" | "members";
+export type OrganizationAdministrationTab =
+  | "overview"
+  | "workspaces"
+  | "members";
 
 export type AppRoute =
   | { surface: "chat"; page: "compose"; sessionId: null }
@@ -31,7 +35,17 @@ export type AppRoute =
       toolName: string | null;
       sessionId: null;
     }
+  | {
+      surface: "skills";
+      page: "list" | "detail";
+      skillId: string | null;
+      sessionId: null;
+    }
   | { surface: "memory"; sessionId: null }
   | { surface: "models"; sessionId: null }
   | { surface: "settings"; page: "overview" | "password"; sessionId: null }
-  | { surface: "organization"; tab: OrganizationAdministrationTab; sessionId: null };
+  | {
+      surface: "organization";
+      tab: OrganizationAdministrationTab;
+      sessionId: null;
+    };

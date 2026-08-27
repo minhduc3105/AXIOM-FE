@@ -9,6 +9,8 @@ import {
   createSettingsRoute,
   createToolDetailRoute,
   createToolsRoute,
+  createSkillDetailRoute,
+  createSkillsRoute,
   getAppRoutePath,
   parseAppRoute,
 } from "./paths";
@@ -35,7 +37,6 @@ describe("data routing", () => {
   it("creates a stable data URL", () => {
     expect(getAppRoutePath(createDataRoute())).toBe("/data");
   });
-
 });
 
 describe("report routing", () => {
@@ -74,6 +75,25 @@ describe("tools routing", () => {
     expect(getAppRoutePath(createToolsRoute())).toBe("/tools");
     expect(getAppRoutePath(createToolDetailRoute("text_normalize"))).toBe(
       "/tools/text_normalize",
+    );
+  });
+});
+
+describe("skills routing", () => {
+  it("parses the skill catalog path", () => {
+    expect(parseAppRoute("/skills")).toEqual(createSkillsRoute());
+  });
+
+  it("parses and decodes a skill detail path", () => {
+    expect(parseAppRoute("/skills/report%2Fbuilder")).toEqual(
+      createSkillDetailRoute("report/builder"),
+    );
+  });
+
+  it("creates stable skill URLs", () => {
+    expect(getAppRoutePath(createSkillsRoute())).toBe("/skills");
+    expect(getAppRoutePath(createSkillDetailRoute("report/builder"))).toBe(
+      "/skills/report%2Fbuilder",
     );
   });
 });
@@ -141,6 +161,8 @@ describe("application routing", () => {
       page: "password",
       sessionId: null,
     });
-    expect(getAppRoutePath(createSettingsRoute("password"))).toBe("/settings/password");
+    expect(getAppRoutePath(createSettingsRoute("password"))).toBe(
+      "/settings/password",
+    );
   });
 });

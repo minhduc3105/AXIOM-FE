@@ -1,27 +1,26 @@
 import {
   CheckCircle2Icon,
   CircleAlertIcon,
-  Clock3Icon,
   DownloadIcon,
   FileTextIcon,
   LoaderCircleIcon,
   SparklesIcon,
   TriangleAlertIcon,
 } from "lucide-react";
+import { Popover } from "@base-ui/react/popover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AutoReportDetail, AutoReportSource } from "../api/reportsApi";
+import { getReportSourcePath } from "../model/reportSourceLinks";
 import type {
   ReportDashboardChangeTone,
   ReportDashboardSnapshot,
@@ -31,27 +30,8 @@ type LatestReportSignalProps = {
   report: AutoReportDetail | null;
   dashboard: ReportDashboardSnapshot | null;
   processingSource?: AutoReportSource | null;
-  isCurrent: boolean;
   loading?: boolean;
   onDownload: (reportId: string) => void;
-  onInspect: () => void;
-};
-
-const statusLabels: Record<AutoReportDetail["status"], string> = {
-  completed: "Ready",
-  failed: "Failed",
-  running: "Generating",
-  skipped: "Skipped",
-};
-
-const statusVariants: Record<
-  AutoReportDetail["status"],
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  completed: "default",
-  failed: "destructive",
-  running: "secondary",
-  skipped: "outline",
 };
 
 const toneIcons: Record<ReportDashboardChangeTone, typeof SparklesIcon> = {
@@ -68,31 +48,12 @@ const toneClasses: Record<ReportDashboardChangeTone, string> = {
   critical: "border-destructive/25 bg-destructive/10",
 };
 
-function formatDate(value: string | null) {
-  if (!value) return "Not yet";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown time";
-  return new Intl.DateTimeFormat("en", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function sourceLabel(source: AutoReportSource | null) {
-  return source?.filename || "Newest workspace file";
-}
-
 export function LatestReportSignal({
   report,
   dashboard,
   processingSource = null,
-  isCurrent,
   loading = false,
   onDownload,
-  onInspect,
 }: LatestReportSignalProps) {
   if (loading && !report) {
     return (
@@ -178,8 +139,6 @@ export function LatestReportSignal({
     );
   }
 
-  const primarySource = report.primary_source;
-  const activeSource = processingSource || primarySource;
   const isProcessing = Boolean(processingSource);
   const changes = (dashboard?.changes ?? []).slice(0, 3);
   const isFailure = report.status === "failed" && !isProcessing;
@@ -206,52 +165,11 @@ export function LatestReportSignal({
       </CardHeader>
 
       <CardContent className="grid gap-5 px-5 py-5 sm:px-6">
-        <div className="grid gap-3 text-sm sm:grid-cols-2">
-          <div className="flex min-w-0 items-start gap-3">
-            <FileTextIcon
-              className="mt-0.5 shrink-0 text-primary"
-              aria-hidden="true"
-            />
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">Source</p>
-              <p
-                className="truncate font-medium"
-                title={sourceLabel(activeSource)}
-              >
-                {sourceLabel(activeSource)}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <Clock3Icon
-              className="mt-0.5 shrink-0 text-primary"
-              aria-hidden="true"
-            />
-            <div>
-              <p className="text-xs text-muted-foreground">
-                {isProcessing ? "Run status" : "Generated"}
-              </p>
-              <p className="font-medium">
-                {isProcessing
-                  ? "Processing now"
-                  : formatDate(report.completed_at || report.created_at)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <Separator />
-
         <section className="grid gap-3" aria-labelledby="latest-report-changes">
           <div className="flex items-center justify-between gap-3">
             <h3 id="latest-report-changes" className="text-sm font-semibold">
               Key insights
             </h3>
-            {dashboard?.headline.confidence && (
-              <span className="text-xs text-muted-foreground">
-                {dashboard.headline.confidence} confidence
-              </span>
-            )}
           </div>
           {isProcessing ? (
             <p className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-3 text-sm text-muted-foreground">
@@ -296,9 +214,7 @@ export function LatestReportSignal({
       </CardContent>
 
       <CardFooter className="flex flex-wrap justify-between gap-2 px-5 py-4 sm:px-6">
-        <Button variant="ghost" onClick={onInspect} disabled={isProcessing}>
-          Inspect source
-        </Button>
+        <ReportReferences sources={report.sources} disabled={isProcessing} />
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
@@ -311,5 +227,74 @@ export function LatestReportSignal({
         </div>
       </CardFooter>
     </Card>
+  );
+}
+
+function ReportReferences({
+  sources,
+  disabled,
+}: {
+  sources: AutoReportSource[];
+  disabled: boolean;
+}) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger
+        openOnHover
+        delay={100}
+        closeDelay={150}
+        disabled={disabled || !sources.length}
+        render={<Button variant="ghost" />}
+      >
+        References
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner
+          side="top"
+          align="start"
+          sideOffset={8}
+          className="z-50"
+        >
+          <Popover.Popup className="grid w-[min(24rem,calc(100vw-2rem))] gap-3 rounded-xl bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
+            <div className="grid gap-1">
+              <Popover.Title className="text-sm font-semibold">
+                References
+              </Popover.Title>
+              <Popover.Description className="text-xs text-muted-foreground">
+                Documents used to generate this report.
+              </Popover.Description>
+            </div>
+            <ul className="grid max-h-64 gap-1 overflow-y-auto">
+              {sources.map((source) => (
+                <li key={`${source.role}-${source.source_id}`}>
+                  <a
+                    href={getReportSourcePath(source)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-w-0 items-start justify-between gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                  >
+                    <span className="flex min-w-0 items-start gap-2">
+                      <FileTextIcon
+                        className="mt-0.5 size-4 shrink-0 text-primary"
+                        aria-hidden="true"
+                      />
+                      <span
+                        className="min-w-0 truncate"
+                        title={source.filename}
+                      >
+                        {source.filename}
+                      </span>
+                    </span>
+                    <Badge variant="outline" className="shrink-0 rounded-full">
+                      {source.role}
+                    </Badge>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

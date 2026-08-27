@@ -33,6 +33,7 @@ describe("AppShell", () => {
         onMemory={vi.fn()}
         onModels={vi.fn()}
         onTools={vi.fn()}
+        onSkills={vi.fn()}
         onSettings={vi.fn()}
         onOrganizationAdministration={vi.fn()}
         user={null}
@@ -59,7 +60,11 @@ describe("AppShell", () => {
   it("places the desktop inspector beside the toolbar and chat column at full viewport height", () => {
     render(
       <AppShell
-        route={{ surface: "chat", page: "conversation", sessionId: "conversation-1" }}
+        route={{
+          surface: "chat",
+          page: "conversation",
+          sessionId: "conversation-1",
+        }}
         activeStage="result"
         surface="chat"
         activeConversationId="conversation-1"
@@ -74,6 +79,7 @@ describe("AppShell", () => {
         onMemory={vi.fn()}
         onModels={vi.fn()}
         onTools={vi.fn()}
+        onSkills={vi.fn()}
         onSettings={vi.fn()}
         onOrganizationAdministration={vi.fn()}
         user={null}
@@ -89,12 +95,18 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    const inspector = screen.getByRole("complementary", { name: "Process details" });
+    const inspector = screen.getByRole("complementary", {
+      name: "Process details",
+    });
     expect(inspector.id).toBe("process-inspector");
     expect(inspector.className).toContain("h-dvh");
     expect(
-      inspector.previousElementSibling?.contains(screen.getByTestId("app-top-bar")),
+      inspector.previousElementSibling?.contains(
+        screen.getByTestId("app-top-bar"),
+      ),
     ).toBe(true);
-    expect(inspector.previousElementSibling?.textContent).toContain("Chat content");
+    expect(inspector.previousElementSibling?.textContent).toContain(
+      "Chat content",
+    );
   });
 });

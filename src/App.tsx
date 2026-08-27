@@ -4,6 +4,7 @@ import { ThemeProvider } from "./app/ThemeProvider";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider } from "./features/auth/model/AuthProvider";
 import { ToolsProvider } from "./features/tools/model/ToolsProvider";
+import { SkillsProvider } from "./features/skills/model/SkillsProvider";
 import { DataWorkspaceProvider } from "./features/data/model/DataWorkspaceProvider";
 import "./styles/globals.css";
 
@@ -15,7 +16,9 @@ export default function App() {
           renderApp={(route, navigate) => (
             <DataWorkspaceProvider>
               <ToolsProvider>
-                <AppExperience route={route} navigate={navigate} />
+                <SkillsProvider>
+                  <AppExperience route={route} navigate={navigate} />
+                </SkillsProvider>
               </ToolsProvider>
             </DataWorkspaceProvider>
           )}

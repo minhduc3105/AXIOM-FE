@@ -36,6 +36,7 @@ const callbacks = {
   onMemory: vi.fn(),
   onModels: vi.fn(),
   onTools: vi.fn(),
+  onSkills: vi.fn(),
   onSettings: vi.fn(),
   onOrganizationAdministration: vi.fn(),
   onLogout: vi.fn(),
@@ -114,14 +115,33 @@ describe("WorkspaceRail", () => {
     renderRail({ expanded: true });
 
     const navigation = screen.getByRole("navigation", { name: "Workspace" });
-    expect(within(navigation).getByRole("button", { name: "New chat" })).toBeTruthy();
-    expect(within(navigation).getByRole("button", { name: "Data" })).toBeTruthy();
-    expect(within(navigation).getByRole("button", { name: "Report" })).toBeTruthy();
-    expect(within(navigation).getByRole("button", { name: "More" })).toBeTruthy();
-    expect(within(navigation).queryByRole("button", { name: "Models" })).toBeNull();
-    expect(within(navigation).queryByRole("button", { name: "Memory settings" })).toBeNull();
-    expect(within(navigation).queryByRole("button", { name: "Tools" })).toBeNull();
-    expect(within(navigation).queryByRole("button", { name: "Organization" })).toBeNull();
+    expect(
+      within(navigation).getByRole("button", { name: "New chat" }),
+    ).toBeTruthy();
+    expect(
+      within(navigation).getByRole("button", { name: "Data" }),
+    ).toBeTruthy();
+    expect(
+      within(navigation).getByRole("button", { name: "Report" }),
+    ).toBeTruthy();
+    expect(
+      within(navigation).getByRole("button", { name: "More" }),
+    ).toBeTruthy();
+    expect(
+      within(navigation).queryByRole("button", { name: "Models" }),
+    ).toBeNull();
+    expect(
+      within(navigation).queryByRole("button", { name: "Memory settings" }),
+    ).toBeNull();
+    expect(
+      within(navigation).queryByRole("button", { name: "Tools" }),
+    ).toBeNull();
+    expect(
+      within(navigation).queryByRole("button", { name: "Skills" }),
+    ).toBeNull();
+    expect(
+      within(navigation).queryByRole("button", { name: "Organization" }),
+    ).toBeNull();
   });
 
   it("opens secondary destinations from More", async () => {
@@ -130,9 +150,15 @@ describe("WorkspaceRail", () => {
 
     await actor.click(screen.getByRole("button", { name: "More" }));
 
-    expect(await screen.findByRole("menuitem", { name: "Memory" })).toBeTruthy();
+    expect(
+      await screen.findByRole("menuitem", { name: "Memory" }),
+    ).toBeTruthy();
     await actor.click(await screen.findByRole("menuitem", { name: "Models" }));
     expect(callbacks.onModels).toHaveBeenCalledOnce();
+
+    await actor.click(screen.getByRole("button", { name: "More" }));
+    await actor.click(await screen.findByRole("menuitem", { name: "Skills" }));
+    expect(callbacks.onSkills).toHaveBeenCalledOnce();
   });
 
   it("opens More only after a deliberate click", async () => {
@@ -184,17 +210,31 @@ describe("WorkspaceRail", () => {
     ).toBeTruthy();
 
     await actor.click(
-      screen.getByRole("button", { name: "Open conversation actions for Research summary" }),
+      screen.getByRole("button", {
+        name: "Open conversation actions for Research summary",
+      }),
     );
-    expect(await screen.findByRole("menuitem", { name: "Rename" })).toBeTruthy();
+    expect(
+      await screen.findByRole("menuitem", { name: "Rename" }),
+    ).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "Delete" })).toBeTruthy();
-    expect(screen.queryByRole("menuitem", { name: /Pin chat|Unpin chat/ })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: /Pin chat|Unpin chat/ }),
+    ).toBeNull();
     await actor.keyboard("{Escape}");
 
-    await actor.click(screen.getByRole("button", { name: "Collapse recent work" }));
-    expect(screen.queryByRole("button", { name: "Research summary" })).toBeNull();
-    await actor.click(screen.getByRole("button", { name: "Expand recent work" }));
-    expect(await screen.findByRole("button", { name: "Research summary" })).toBeTruthy();
+    await actor.click(
+      screen.getByRole("button", { name: "Collapse recent work" }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Research summary" }),
+    ).toBeNull();
+    await actor.click(
+      screen.getByRole("button", { name: "Expand recent work" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Research summary" }),
+    ).toBeTruthy();
   });
 
   it("collapses pinned conversations independently from recent work", async () => {
@@ -233,8 +273,12 @@ describe("WorkspaceRail", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
 
     await actor.click(toggle);
-    expect(screen.queryByRole("button", { name: "Pinned research" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Recent research" })).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Pinned research" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Recent research" }),
+    ).toBeTruthy();
 
     await actor.click(
       screen.getByRole("button", { name: "Expand pinned conversations" }),
@@ -273,7 +317,9 @@ describe("WorkspaceRail", () => {
     });
     renderRail({ expanded: true });
 
-    const pinned = await screen.findByRole("button", { name: "Pinned research" });
+    const pinned = await screen.findByRole("button", {
+      name: "Pinned research",
+    });
     const recent = screen.getByRole("button", { name: "Recent research" });
 
     expect(
@@ -340,5 +386,4 @@ describe("WorkspaceRail", () => {
     expect(screen.getByRole("menuitem", { name: "Settings" })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "Log out" })).toBeTruthy();
   });
-
 });

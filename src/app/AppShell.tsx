@@ -25,6 +25,7 @@ type AppShellProps = {
   onMemory: () => void;
   onModels: () => void;
   onTools: () => void;
+  onSkills: () => void;
   onSettings: () => void;
   onOrganizationAdministration: () => void;
   user: AuthUser | null;
@@ -55,6 +56,7 @@ export function AppShell({
   onMemory,
   onModels,
   onTools,
+  onSkills,
   onSettings,
   onOrganizationAdministration,
   user,
@@ -94,6 +96,7 @@ export function AppShell({
           onMemory={onMemory}
           onModels={onModels}
           onTools={onTools}
+          onSkills={onSkills}
           onSettings={onSettings}
           onOrganizationAdministration={onOrganizationAdministration}
           user={user}

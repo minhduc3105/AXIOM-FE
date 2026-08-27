@@ -8,6 +8,7 @@ import {
   MessageSquarePlusIcon,
   MoreHorizontalIcon,
   WrenchIcon,
+  SparklesIcon,
   type LucideIcon,
 } from "lucide-react";
 import type { AppSurface } from "@/app/routing/types";
@@ -26,6 +27,7 @@ type WorkspacePrimaryNavigationProps = {
   onMemory: () => void;
   onModels: () => void;
   onTools: () => void;
+  onSkills: () => void;
   onOrganizationAdministration: () => void;
 };
 
@@ -90,6 +92,7 @@ function MoreNavigationMenu({
   onModels,
   onMemory,
   onTools,
+  onSkills,
   onOrganizationAdministration,
 }: {
   expanded: boolean;
@@ -98,6 +101,7 @@ function MoreNavigationMenu({
   onModels: () => void;
   onMemory: () => void;
   onTools: () => void;
+  onSkills: () => void;
   onOrganizationAdministration: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -126,24 +130,60 @@ function MoreNavigationMenu({
       </Button>
       {open && (
         <div className={cn("grid gap-0.5", expanded ? "pl-4" : "pl-0")}>
-        <Button role="menuitem" type="button" variant="ghost" className={navigationButtonClass(expanded)} onClick={() => closeAfterNavigate(onModels)}>
-          <BotIcon className="size-[18px]" />
-          <NavigationLabel expanded={expanded}>Models</NavigationLabel>
-        </Button>
-        <Button role="menuitem" type="button" variant="ghost" className={navigationButtonClass(expanded)} onClick={() => closeAfterNavigate(onMemory)}>
-          <BrainCircuitIcon className="size-[18px]" />
-          <NavigationLabel expanded={expanded}>Memory</NavigationLabel>
-        </Button>
-        <Button role="menuitem" type="button" variant="ghost" className={navigationButtonClass(expanded)} onClick={() => closeAfterNavigate(onTools)}>
-          <WrenchIcon className="size-[18px]" />
-          <NavigationLabel expanded={expanded}>Tools</NavigationLabel>
-        </Button>
-        {showOrganization && (
-          <Button role="menuitem" type="button" variant="ghost" className={navigationButtonClass(expanded)} onClick={() => closeAfterNavigate(onOrganizationAdministration)}>
-            <Building2Icon className="size-[18px]" />
-            <NavigationLabel expanded={expanded}>Organization</NavigationLabel>
+          <Button
+            role="menuitem"
+            type="button"
+            variant="ghost"
+            className={navigationButtonClass(expanded)}
+            onClick={() => closeAfterNavigate(onModels)}
+          >
+            <BotIcon className="size-[18px]" />
+            <NavigationLabel expanded={expanded}>Models</NavigationLabel>
           </Button>
-        )}
+          <Button
+            role="menuitem"
+            type="button"
+            variant="ghost"
+            className={navigationButtonClass(expanded)}
+            onClick={() => closeAfterNavigate(onMemory)}
+          >
+            <BrainCircuitIcon className="size-[18px]" />
+            <NavigationLabel expanded={expanded}>Memory</NavigationLabel>
+          </Button>
+          <Button
+            role="menuitem"
+            type="button"
+            variant="ghost"
+            className={navigationButtonClass(expanded)}
+            onClick={() => closeAfterNavigate(onTools)}
+          >
+            <WrenchIcon className="size-[18px]" />
+            <NavigationLabel expanded={expanded}>Tools</NavigationLabel>
+          </Button>
+          <Button
+            role="menuitem"
+            type="button"
+            variant="ghost"
+            className={navigationButtonClass(expanded)}
+            onClick={() => closeAfterNavigate(onSkills)}
+          >
+            <SparklesIcon className="size-[18px]" />
+            <NavigationLabel expanded={expanded}>Skills</NavigationLabel>
+          </Button>
+          {showOrganization && (
+            <Button
+              role="menuitem"
+              type="button"
+              variant="ghost"
+              className={navigationButtonClass(expanded)}
+              onClick={() => closeAfterNavigate(onOrganizationAdministration)}
+            >
+              <Building2Icon className="size-[18px]" />
+              <NavigationLabel expanded={expanded}>
+                Organization
+              </NavigationLabel>
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -161,11 +201,16 @@ export function WorkspacePrimaryNavigation({
   onMemory,
   onModels,
   onTools,
+  onSkills,
   onOrganizationAdministration,
 }: WorkspacePrimaryNavigationProps) {
-  const secondaryActive = ["models", "memory", "tools", "organization"].includes(
-    surface,
-  );
+  const secondaryActive = [
+    "models",
+    "memory",
+    "tools",
+    "skills",
+    "organization",
+  ].includes(surface);
 
   return (
     <nav
@@ -203,6 +248,7 @@ export function WorkspacePrimaryNavigation({
         onModels={onModels}
         onMemory={onMemory}
         onTools={onTools}
+        onSkills={onSkills}
         onOrganizationAdministration={onOrganizationAdministration}
       />
     </nav>

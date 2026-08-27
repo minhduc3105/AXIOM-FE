@@ -16,10 +16,16 @@ import {
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { ToolDetailPage } from "@/features/tools/ToolDetailPage";
 import { ToolsPage } from "@/features/tools/ToolsPage";
+import { SkillDetailPage } from "@/features/skills/SkillDetailPage";
+import { SkillsPage } from "@/features/skills/SkillsPage";
 import {
   defaultToolCatalogViewState,
   type ToolCatalogViewState,
 } from "@/features/tools/model/types";
+import {
+  defaultSkillCatalogViewState,
+  type SkillCatalogViewState,
+} from "@/features/skills/model/types";
 import { useModelRegistry } from "@/features/models/model/useModelRegistry";
 import { ModelsPage } from "@/features/models/ModelsPage";
 import { MemoryPage } from "@/features/memory/MemoryPage";
@@ -39,6 +45,8 @@ import {
   createSettingsRoute,
   createToolDetailRoute,
   createToolsRoute,
+  createSkillDetailRoute,
+  createSkillsRoute,
 } from "./routing/paths";
 import type { AppRoute } from "./routing/types";
 import type {
@@ -96,17 +104,24 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   );
   const llmRegistry = useModelRegistry(modelRegistryContext);
   const [chatEngine, setChatEngine] = useState<ChatEngine>(DEFAULT_CHAT_ENGINE);
-  const [chatExecutionMode, setChatExecutionMode] =
-    useState<ChatExecutionMode>(DEFAULT_CHAT_EXECUTION_MODE);
+  const [chatExecutionMode, setChatExecutionMode] = useState<ChatExecutionMode>(
+    DEFAULT_CHAT_EXECUTION_MODE,
+  );
   const [selectedModelAlias, setSelectedModelAlias] = useState<string | null>(
     null,
   );
   const [toolsViewState, setToolsViewState] = useState<ToolCatalogViewState>(
     defaultToolCatalogViewState,
   );
+  const [skillsViewState, setSkillsViewState] = useState<SkillCatalogViewState>(
+    defaultSkillCatalogViewState,
+  );
   const [processInspectorOpen, setProcessInspectorOpen] = useState(false);
   const desktopInspector = useMediaQuery("(min-width: 1280px)");
-  const processInspector = useProcessInspector(chat.history, chat.processEvents);
+  const processInspector = useProcessInspector(
+    chat.history,
+    chat.processEvents,
+  );
   const skipNextHydrationRef = useRef<string | null>(null);
   const llmModelOptions: ChatModelOption[] = useMemo(
     () =>
@@ -260,6 +275,10 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     navigate(createToolsRoute());
   }, [navigate]);
 
+  const openSkills = useCallback(() => {
+    navigate(createSkillsRoute());
+  }, [navigate]);
+
   const openMemory = useCallback(() => {
     navigate(createMemoryRoute());
   }, [navigate]);
@@ -284,6 +303,14 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     (toolName: string, returnViewState: ToolCatalogViewState) => {
       setToolsViewState(returnViewState);
       navigate(createToolDetailRoute(toolName));
+    },
+    [navigate],
+  );
+
+  const openSkillDetail = useCallback(
+    (skillId: string, returnViewState: SkillCatalogViewState) => {
+      setSkillsViewState(returnViewState);
+      navigate(createSkillDetailRoute(skillId));
     },
     [navigate],
   );
@@ -327,11 +354,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   );
 
   const submitQuestion = useCallback(
-    (
-      question: string,
-      engine: ChatEngine,
-      files: File[] = [],
-    ) => {
+    (question: string, engine: ChatEngine, files: File[] = []) => {
       void chat.submitQuestion({
         question,
         engine,
@@ -364,145 +387,163 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   return (
     <>
       <AppShell
-      route={route}
-      activeStage={chat.stage}
-      surface={route.surface}
-      activeConversationId={route.surface === "chat" ? route.sessionId : null}
-      processInspectorOpen={processInspectorOpen}
-      desktopInspector={
-        processInspectorOpen && desktopInspector ? (
-          <ProcessInspectorAside
-            items={processInspector.items}
-            conversationId={route.surface === "chat" ? route.sessionId : null}
+        route={route}
+        activeStage={chat.stage}
+        surface={route.surface}
+        activeConversationId={route.surface === "chat" ? route.sessionId : null}
+        processInspectorOpen={processInspectorOpen}
+        desktopInspector={
+          processInspectorOpen && desktopInspector ? (
+            <ProcessInspectorAside
+              items={processInspector.items}
+              conversationId={route.surface === "chat" ? route.sessionId : null}
+              activeProcessEventKey={processInspector.activeProcessEventKey}
+              onProcessEventSelect={selectProcessEvent}
+              onClose={() => setProcessInspectorOpen(false)}
+            />
+          ) : undefined
+        }
+        showInspectorToggle={
+          route.surface === "chat" && route.page === "conversation"
+        }
+        onInspectorOpen={openProcessInspector}
+        onNewChat={newChat}
+        onConversationOpen={openConversation}
+        onConversationDeleted={handleConversationDeleted}
+        onData={openData}
+        onReports={openReports}
+        onMemory={openMemory}
+        onModels={openModels}
+        onTools={openTools}
+        onSkills={openSkills}
+        onSettings={openSettings}
+        onOrganizationAdministration={openOrganizationAdministration}
+        user={user}
+        scope={scope}
+        workspaces={dataWorkspace.workspaces}
+        selectedWorkspace={dataWorkspace.selectedWorkspace}
+        workspacesLoading={dataWorkspace.loading}
+        onWorkspaceSelect={dataWorkspace.selectWorkspace}
+        onLogout={auth.logout}
+        chatControls={
+          route.surface === "chat" ? (
+            <ChatModelReasoningSelector
+              models={llmModelOptions}
+              selectedModelAlias={selectedModelAlias}
+              executionMode={chatExecutionMode}
+              onModelChange={setSelectedModelAlias}
+              onExecutionModeChange={setChatExecutionMode}
+            />
+          ) : undefined
+        }
+      >
+        {route.surface === "chat" ? (
+          <ChatPage
+            conversationId={route.sessionId}
+            stage={chat.stage}
+            evidenceOpen={chat.evidenceOpen}
+            investigation={chat.investigation}
+            draft={chat.draft}
+            processEvents={chat.processEvents}
+            result={chat.result}
+            history={chat.history}
+            error={chat.error}
+            historyLoading={chat.historyLoading}
+            loading={chat.loading}
+            canRetry={chat.canRetry}
+            inspectorItems={processInspector.items}
             activeProcessEventKey={processInspector.activeProcessEventKey}
             onProcessEventSelect={selectProcessEvent}
-            onClose={() => setProcessInspectorOpen(false)}
+            processInspectorOpen={processInspectorOpen}
+            onProcessInspectorOpen={openProcessInspector}
+            onProcessInspectorClose={() => setProcessInspectorOpen(false)}
+            engine={chatEngine}
+            onSubmit={submitQuestion}
+            onEngineChange={changeChatEngine}
+            onSpecificationChange={chat.updateSpecification}
+            onSpecificationRevise={chat.reviseSpecification}
+            onResetSpecification={chat.resetSpecification}
+            onApproveAndRun={chat.approveAndRun}
+            onRetryProcess={chat.retryProcess}
+            onCloseEvidence={chat.closeEvidence}
+            onStopGeneration={chat.stopGeneration}
           />
-        ) : undefined
-      }
-      showInspectorToggle={
-        route.surface === "chat" && route.page === "conversation"
-      }
-      onInspectorOpen={openProcessInspector}
-      onNewChat={newChat}
-      onConversationOpen={openConversation}
-      onConversationDeleted={handleConversationDeleted}
-      onData={openData}
-      onReports={openReports}
-      onMemory={openMemory}
-      onModels={openModels}
-      onTools={openTools}
-      onSettings={openSettings}
-      onOrganizationAdministration={openOrganizationAdministration}
-      user={user}
-      scope={scope}
-      workspaces={dataWorkspace.workspaces}
-      selectedWorkspace={dataWorkspace.selectedWorkspace}
-      workspacesLoading={dataWorkspace.loading}
-      onWorkspaceSelect={dataWorkspace.selectWorkspace}
-      onLogout={auth.logout}
-      chatControls={
-        route.surface === "chat" ? (
-          <ChatModelReasoningSelector
-            models={llmModelOptions}
-            selectedModelAlias={selectedModelAlias}
-            executionMode={chatExecutionMode}
-            onModelChange={setSelectedModelAlias}
-            onExecutionModeChange={setChatExecutionMode}
+        ) : route.surface === "data" ? (
+          route.page === "document" ? (
+            <IngestionDocumentPage
+              objectKey={route.objectKey}
+              bucket={route.bucket}
+              filename={route.filename}
+              documentId={route.documentId}
+              sourceLabel={route.sourceLabel}
+              onBack={openData}
+            />
+          ) : (
+            <DataPage
+              organizationId={user.organization_id}
+              onCreateIngestion={openDataIngestion}
+              onOpenDocument={openDataDocument}
+              ingestionControl={
+                <GlobalIngestionDock onOpenDetails={openIngestionDocument} />
+              }
+            />
+          )
+        ) : route.surface === "reports" ? (
+          <ReportsPage
+            workspaceId={dataWorkspace.selectedWorkspace?.id ?? null}
           />
-        ) : undefined
-      }
-    >
-        {route.surface === "chat" ? (
-        <ChatPage
-          conversationId={route.sessionId}
-          stage={chat.stage}
-          evidenceOpen={chat.evidenceOpen}
-          investigation={chat.investigation}
-          draft={chat.draft}
-          processEvents={chat.processEvents}
-          result={chat.result}
-          history={chat.history}
-          error={chat.error}
-          historyLoading={chat.historyLoading}
-          loading={chat.loading}
-          canRetry={chat.canRetry}
-          inspectorItems={processInspector.items}
-          activeProcessEventKey={processInspector.activeProcessEventKey}
-          onProcessEventSelect={selectProcessEvent}
-          processInspectorOpen={processInspectorOpen}
-          onProcessInspectorOpen={openProcessInspector}
-          onProcessInspectorClose={() => setProcessInspectorOpen(false)}
-          engine={chatEngine}
-          onSubmit={submitQuestion}
-          onEngineChange={changeChatEngine}
-          onSpecificationChange={chat.updateSpecification}
-          onSpecificationRevise={chat.reviseSpecification}
-          onResetSpecification={chat.resetSpecification}
-          onApproveAndRun={chat.approveAndRun}
-          onRetryProcess={chat.retryProcess}
-          onCloseEvidence={chat.closeEvidence}
-          onStopGeneration={chat.stopGeneration}
-        />
-      ) : route.surface === "data" ? (
-        route.page === "document" ? (
-          <IngestionDocumentPage
-            objectKey={route.objectKey}
-            bucket={route.bucket}
-            filename={route.filename}
-            documentId={route.documentId}
-            sourceLabel={route.sourceLabel}
-            onBack={openData}
+        ) : route.surface === "memory" ? (
+          <MemoryPage />
+        ) : route.surface === "models" ? (
+          <ModelsPage />
+        ) : route.surface === "settings" ? (
+          route.page === "password" ? (
+            <ChangePasswordPage onBack={openSettings} />
+          ) : (
+            <SettingsPage onChangePassword={openChangePassword} />
+          )
+        ) : route.surface === "organization" ? (
+          <OrganizationUsersPage
+            initialTab={route.tab}
+            onBack={newChat}
+            organizationName={scope?.organization.name ?? user.organization_id}
+          />
+        ) : route.surface === "skills" ? (
+          route.page === "detail" && route.skillId ? (
+            <SkillDetailPage
+              skillId={route.skillId}
+              workspaceId={dataWorkspace.selectedWorkspace?.id ?? null}
+              onBack={openSkills}
+            />
+          ) : (
+            <SkillsPage
+              workspaceId={dataWorkspace.selectedWorkspace?.id ?? null}
+              onOpenSkill={openSkillDetail}
+              viewState={skillsViewState}
+              onViewStateChange={setSkillsViewState}
+            />
+          )
+        ) : route.page === "detail" && route.toolName ? (
+          <ToolDetailPage
+            toolName={route.toolName}
+            onBack={openTools}
+            availabilityScope={{
+              organizationName:
+                scope?.organization.name ?? user.organization_id,
+              workspaceName: scope?.workspace?.name ?? "All workspaces",
+            }}
           />
         ) : (
-          <DataPage
-            organizationId={user.organization_id}
-            onCreateIngestion={openDataIngestion}
-            onOpenDocument={openDataDocument}
-            ingestionControl={
-              <GlobalIngestionDock onOpenDetails={openIngestionDocument} />
-            }
+          <ToolsPage
+            onOpenTool={openToolDetail}
+            viewState={toolsViewState}
+            onViewStateChange={setToolsViewState}
+            availabilityScope={{
+              organizationName:
+                scope?.organization.name ?? user.organization_id,
+              workspaceName: scope?.workspace?.name ?? "All workspaces",
+            }}
           />
-        )
-      ) : route.surface === "reports" ? (
-        <ReportsPage
-          workspaceId={dataWorkspace.selectedWorkspace?.id ?? null}
-        />
-      ) : route.surface === "memory" ? (
-        <MemoryPage />
-      ) : route.surface === "models" ? (
-        <ModelsPage />
-      ) : route.surface === "settings" ? (
-        route.page === "password" ? (
-          <ChangePasswordPage onBack={openSettings} />
-        ) : (
-          <SettingsPage onChangePassword={openChangePassword} />
-        )
-      ) : route.surface === "organization" ? (
-        <OrganizationUsersPage
-          initialTab={route.tab}
-          onBack={newChat}
-          organizationName={scope?.organization.name ?? user.organization_id}
-        />
-      ) : route.page === "detail" && route.toolName ? (
-        <ToolDetailPage
-          toolName={route.toolName}
-          onBack={openTools}
-          availabilityScope={{
-            organizationName: scope?.organization.name ?? user.organization_id,
-            workspaceName: scope?.workspace?.name ?? "All workspaces",
-          }}
-        />
-      ) : (
-        <ToolsPage
-          onOpenTool={openToolDetail}
-          viewState={toolsViewState}
-          onViewStateChange={setToolsViewState}
-          availabilityScope={{
-            organizationName: scope?.organization.name ?? user.organization_id,
-            workspaceName: scope?.workspace?.name ?? "All workspaces",
-          }}
-        />
         )}
       </AppShell>
       <IngestionDialog />

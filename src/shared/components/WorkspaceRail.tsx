@@ -42,6 +42,7 @@ type WorkspaceRailProps = {
   onMemory: () => void;
   onModels: () => void;
   onTools: () => void;
+  onSkills: () => void;
   onSettings: () => void;
   onOrganizationAdministration: () => void;
   user: AuthUser | null;
@@ -66,6 +67,7 @@ function RailContent({
   onMemory,
   onModels,
   onTools,
+  onSkills,
   onSettings,
   onOrganizationAdministration,
   user,
@@ -146,6 +148,7 @@ function RailContent({
         onMemory={onMemory}
         onModels={onModels}
         onTools={onTools}
+        onSkills={onSkills}
         onOrganizationAdministration={onOrganizationAdministration}
       />
 
@@ -159,9 +162,7 @@ function RailContent({
 
       <div
         className={cn(
-          expanded
-            ? "grid"
-            : "mt-auto grid w-full justify-items-center",
+          expanded ? "grid" : "mt-auto grid w-full justify-items-center",
         )}
       >
         <UserSessionMenu
@@ -313,6 +314,10 @@ export function WorkspaceRail(props: WorkspaceRailProps) {
       }}
       onTools={() => {
         props.onTools();
+        closeOverlay();
+      }}
+      onSkills={() => {
+        props.onSkills();
         closeOverlay();
       }}
       onSettings={() => {

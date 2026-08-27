@@ -67,6 +67,23 @@ Model Service code is split by responsibility:
 - `model/registryTypes.ts` owns the UI domain types.
 - `model/registryForm.ts` converts form values to the v2 contract enums.
 
+### Skill Hub
+
+The Skill Hub page uses the user-facing Skill Registry API through the Gateway.
+The browser calls the relative `/skill-registry` path so the existing
+authenticated `Bearer` token is forwarded and trusted user/workspace headers
+remain Gateway-owned.
+
+```dotenv
+VITE_SKILL_REGISTRY_API_BASE_URL=/skill-registry
+VITE_SKILL_REGISTRY_PROXY_TARGET=http://localhost:8007
+```
+
+The page is available at `/skills` (with immutable-id detail routes at
+`/skills/:skill_id`) and supports catalog search, status/language filters,
+workspace-aware preference toggles, SKILL.md inspection, file lists, and ZIP
+archive downloads. It does not publish or edit skills.
+
 Run the read-only live contract check through Gateway with an `org_admin` Bearer token:
 
 ```powershell

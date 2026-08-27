@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/empty";
 import { useReportsDashboard } from "./model/useReportsDashboard";
 import { LatestReportSignal } from "./components/LatestReportSignal";
-import { ReportAutomationPanel } from "./components/ReportAutomationPanel";
 import { ReportChartGrid } from "./components/ReportChartGrid";
 import { ReportDetailPanel } from "./components/ReportDetailPanel";
 import { ReportHistory } from "./components/ReportHistory";
@@ -27,13 +26,13 @@ type ReportsPageProps = {
   workspaceId: string | null;
 };
 
-function formatFreshness(value: string | null) {
-  if (!value) return "No source timestamp";
+function formatGeneratedDate(value: string | null) {
+  if (!value) return "Not yet";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown source time";
-  return new Intl.DateTimeFormat("en", {
-    day: "2-digit",
+  if (Number.isNaN(date.getTime())) return "Unknown time";
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
+    day: "numeric",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
@@ -64,6 +63,11 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
     clearSelection,
   } = useReportsDashboard(workspaceId);
   const [interval, setInterval] = useState("900");
+  const generatedAt =
+    overview?.latest_report?.completed_at ??
+    overview?.latest_report?.created_at ??
+    overview?.freshness.dashboard_generated_at ??
+    null;
 
   useEffect(() => {
     if (overview?.automation) {
@@ -134,7 +138,7 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
     >
       <div className="mx-auto grid w-full gap-5">
         <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="outline"
               onClick={() => void refresh()}
@@ -160,6 +164,11 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
               )}
               Generate now
             </Button>
+            {generatedAt && (
+              <p className="text-xs text-muted-foreground">
+                Generated {formatGeneratedDate(generatedAt)}
+              </p>
+            )}
           </div>
         </header>
 
@@ -194,26 +203,16 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
               </Alert>
             )}
 
-            <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
               <div className="grid min-w-0 gap-5">
                 <LatestReportSignal
                   report={overview?.latest_report ?? null}
                   dashboard={overview?.dashboard ?? null}
                   processingSource={processingSource}
-                  isCurrent={overview?.freshness.is_current ?? false}
                   loading={loading}
                   onDownload={(reportId) => void handleDownload(reportId)}
-                  onInspect={() => {
-                    if (overview?.latest_report) {
-                      void handleSelect(overview.latest_report);
-                    }
-                  }}
                 />
                 <ReportMetricGrid dashboard={overview?.dashboard ?? null} />
-                <ReportChartGrid dashboard={overview?.dashboard ?? null} />
-              </div>
-
-              <div className="grid min-w-0 content-start gap-5">
                 <ReportHistory
                   reports={overview?.recent_reports ?? []}
                   selectedReportId={selectedReport?.report_id}
@@ -221,19 +220,10 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
                   onSelect={(report) => void handleSelect(report)}
                   onDownload={(reportId) => void handleDownload(reportId)}
                 />
-                <ReportAutomationPanel
-                  policy={overview?.automation ?? null}
-                  interval={interval}
-                  loading={loading}
-                  saving={saving}
-                  onIntervalChange={setInterval}
-                  onSave={(enabled) => void handleSavePolicy(enabled)}
-                />
-                <ReportDetailPanel
-                  report={selectedReport}
-                  onClose={clearSelection}
-                  onDownload={(reportId) => void handleDownload(reportId)}
-                />
+              </div>
+
+              <div className="grid min-w-0 content-start gap-5">
+                <ReportChartGrid dashboard={overview?.dashboard ?? null} />
               </div>
             </div>
           </>

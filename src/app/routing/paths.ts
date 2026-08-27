@@ -8,6 +8,7 @@ const ROUTE_SEGMENTS = {
   settings: "settings",
   organization: "organization",
   tools: "tools",
+  skills: "skills",
   models: "models",
 } as const;
 
@@ -53,6 +54,16 @@ export function parseAppRoute(pathname: string, search = ""): AppRoute {
     };
   }
 
+  if (segments[0] === ROUTE_SEGMENTS.skills) {
+    const skillId = segments[1] ? decodeURIComponent(segments[1]) : null;
+    return {
+      surface: "skills",
+      page: skillId ? "detail" : "list",
+      skillId,
+      sessionId: null,
+    };
+  }
+
   if (segments[0] === ROUTE_SEGMENTS.models) {
     return { surface: "models", sessionId: null };
   }
@@ -70,9 +81,14 @@ export function parseAppRoute(pathname: string, search = ""): AppRoute {
   }
 
   if (segments[0] === ROUTE_SEGMENTS.organization) {
-    if (!segments[1]) return { surface: "organization", tab: "overview", sessionId: null };
+    if (!segments[1])
+      return { surface: "organization", tab: "overview", sessionId: null };
     if (["overview", "workspaces", "members"].includes(segments[1])) {
-      return { surface: "organization", tab: segments[1] as "overview" | "workspaces" | "members", sessionId: null };
+      return {
+        surface: "organization",
+        tab: segments[1] as "overview" | "workspaces" | "members",
+        sessionId: null,
+      };
     }
   }
 
@@ -106,11 +122,19 @@ export function getAppRoutePath(route: AppRoute) {
       ? `/${ROUTE_SEGMENTS.settings}/password`
       : `/${ROUTE_SEGMENTS.settings}`;
   }
-  if (route.surface === "organization") return route.tab === "overview" ? `/${ROUTE_SEGMENTS.organization}` : `/${ROUTE_SEGMENTS.organization}/${route.tab}`;
+  if (route.surface === "organization")
+    return route.tab === "overview"
+      ? `/${ROUTE_SEGMENTS.organization}`
+      : `/${ROUTE_SEGMENTS.organization}/${route.tab}`;
   if (route.surface === "tools") {
     return route.page === "detail" && route.toolName
       ? `/${ROUTE_SEGMENTS.tools}/${encodeURIComponent(route.toolName)}`
       : `/${ROUTE_SEGMENTS.tools}`;
+  }
+  if (route.surface === "skills") {
+    return route.page === "detail" && route.skillId
+      ? `/${ROUTE_SEGMENTS.skills}/${encodeURIComponent(route.skillId)}`
+      : `/${ROUTE_SEGMENTS.skills}`;
   }
   return route.sessionId
     ? `/${ROUTE_SEGMENTS.chat}/${route.sessionId}`
@@ -127,15 +151,13 @@ export function createDataRoute(): AppRoute {
   return { surface: "data", page: "dashboard", sessionId: null };
 }
 
-export function createDataDocumentRoute(
-  target: {
-    objectKey: string;
-    bucket: string;
-    filename: string | null;
-    documentId: string | null;
-    sourceLabel: string;
-  },
-): AppRoute {
+export function createDataDocumentRoute(target: {
+  objectKey: string;
+  bucket: string;
+  filename: string | null;
+  documentId: string | null;
+  sourceLabel: string;
+}): AppRoute {
   return {
     surface: "data",
     page: "document",
@@ -160,11 +182,15 @@ export function createModelsRoute(): AppRoute {
   return { surface: "models", sessionId: null };
 }
 
-export function createSettingsRoute(page: "overview" | "password" = "overview"): AppRoute {
+export function createSettingsRoute(
+  page: "overview" | "password" = "overview",
+): AppRoute {
   return { surface: "settings", page, sessionId: null };
 }
 
-export function createOrganizationRoute(tab: "overview" | "workspaces" | "members" = "overview"): AppRoute {
+export function createOrganizationRoute(
+  tab: "overview" | "workspaces" | "members" = "overview",
+): AppRoute {
   return { surface: "organization", tab, sessionId: null };
 }
 
@@ -173,6 +199,19 @@ export function createToolDetailRoute(toolName: string): AppRoute {
     surface: "tools",
     page: "detail",
     toolName,
+    sessionId: null,
+  };
+}
+
+export function createSkillsRoute(): AppRoute {
+  return { surface: "skills", page: "list", skillId: null, sessionId: null };
+}
+
+export function createSkillDetailRoute(skillId: string): AppRoute {
+  return {
+    surface: "skills",
+    page: "detail",
+    skillId,
     sessionId: null,
   };
 }

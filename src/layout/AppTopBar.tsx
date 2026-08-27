@@ -12,6 +12,7 @@ import {
   SettingsIcon,
   SunIcon,
   WrenchIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { useTheme } from "@/app/ThemeProvider";
 import type { ReactNode } from "react";
@@ -58,6 +59,11 @@ function getPageContext(route: AppRoute) {
       return {
         icon: WrenchIcon,
         title: "Tools",
+      };
+    case "skills":
+      return {
+        icon: SparklesIcon,
+        title: "Skill Hub",
       };
     case "memory":
       return {

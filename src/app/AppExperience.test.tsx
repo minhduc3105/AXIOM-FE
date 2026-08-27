@@ -46,6 +46,10 @@ type ChatSelectorStubProps = {
   onExecutionModeChange: (mode: "instant" | "thinking") => void;
 };
 
+type SkillsPageStubProps = {
+  workspaceId: string | null;
+};
+
 vi.mock("@/features/auth/model/AuthProvider", () => ({
   useAuth: () => ({
     user: {
@@ -126,7 +130,10 @@ vi.mock("@/app/AppShell", () => ({
 
 vi.mock("@/features/chat/ChatPage", () => ({
   ChatPage: ({ onSubmit }: ChatPageStubProps) => (
-    <button type="button" onClick={() => onSubmit("Compare reports", "auto", [])}>
+    <button
+      type="button"
+      onClick={() => onSubmit("Compare reports", "auto", [])}
+    >
       Submit question
     </button>
   ),
@@ -148,6 +155,18 @@ vi.mock("@/features/chat/components/ChatModelReasoningSelector", () => ({
         Select Thinking
       </button>
     </>
+  ),
+}));
+
+vi.mock("@/features/skills/SkillsPage", () => ({
+  SkillsPage: ({ workspaceId }: SkillsPageStubProps) => (
+    <div>Skill Hub catalog for {workspaceId}</div>
+  ),
+}));
+
+vi.mock("@/features/skills/SkillDetailPage", () => ({
+  SkillDetailPage: ({ workspaceId }: SkillsPageStubProps) => (
+    <div>Skill Hub detail for {workspaceId}</div>
   ),
 }));
 
@@ -226,5 +245,28 @@ describe("AppExperience chat controls", () => {
       );
       expect(mocks.workflow.newChat).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("AppExperience Skill Hub routing", () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("renders the catalog route with the selected workspace context", () => {
+    render(
+      <AppExperience
+        route={{
+          surface: "skills",
+          page: "list",
+          skillId: null,
+          sessionId: null,
+        }}
+        navigate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Skill Hub catalog for workspace-1")).toBeTruthy();
   });
 });

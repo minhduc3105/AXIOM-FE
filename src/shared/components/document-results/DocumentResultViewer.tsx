@@ -54,11 +54,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
 import type {
   InlinePreview,
@@ -179,7 +174,9 @@ export function DocumentResultViewer({
   const [parsedMode, setParsedMode] = useState("rendered");
   const [pageFilter, setPageFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [descriptionEdits, setDescriptionEdits] = useState<Record<string, string>>({});
+  const [descriptionEdits, setDescriptionEdits] = useState<
+    Record<string, string>
+  >({});
   const [sourceCollapsed, setSourceCollapsed] = useState(false);
   const [parsedCollapsed, setParsedCollapsed] = useState(false);
 
@@ -387,7 +384,10 @@ export function DocumentResultViewer({
         onActivate={activateFromCard}
         descriptionEdits={descriptionEdits}
         onDescriptionEdit={(componentId, description) =>
-          setDescriptionEdits((current) => ({ ...current, [componentId]: description }))
+          setDescriptionEdits((current) => ({
+            ...current,
+            [componentId]: description,
+          }))
         }
         onRetry={onRetryParsing}
       />
@@ -509,40 +509,9 @@ function InspectorHeader({
         </Button>
       )}
       <div className="min-w-0 flex-1">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <h2 className="truncate text-sm font-semibold" tabIndex={0} />
-            }
-          >
-            {getDisplayName(file)}
-          </TooltipTrigger>
-          <TooltipContent>{getDisplayName(file)}</TooltipContent>
-        </Tooltip>
-        {context?.sourceLabel && (
-          <p className="truncate text-xs text-muted-foreground">
-            {context.sourceLabel}
-          </p>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <Badge variant="secondary" className="max-sm:hidden">
-          {blockLabel}
-        </Badge>
-        <Badge variant="secondary" className="sm:hidden" aria-label={blockLabel}>
-          {parsing.data?.blocks.length ?? "-"}
-        </Badge>
-        <Badge
-          variant="outline"
-          className={cn(
-            statusTone === "success" && "border-success/30 bg-success/10 text-success",
-            statusTone === "processing" && "border-info/30 bg-info/10 text-info",
-            statusTone === "failed" &&
-              "border-destructive/30 bg-destructive/10 text-destructive",
-          )}
-        >
-          {context?.statusLabel ?? "Indexed"}
-        </Badge>
+        <h2 className="truncate text-sm font-semibold">
+          {getDisplayName(file)}
+        </h2>
       </div>
     </header>
   );
@@ -567,50 +536,6 @@ function InspectorPane({
 }) {
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <header className="flex min-h-14 shrink-0 items-center gap-3 border-b px-3 py-2">
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold">{title}</h3>
-          <p className="truncate text-xs text-muted-foreground">{description}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {restoreAction && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    type="button"
-                    aria-label={restoreAction.label}
-                    onClick={restoreAction.onClick}
-                  />
-                }
-              >
-                {restoreAction.icon}
-              </TooltipTrigger>
-              <TooltipContent>{restoreAction.label}</TooltipContent>
-            </Tooltip>
-          )}
-          {onCollapse && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    type="button"
-                    aria-label={collapseLabel}
-                    onClick={onCollapse}
-                  />
-                }
-              >
-                {collapseIcon}
-              </TooltipTrigger>
-              <TooltipContent>{collapseLabel}</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-      </header>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {children}
       </div>
@@ -1080,7 +1005,9 @@ function ParsedBlockCard({
   onDescriptionEdit: (componentId: string, description: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(description ?? block.text ?? block.semantic_text ?? "");
+  const [draft, setDraft] = useState(
+    description ?? block.text ?? block.semantic_text ?? "",
+  );
   const boxed = Boolean(block.bbox && block.page_bbox);
   const pageLabel = block.page === null ? "Page —" : `Page ${block.page + 1}`;
 
@@ -1142,7 +1069,10 @@ function ParsedBlockCard({
         </code>
         <div className="min-w-0 overflow-hidden">
           {editing ? (
-            <div className="grid gap-2 p-3" onClick={(event) => event.stopPropagation()}>
+            <div
+              className="grid gap-2 p-3"
+              onClick={(event) => event.stopPropagation()}
+            >
               <Textarea
                 aria-label={`Description for ${block.component_id}`}
                 value={draft}
@@ -1150,7 +1080,12 @@ function ParsedBlockCard({
                 rows={4}
               />
               <div className="flex justify-end gap-2">
-                <Button type="button" size="sm" variant="outline" onClick={() => setEditing(false)}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditing(false)}
+                >
                   Cancel
                 </Button>
                 <Button
