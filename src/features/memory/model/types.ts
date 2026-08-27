@@ -6,6 +6,11 @@ export type MemoryScope = {
   session_id: string;
 };
 
+export type MemorySnapshot = {
+  user_markdown: string;
+  memory_markdown: string;
+};
+
 export type MemorySourceRef = {
   source_type?: string;
   source_id: string;
