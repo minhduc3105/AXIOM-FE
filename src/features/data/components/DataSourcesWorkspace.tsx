@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -69,6 +69,7 @@ import {
   useDataSourceFileCounts,
 } from "../model/useDataSourceFileCounts";
 import { useDataSourceFiles } from "../model/useDataSourceFiles";
+import { DataMetrics } from "./DataMetrics";
 import { DataSourceFilesTable } from "./DataSourceFilesTable";
 import { StatusBadge } from "./StatusBadge";
 
@@ -78,12 +79,20 @@ type DataSourcesWorkspaceProps = {
   files: DataFile[];
   jobs: IngestionJob[];
   profiles: SavedDataSourceProfile[];
+  summary: {
+    loading: boolean;
+    total: number;
+    ready: number;
+    processing: number;
+    failed: number;
+  };
   loading: boolean;
   dataLoading: boolean;
   profileError: string | null;
   refreshing: boolean;
   onRefresh: () => void;
   onCreateIngestion: () => void;
+  ingestionControl?: ReactNode;
   onImportSource: (datasource: DataSource) => void;
   onOpenDocument: (file: DataFile, sourceLabel: string) => void;
   onConfigureSource: (
@@ -398,6 +407,7 @@ function SourceActions({
   refreshing,
   onRefresh,
   onCreateIngestion,
+  ingestionControl,
   onImportSource,
   onConfigureSource,
   onForgetProfile,
@@ -408,6 +418,7 @@ function SourceActions({
   refreshing: DataSourcesWorkspaceProps["refreshing"];
   onRefresh: DataSourcesWorkspaceProps["onRefresh"];
   onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
+  ingestionControl: DataSourcesWorkspaceProps["ingestionControl"];
   onImportSource: DataSourcesWorkspaceProps["onImportSource"];
   onConfigureSource: DataSourcesWorkspaceProps["onConfigureSource"];
   onForgetProfile: (profile: SavedDataSourceProfile) => void;
@@ -436,6 +447,7 @@ function SourceActions({
             <UploadCloudIcon data-icon="inline-start" />
             Upload files
           </Button>
+          {ingestionControl}
           <Button
             variant="outline"
             onClick={onRefresh}
@@ -530,12 +542,14 @@ export function DataSourcesWorkspace({
   files,
   jobs,
   profiles,
+  summary,
   loading,
   dataLoading,
   profileError,
   refreshing,
   onRefresh,
   onCreateIngestion,
+  ingestionControl,
   onImportSource,
   onOpenDocument,
   onConfigureSource,
@@ -964,8 +978,8 @@ export function DataSourcesWorkspace({
   };
 
   return (
-    <div className="min-w-0">
-      <div className="border-b p-4 lg:hidden">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <div className="shrink-0 border-b p-4 xl:hidden">
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -1026,9 +1040,9 @@ export function DataSourcesWorkspace({
         )}
       </div>
 
-      <div className="grid min-w-0 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="grid min-h-0 min-w-0 flex-1 xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside
-          className="hidden border-r p-4 lg:block"
+          className="hidden min-h-0 flex-col border-r p-4 xl:flex"
           aria-label="Data sources"
         >
           <div className="flex items-center justify-between gap-3 px-1">
@@ -1046,7 +1060,7 @@ export function DataSourcesWorkspace({
                 <AlertDescription>{profileError}</AlertDescription>
               </Alert>
             )}
-            <ScrollArea className="mt-4 max-h-[min(62dvh,36rem)]">
+            <ScrollArea className="mt-4 min-h-0 flex-1">
               <div className="flex flex-col gap-2 pr-2">
                 {visibleSources.map((datasource) => {
                   const selected = selectedSource.id === datasource.id;
@@ -1076,20 +1090,24 @@ export function DataSourcesWorkspace({
           </ScrollArea>
         </aside>
 
-        <section className="min-w-0" aria-label="Selected data source files">
-          <header className="p-4 sm:p-5">
+        <section
+          className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+          aria-label="Selected data source files"
+        >
+          <header className="shrink-0 p-4 sm:p-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-card text-primary">
-                  <SourceIcon datasource={selectedSource} className="size-5" />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-card text-primary">
+                    <SourceIcon datasource={selectedSource} className="size-5" />
+                  </span>
+                  <div className="min-w-0">
                     <h3 className="truncate text-lg font-semibold">
                       {displayName(selectedSource)}
                     </h3>
                   </div>
                 </div>
+                <DataMetrics {...summary} />
               </div>
               <SourceActions
                 datasource={selectedSource}
@@ -1098,6 +1116,7 @@ export function DataSourcesWorkspace({
                 refreshing={refreshing}
                 onRefresh={onRefresh}
                 onCreateIngestion={onCreateIngestion}
+                ingestionControl={ingestionControl}
                 onImportSource={onImportSource}
                 onConfigureSource={onConfigureSource}
                 onForgetProfile={setForgetProfile}
@@ -1106,7 +1125,7 @@ export function DataSourcesWorkspace({
           </header>
           <Separator />
           {backendFiles.error && !isAggregate && (
-            <Alert variant="destructive" className="m-4">
+            <Alert variant="destructive" className="m-4 shrink-0">
               <AlertTitle>Unable to load source files</AlertTitle>
               <AlertDescription>{backendFiles.error}</AlertDescription>
               <Button
@@ -1120,7 +1139,7 @@ export function DataSourcesWorkspace({
             </Alert>
           )}
           {result?.warning && (
-            <Alert className="m-4">
+            <Alert className="m-4 shrink-0">
               <AlertTitle>Processing status unavailable</AlertTitle>
               <AlertDescription>{result.warning}</AlertDescription>
             </Alert>

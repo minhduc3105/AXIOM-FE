@@ -48,53 +48,41 @@ function getPageContext(route: AppRoute) {
       return {
         icon: DatabaseIcon,
         title: "Data Management",
-        description: "Monitor file inventory and processing health.",
       };
     case "reports":
       return {
         icon: FileTextIcon,
         title: "Reports",
-        description: "Create and review workspace reports.",
       };
     case "tools":
       return {
         icon: WrenchIcon,
-        title:
-          route.page === "detail" && route.toolName ? route.toolName : "Tools",
-        description:
-          route.page === "detail"
-            ? "Configure and run this workspace tool."
-            : "Explore tools available to your workspace.",
+        title: "Tools",
       };
     case "memory":
       return {
         icon: BrainIcon,
         title: "Memory",
-        description: "Capture and organize workspace knowledge.",
       };
     case "models":
       return {
         icon: BotIcon,
         title: "Models",
-        description: "Manage models, providers, and assignments.",
       };
     case "settings":
       return {
         icon: SettingsIcon,
         title: "Settings",
-        description: "Manage your account and preferences.",
       };
     case "organization":
       return {
         icon: Building2Icon,
         title: "Organization",
-        description: "Manage members and workspaces.",
       };
     case "chat":
       return {
         icon: MessageSquareIcon,
         title: "Chat",
-        description: "Ask questions and explore your workspace.",
       };
   }
 }
@@ -125,7 +113,7 @@ export function AppTopBar({
 
   return (
     <header
-      className="sticky top-0 z-30 h-16 shrink-0 bg-background text-foreground"
+      className="sticky top-0 z-30 h-14 shrink-0 bg-background text-foreground"
       aria-label="Application toolbar"
     >
       <div
@@ -165,18 +153,13 @@ export function AppTopBar({
           {isChat ? (
             chatControls
           ) : (
-            <div className="flex min-w-0 items-start gap-1">
-              <span className="grid size-9 shrink-0 place-items-center rounded-md text-primary">
-                <PageIcon className="size-6" />
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="grid size-8 shrink-0 place-items-center rounded-md text-primary">
+                <PageIcon className="size-5" />
               </span>
-              <div className="min-w-0">
-                <p className="truncate text-2xl font-semibold leading-6">
-                  {pageContext.title}
-                </p>
-                <p className="hidden truncate text-sm leading-5 text-muted-foreground md:block">
-                  {pageContext.description}
-                </p>
-              </div>
+              <p className="truncate text-lg font-semibold leading-6">
+                {pageContext.title}
+              </p>
             </div>
           )}
         </div>

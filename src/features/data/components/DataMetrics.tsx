@@ -1,4 +1,4 @@
-import { CircleDotIcon, DatabaseIcon } from "lucide-react";
+import { DatabaseIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import type {
@@ -13,27 +13,35 @@ type DataMetricsProps = {
   ready: number;
   processing: number;
   failed: number;
-  totalSize: string;
+  className?: string;
 };
 
 const metrics: Array<{
   key: DataHealthFilter;
   label: string;
-  description: string;
+  accessibleLabel: string;
   icon: typeof DatabaseIcon;
   iconClassName: string;
 }> = [
   {
     key: "all",
-    label: "All files",
-    description: "Stored in this workspace",
+    label: "All",
+    accessibleLabel: "All files",
     icon: DatabaseIcon,
-    iconClassName: "bg-muted text-foreground",
+    iconClassName: "text-muted-foreground",
   },
   ...(["success", "processing", "failed"] as const).map(
     (status: DataHealthStatus) => ({
       key: status,
-      ...dataStatusPresentation[status],
+      label: dataStatusPresentation[status].label,
+      accessibleLabel: `${dataStatusPresentation[status].label} files`,
+      icon: dataStatusPresentation[status].icon,
+      iconClassName:
+        status === "success"
+          ? "text-status-success"
+          : status === "processing"
+            ? "text-info"
+            : "text-destructive",
     }),
   ),
 ];
@@ -44,7 +52,7 @@ export function DataMetrics({
   ready,
   processing,
   failed,
-  totalSize,
+  className,
 }: DataMetricsProps) {
   const values: Record<DataHealthFilter, number> = {
     all: total,
@@ -54,56 +62,44 @@ export function DataMetrics({
   };
 
   return (
-    <section
-      className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
-      aria-label="Data health summary"
+    <ul
+      className={cn(
+        "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground",
+        className,
+      )}
+      aria-label="Workspace file status"
     >
       {metrics.map((metric) => {
-        // Processing uses a static indicator in the summary cards. The
-        // animated status icon remains reserved for row-level live status.
-        const Icon =
-          metric.key === "processing" ? CircleDotIcon : metric.icon;
-        const description =
-          metric.key === "all"
-            ? `${totalSize} across this workspace`
-            : metric.description;
+        const Icon = metric.icon;
 
         return (
-          <article
+          <li
             key={metric.key}
             className={cn(
-              "flex min-h-36 w-full items-start justify-between gap-2 overflow-hidden rounded-lg border bg-card p-3 text-left text-foreground sm:min-h-32 sm:gap-4 sm:p-4",
+              "flex items-center gap-1.5 whitespace-nowrap",
             )}
-            aria-label={`${metric.label}: ${values[metric.key]}. ${description}`}
+            aria-label={`${metric.accessibleLabel}: ${values[metric.key]}`}
           >
-            <span className="min-w-0">
-              <span className="block text-sm font-medium">{metric.label}</span>
-              {loading ? (
-                <Skeleton className="mt-3 h-8 w-16" />
-              ) : (
-                <strong className="mt-2 block text-2xl font-semibold tabular-nums">
-                  {values[metric.key]}
-                </strong>
+            <Icon
+              className={cn(
+                "size-3.5 shrink-0",
+                metric.iconClassName,
+                metric.key === "processing" &&
+                  "animate-spin motion-reduce:animate-none",
               )}
-              <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                {description}
-              </span>
-            </span>
-
-            <span className="flex shrink-0 flex-col items-end">
-              <span
-                className={cn(
-                  "grid size-10 place-items-center rounded-md",
-                  metric.iconClassName,
-                )}
-                aria-hidden="true"
-              >
-                <Icon className="size-4" />
-              </span>
-            </span>
-          </article>
+              aria-hidden="true"
+            />
+            <span>{metric.label}</span>
+            {loading ? (
+              <Skeleton className="h-3.5 w-5" />
+            ) : (
+              <strong className="font-semibold tabular-nums text-foreground">
+                {values[metric.key]}
+              </strong>
+            )}
+          </li>
         );
       })}
-    </section>
+    </ul>
   );
 }
