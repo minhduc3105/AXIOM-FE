@@ -46,9 +46,7 @@ function actionError(error: unknown) {
     : "The report service is unavailable.";
 }
 
-export function ReportsPage({
-  workspaceId,
-}: ReportsPageProps) {
+export function ReportsPage({ workspaceId }: ReportsPageProps) {
   const {
     overview,
     selectedReport,
