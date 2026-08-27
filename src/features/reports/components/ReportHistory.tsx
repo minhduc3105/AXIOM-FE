@@ -2,6 +2,8 @@ import {
   CheckCircle2Icon,
   CircleAlertIcon,
   Clock3Icon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   DownloadIcon,
   FileTextIcon,
   LoaderCircleIcon,
@@ -18,14 +20,16 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
-import type { AutoReport } from "../api/reportsApi";
+import type { AutoReport, AutoReportPagination } from "../api/reportsApi";
 
 type ReportHistoryProps = {
   reports: AutoReport[];
   selectedReportId?: string | null;
   loading?: boolean;
+  pagination?: AutoReportPagination | null;
   onSelect: (report: AutoReport) => void;
   onDownload: (reportId: string) => void;
+  onPageChange?: (page: number) => void;
 };
 
 const statusLabels: Record<AutoReport["status"], string> = {
@@ -62,8 +66,10 @@ export function ReportHistory({
   reports,
   selectedReportId,
   loading = false,
+  pagination = null,
   onSelect,
   onDownload,
+  onPageChange,
 }: ReportHistoryProps) {
   return (
     <Card className="border-border/80 bg-card shadow-sm gap-0">
@@ -161,6 +167,37 @@ export function ReportHistory({
               </div>
             );
           })
+        )}
+        {pagination && pagination.total_pages > 1 && onPageChange && (
+          <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
+            <span>
+              Page {pagination.page} of {pagination.total_pages}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Previous reports page"
+                disabled={!pagination.has_previous || loading}
+                onClick={() => onPageChange(pagination.page - 1)}
+              >
+                <ChevronLeftIcon aria-hidden="true" />
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Next reports page"
+                disabled={!pagination.has_next || loading}
+                onClick={() => onPageChange(pagination.page + 1)}
+              >
+                Next
+                <ChevronRightIcon aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

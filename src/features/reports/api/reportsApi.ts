@@ -66,6 +66,22 @@ export type AutoReportOverview = {
   automation: AutoReportPolicy;
 };
 
+export type AutoReportPagination = {
+  page: number;
+  limit: number;
+  total_items: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+};
+
+export type AutoReportListResponse = {
+  items: AutoReport[];
+  pagination: AutoReportPagination;
+};
+
+export const AUTO_REPORT_PAGE_SIZE = 5;
+
 export type AutoReportRun = {
   status:
     | "scheduled"
@@ -134,8 +150,19 @@ export function runAutoReportNow(workspaceId: string) {
   });
 }
 
-export function listAutoReports(workspaceId: string) {
-  return request<{ items: AutoReport[] }>(reportPath(workspaceId));
+export function listAutoReports(
+  workspaceId: string,
+  page = 1,
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(AUTO_REPORT_PAGE_SIZE),
+  });
+  return request<AutoReportListResponse>(
+    reportPath(workspaceId, `?${params.toString()}`),
+    { signal },
+  );
 }
 
 export function getAutoReportOverview(workspaceId: string, signal?: AbortSignal) {

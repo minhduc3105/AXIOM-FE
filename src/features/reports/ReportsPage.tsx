@@ -54,9 +54,13 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
     saving,
     running,
     processingSource,
+    historyReports,
+    historyPagination,
+    historyLoading,
     error,
     refresh,
     selectReport,
+    changeHistoryPage,
     runNow,
     savePolicy,
     download,
@@ -214,11 +218,13 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
                 />
                 <ReportMetricGrid dashboard={overview?.dashboard ?? null} />
                 <ReportHistory
-                  reports={overview?.recent_reports ?? []}
+                  reports={historyReports}
                   selectedReportId={selectedReport?.report_id}
-                  loading={loading}
+                  loading={historyLoading}
+                  pagination={historyPagination}
                   onSelect={(report) => void handleSelect(report)}
                   onDownload={(reportId) => void handleDownload(reportId)}
+                  onPageChange={(page) => void changeHistoryPage(page)}
                 />
               </div>
 

@@ -3,10 +3,12 @@ import {
   getAutoReport,
   getAutoReportOverview,
   getAutoReportPdf,
+  listAutoReports,
   runAutoReportNow,
   updateAutoReportPolicy,
   type AutoReport,
   type AutoReportDetail,
+  type AutoReportPagination,
   type AutoReportOverview,
   type AutoReportSource,
 } from "../api/reportsApi";
@@ -19,9 +21,13 @@ type ReportsDashboardState = {
   saving: boolean;
   running: boolean;
   processingSource: AutoReportSource | null;
+  historyReports: AutoReport[];
+  historyPagination: AutoReportPagination | null;
+  historyLoading: boolean;
   error: string | null;
-  refresh: () => Promise<void>;
+  refresh: (page?: number) => Promise<void>;
   selectReport: (report: AutoReport) => Promise<void>;
+  changeHistoryPage: (page: number) => Promise<void>;
   runNow: () => Promise<"scheduled" | "created" | "skipped_no_source" | "skipped_no_unprocessed_source" | "skipped_already_processed" | "already_running" | "failed" | null>;
   savePolicy: (enabled: boolean, interval: string) => Promise<boolean>;
   download: (reportId: string) => Promise<void>;
@@ -49,11 +55,63 @@ export function useReportsDashboard(
   const [running, setRunning] = useState(false);
   const [processingSource, setProcessingSource] = useState<AutoReportSource | null>(null);
   const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null);
+  const [historyReports, setHistoryReports] = useState<AutoReport[]>([]);
+  const [historyPagination, setHistoryPagination] =
+    useState<AutoReportPagination | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const overviewRef = useRef<AutoReportOverview | null>(null);
+  const historyPageRef = useRef(1);
   const requestId = useRef(0);
   const controller = useRef<AbortController | null>(null);
+  const historyRequestId = useRef(0);
+  const historyController = useRef<AbortController | null>(null);
 
-  const refresh = useCallback(async () => {
+  const loadHistoryPage = useCallback(
+    async (page: number) => {
+      const currentWorkspaceId = workspaceId;
+      historyController.current?.abort();
+      if (!currentWorkspaceId) {
+        historyRequestId.current += 1;
+        setHistoryReports([]);
+        setHistoryPagination(null);
+        setHistoryLoading(false);
+        return;
+      }
+
+      const nextRequestId = ++historyRequestId.current;
+      const nextController = new AbortController();
+      historyController.current = nextController;
+      setHistoryLoading(true);
+
+      try {
+        const result = await listAutoReports(
+          currentWorkspaceId,
+          page,
+          nextController.signal,
+        );
+        if (historyRequestId.current !== nextRequestId) return;
+        setHistoryReports(result.items);
+        setHistoryPagination(result.pagination);
+        historyPageRef.current = result.pagination.page;
+      } catch (requestError) {
+        if (
+          historyRequestId.current !== nextRequestId ||
+          isAbortError(requestError)
+        ) {
+          return;
+        }
+        setError(errorMessage(requestError));
+      } finally {
+        if (historyRequestId.current === nextRequestId) {
+          setHistoryLoading(false);
+        }
+      }
+    },
+    [workspaceId],
+  );
+
+  const refresh = useCallback(async (page = historyPageRef.current) => {
     const currentWorkspaceId = workspaceId;
     controller.current?.abort();
     if (!currentWorkspaceId) {
@@ -63,6 +121,7 @@ export function useReportsDashboard(
       setError(null);
       setLoading(false);
       setRefreshing(false);
+      void loadHistoryPage(1);
       return;
     }
 
@@ -70,8 +129,9 @@ export function useReportsDashboard(
     const nextController = new AbortController();
     controller.current = nextController;
     setError(null);
-    setLoading((current) => (overview ? current : true));
-    setRefreshing(Boolean(overview));
+    setLoading((current) => (overviewRef.current ? current : true));
+    setRefreshing(Boolean(overviewRef.current));
+    void loadHistoryPage(page);
 
     try {
       const nextOverview = await getAutoReportOverview(
@@ -79,15 +139,8 @@ export function useReportsDashboard(
         nextController.signal,
       );
       if (requestId.current !== nextRequestId) return;
+      overviewRef.current = nextOverview;
       setOverview(nextOverview);
-      setSelectedReport((current) => {
-        if (!current) return null;
-        return nextOverview.recent_reports.some(
-          (report) => report.report_id === current.report_id,
-        )
-          ? current
-          : null;
-      });
     } catch (requestError) {
       if (requestId.current !== nextRequestId || isAbortError(requestError)) return;
       setError(errorMessage(requestError));
@@ -97,19 +150,26 @@ export function useReportsDashboard(
         setRefreshing(false);
       }
     }
-  }, [overview, workspaceId]);
+  }, [loadHistoryPage, workspaceId]);
 
   useEffect(() => {
     setOverview(null);
+    overviewRef.current = null;
     setSelectedReport(null);
     setProcessingSource(null);
     setProcessingStartedAt(null);
-    void refresh();
+    setHistoryReports([]);
+    setHistoryPagination(null);
+    setHistoryLoading(false);
+    historyPageRef.current = 1;
+    void refresh(1);
     return () => {
       requestId.current += 1;
       controller.current?.abort();
+      historyRequestId.current += 1;
+      historyController.current?.abort();
     };
-  }, [workspaceId]);
+  }, [refresh, workspaceId]);
 
   useEffect(() => {
     if (!processingSource || processingStartedAt === null) return;
@@ -155,6 +215,22 @@ export function useReportsDashboard(
       setSelectedReport(detail);
     },
     [workspaceId],
+  );
+
+  const changeHistoryPage = useCallback(
+    async (page: number) => {
+      const totalPages = historyPagination?.total_pages ?? 0;
+      if (
+        !workspaceId ||
+        page < 1 ||
+        (totalPages > 0 && page > totalPages) ||
+        page === historyPagination?.page
+      ) {
+        return;
+      }
+      await loadHistoryPage(page);
+    },
+    [historyPagination, loadHistoryPage, workspaceId],
   );
 
   const runNow = useCallback(async () => {
@@ -219,9 +295,13 @@ export function useReportsDashboard(
     saving,
     running,
     processingSource,
+    historyReports,
+    historyPagination,
+    historyLoading,
     error,
     refresh,
     selectReport,
+    changeHistoryPage,
     runNow,
     savePolicy,
     download,
