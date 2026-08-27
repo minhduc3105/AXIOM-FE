@@ -137,7 +137,8 @@ describe("Skill Registry API", () => {
     );
     expect(result.fileName).toBe("docx-en-1.0.0.zip");
     expect(result.sha256).toBe("a".repeat(64));
-    expect(result.blob).toBeInstanceOf(Blob);
+    // Response.blob() can come from a different runtime realm in CI's JSDOM setup.
+    expect(Object.prototype.toString.call(result.blob)).toBe("[object Blob]");
     expect(result.blob.type).toBe("text/plain;charset=utf-8");
     expect(result.blob.size).toBe(9);
   });
