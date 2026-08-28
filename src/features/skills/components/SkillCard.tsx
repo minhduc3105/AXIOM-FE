@@ -64,9 +64,6 @@ export function SkillCard({ skill, workspaceId, onOpen }: SkillCardProps) {
             </h3>
             <ArrowUpRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-[color,transform] duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand" />
           </div>
-          <code className="mt-1 block truncate text-xs text-muted-foreground">
-            {skill.id}
-          </code>
         </div>
       </div>
 

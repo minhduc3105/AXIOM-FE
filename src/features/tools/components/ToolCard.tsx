@@ -1,5 +1,9 @@
 import type { CSSProperties } from "react";
-import { AlertTriangleIcon, ArrowUpRightIcon, RefreshCwIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  ArrowUpRightIcon,
+  RefreshCwIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToolsState } from "../model/ToolsProvider";
@@ -62,9 +66,6 @@ export function ToolCard({
             </h3>
             <ArrowUpRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-[color,transform] duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand" />
           </div>
-          <code className="mt-1 block truncate text-xs text-muted-foreground">
-            {tool.name}
-          </code>
         </div>
       </div>
 
@@ -80,7 +81,8 @@ export function ToolCard({
             {formatToolKind(tool.kind)}
           </Badge>
           <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
-            {tool.param_count} {tool.param_count === 1 ? "parameter" : "parameters"}
+            {tool.param_count}{" "}
+            {tool.param_count === 1 ? "parameter" : "parameters"}
           </span>
         </div>
       </div>
@@ -88,18 +90,29 @@ export function ToolCard({
       <footer className="flex min-h-16 items-center justify-between gap-3 border-t border-line bg-soft/55 px-5">
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">
-            {enabled ? "Active in current process" : "Disabled in current process"}
+            {enabled
+              ? "Active in current process"
+              : "Disabled in current process"}
           </p>
           {availabilityScope ? (
-            <p className="mt-1 truncate text-[11px] text-muted-foreground" title={`Organization: ${availabilityScope.organizationName} · Workspace: ${availabilityScope.workspaceName}`}>
-              {availabilityScope.organizationName} · {availabilityScope.workspaceName}
+            <p
+              className="mt-1 truncate text-[11px] text-muted-foreground"
+              title={`Organization: ${availabilityScope.organizationName} · Workspace: ${availabilityScope.workspaceName}`}
+            >
+              {availabilityScope.organizationName} ·{" "}
+              {availabilityScope.workspaceName}
             </p>
           ) : null}
           {updateError ? (
-            <div role="alert" className="mt-1 flex items-start gap-1 text-[11px] leading-4 text-destructive">
+            <div
+              role="alert"
+              className="mt-1 flex items-start gap-1 text-[11px] leading-4 text-destructive"
+            >
               <AlertTriangleIcon className="mt-0.5 size-3 shrink-0" />
               <div className="min-w-0">
-                <p className="line-clamp-2">Update failed. Previous status restored: {updateError}</p>
+                <p className="line-clamp-2">
+                  Update failed. Previous status restored: {updateError}
+                </p>
                 <Button
                   type="button"
                   variant="link"
@@ -119,7 +132,9 @@ export function ToolCard({
         </div>
         <ToolStatusSwitch
           checked={enabled}
-          onCheckedChange={(nextEnabled) => setToolEnabled(tool.name, nextEnabled)}
+          onCheckedChange={(nextEnabled) =>
+            setToolEnabled(tool.name, nextEnabled)
+          }
           label={displayName}
           disabled={updating}
         />
