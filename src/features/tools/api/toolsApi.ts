@@ -2,6 +2,7 @@ import type {
   ToolCatalogFilters,
   ToolCatalogResponse,
   ToolDetailResponse,
+  AllToolsEnabledResponse,
   ToolEnabledResponse,
 } from "../model/types";
 
@@ -28,7 +29,8 @@ export class ToolsApiError extends Error {
 
 export function getToolsErrorKind(error: unknown): ToolsErrorKind {
   if (!(error instanceof ToolsApiError)) return "methods_hub_unavailable";
-  if (error.operation === "tool_detail" && error.status === 404) return "tool_not_found";
+  if (error.operation === "tool_detail" && error.status === 404)
+    return "tool_not_found";
   if (error.status >= 500) return "methods_hub_unavailable";
   return "request_failed";
 }
@@ -63,7 +65,10 @@ async function getJson<T>(
 
 async function readErrorDetail(response: Response) {
   try {
-    const body = (await response.json()) as { detail?: string; message?: string };
+    const body = (await response.json()) as {
+      detail?: string;
+      message?: string;
+    };
     return body.detail || body.message || "";
   } catch {
     return "";
@@ -93,10 +98,7 @@ async function patchJson<T>(url: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function listTools(
-  filters: ToolCatalogFilters,
-  signal: AbortSignal,
-) {
+export function listTools(filters: ToolCatalogFilters, signal: AbortSignal) {
   const params = new URLSearchParams();
   if (filters.kind) params.set("kind", filters.kind);
   if (filters.query?.trim()) params.set("query", filters.query.trim());
@@ -116,12 +118,16 @@ export function getTool(toolName: string, signal: AbortSignal) {
   );
 }
 
-export function updateToolEnabled(
-  toolName: string,
-  enabled: boolean,
-) {
+export function updateToolEnabled(toolName: string, enabled: boolean) {
   return patchJson<ToolEnabledResponse>(
     `${methodsHubApiBaseUrl}/api/v1/admin/tools/${encodeURIComponent(toolName)}`,
+    { enabled },
+  );
+}
+
+export function updateAllToolsEnabled(enabled: boolean) {
+  return patchJson<AllToolsEnabledResponse>(
+    `${methodsHubApiBaseUrl}/api/v1/admin/tools`,
     { enabled },
   );
 }

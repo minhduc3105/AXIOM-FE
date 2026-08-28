@@ -3,6 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
   type FormEvent,
   type ReactNode,
   type RefObject,
@@ -711,24 +712,24 @@ export function OrganizationUsersPage({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
           <OrganizationAdministrationHeader />
           <div className="flex flex-wrap items-center justify-end gap-2">
-          {refreshing && (
-            <Badge
+            {refreshing && (
+              <Badge
+                variant="outline"
+                className="border-info/30 bg-info/10 text-info"
+              >
+                <LoaderCircleIcon className="animate-spin" /> Updating
+              </Badge>
+            )}
+            <Button
+              type="button"
               variant="outline"
-              className="border-info/30 bg-info/10 text-info"
+              size="sm"
+              disabled={loading}
+              onClick={() => void loadAdminData()}
             >
-              <LoaderCircleIcon className="animate-spin" /> Updating
-            </Badge>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={loading}
-            onClick={() => void loadAdminData()}
-          >
-            <RefreshCwIcon className={cn(loading && "animate-spin")} />
-            Refresh
-          </Button>
+              <RefreshCwIcon className={cn(loading && "animate-spin")} />
+              Refresh
+            </Button>
           </div>
         </div>
         {error && (
@@ -902,7 +903,9 @@ export function OrganizationUsersPage({
 function OrganizationAdministrationHeader() {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <p className="text-sm font-semibold text-foreground">Organization access</p>
+      <p className="text-sm font-semibold text-foreground">
+        Organization access
+      </p>
       <Badge variant="outline" className="shrink-0 rounded-full text-primary">
         <ShieldCheckIcon className="size-3.5" /> Organization admin
       </Badge>
@@ -1158,9 +1161,7 @@ function WorkspacesPanel({
                 onClick={() => onSelect(workspace.id)}
                 aria-pressed={selectedWorkspace?.id === workspace.id}
                 variant={
-                  selectedWorkspace?.id === workspace.id
-                    ? "secondary"
-                    : "ghost"
+                  selectedWorkspace?.id === workspace.id ? "secondary" : "ghost"
                 }
                 className="h-auto w-full flex-col items-stretch gap-1.5 p-3 text-left whitespace-normal"
               >
@@ -1860,43 +1861,43 @@ function MemberDialog({
     >
       <form id="add-member-form" onSubmit={onSubmit}>
         <FieldGroup className="gap-3">
-        {errors.form && (
-          <Alert variant="destructive">
-            <CircleAlertIcon />
-            <AlertDescription>{errors.form}</AlertDescription>
-          </Alert>
-        )}
-        <FormField
-          id="member-name"
-          label="Name"
-          placeholder="e.g. Linh Nguyen"
-          error={errors["member-name"]}
-        />
-        <FormField
-          id="member-email"
-          label="Work email"
-          type="email"
-          placeholder="linh@company.com"
-          error={errors["member-email"]}
-        />
-        <FormField
-          id="member-password"
-          label="Temporary password"
-          type="password"
-          minLength={8}
-          error={errors["member-password"]}
-        />
-        <Field>
-          <FieldLabel htmlFor="member-role">Organization role</FieldLabel>
-          <input type="hidden" name="member-role" value={role} />
-          <DropdownField
-            id="member-role"
-            value={role}
-            onValueChange={(value) => setRole(value as AuthUser["org_role"])}
-            options={organizationRoleOptions}
-            ariaLabel="Organization role"
+          {errors.form && (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertDescription>{errors.form}</AlertDescription>
+            </Alert>
+          )}
+          <FormField
+            id="member-name"
+            label="Name"
+            placeholder="e.g. Linh Nguyen"
+            error={errors["member-name"]}
           />
-        </Field>
+          <FormField
+            id="member-email"
+            label="Work email"
+            type="email"
+            placeholder="linh@company.com"
+            error={errors["member-email"]}
+          />
+          <FormField
+            id="member-password"
+            label="Temporary password"
+            type="password"
+            minLength={8}
+            error={errors["member-password"]}
+          />
+          <Field>
+            <FieldLabel htmlFor="member-role">Organization role</FieldLabel>
+            <input type="hidden" name="member-role" value={role} />
+            <DropdownField
+              id="member-role"
+              value={role}
+              onValueChange={(value) => setRole(value as AuthUser["org_role"])}
+              options={organizationRoleOptions}
+              ariaLabel="Organization role"
+            />
+          </Field>
         </FieldGroup>
       </form>
     </AdministrationDialog>
@@ -2017,6 +2018,23 @@ function WorkspaceFormDialog({
   formId: string;
   workspace?: Workspace;
 }) {
+  const [workspaceName, setWorkspaceName] = useState(workspace?.name ?? "");
+  const [workspaceSlug, setWorkspaceSlug] = useState(workspace?.slug ?? "");
+  const [slugEdited, setSlugEdited] = useState(Boolean(workspace));
+
+  useEffect(() => {
+    if (!open) return;
+    setWorkspaceName(workspace?.name ?? "");
+    setWorkspaceSlug(workspace?.slug ?? "");
+    setSlugEdited(Boolean(workspace));
+  }, [open, workspace?.id, workspace?.name, workspace?.slug]);
+
+  function handleWorkspaceNameChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextName = event.target.value;
+    setWorkspaceName(nextName);
+    if (!slugEdited) setWorkspaceSlug(slugify(nextName));
+  }
+
   return (
     <AdministrationDialog
       open={open}
@@ -2041,48 +2059,53 @@ function WorkspaceFormDialog({
     >
       <form id={formId} onSubmit={onSubmit}>
         <FieldGroup className="gap-3">
-        {errors.form && (
-          <Alert variant="destructive">
-            <CircleAlertIcon />
-            <AlertDescription>{errors.form}</AlertDescription>
-          </Alert>
-        )}
-        <FormField
-          id="workspace-name"
-          label="Workspace name"
-          placeholder="e.g. Research"
-          defaultValue={workspace?.name}
-          error={errors["workspace-name"]}
-        />
-        <FormField
-          id="workspace-slug"
-          label="Workspace slug"
-          placeholder="e.g. research"
-          defaultValue={workspace?.slug}
-          error={errors["workspace-slug"]}
-        />
-        <Field
-          data-invalid={Boolean(errors["workspace-description"]) || undefined}
-        >
-          <FieldLabel htmlFor="workspace-description">Description</FieldLabel>
-          <Textarea
-            id="workspace-description"
-            name="workspace-description"
-            defaultValue={workspace?.description ?? ""}
-            placeholder="What belongs in this workspace?"
-            aria-invalid={Boolean(errors["workspace-description"])}
-            aria-describedby={
-              errors["workspace-description"]
-                ? "workspace-description-error"
-                : undefined
-            }
-          />
-          {errors["workspace-description"] && (
-            <FieldError id="workspace-description-error">
-              {errors["workspace-description"]}
-            </FieldError>
+          {errors.form && (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertDescription>{errors.form}</AlertDescription>
+            </Alert>
           )}
-        </Field>
+          <FormField
+            id="workspace-name"
+            label="Workspace name"
+            placeholder="e.g. Research"
+            value={workspaceName}
+            onChange={handleWorkspaceNameChange}
+            error={errors["workspace-name"]}
+          />
+          <FormField
+            id="workspace-slug"
+            label="Workspace slug"
+            placeholder="e.g. research"
+            value={workspaceSlug}
+            onChange={(event) => {
+              setSlugEdited(true);
+              setWorkspaceSlug(event.target.value);
+            }}
+            error={errors["workspace-slug"]}
+          />
+          <Field
+            data-invalid={Boolean(errors["workspace-description"]) || undefined}
+          >
+            <FieldLabel htmlFor="workspace-description">Description</FieldLabel>
+            <Textarea
+              id="workspace-description"
+              name="workspace-description"
+              defaultValue={workspace?.description ?? ""}
+              placeholder="What belongs in this workspace?"
+              aria-invalid={Boolean(errors["workspace-description"])}
+              aria-describedby={
+                errors["workspace-description"]
+                  ? "workspace-description-error"
+                  : undefined
+              }
+            />
+            {errors["workspace-description"] && (
+              <FieldError id="workspace-description-error">
+                {errors["workspace-description"]}
+              </FieldError>
+            )}
+          </Field>
         </FieldGroup>
       </form>
     </AdministrationDialog>
@@ -2628,6 +2651,8 @@ function FormField({
   type = "text",
   placeholder,
   defaultValue,
+  value,
+  onChange,
   minLength,
   required = true,
   error,
@@ -2637,6 +2662,8 @@ function FormField({
   type?: string;
   placeholder?: string;
   defaultValue?: string;
+  value?: string;
+  onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
   minLength?: number;
   required?: boolean;
   error?: string;
@@ -2650,14 +2677,14 @@ function FormField({
         type={type}
         placeholder={placeholder}
         defaultValue={defaultValue}
+        value={value}
+        onChange={onChange}
         minLength={minLength}
         required={required}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
       />
-      {error && (
-        <FieldError id={`${id}-error`}>{error}</FieldError>
-      )}
+      {error && <FieldError id={`${id}-error`}>{error}</FieldError>}
     </Field>
   );
 }

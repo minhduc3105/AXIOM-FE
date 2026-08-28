@@ -78,6 +78,15 @@ export type ToolEnabledResponse = {
   persistent: false;
 };
 
+export type AllToolsEnabledResponse = {
+  enabled: boolean;
+  changed_count: number;
+  tool_count: number;
+  enabled_tool_count: number;
+  scope: "process";
+  persistent: false;
+};
+
 export type ToolCatalogFilters = {
   kind?: ToolKind;
   query?: string;

@@ -14,14 +14,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ToolKindIcon } from "./components/ToolKindIcon";
 import { ToolStatusSwitch } from "./components/ToolStatusSwitch";
 import { useToolsState } from "./model/ToolsProvider";
-import {
-  formatToolKind,
-  formatToolName,
-} from "./model/toolPresentation";
+import { formatToolKind, formatToolName } from "./model/toolPresentation";
 import { useToolDetail } from "./model/useToolDetail";
 
 type ToolDetailPageProps = {
@@ -58,9 +62,19 @@ function ToolDetailSkeleton() {
   );
 }
 
-export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDetailPageProps) {
+export function ToolDetailPage({
+  toolName,
+  onBack,
+  availabilityScope,
+}: ToolDetailPageProps) {
   const { tool, loading, error, errorKind, refresh } = useToolDetail(toolName);
-  const { isToolEnabled, isToolUpdating, getToolUpdateError, retryToolUpdate, setToolEnabled } = useToolsState();
+  const {
+    isToolEnabled,
+    isToolUpdating,
+    getToolUpdateError,
+    retryToolUpdate,
+    setToolEnabled,
+  } = useToolsState();
 
   if (loading && !tool) {
     return (
@@ -85,11 +99,15 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
                 : "Tool details could not be loaded"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {toolNotFound
-              ? <>The catalog does not contain <code>{toolName}</code>.</>
-              : methodsHubUnavailable
-                ? "The live tool detail could not be loaded. Check the Methods-Hub URL and service configuration."
-                : "Methods-Hub rejected the request. Check your access and service configuration, then try again."}
+            {toolNotFound ? (
+              <>
+                The catalog does not contain <code>{toolName}</code>.
+              </>
+            ) : methodsHubUnavailable ? (
+              "The live tool detail could not be loaded. Check the Methods-Hub URL and service configuration."
+            ) : (
+              "Methods-Hub rejected the request. Check your access and service configuration, then try again."
+            )}
           </p>
           {!toolNotFound ? (
             <Button variant="outline" className="mt-5" onClick={refresh}>
@@ -128,70 +146,77 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
         </Button>
 
         <Card className="gap-0 rounded-lg border border-line bg-card p-0 shadow-none">
-        <header className="grid min-w-0 gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-          <div className="flex w-full min-w-0 max-w-full items-start gap-3 sm:gap-4">
-            <ToolKindIcon
-              kind={tool.kind}
-              className="size-10 rounded-lg sm:size-12 [&_svg]:size-5"
-            />
-            <div className="min-w-0">
-              <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-                <h1 className="min-w-0 max-w-full break-words text-xl font-semibold leading-tight text-foreground sm:text-2xl">
-                  {displayName}
-                </h1>
+          <header className="grid min-w-0 gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+            <div className="flex w-full min-w-0 max-w-full items-start gap-3 sm:gap-4">
+              <ToolKindIcon
+                kind={tool.kind}
+                className="size-10 rounded-lg sm:size-12 [&_svg]:size-5"
+              />
+              <div className="min-w-0">
+                <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+                  <h1 className="min-w-0 max-w-full break-words text-xl font-semibold leading-tight text-foreground sm:text-2xl">
+                    {displayName}
+                  </h1>
+                  <Badge
+                    variant="outline"
+                    className="h-6 max-w-full rounded-full border-line bg-soft px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-secondary"
+                  >
+                    {formatToolKind(tool.kind)}
+                  </Badge>
+                </div>
+                <code className="mt-1.5 block break-all text-xs text-muted-foreground">
+                  {tool.name}
+                </code>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
+                  {tool.description}
+                </p>
+              </div>
+            </div>
+            <div className="flex w-full shrink-0 flex-col gap-2 border-t border-line pt-3 sm:w-auto sm:min-w-52 sm:border-t-0 sm:pt-0 lg:self-start lg:justify-self-end">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   variant="outline"
-                  className="h-6 max-w-full rounded-full border-line bg-soft px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-secondary"
+                  className="h-7 rounded-full border-line bg-soft px-3 text-[10px] font-medium text-text-secondary"
                 >
-                  {formatToolKind(tool.kind)}
+                  <LockKeyholeIcon className="mr-1.5 size-3" />
+                  Live catalog
                 </Badge>
               </div>
-              <code className="mt-1.5 block break-all text-xs text-muted-foreground">
-                {tool.name}
-              </code>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
-                {tool.description}
+              <ToolStatusSwitch
+                checked={enabled}
+                label={displayName}
+                disabled={updating}
+                onCheckedChange={(nextEnabled) =>
+                  setToolEnabled(tool.name, nextEnabled)
+                }
+              />
+              <p className="max-w-xs text-xs leading-5 text-muted-foreground sm:text-right">
+                Available to{" "}
+                <span className="font-medium text-text-secondary">
+                  {availabilityScope.organizationName}
+                </span>{" "}
+                · {availabilityScope.workspaceName}
               </p>
+              {updateError ? (
+                <div
+                  role="alert"
+                  className="max-w-xs text-right text-xs leading-5 text-destructive"
+                >
+                  <p>Update failed. Previous status restored: {updateError}</p>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="xs"
+                    className="mt-1 h-auto px-0 text-destructive"
+                    onClick={() => void retryToolUpdate(tool.name)}
+                  >
+                    <RefreshCwIcon /> Retry update
+                  </Button>
+                </div>
+              ) : null}
             </div>
-          </div>
-          <div className="flex w-full shrink-0 flex-col gap-2 border-t border-line pt-3 sm:w-auto sm:min-w-52 sm:border-t-0 sm:pt-0 lg:self-start lg:justify-self-end">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant="outline"
-                className="h-7 rounded-full border-line bg-soft px-3 text-[10px] font-medium text-text-secondary"
-              >
-                <LockKeyholeIcon className="mr-1.5 size-3" />
-                Live catalog
-              </Badge>
-            </div>
-            <ToolStatusSwitch
-              checked={enabled}
-              label={displayName}
-              disabled={updating}
-              onCheckedChange={(nextEnabled) => setToolEnabled(tool.name, nextEnabled)}
-            />
-            <p className="max-w-xs text-xs leading-5 text-muted-foreground sm:text-right">
-              Available to <span className="font-medium text-text-secondary">{availabilityScope.organizationName}</span> · {availabilityScope.workspaceName}
-            </p>
-            {updateError ? (
-              <div role="alert" className="max-w-xs text-right text-xs leading-5 text-destructive">
-                <p>Update failed. Previous status restored: {updateError}</p>
-                <Button type="button" variant="link" size="xs" className="mt-1 h-auto px-0 text-destructive" onClick={() => void retryToolUpdate(tool.name)}>
-                  <RefreshCwIcon /> Retry update
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </header>
+          </header>
         </Card>
-
-        <Alert className="border-status-warning/40 bg-status-warning/10 text-status-warning">
-          <CircleAlertIcon />
-          <AlertTitle>Process-scoped visibility</AlertTitle>
-          <AlertDescription className="text-status-warning">
-            Active means this tool is exposed by the current Methods-Hub process only. It does not confirm service health and resets when Methods-Hub restarts.
-          </AlertDescription>
-        </Alert>
 
         <div className="grid items-start gap-7">
           <main className="min-w-0">
@@ -235,7 +260,8 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
                 </div>
               </dl>
               <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                Enabling or disabling a tool updates the current Methods-Hub process only; the setting resets when it restarts.
+                Enabling or disabling a tool updates the current Methods-Hub
+                process only; the setting resets when it restarts.
               </p>
 
               {(implementation || tool.supported_dataset_types?.length) && (
@@ -298,11 +324,38 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
                     <TableBody>
                       {tool.params.map((parameter) => (
                         <TableRow key={parameter.name}>
-                          <TableCell className="px-3 align-top whitespace-normal"><code className="break-all font-semibold text-foreground">{parameter.name}</code></TableCell>
-                          <TableCell className="px-3 align-top"><Badge variant="outline" className="h-5 rounded-md px-1.5 text-[9px] uppercase">{parameter.type}</Badge></TableCell>
-                          <TableCell className="px-3 align-top"><Badge variant={parameter.required ? "secondary" : "outline"} className="h-5 rounded-md px-1.5 text-[9px]">{parameter.required ? "Required" : "Optional"}</Badge></TableCell>
-                          <TableCell className="max-w-52 px-3 align-top whitespace-normal"><code className="break-all text-[11px] text-text-secondary">{formatDefaultValue(parameter.default)}</code></TableCell>
-                          <TableCell className="min-w-56 px-3 align-top whitespace-normal text-text-secondary">{parameter.description || "No parameter description."}</TableCell>
+                          <TableCell className="px-3 align-top whitespace-normal">
+                            <code className="break-all font-semibold text-foreground">
+                              {parameter.name}
+                            </code>
+                          </TableCell>
+                          <TableCell className="px-3 align-top">
+                            <Badge
+                              variant="outline"
+                              className="h-5 rounded-md px-1.5 text-[9px] uppercase"
+                            >
+                              {parameter.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-3 align-top">
+                            <Badge
+                              variant={
+                                parameter.required ? "secondary" : "outline"
+                              }
+                              className="h-5 rounded-md px-1.5 text-[9px]"
+                            >
+                              {parameter.required ? "Required" : "Optional"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-52 px-3 align-top whitespace-normal">
+                            <code className="break-all text-[11px] text-text-secondary">
+                              {formatDefaultValue(parameter.default)}
+                            </code>
+                          </TableCell>
+                          <TableCell className="min-w-56 px-3 align-top whitespace-normal text-text-secondary">
+                            {parameter.description ||
+                              "No parameter description."}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -315,7 +368,6 @@ export function ToolDetailPage({ toolName, onBack, availabilityScope }: ToolDeta
               )}
             </section>
           </main>
-
         </div>
       </div>
     </section>

@@ -30,7 +30,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Progress, ProgressValue } from "@/components/ui/progress";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,15 +60,6 @@ type ToolsPageProps = {
 };
 
 type BulkToolAction = "enable" | "disable";
-
-type BulkProgress = {
-  action: BulkToolAction;
-  total: number;
-  completed: number;
-  succeeded: string[];
-  failed: string[];
-  running: boolean;
-};
 
 type ToolAvailabilityScope = {
   organizationName: string;
@@ -208,7 +198,7 @@ export function ToolsPage({
   const { query, kind, status, sort } = filters;
   const [pendingBulkAction, setPendingBulkAction] =
     useState<BulkToolAction | null>(null);
-  const [bulkProgress, setBulkProgress] = useState<BulkProgress | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const { catalog, loading, error, errorKind, refresh } = useToolCatalog({
     kind,
     query,
@@ -217,7 +207,7 @@ export function ToolsPage({
     isToolEnabled,
     isToolUpdating,
     reconcileCatalogTools,
-    setToolEnabled,
+    setToolsEnabled,
   } = useToolsState();
   const initialLoading = loading && !catalog;
   const isRefreshing = loading && Boolean(catalog);
@@ -287,39 +277,12 @@ export function ToolsPage({
     (tool) => !isToolUpdating(tool.name),
   ).length;
   const isBulkEnable = pendingBulkAction === "enable";
-  const bulkBusy = Boolean(bulkProgress?.running);
 
   const runBulkAction = async (action: BulkToolAction, toolNames: string[]) => {
-    setBulkProgress({
-      action,
-      total: toolNames.length,
-      completed: 0,
-      succeeded: [],
-      failed: [],
-      running: true,
-    });
-
-    for (const toolName of toolNames) {
-      const succeeded = await setToolEnabled(toolName, action === "enable");
-      setBulkProgress((current) =>
-        current
-          ? {
-              ...current,
-              completed: current.completed + 1,
-              succeeded: succeeded
-                ? [...current.succeeded, toolName]
-                : current.succeeded,
-              failed: succeeded
-                ? current.failed
-                : [...current.failed, toolName],
-            }
-          : current,
-      );
-    }
-
-    setBulkProgress((current) =>
-      current ? { ...current, running: false } : current,
-    );
+    setBulkBusy(true);
+    const succeeded = await setToolsEnabled(toolNames, action === "enable");
+    setBulkBusy(false);
+    if (succeeded) setPendingBulkAction(null);
   };
 
   const confirmBulkAction = () => {
@@ -331,14 +294,6 @@ export function ToolsPage({
         .map((tool) => tool.name),
     );
   };
-  const retryFailedTools = () => {
-    if (!bulkProgress || !bulkProgress.failed.length) return;
-    void runBulkAction(bulkProgress.action, bulkProgress.failed);
-  };
-  const bulkProgressPercent =
-    bulkProgress && bulkProgress.total
-      ? Math.round((bulkProgress.completed / bulkProgress.total) * 100)
-      : 0;
   const handleOpenTool = (toolName: string) => {
     const returnViewState = { ...filtersRef.current, scrollY: window.scrollY };
     onViewStateChange(returnViewState);
@@ -495,16 +450,6 @@ export function ToolsPage({
           </header>
         </Card>
 
-        <Alert className="border-warning/40 bg-warning/10 text-warning">
-          <AlertTriangleIcon />
-          <AlertTitle>Process-scoped visibility</AlertTitle>
-          <AlertDescription className="text-warning">
-            Active only means the tool is exposed by this Methods-Hub process.
-            It does not confirm service health, and resets when Methods-Hub
-            restarts.
-          </AlertDescription>
-        </Alert>
-
         {error ? (
           <Alert className="border-warning/40 bg-warning/10 text-warning">
             <AlertTriangleIcon />
@@ -557,7 +502,6 @@ export function ToolsPage({
                       size="sm"
                       className="h-8 w-fit rounded-full px-3"
                       onClick={() => {
-                        setBulkProgress(null);
                         setPendingBulkAction("disable");
                       }}
                       disabled={actionableActiveCount === 0 || bulkBusy}
@@ -586,7 +530,6 @@ export function ToolsPage({
                       size="sm"
                       className="h-8 w-fit rounded-full px-3"
                       onClick={() => {
-                        setBulkProgress(null);
                         setPendingBulkAction("enable");
                       }}
                       disabled={actionableDisabledCount === 0 || bulkBusy}
@@ -637,32 +580,21 @@ export function ToolsPage({
         onOpenChange={(open) => {
           if (!open && !bulkBusy) {
             setPendingBulkAction(null);
-            setBulkProgress(null);
           }
         }}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {bulkProgress
-                ? bulkProgress.running
-                  ? `${bulkProgress.action === "enable" ? "Enabling" : "Disabling"} ${bulkProgress.completed} of ${bulkProgress.total} tools`
-                  : bulkProgress.failed.length
-                    ? `${bulkProgress.succeeded.length} updated, ${bulkProgress.failed.length} failed`
-                    : `${bulkProgress.succeeded.length} tools updated`
+              {bulkBusy
+                ? `${isBulkEnable ? "Enabling" : "Disabling"} tools...`
                 : isBulkEnable
                   ? `Enable ${pendingActionableCount} disabled tools?`
                   : `Disable ${pendingActionableCount} active tools?`}
             </DialogTitle>
             <DialogDescription>
-              {bulkProgress ? (
-                bulkProgress.running ? (
-                  "Updating tools one at a time. You can keep this dialog open while progress is reported."
-                ) : bulkProgress.failed.length ? (
-                  "Successful updates were kept. Retry only the tools that failed."
-                ) : (
-                  "All selected tools were updated successfully."
-                )
+              {bulkBusy ? (
+                "Updating all selected tools in one request."
               ) : (
                 <>
                   {isBulkEnable
@@ -675,55 +607,11 @@ export function ToolsPage({
             </DialogDescription>
           </DialogHeader>
 
-          {bulkProgress ? (
-            <div className="grid gap-3 rounded-lg border bg-muted/50 p-3">
-              <Progress
-                value={bulkProgressPercent}
-                aria-label="Bulk tool update progress"
-              >
-                <ProgressValue>
-                  {() => `${bulkProgress.completed} / ${bulkProgress.total}`}
-                </ProgressValue>
-              </Progress>
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <span>{bulkProgress.succeeded.length} succeeded</span>
-                {bulkProgress.failed.length ? (
-                  <span className="text-destructive">
-                    {bulkProgress.failed.length} failed
-                  </span>
-                ) : null}
-              </div>
-              {!bulkProgress.running && bulkProgress.failed.length ? (
-                <p className="text-xs leading-5 text-destructive">
-                  Failed: {bulkProgress.failed.join(", ")}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
           <DialogFooter>
-            {bulkProgress?.running ? (
+            {bulkBusy ? (
               <Button type="button" variant="outline" disabled>
-                Updating tools…
+                Updating tools...
               </Button>
-            ) : bulkProgress ? (
-              <>
-                {bulkProgress.failed.length ? (
-                  <Button type="button" onClick={retryFailedTools}>
-                    Retry failed tools
-                  </Button>
-                ) : null}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setPendingBulkAction(null);
-                    setBulkProgress(null);
-                  }}
-                >
-                  Close
-                </Button>
-              </>
             ) : (
               <>
                 <Button
