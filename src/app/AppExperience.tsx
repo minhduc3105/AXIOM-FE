@@ -222,6 +222,30 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const openData = useCallback(() => {
     navigate(createDataRoute());
   }, [navigate]);
+  const isDataDocumentRoute =
+    route.surface === "data" && route.page === "document";
+
+  const selectWorkspace = useCallback(
+    (nextWorkspaceId: string) => {
+      const selectedWorkspaceId = dataWorkspace.selectedWorkspace?.id;
+      const workspaceIsAssigned = dataWorkspace.workspaces.some(
+        (workspace) => workspace.id === nextWorkspaceId,
+      );
+      if (!workspaceIsAssigned) return;
+
+      dataWorkspace.selectWorkspace(nextWorkspaceId);
+      if (selectedWorkspaceId !== nextWorkspaceId && isDataDocumentRoute) {
+        navigate(createDataRoute());
+      }
+    },
+    [
+      dataWorkspace.selectWorkspace,
+      dataWorkspace.selectedWorkspace?.id,
+      dataWorkspace.workspaces,
+      isDataDocumentRoute,
+      navigate,
+    ],
+  );
 
   const openIngestionDocument = useCallback(
     (jobId: string, objectKey: string) => {
@@ -423,7 +447,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
         workspaces={dataWorkspace.workspaces}
         selectedWorkspace={dataWorkspace.selectedWorkspace}
         workspacesLoading={dataWorkspace.loading}
-        onWorkspaceSelect={dataWorkspace.selectWorkspace}
+        onWorkspaceSelect={selectWorkspace}
         onLogout={auth.logout}
         chatControls={
           route.surface === "chat" ? (
