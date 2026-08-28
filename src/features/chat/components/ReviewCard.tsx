@@ -94,7 +94,8 @@ export function ReviewCard(props: ReviewCardProps) {
             )}
           </section>
         </>
-      ) : props.stage === "process" && presentation.transcriptEvents.length > 0 ? (
+      ) : props.stage === "process" &&
+        presentation.transcriptEvents.length > 0 ? (
         <ProcessWorkspace
           ariaLabel="Processing transcript"
           presentation={presentation}
@@ -183,7 +184,12 @@ function IntentCard({
 
       <div className="flex flex-wrap justify-end gap-3">
         {editingSpec && (
-          <Button type="button" variant="ghost" disabled={loading} onClick={handleReset}>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={loading}
+            onClick={handleReset}
+          >
             Reset
           </Button>
         )}
@@ -218,7 +224,9 @@ function IntentCard({
         <div id="revision-prompt-panel" className="flex flex-col gap-5">
           <FieldSeparator>Prompt revision</FieldSeparator>
           <Field>
-            <FieldLabel htmlFor="revision-prompt-field">Revision prompt</FieldLabel>
+            <FieldLabel htmlFor="revision-prompt-field">
+              Revision prompt
+            </FieldLabel>
             <Textarea
               id="revision-prompt-field"
               value={revisionPrompt}
@@ -248,7 +256,7 @@ function IntentCard({
 function ThinkingIndicator() {
   return (
     <span className="py-1 text-sm text-muted-foreground motion-safe:animate-pulse motion-reduce:animate-none">
-      Thinking…
+      Thinking...
     </span>
   );
 }

@@ -39,7 +39,9 @@ export function AnswerActions({
   artifacts: string[];
 }) {
   const [copied, setCopied] = useState(false);
-  const [feedback, setFeedback] = useState<"helpful" | "unhelpful" | null>(null);
+  const [feedback, setFeedback] = useState<"helpful" | "unhelpful" | null>(
+    null,
+  );
   const resetTimerRef = useRef<number | null>(null);
   const files = mergeGeneratedFiles(extractWorkspaceFiles(events), artifacts);
 
@@ -65,11 +67,12 @@ export function AnswerActions({
   }
 
   const copyLabel = copied ? "Response copied" : "Copy response";
-  const feedbackMessage = feedback === "helpful"
-    ? "Marked response as helpful"
-    : feedback === "unhelpful"
-      ? "Marked response as unhelpful"
-      : "";
+  const feedbackMessage =
+    feedback === "helpful"
+      ? "Marked response as helpful"
+      : feedback === "unhelpful"
+        ? "Marked response as unhelpful"
+        : "";
 
   return (
     <div
@@ -99,16 +102,30 @@ export function AnswerActions({
       <FeedbackAction
         active={feedback === "helpful"}
         icon={<ThumbsUpIcon />}
-        label={feedback === "helpful" ? "Remove helpful rating" : "Mark response as helpful"}
-        onClick={() => setFeedback((current) => current === "helpful" ? null : "helpful")}
-        tooltip="Helpful"
+        label={
+          feedback === "helpful"
+            ? "Remove helpful rating"
+            : "Mark response as helpful"
+        }
+        onClick={() =>
+          setFeedback((current) => (current === "helpful" ? null : "helpful"))
+        }
+        tooltip="Good response"
       />
       <FeedbackAction
         active={feedback === "unhelpful"}
         icon={<ThumbsDownIcon />}
-        label={feedback === "unhelpful" ? "Remove unhelpful rating" : "Mark response as unhelpful"}
-        onClick={() => setFeedback((current) => current === "unhelpful" ? null : "unhelpful")}
-        tooltip="Not helpful"
+        label={
+          feedback === "unhelpful"
+            ? "Remove unhelpful rating"
+            : "Mark response as unhelpful"
+        }
+        onClick={() =>
+          setFeedback((current) =>
+            current === "unhelpful" ? null : "unhelpful",
+          )
+        }
+        tooltip="Bad response"
       />
       {files.length > 0 && <GeneratedFilesDialog files={files} />}
     </div>
@@ -138,7 +155,11 @@ function FeedbackAction({
             size="icon"
             aria-label={label}
             aria-pressed={active}
-            className={active ? "text-primary hover:text-brand-strong" : "text-muted-foreground hover:text-foreground"}
+            className={
+              active
+                ? "text-primary hover:text-brand-strong"
+                : "text-muted-foreground hover:text-foreground"
+            }
             onClick={onClick}
           />
         }

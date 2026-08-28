@@ -120,7 +120,9 @@ describe("ChatPage", () => {
     const { onProcessInspectorClose } = renderChatPage();
 
     expect(screen.getByRole("dialog", { name: "Logs & Files" })).toBeTruthy();
-    await actor.click(screen.getByRole("button", { name: "Close Logs & Files" }));
+    await actor.click(
+      screen.getByRole("button", { name: "Close Logs & Files" }),
+    );
 
     expect(onProcessInspectorClose).toHaveBeenCalledOnce();
   });
@@ -129,7 +131,9 @@ describe("ChatPage", () => {
     const actor = userEvent.setup();
     const { onProcessInspectorOpen } = renderChatPage();
 
-    await actor.click(screen.getByRole("button", { name: "Analysis DetailsShow" }));
+    await actor.click(
+      screen.getByRole("button", { name: "Analysis DetailsShow" }),
+    );
     await actor.click(
       screen.getByRole("button", { name: "Search workspace files" }),
     );
@@ -217,9 +221,13 @@ describe("ChatPage", () => {
       />,
     );
 
-    const thinking = screen.getByText("Thinking…");
+    const thinking = screen.getByText("Thinking...");
     expect(thinking).toBeTruthy();
-    expect(thinking.closest("[data-chat-response]")?.querySelector("[aria-hidden='true']")).toBeNull();
+    expect(
+      thinking
+        .closest("[data-chat-response]")
+        ?.querySelector("[aria-hidden='true']"),
+    ).toBeNull();
     expect(screen.queryByTestId("skeleton")).toBeNull();
   });
 
@@ -229,7 +237,8 @@ describe("ChatPage", () => {
         {...chatPageProps({
           error: {
             kind: "unavailable",
-            message: "Chat is temporarily unavailable. Please try again in a moment.",
+            message:
+              "Chat is temporarily unavailable. Please try again in a moment.",
             status: null,
             code: "runtime_unavailable",
             retryable: true,
@@ -243,7 +252,7 @@ describe("ChatPage", () => {
     expect(screen.getByRole("alert").textContent).toContain(
       "Chat is temporarily unavailable. Please try again in a moment.",
     );
-    expect(screen.queryByText("Thinking…")).toBeNull();
+    expect(screen.queryByText("Thinking...")).toBeNull();
     expect(screen.queryByRole("button", { name: "Copy response" })).toBeNull();
   });
 
@@ -259,7 +268,9 @@ describe("ChatPage", () => {
     );
 
     const loading = screen.getByText("Loading conversation…");
-    const contentColumn = loading.closest("[data-chat-response]")?.parentElement;
+    const contentColumn = loading.closest(
+      "[data-chat-response]",
+    )?.parentElement;
 
     expect(contentColumn?.className).toContain("max-w-5xl");
     expect(contentColumn?.className).toContain("py-6");
@@ -312,7 +323,9 @@ describe("ChatPage", () => {
 
     expect(finalAnswer.contains(error)).toBe(true);
     expect(finalAnswer.contains(copy)).toBe(true);
-    expect(error.compareDocumentPosition(copy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      error.compareDocumentPosition(copy) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     await actor.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetryProcess).toHaveBeenCalledOnce();
