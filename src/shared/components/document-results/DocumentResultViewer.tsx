@@ -55,6 +55,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/shared/lib/utils";
+import { updateDocumentBlockDescription } from "@/shared/lib/document-results-api";
 import type {
   InlinePreview,
   InspectorResource,
@@ -228,6 +229,30 @@ export function DocumentResultViewer({
     return () => window.cancelAnimationFrame(frame);
   }, [file?.key, groupRef, parsedPanelRef, sourcePanelRef]);
 
+  const handleDescriptionEdit = useCallback(
+    async (componentId: string, description: string) => {
+      const documentId = parsing.data?.document.document_id;
+      const runId = parsing.data?.document.latest_run_id;
+      const workspaceId = parsing.data?.document.workspace_id;
+      if (!documentId || !runId || !workspaceId) {
+        throw new Error("The document is not ready to save an edit.");
+      }
+
+      await updateDocumentBlockDescription({
+        workspaceId,
+        documentId,
+        runId,
+        componentId,
+        description,
+      });
+      setDescriptionEdits((current) => ({
+        ...current,
+        [componentId]: description,
+      }));
+    },
+    [parsing.data],
+  );
+
   useEffect(() => {
     if (!blocks.length) {
       setActiveComponentId(null);
@@ -383,12 +408,7 @@ export function DocumentResultViewer({
         onModeChange={setParsedMode}
         onActivate={activateFromCard}
         descriptionEdits={descriptionEdits}
-        onDescriptionEdit={(componentId, description) =>
-          setDescriptionEdits((current) => ({
-            ...current,
-            [componentId]: description,
-          }))
-        }
+        onDescriptionEdit={handleDescriptionEdit}
         onRetry={onRetryParsing}
       />
     </InspectorPane>
@@ -765,7 +785,10 @@ type ParsedPaneProps = {
   onModeChange: (value: string) => void;
   onActivate: (block: LayoutBlock) => void;
   descriptionEdits: Record<string, string>;
-  onDescriptionEdit: (componentId: string, description: string) => void;
+  onDescriptionEdit: (
+    componentId: string,
+    description: string,
+  ) => Promise<void>;
   onRetry: () => void;
 };
 
@@ -915,7 +938,10 @@ function ParsedPane({
                       index={index}
                       active={activeComponentId === block.component_id}
                       cardRefs={cardRefs}
-                      description={descriptionEdits[block.component_id]}
+                      description={
+                        descriptionEdits[block.component_id] ??
+                        block.description
+                      }
                       onDescriptionEdit={onDescriptionEdit}
                       onActivate={onActivate}
                     />
@@ -1002,9 +1028,13 @@ function ParsedBlockCard({
   cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   onActivate: (block: LayoutBlock) => void;
   description?: string;
-  onDescriptionEdit: (componentId: string, description: string) => void;
+  onDescriptionEdit: (
+    componentId: string,
+    description: string,
+  ) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState(
     description ?? block.text ?? block.semantic_text ?? "",
   );
@@ -1012,6 +1042,7 @@ function ParsedBlockCard({
   const pageLabel = block.page === null ? "Page —" : `Page ${block.page + 1}`;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     onActivate(block);
@@ -1084,6 +1115,7 @@ function ParsedBlockCard({
                   type="button"
                   size="sm"
                   variant="outline"
+                  disabled={saving}
                   onClick={() => setEditing(false)}
                 >
                   Cancel
@@ -1091,13 +1123,26 @@ function ParsedBlockCard({
                 <Button
                   type="button"
                   size="sm"
-                  onClick={() => {
-                    onDescriptionEdit(block.component_id, draft);
-                    setEditing(false);
+                  disabled={saving}
+                  onClick={async () => {
+                    setSaving(true);
+                    try {
+                      await onDescriptionEdit(block.component_id, draft);
+                      setEditing(false);
+                      toast.success("Description saved.");
+                    } catch (error) {
+                      toast.error(
+                        error instanceof Error
+                          ? error.message
+                          : "Unable to save description.",
+                      );
+                    } finally {
+                      setSaving(false);
+                    }
                   }}
                 >
                   <CheckIcon data-icon="inline-start" />
-                  Save
+                  {saving ? "Saving…" : "Save"}
                 </Button>
               </div>
             </div>

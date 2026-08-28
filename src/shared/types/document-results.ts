@@ -36,6 +36,7 @@ export type LayoutBlock = {
   block_index: number | null;
   type: string;
   text: string;
+  description?: string;
   semantic_text?: string;
   html?: string;
   bbox?: NumericBbox;
@@ -47,6 +48,7 @@ export type LayoutBlock = {
 export type IngestedDocumentMetadata = {
   document_id: string;
   organization_id: string;
+  workspace_id: string;
   file_name: string;
   bucket: string;
   object_key: string;

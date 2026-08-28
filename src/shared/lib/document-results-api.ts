@@ -16,6 +16,14 @@ type IngestedDataSelector = {
   documentId?: string | null;
 };
 
+type UpdateDocumentBlockDescriptionInput = {
+  workspaceId: string;
+  documentId: string;
+  runId: string;
+  componentId: string;
+  description: string;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -105,6 +113,7 @@ function parseDocument(value: unknown): IngestedDocumentMetadata | null {
     !isRecord(value) ||
     typeof value.document_id !== "string" ||
     typeof value.organization_id !== "string" ||
+    typeof value.workspace_id !== "string" ||
     typeof value.file_name !== "string" ||
     typeof value.bucket !== "string" ||
     typeof value.object_key !== "string" ||
@@ -117,6 +126,7 @@ function parseDocument(value: unknown): IngestedDocumentMetadata | null {
   return {
     document_id: value.document_id,
     organization_id: value.organization_id,
+    workspace_id: value.workspace_id,
     file_name: value.file_name,
     bucket: value.bucket,
     object_key: value.object_key,
@@ -318,4 +328,37 @@ export async function getIngestedDocumentData(
   if (!response.ok)
     throw new Error(await getHttpError(response, "Parsed document"));
   return parseIngestedDocumentPayload(await response.json());
+}
+
+export async function updateDocumentBlockDescription(
+  input: UpdateDocumentBlockDescriptionInput,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (!input.workspaceId.trim()) {
+    throw new Error("A workspace is required to save a document edit.");
+  }
+  if (!input.documentId.trim() || !input.runId.trim()) {
+    throw new Error(
+      "A document and processing run are required to save an edit.",
+    );
+  }
+  if (!input.componentId.trim()) {
+    throw new Error("A document block is required to save an edit.");
+  }
+
+  const response = await authFetch("/api/corpus/documents/block-descriptions", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      workspace_id: input.workspaceId,
+      document_id: input.documentId,
+      run_id: input.runId,
+      component_id: input.componentId,
+      description: input.description,
+    }),
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(await getHttpError(response, "Document edit"));
+  }
 }
