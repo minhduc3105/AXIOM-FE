@@ -173,6 +173,12 @@ function FeedbackAction({
 
 function GeneratedFilesDialog({ files }: { files: WorkspaceFile[] }) {
   const [open, setOpen] = useState(false);
+  const imageFiles = files.filter((file) => file.type === "image");
+  const otherFiles = files.filter((file) => file.type !== "image");
+  const renderCards = (items: WorkspaceFile[]) =>
+    items.map((file) => (
+      <GeneratedFileCard file={file} key={`${file.url}:${file.name}`} />
+    ));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -193,10 +199,17 @@ function GeneratedFilesDialog({ files }: { files: WorkspaceFile[] }) {
           </DialogTitle>
         </DialogHeader>
         <div className="max-h-[calc(100dvh-140px)] overflow-y-auto pr-1">
-          <div className="flex min-w-0 gap-3 overflow-x-auto pb-2">
-            {files.map((file) => (
-              <GeneratedFileCard file={file} key={`${file.url}:${file.name}`} />
-            ))}
+          <div className="min-w-0 space-y-3 pb-2">
+            {imageFiles.length > 0 && (
+              <div className="grid min-w-0 grid-cols-1 items-start gap-3 sm:grid-cols-2">
+                {renderCards(imageFiles)}
+              </div>
+            )}
+            {otherFiles.length > 0 && (
+              <div className="grid min-w-0 grid-cols-1 items-start gap-3 sm:grid-cols-2">
+                {renderCards(otherFiles)}
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>
@@ -208,7 +221,7 @@ function GeneratedFileCard({ file }: { file: WorkspaceFile }) {
   if (file.type !== "image") {
     return (
       <a
-        className="flex min-h-14 w-[min(340px,82vw)] shrink-0 items-center gap-3 rounded-xl bg-secondary px-3 py-2.5 text-left transition-colors hover:bg-muted"
+        className="flex min-h-14 w-full min-w-0 items-center gap-3 rounded-xl bg-secondary px-3 py-2.5 text-left transition-colors hover:bg-muted"
         href={file.url}
         rel="noreferrer"
         target="_blank"
@@ -231,7 +244,7 @@ function GeneratedFileCard({ file }: { file: WorkspaceFile }) {
 
   return (
     <a
-      className="w-[min(340px,82vw)] shrink-0 overflow-hidden rounded-xl border border-border bg-card text-left transition-colors hover:border-primary/35"
+      className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card text-left transition-colors hover:border-primary/35"
       href={file.url}
       rel="noreferrer"
       target="_blank"

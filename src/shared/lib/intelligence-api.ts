@@ -113,7 +113,10 @@ export async function updateConversation(
     },
   );
   if (!response.ok) {
-    throw new IntelligenceApiError(`AXIOM returned ${response.status}.`, response.status);
+    throw new IntelligenceApiError(
+      `AXIOM returned ${response.status}.`,
+      response.status,
+    );
   }
   return (await response.json()) as ConversationSummary;
 }
@@ -129,7 +132,10 @@ export async function deleteConversation(
     { method: "DELETE", signal },
   );
   if (!response.ok) {
-    throw new IntelligenceApiError(`AXIOM returned ${response.status}.`, response.status);
+    throw new IntelligenceApiError(
+      `AXIOM returned ${response.status}.`,
+      response.status,
+    );
   }
 }
 
@@ -137,17 +143,33 @@ export async function listConversationMessages(
   conversationId: string,
   signal?: AbortSignal,
 ) {
+  const payload = await listConversationMessagesPage(
+    conversationId,
+    {},
+    signal,
+  );
+  return Array.isArray(payload.items) ? payload.items : [];
+}
+
+export async function listConversationMessagesPage(
+  conversationId: string,
+  options: ListConversationsOptions = {},
+  signal?: AbortSignal,
+): Promise<MessageListResponse> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.limit) params.set("limit", String(options.limit));
+  const query = params.toString();
   const response = await authFetch(
     intelligenceApiUrl(
-      `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages${query ? `?${query}` : ""}`,
     ),
     { signal },
   );
   if (!response.ok) {
     throw await intelligenceApiError(response);
   }
-  const payload = (await response.json()) as MessageListResponse;
-  return Array.isArray(payload.items) ? payload.items : [];
+  return (await response.json()) as MessageListResponse;
 }
 
 async function intelligenceApiError(response: Response) {
@@ -178,10 +200,14 @@ async function intelligenceApiError(response: Response) {
           text,
       });
     } catch {
-      return new IntelligenceApiError(fallback, response.status, { cause: text });
+      return new IntelligenceApiError(fallback, response.status, {
+        cause: text,
+      });
     }
   } catch {
-    return new IntelligenceApiError(fallback, response.status, { cause: fallback });
+    return new IntelligenceApiError(fallback, response.status, {
+      cause: fallback,
+    });
   }
 }
 

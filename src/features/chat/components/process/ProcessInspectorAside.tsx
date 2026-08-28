@@ -55,12 +55,12 @@ export function ProcessInspectorAside({
 
   useEffect(() => {
     if (!activeProcessEventKey) return;
-    const shouldSkipScroll =
+    const isLocalSelection =
       localSelectionKey.current === activeProcessEventKey;
     localSelectionKey.current = null;
     setActiveTab("analysis");
+    if (isLocalSelection) return;
     setExpandedKeys((current) => new Set(current).add(activeProcessEventKey));
-    if (shouldSkipScroll) return;
     window.requestAnimationFrame(() =>
       scrollStepIntoInspector(activeProcessEventKey),
     );
@@ -166,9 +166,15 @@ export function ProcessInspectorAside({
           </div>
         </div>
 
-        <TabsContent value="analysis" className="m-0 min-h-0 flex-1 overflow-hidden">
+        <TabsContent
+          value="analysis"
+          className="m-0 min-h-0 flex-1 overflow-hidden"
+        >
           <ScrollArea ref={analysisScrollArea} className="h-full min-h-0 pr-2">
-            <ol className="divide-y divide-border/70" aria-label="Analysis details">
+            <ol
+              className="divide-y divide-border/70"
+              aria-label="Analysis details"
+            >
               {visibleItems.length > 0 ? (
                 visibleItems.map((item) => (
                   <ProcessInspectorStepRow
@@ -189,7 +195,10 @@ export function ProcessInspectorAside({
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="files" className="m-0 min-h-0 flex-1 overflow-hidden">
+        <TabsContent
+          value="files"
+          className="m-0 min-h-0 flex-1 overflow-hidden"
+        >
           <ScrollArea className="h-full min-h-0 pr-2">
             <div className="p-3">
               {files.length > 0 ? (
@@ -249,7 +258,8 @@ function ProcessInspectorStepRow({
           <Icon
             className={cn(
               "size-2.5",
-              item.event.status === "running" && "animate-spin motion-reduce:animate-none",
+              item.event.status === "running" &&
+                "animate-spin motion-reduce:animate-none",
             )}
           />
         </span>
@@ -290,9 +300,7 @@ function RuntimeInlineSection({
 }) {
   return (
     <section className="grid min-w-0 gap-1.5">
-      <h4 className="text-xs font-medium text-muted-foreground">
-        {label}
-      </h4>
+      <h4 className="text-xs font-medium text-muted-foreground">{label}</h4>
       <pre className="max-h-[220px] min-h-[96px] min-w-0 overflow-auto rounded-lg bg-code-surface p-3 text-xs leading-5 text-code-foreground">
         <code>{value || "No data captured."}</code>
       </pre>

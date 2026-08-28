@@ -479,7 +479,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
             activeProcessEventKey={processInspector.activeProcessEventKey}
             onProcessEventSelect={selectProcessEvent}
             processInspectorOpen={processInspectorOpen}
-            onProcessInspectorOpen={openProcessInspector}
+            onProcessInspectorOpen={() => setProcessInspectorOpen(true)}
             onProcessInspectorClose={() => setProcessInspectorOpen(false)}
             engine={chatEngine}
             onSubmit={submitQuestion}

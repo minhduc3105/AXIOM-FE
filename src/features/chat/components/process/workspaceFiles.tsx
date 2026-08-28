@@ -28,6 +28,9 @@ export function WorkspaceFileList({
   files: WorkspaceFile[];
   compact?: boolean;
 }) {
+  const imageFiles = files.filter((file) => file.type === "image");
+  const otherFiles = files.filter((file) => file.type !== "image");
+
   return (
     <section
       className={cn(
@@ -53,13 +56,24 @@ export function WorkspaceFileList({
       )}
       <div
         className={cn(
-          "flex min-w-0 gap-2 overflow-x-auto",
+          "min-w-0 space-y-2 overflow-x-hidden",
           compact ? "p-0 pb-1" : "p-2 pb-3",
         )}
       >
-        {files.map((file) => (
-          <WorkspaceFileCard file={file} key={`${file.url}:${file.name}`} />
-        ))}
+        {imageFiles.length > 0 && (
+          <div className="grid min-w-0 grid-cols-1 items-start gap-2 sm:grid-cols-2">
+            {imageFiles.map((file) => (
+              <WorkspaceFileCard file={file} key={`${file.url}:${file.name}`} />
+            ))}
+          </div>
+        )}
+        {otherFiles.length > 0 && (
+          <div className="grid min-w-0 grid-cols-1 items-start gap-2 sm:grid-cols-2">
+            {otherFiles.map((file) => (
+              <WorkspaceFileCard file={file} key={`${file.url}:${file.name}`} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -68,7 +82,7 @@ export function WorkspaceFileList({
 function WorkspaceFileCard({ file }: { file: WorkspaceFile }) {
   if (file.type === "image") {
     return (
-      <article className="w-[min(360px,82vw)] shrink-0 overflow-hidden rounded-xl border border-border bg-card">
+      <article className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex min-w-0 items-start justify-between gap-2 border-b border-border px-3 py-2">
           <div className="min-w-0">
             <strong className="block truncate text-sm font-medium text-foreground">
@@ -106,7 +120,7 @@ function WorkspaceFileCard({ file }: { file: WorkspaceFile }) {
   }
 
   return (
-    <div className="group flex min-h-14 w-[min(360px,82vw)] shrink-0 items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-left">
+    <div className="group flex min-h-14 w-full min-w-0 items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-left">
       <FileTextIcon className="size-4 shrink-0 text-primary" />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-foreground">

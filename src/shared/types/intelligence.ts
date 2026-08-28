@@ -35,4 +35,5 @@ export type IntelligenceMessage = {
 
 export type MessageListResponse = {
   items?: IntelligenceMessage[];
+  pagination?: PaginationMeta;
 };

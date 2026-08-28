@@ -3,6 +3,8 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { ProcessStepSelectionHandler } from "@/features/chat/components/process/processEvents";
+import type { ProcessEvent } from "@/features/chat/model/types";
 import { AppExperience } from "./AppExperience";
 
 const mocks = vi.hoisted(() => ({
@@ -13,7 +15,7 @@ const mocks = vi.hoisted(() => ({
     evidenceOpen: false,
     investigation: null,
     draft: null,
-    processEvents: [],
+    processEvents: [] as ProcessEvent[],
     result: null,
     history: [],
     error: null,
@@ -34,6 +36,9 @@ const mocks = vi.hoisted(() => ({
 
 type ChatPageStubProps = {
   onSubmit: (message: string, engine: "auto", files: File[]) => void;
+  activeProcessEventKey?: string | null;
+  onProcessEventSelect?: ProcessStepSelectionHandler;
+  onProcessInspectorOpen?: () => void;
 };
 
 type AppShellStubProps = {
@@ -129,13 +134,41 @@ vi.mock("@/app/AppShell", () => ({
 }));
 
 vi.mock("@/features/chat/ChatPage", () => ({
-  ChatPage: ({ onSubmit }: ChatPageStubProps) => (
-    <button
-      type="button"
-      onClick={() => onSubmit("Compare reports", "auto", [])}
-    >
-      Submit question
-    </button>
+  ChatPage: ({
+    activeProcessEventKey,
+    onProcessEventSelect,
+    onProcessInspectorOpen,
+    onSubmit,
+  }: ChatPageStubProps) => (
+    <>
+      <button
+        type="button"
+        onClick={() => onSubmit("Compare reports", "auto", [])}
+      >
+        Submit question
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onProcessEventSelect?.(
+            {
+              id: "read-file",
+              label: "Read file",
+              detail: "Reading a file",
+              status: "done",
+              phase: "tool",
+            },
+            "current:read-file",
+          );
+          onProcessInspectorOpen?.();
+        }}
+      >
+        Select process step
+      </button>
+      <output data-testid="active-process-event-key">
+        {activeProcessEventKey ?? "none"}
+      </output>
+    </>
   ),
 }));
 
@@ -178,6 +211,7 @@ describe("AppExperience chat controls", () => {
       ...mocks.workflow,
       activeConversationId: null,
       stage: "welcome",
+      processEvents: [],
     };
   });
 
@@ -244,6 +278,45 @@ describe("AppExperience chat controls", () => {
         expect.objectContaining({ sessionId: "conversation-new" }),
       );
       expect(mocks.workflow.newChat).not.toHaveBeenCalled();
+    });
+  });
+
+  it("keeps the clicked process step active when opening the inspector", async () => {
+    const actor = userEvent.setup();
+    mocks.workflow = {
+      ...mocks.workflow,
+      processEvents: [
+        {
+          id: "read-file",
+          label: "Read file",
+          detail: "Reading a file",
+          status: "done",
+          phase: "tool",
+        },
+        {
+          id: "execute-python",
+          label: "Execute python",
+          detail: "Executing python",
+          status: "done",
+          phase: "tool",
+        },
+      ],
+    };
+    render(
+      <AppExperience
+        route={{ surface: "chat", page: "compose", sessionId: null }}
+        navigate={vi.fn()}
+      />,
+    );
+
+    await actor.click(
+      screen.getByRole("button", { name: "Select process step" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("active-process-event-key").textContent).toBe(
+        "current:read-file",
+      );
     });
   });
 });

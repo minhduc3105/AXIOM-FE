@@ -13,7 +13,7 @@ import type {
 } from "../model/types";
 import {
   intelligenceApiUrl,
-  listConversationMessages,
+  listConversationMessagesPage,
 } from "@/shared/lib/intelligence-api";
 import { authFetch } from "@/features/auth/model/authFetch";
 import type { IntelligenceMessage } from "@/shared/types/intelligence";
@@ -152,7 +152,21 @@ export async function loadConversationHistory(
   conversationId: string,
   signal?: AbortSignal,
 ): Promise<ConversationHistorySnapshot> {
-  const messages = await listConversationMessages(conversationId, signal);
+  const messages: IntelligenceMessage[] = [];
+  let page = 1;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const payload = await listConversationMessagesPage(
+      conversationId,
+      { page },
+      signal,
+    );
+    if (Array.isArray(payload.items)) messages.push(...payload.items);
+    hasNextPage = payload.pagination?.has_next === true;
+    page += 1;
+  }
+
   return messagesToChatTurns(messages);
 }
 
@@ -615,7 +629,10 @@ function applyStreamEvent(
     return;
   }
 
-  if (event.type === "response.cancelled" || event.type === "response.canceled") {
+  if (
+    event.type === "response.cancelled" ||
+    event.type === "response.canceled"
+  ) {
     const error = asRecord(event.error);
     throw new ChatApiError({
       status: null,
@@ -632,8 +649,7 @@ function applyStreamEvent(
       status: null,
       code: stringValue(error.code) || null,
       retryable: booleanValue(error.retryable),
-      cause:
-        stringValue(error.message) || "The intelligence response failed.",
+      cause: stringValue(error.message) || "The intelligence response failed.",
     });
   }
 }
@@ -1117,7 +1133,8 @@ function messagesToChatTurns(
             ),
       result: hydrated.completed ? completedToResult(hydrated.completed) : null,
       error: hydrated.error,
-      processEvents: hydrated.completed?.processEvents ?? processEventsFromMessage(message),
+      processEvents:
+        hydrated.completed?.processEvents ?? processEventsFromMessage(message),
     });
     pendingQuestion = null;
     pendingAttachments = [];
@@ -1194,7 +1211,9 @@ function completedResponseFromMessage(
   const record = asRecord(content);
   const response = asRecord(record.response);
   const failed = isFailedAssistantStatus(message.status);
-  const error = failed ? historyErrorFromMessage(message, record, response) : null;
+  const error = failed
+    ? historyErrorFromMessage(message, record, response)
+    : null;
   const outputText =
     stringValue(record.output_text) ||
     stringValue(response.output_text) ||

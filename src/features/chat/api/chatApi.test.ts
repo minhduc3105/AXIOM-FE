@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  createInvestigation,
-  loadConversationHistory,
-} from "./chatApi";
+import { createInvestigation, loadConversationHistory } from "./chatApi";
 import { createConversation } from "@/shared/lib/intelligence-api";
 import { getChatError } from "../model/chatError";
 
 function sseResponse(events: Record<string, unknown>[]) {
   const body = events
-    .map((event) => `event: ${String(event.type)}\ndata: ${JSON.stringify(event)}\n\n`)
+    .map(
+      (event) =>
+        `event: ${String(event.type)}\ndata: ${JSON.stringify(event)}\n\n`,
+    )
     .join("");
   return new Response(body, {
     status: 200,
@@ -24,17 +24,18 @@ describe("createInvestigation", () => {
   it("retains structured HTTP error code and retryability without exposing server text", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            error: {
-              code: "runtime_unavailable",
-              message: "internal runtime allocation failure",
-              retryable: true,
-            },
-          }),
-          { status: 503, headers: { "Content-Type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: {
+                code: "runtime_unavailable",
+                message: "internal runtime allocation failure",
+                retryable: true,
+              },
+            }),
+            { status: 503, headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 
@@ -124,17 +125,18 @@ describe("createInvestigation", () => {
   it("keeps structured create-conversation failures available to the chat error mapper", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            error: {
-              code: "runtime_unavailable",
-              message: "allocator routing diagnostic",
-              retryable: true,
-            },
-          }),
-          { status: 503, headers: { "Content-Type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: {
+                code: "runtime_unavailable",
+                message: "allocator routing diagnostic",
+                retryable: true,
+              },
+            }),
+            { status: 503, headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 
@@ -162,17 +164,18 @@ describe("createInvestigation", () => {
   it("keeps structured conversation-history failures available to the chat error mapper", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            detail: {
-              code: "history_temporarily_unavailable",
-              message: "history shard diagnostic",
-              retryable: true,
-            },
-          }),
-          { status: 502, headers: { "Content-Type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              detail: {
+                code: "history_temporarily_unavailable",
+                message: "history shard diagnostic",
+                retryable: true,
+              },
+            }),
+            { status: 502, headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 
@@ -197,6 +200,69 @@ describe("createInvestigation", () => {
     });
   });
 
+  it("loads every conversation message page so completed responses survive refresh", async () => {
+    const firstPageMessages = [
+      storedMessage({
+        message_id: "message-user",
+        role: "user",
+        status: "created",
+        content: {
+          type: "response.request",
+          input: "Create a report",
+          execution_mode: "instant",
+        },
+      }),
+      ...Array.from({ length: 19 }, (_, index) =>
+        storedMessage({
+          message_id: `runtime-${index}`,
+          role: "runtime",
+          status: "completed",
+          content: { type: "runtime.event" },
+        }),
+      ),
+    ];
+    const secondPageMessages = [
+      storedMessage({
+        message_id: "message-assistant",
+        role: "assistant",
+        status: "completed",
+        content: {
+          type: "response.completed",
+          output_text: "Restored answer",
+        },
+      }),
+    ];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost");
+      const page = Number(url.searchParams.get("page") || "1");
+      const items = page === 2 ? secondPageMessages : firstPageMessages;
+      return new Response(
+        JSON.stringify({
+          items,
+          pagination: {
+            page,
+            limit: 20,
+            total_items: 21,
+            total_pages: 2,
+            has_next: page === 1,
+            has_previous: page === 2,
+          },
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const snapshot = await loadConversationHistory("conversation-1");
+
+    expect(snapshot.turns).toHaveLength(1);
+    expect(snapshot.turns[0]?.result?.markdown).toBe("Restored answer");
+    expect(snapshot.pendingQuestion).toBeNull();
+    expect(snapshot.pendingResponse).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("page=2");
+  });
+
   it("cancels an active stream reader and ignores its late read after abort", async () => {
     let resolveRead!: (value: ReadableStreamReadResult<Uint8Array>) => void;
     const reader = {
@@ -213,7 +279,10 @@ describe("createInvestigation", () => {
       "fetch",
       vi.fn(
         async () =>
-          ({ ok: true, body: { getReader: () => reader } }) as unknown as Response,
+          ({
+            ok: true,
+            body: { getReader: () => reader },
+          }) as unknown as Response,
       ),
     );
     const controller = new AbortController();
@@ -235,29 +304,29 @@ describe("createInvestigation", () => {
 
   it("returns a completed outcome when the orchestrator answers directly", async () => {
     const fetchMock = vi.fn(async () =>
-        sseResponse([
-          {
-            type: "response.output_text.delta",
-            response_id: "resp-direct",
-            delta: "PostgreSQL is an open-source ",
+      sseResponse([
+        {
+          type: "response.output_text.delta",
+          response_id: "resp-direct",
+          delta: "PostgreSQL is an open-source ",
+        },
+        {
+          type: "response.output_text.delta",
+          response_id: "resp-direct",
+          delta: "relational database.",
+        },
+        {
+          type: "response.completed",
+          response_id: "resp-direct",
+          response: {
+            id: "resp-direct",
+            status: "completed",
           },
-          {
-            type: "response.output_text.delta",
-            response_id: "resp-direct",
-            delta: "relational database.",
-          },
-          {
-            type: "response.completed",
-            response_id: "resp-direct",
-            response: {
-              id: "resp-direct",
-              status: "completed",
-            },
-            evidence: null,
-            metadata: { route: "general_direct" },
-          },
-        ]),
-      );
+          evidence: null,
+          metadata: { route: "general_direct" },
+        },
+      ]),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const onOutputText = vi.fn();
 
@@ -521,11 +590,12 @@ describe("createInvestigation", () => {
     })}\n\n`;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          legacyProgress("started") + legacyProgress("completed") + completed,
-          { headers: { "Content-Type": "text/event-stream" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            legacyProgress("started") + legacyProgress("completed") + completed,
+            { headers: { "Content-Type": "text/event-stream" } },
+          ),
       ),
     );
 
@@ -554,64 +624,65 @@ describe("createInvestigation", () => {
   it("restores inputs and outputs from persisted legacy runtime progress events", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            items: [
-              storedMessage({
-                message_id: "message-user",
-                role: "user",
-                status: "created",
-                content: {
-                  type: "response.request",
-                  input: "Create a report",
-                  execution_mode: "instant",
-                },
-              }),
-              storedMessage({
-                message_id: "message-assistant",
-                role: "assistant",
-                status: "completed",
-                content: {
-                  type: "response.completed",
-                  output_text: "Report complete",
-                  process_events: [
-                    {
-                      type: "runtime.progress",
-                      operation_id: "op-direct",
-                      response_id: "resp-instant",
-                      payload: {
-                        event_type: "report.tool.started",
-                        event_id: "evt-started",
-                        phase: "tool",
-                        status: "started",
-                        label: "execute_python",
-                        tool_call_id: "call-python-1",
-                        inputs: { code: "print('ok')" },
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                storedMessage({
+                  message_id: "message-user",
+                  role: "user",
+                  status: "created",
+                  content: {
+                    type: "response.request",
+                    input: "Create a report",
+                    execution_mode: "instant",
+                  },
+                }),
+                storedMessage({
+                  message_id: "message-assistant",
+                  role: "assistant",
+                  status: "completed",
+                  content: {
+                    type: "response.completed",
+                    output_text: "Report complete",
+                    process_events: [
+                      {
+                        type: "runtime.progress",
+                        operation_id: "op-direct",
+                        response_id: "resp-instant",
+                        payload: {
+                          event_type: "report.tool.started",
+                          event_id: "evt-started",
+                          phase: "tool",
+                          status: "started",
+                          label: "execute_python",
+                          tool_call_id: "call-python-1",
+                          inputs: { code: "print('ok')" },
+                        },
                       },
-                    },
-                    {
-                      type: "runtime.progress",
-                      operation_id: "op-direct",
-                      response_id: "resp-instant",
-                      payload: {
-                        event_type: "report.tool.completed",
-                        event_id: "evt-completed",
-                        phase: "tool",
-                        status: "completed",
-                        label: "execute_python",
-                        tool_call_id: "call-python-1",
-                        inputs: { code: "print('ok')" },
-                        outputs: { stdout: "ok\n", stderr: "", exit_code: 0 },
+                      {
+                        type: "runtime.progress",
+                        operation_id: "op-direct",
+                        response_id: "resp-instant",
+                        payload: {
+                          event_type: "report.tool.completed",
+                          event_id: "evt-completed",
+                          phase: "tool",
+                          status: "completed",
+                          label: "execute_python",
+                          tool_call_id: "call-python-1",
+                          inputs: { code: "print('ok')" },
+                          outputs: { stdout: "ok\n", stderr: "", exit_code: 0 },
+                        },
                       },
-                    },
-                  ],
-                },
-              }),
-            ],
-          }),
-          { headers: { "Content-Type": "application/json" } },
-        ),
+                    ],
+                  },
+                }),
+              ],
+            }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 
@@ -629,42 +700,43 @@ describe("createInvestigation", () => {
   it("restores finalized report artifacts from completed message metadata", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            items: [
-              storedMessage({
-                message_id: "message-user",
-                role: "user",
-                status: "created",
-                content: {
-                  type: "response.request",
-                  input: "Create a report",
-                  execution_mode: "instant",
-                },
-              }),
-              storedMessage({
-                message_id: "message-assistant",
-                role: "assistant",
-                status: "completed",
-                content: {
-                  type: "response.completed",
-                  output_text: "Report complete",
-                  metadata: {
-                    artifacts: [
-                      {
-                        artifact_id: "asset-1",
-                        filename: "report.html",
-                        url: "http://storage/report.html?X-Amz-Signature=abc",
-                      },
-                    ],
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                storedMessage({
+                  message_id: "message-user",
+                  role: "user",
+                  status: "created",
+                  content: {
+                    type: "response.request",
+                    input: "Create a report",
+                    execution_mode: "instant",
                   },
-                },
-              }),
-            ],
-          }),
-          { headers: { "Content-Type": "application/json" } },
-        ),
+                }),
+                storedMessage({
+                  message_id: "message-assistant",
+                  role: "assistant",
+                  status: "completed",
+                  content: {
+                    type: "response.completed",
+                    output_text: "Report complete",
+                    metadata: {
+                      artifacts: [
+                        {
+                          artifact_id: "asset-1",
+                          filename: "report.html",
+                          url: "http://storage/report.html?X-Amz-Signature=abc",
+                        },
+                      ],
+                    },
+                  },
+                }),
+              ],
+            }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 
@@ -711,33 +783,34 @@ describe("createInvestigation", () => {
   it("reconstructs Instant report turns without a synthetic stored plan", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            items: [
-              storedMessage({
-                message_id: "message-user",
-                role: "user",
-                status: "created",
-                content: {
-                  type: "response.request",
-                  input: "Create a report about NAPH",
-                  execution_mode: "instant",
-                },
-              }),
-              storedMessage({
-                message_id: "message-assistant",
-                role: "assistant",
-                status: "completed",
-                content: {
-                  type: "response.completed",
-                  output_text: "# NAPH report",
-                },
-              }),
-            ],
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                storedMessage({
+                  message_id: "message-user",
+                  role: "user",
+                  status: "created",
+                  content: {
+                    type: "response.request",
+                    input: "Create a report about NAPH",
+                    execution_mode: "instant",
+                  },
+                }),
+                storedMessage({
+                  message_id: "message-assistant",
+                  role: "assistant",
+                  status: "completed",
+                  content: {
+                    type: "response.completed",
+                    output_text: "# NAPH report",
+                  },
+                }),
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 
@@ -755,49 +828,53 @@ describe("createInvestigation", () => {
   it("hydrates failed and cancelled history as typed errors, retaining partial output only", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            items: [
-              storedMessage({
-                message_id: "message-user-failed",
-                role: "user",
-                status: "created",
-                content: { input: "Create a report", execution_mode: "instant" },
-              }),
-              storedMessage({
-                message_id: "message-assistant-failed",
-                role: "assistant",
-                status: "failed",
-                content: {
-                  type: "response.failed",
-                  output_text: "Partial report output",
-                  error: {
-                    code: "runtime_unavailable",
-                    message: "runtime pool drain details",
-                    retryable: true,
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                storedMessage({
+                  message_id: "message-user-failed",
+                  role: "user",
+                  status: "created",
+                  content: {
+                    input: "Create a report",
+                    execution_mode: "instant",
                   },
-                },
-              }),
-              storedMessage({
-                message_id: "message-user-cancelled",
-                role: "user",
-                status: "created",
-                content: { input: "Continue", execution_mode: "instant" },
-              }),
-              storedMessage({
-                message_id: "message-assistant-cancelled",
-                role: "assistant",
-                status: "cancelled",
-                content: {
-                  type: "response.failed",
-                  error: { message: "client aborted" },
-                },
-              }),
-            ],
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+                }),
+                storedMessage({
+                  message_id: "message-assistant-failed",
+                  role: "assistant",
+                  status: "failed",
+                  content: {
+                    type: "response.failed",
+                    output_text: "Partial report output",
+                    error: {
+                      code: "runtime_unavailable",
+                      message: "runtime pool drain details",
+                      retryable: true,
+                    },
+                  },
+                }),
+                storedMessage({
+                  message_id: "message-user-cancelled",
+                  role: "user",
+                  status: "created",
+                  content: { input: "Continue", execution_mode: "instant" },
+                }),
+                storedMessage({
+                  message_id: "message-assistant-cancelled",
+                  role: "assistant",
+                  status: "cancelled",
+                  content: {
+                    type: "response.failed",
+                    error: { message: "client aborted" },
+                  },
+                }),
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 
@@ -810,7 +887,8 @@ describe("createInvestigation", () => {
         kind: "unavailable",
         code: "runtime_unavailable",
         retryable: true,
-        message: "Chat is temporarily unavailable. Please try again in a moment.",
+        message:
+          "Chat is temporarily unavailable. Please try again in a moment.",
         cause: "runtime pool drain details",
       },
     });
@@ -829,41 +907,42 @@ describe("createInvestigation", () => {
   it("restores uploaded file attachments from persisted user messages", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            items: [
-              storedMessage({
-                message_id: "message-user",
-                role: "user",
-                status: "created",
-                content: {
-                  type: "response.request",
-                  input: "Summarize the attached files",
-                  execution_mode: "instant",
-                  uploaded_files: [
-                    {
-                      filename: "revenue.csv",
-                      size: 2048,
-                      content_type: "text/csv",
-                      metadata: { file_ref: { file_id: "asset-1" } },
-                    },
-                  ],
-                },
-              }),
-              storedMessage({
-                message_id: "message-assistant",
-                role: "assistant",
-                status: "completed",
-                content: {
-                  type: "response.completed",
-                  output_text: "Revenue summary",
-                },
-              }),
-            ],
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                storedMessage({
+                  message_id: "message-user",
+                  role: "user",
+                  status: "created",
+                  content: {
+                    type: "response.request",
+                    input: "Summarize the attached files",
+                    execution_mode: "instant",
+                    uploaded_files: [
+                      {
+                        filename: "revenue.csv",
+                        size: 2048,
+                        content_type: "text/csv",
+                        metadata: { file_ref: { file_id: "asset-1" } },
+                      },
+                    ],
+                  },
+                }),
+                storedMessage({
+                  message_id: "message-assistant",
+                  role: "assistant",
+                  status: "completed",
+                  content: {
+                    type: "response.completed",
+                    output_text: "Revenue summary",
+                  },
+                }),
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 
