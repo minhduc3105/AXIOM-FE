@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -50,7 +56,6 @@ import type {
   DataFile,
   DataSource,
   DataSourceFileSortField,
-  DataSourceFilesPage,
   DataSourceFilesQuery,
   IngestionJob,
 } from "../model/types";
@@ -69,11 +74,13 @@ import {
   useDataSourceFileCounts,
 } from "../model/useDataSourceFileCounts";
 import { useDataSourceFiles } from "../model/useDataSourceFiles";
+import { useOrganizationFiles } from "../model/useOrganizationFiles";
 import { DataMetrics } from "./DataMetrics";
 import { DataSourceFilesTable } from "./DataSourceFilesTable";
 import { StatusBadge } from "./StatusBadge";
 
 type DataSourcesWorkspaceProps = {
+  organizationId: string;
   workspaceId: string;
   datasources: DataSource[];
   files: DataFile[];
@@ -112,7 +119,7 @@ const DEFAULT_QUERY: DataSourceFilesQuery = {
 };
 
 type FileAction = "cancel" | "retry" | "reprocess" | "delete";
-type BulkAction = "retry" | "delete";
+type BulkAction = "retry" | "reprocess" | "delete";
 type BulkProgress = {
   action: BulkAction;
   completed: number;
@@ -284,23 +291,6 @@ function findReconnectProfile(
     return saved;
   }
   return null;
-}
-
-function sortFiles(
-  files: DataFile[],
-  sortBy: DataSourceFileSortField,
-  sortOrder: DataSourceFilesQuery["sortOrder"],
-) {
-  const direction = sortOrder === "asc" ? 1 : -1;
-  return [...files].sort((left, right) => {
-    if (sortBy === "size") return (left.size - right.size) * direction;
-    if (sortBy === "last_modified") {
-      const leftTime = left.lastModified ? Date.parse(left.lastModified) : 0;
-      const rightTime = right.lastModified ? Date.parse(right.lastModified) : 0;
-      return (leftTime - rightTime) * direction;
-    }
-    return left.name.localeCompare(right.name) * direction;
-  });
 }
 
 function SourceCountBadge({
@@ -537,6 +527,7 @@ function SourceActions({
 }
 
 export function DataSourcesWorkspace({
+  organizationId,
   workspaceId,
   datasources,
   files,
@@ -599,35 +590,15 @@ export function DataSourcesWorkspace({
     selectedSource.workspaceId,
     query,
   );
-
-  const aggregateResult = useMemo<DataSourceFilesPage>(() => {
-    const normalizedSearch = query.search.trim().toLowerCase();
-    const filteredFiles = normalizedSearch
-      ? files.filter((file) =>
-          [file.name, file.key].some((value) =>
-            value.toLowerCase().includes(normalizedSearch),
-          ),
-        )
-      : files;
-    const sortedFiles = sortFiles(filteredFiles, query.sortBy, query.sortOrder);
-    const totalPages = Math.ceil(sortedFiles.length / query.pageSize);
-    const safePage = Math.min(query.page, Math.max(1, totalPages || 1));
-    const startIndex = (safePage - 1) * query.pageSize;
-    return {
-      organizationId: inventorySource.organizationId,
-      datasourceId: inventorySource.id,
-      bucket: files[0]?.bucket ?? "",
-      files: sortedFiles.slice(startIndex, startIndex + query.pageSize),
-      page: safePage,
-      pageSize: query.pageSize,
-      totalCount: sortedFiles.length,
-      totalPages,
-      totalUnfilteredCount: files.length,
-      warning: null,
-    };
-  }, [files, inventorySource, query]);
-  const result = isAggregate ? aggregateResult : backendFiles.result;
-  const tableLoading = isAggregate ? loading : backendFiles.loading;
+  const organizationFiles = useOrganizationFiles(
+    isAggregate ? organizationId : null,
+    workspaceId,
+    query,
+  );
+  const result = isAggregate ? organizationFiles.result : backendFiles.result;
+  const tableLoading = isAggregate
+    ? organizationFiles.loading
+    : backendFiles.loading;
   const linkedJobs = useMemo(
     () =>
       jobs
@@ -644,7 +615,11 @@ export function DataSourcesWorkspace({
     : findReconnectProfile(selectedSource, profiles, jobs);
   const countFor = (datasource: DataSource): DataSourceFileCountState => {
     if (datasource.id === ORGANIZATION_FILES_SOURCE_ID) {
-      return { count: files.length, loading, error: false };
+      return {
+        count: organizationFiles.result?.totalUnfilteredCount ?? files.length,
+        loading: organizationFiles.loading && !organizationFiles.result,
+        error: Boolean(organizationFiles.error),
+      };
     }
     if (
       datasource.id === selectedSource.id &&
@@ -700,7 +675,14 @@ export function DataSourcesWorkspace({
   }, [query.page, result]);
   useEffect(() => {
     setSelectedFileKeys([]);
-  }, [query.page, query.pageSize, query.search, query.sortBy, query.sortOrder, selectedId]);
+  }, [
+    query.page,
+    query.pageSize,
+    query.search,
+    query.sortBy,
+    query.sortOrder,
+    selectedId,
+  ]);
 
   const uploadActivityKey = useMemo(
     () =>
@@ -746,10 +728,14 @@ export function DataSourcesWorkspace({
     }
   };
 
-  const refreshFileInventory = useCallback(() => {
-    onRefresh();
-    if (!isAggregate) backendFiles.refresh();
-  }, [backendFiles.refresh, isAggregate, onRefresh]);
+  const refreshFileInventory = useCallback(
+    (options: { refreshDashboard?: boolean } = {}) => {
+      if (options.refreshDashboard !== false) onRefresh();
+      if (isAggregate) organizationFiles.refresh();
+      else backendFiles.refresh();
+    },
+    [backendFiles.refresh, isAggregate, onRefresh, organizationFiles.refresh],
+  );
 
   useEffect(() => {
     if (!uploadActivityKey) return;
@@ -766,7 +752,7 @@ export function DataSourcesWorkspace({
       await waitForActionPoll();
       try {
         latestJob = await getLatestIndexingJob(datasetId);
-        refreshFileInventory();
+        refreshFileInventory({ refreshDashboard: false });
       } catch {
         continue;
       }
@@ -775,7 +761,7 @@ export function DataSourcesWorkspace({
         if (latestJob.status === "cancelled") return latestJob;
       } else if (
         latestJob.job_id === expectedJobId &&
-        latestJob.status !== "queued"
+        ["completed", "failed", "cancelled"].includes(latestJob.status)
       ) {
         return latestJob;
       }
@@ -783,9 +769,7 @@ export function DataSourcesWorkspace({
     return latestJob;
   };
 
-  const pollPurgeOperation = async (
-    operation: FilePurgeOperationResponse,
-  ) => {
+  const pollPurgeOperation = async (operation: FilePurgeOperationResponse) => {
     let latestOperation = operation;
     const updateProgress = (current: FilePurgeOperationResponse) => {
       const completed = current.items.filter(
@@ -816,7 +800,7 @@ export function DataSourcesWorkspace({
           latestOperation.operation_id,
         );
         updateProgress(latestOperation);
-        refreshFileInventory();
+        refreshFileInventory({ refreshDashboard: false });
       } catch {
         // Keep the accepted operation visible while a status check is unavailable.
       }
@@ -853,7 +837,10 @@ export function DataSourcesWorkspace({
           const latestJob = await getLatestIndexingJob(datasetId);
           if (latestJob.status === "cancel_requested") {
             toast.info(`Stopping ${file.name} is already in progress.`);
-          } else if (latestJob.status !== "queued" && latestJob.status !== "running") {
+          } else if (
+            latestJob.status !== "queued" &&
+            latestJob.status !== "running"
+          ) {
             throw new Error("This file is no longer being processed.");
           } else {
             await cancelIndexingJob(latestJob.job_id);
@@ -882,7 +869,7 @@ export function DataSourcesWorkspace({
           );
         }
       }
-      refreshFileInventory();
+      refreshFileInventory({ refreshDashboard: false });
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -911,14 +898,11 @@ export function DataSourcesWorkspace({
     for (const file of files) {
       try {
         const response = await retryIndexingFile(file.datasetId!.trim());
-        await pollIndexingJob(
-          file.datasetId!.trim(),
-          response.job_id,
-          "retry",
-        );
+        await pollIndexingJob(file.datasetId!.trim(), response.job_id, "retry");
       } catch (error) {
         failed += 1;
-        if (error instanceof Error) toast.error(`${file.name}: ${error.message}`);
+        if (error instanceof Error)
+          toast.error(`${file.name}: ${error.message}`);
       } finally {
         completed += 1;
         setBulkProgress({
@@ -929,12 +913,65 @@ export function DataSourcesWorkspace({
         });
       }
     }
-    refreshFileInventory();
+    refreshFileInventory({ refreshDashboard: false });
     setBulkProgress(null);
     if (failed) {
       toast.warning(`${completed - failed} retried, ${failed} failed.`);
     } else {
-      toast.success(`${completed} file${completed === 1 ? "" : "s"} queued for retry.`);
+      toast.success(
+        `${completed} file${completed === 1 ? "" : "s"} queued for retry.`,
+      );
+    }
+  };
+
+  const runBulkReprocess = async (filesToReprocess: DataFile[]) => {
+    if (bulkProgress || pendingFileAction || !filesToReprocess.length) return;
+    const files = filesToReprocess.filter((file) => file.datasetId?.trim());
+    if (!files.length) return;
+
+    setSelectedFileKeys([]);
+    setBulkProgress({
+      action: "reprocess",
+      completed: 0,
+      total: files.length,
+      failed: 0,
+    });
+    let completed = 0;
+    let failed = 0;
+    for (const file of files) {
+      try {
+        const response = await reprocessIndexingFile(
+          file.datasetId!.trim(),
+          crypto.randomUUID(),
+        );
+        await pollIndexingJob(
+          file.datasetId!.trim(),
+          response.job_id,
+          "reprocess",
+        );
+      } catch (error) {
+        failed += 1;
+        if (error instanceof Error) {
+          toast.error(`${file.name}: ${error.message}`);
+        }
+      } finally {
+        completed += 1;
+        setBulkProgress({
+          action: "reprocess",
+          completed,
+          total: files.length,
+          failed,
+        });
+      }
+    }
+    refreshFileInventory({ refreshDashboard: false });
+    setBulkProgress(null);
+    if (failed) {
+      toast.warning(`${completed - failed} rerun, ${failed} failed.`);
+    } else {
+      toast.success(
+        `${completed} file${completed === 1 ? "" : "s"} queued for rerun.`,
+      );
     }
   };
 
@@ -943,7 +980,12 @@ export function DataSourcesWorkspace({
     const datasetIds = files
       .map((file) => file.datasetId?.trim())
       .filter((datasetId): datasetId is string => Boolean(datasetId));
-    if (!files.length || !datasetIds.length || bulkProgress || pendingFileAction) {
+    if (
+      !files.length ||
+      !datasetIds.length ||
+      bulkProgress ||
+      pendingFileAction
+    ) {
       return;
     }
 
@@ -959,13 +1001,17 @@ export function DataSourcesWorkspace({
       setDeleteTargets([]);
       const finalOperation = await pollPurgeOperation(operation);
       if (finalOperation.status === "completed") {
-        toast.success(`${datasetIds.length} file${datasetIds.length === 1 ? "" : "s"} deleted.`);
+        toast.success(
+          `${datasetIds.length} file${datasetIds.length === 1 ? "" : "s"} deleted.`,
+        );
       } else if (finalOperation.status === "failed") {
         toast.error("Some files could not be deleted.");
       } else {
-        toast.info("Deletion is still running. The inventory will refresh automatically.");
+        toast.info(
+          "Deletion is still running. The inventory will refresh automatically.",
+        );
       }
-      refreshFileInventory();
+      refreshFileInventory({ refreshDashboard: false });
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -1046,47 +1092,47 @@ export function DataSourcesWorkspace({
           aria-label="Data sources"
         >
           <div className="flex items-center justify-between gap-3 px-1">
-              <div>
-                <h3 className="text-sm font-semibold">Data sources</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {datasources.length.toLocaleString()} connected
-                </p>
-              </div>
-              <AddSourceMenu onConfigureSource={onConfigureSource} />
+            <div>
+              <h3 className="text-sm font-semibold">Data sources</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {datasources.length.toLocaleString()} connected
+              </p>
             </div>
-            {profileError && (
-              <Alert variant="destructive" className="mt-3">
-                <AlertTitle>Reconnect settings unavailable</AlertTitle>
-                <AlertDescription>{profileError}</AlertDescription>
-              </Alert>
-            )}
-            <ScrollArea className="mt-4 min-h-0 flex-1">
-              <div className="flex flex-col gap-2 pr-2">
-                {visibleSources.map((datasource) => {
-                  const selected = selectedSource.id === datasource.id;
-                  return (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      key={datasource.id}
-                      onClick={() => selectSource(datasource.id)}
-                      aria-pressed={selected}
-                      className={cn(
-                        "relative h-auto min-h-16 w-full justify-start gap-3 overflow-hidden rounded-lg border px-3 py-2.5 text-left",
-                        selected
-                          ? "border-primary/30 bg-primary/10 text-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-primary"
-                          : "border-transparent hover:border-border hover:bg-muted/50",
-                      )}
-                    >
-                      <SourceIdentity
-                        datasource={datasource}
-                        count={countFor(datasource)}
-                        selected={selected}
-                      />
-                    </Button>
-                  );
-                })}
-              </div>
+            <AddSourceMenu onConfigureSource={onConfigureSource} />
+          </div>
+          {profileError && (
+            <Alert variant="destructive" className="mt-3">
+              <AlertTitle>Reconnect settings unavailable</AlertTitle>
+              <AlertDescription>{profileError}</AlertDescription>
+            </Alert>
+          )}
+          <ScrollArea className="mt-4 min-h-0 flex-1">
+            <div className="flex flex-col gap-2 pr-2">
+              {visibleSources.map((datasource) => {
+                const selected = selectedSource.id === datasource.id;
+                return (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    key={datasource.id}
+                    onClick={() => selectSource(datasource.id)}
+                    aria-pressed={selected}
+                    className={cn(
+                      "relative h-auto min-h-16 w-full justify-start gap-3 overflow-hidden rounded-lg border px-3 py-2.5 text-left",
+                      selected
+                        ? "border-primary/30 bg-primary/10 text-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-primary"
+                        : "border-transparent hover:border-border hover:bg-muted/50",
+                    )}
+                  >
+                    <SourceIdentity
+                      datasource={datasource}
+                      count={countFor(datasource)}
+                      selected={selected}
+                    />
+                  </Button>
+                );
+              })}
+            </div>
           </ScrollArea>
         </aside>
 
@@ -1099,7 +1145,10 @@ export function DataSourcesWorkspace({
               <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-card text-primary">
-                    <SourceIcon datasource={selectedSource} className="size-5" />
+                    <SourceIcon
+                      datasource={selectedSource}
+                      className="size-5"
+                    />
                   </span>
                   <div className="min-w-0">
                     <h3 className="truncate text-lg font-semibold">
@@ -1124,15 +1173,20 @@ export function DataSourcesWorkspace({
             </div>
           </header>
           <Separator />
-          {backendFiles.error && !isAggregate && (
+          {((isAggregate && organizationFiles.error) ||
+            (!isAggregate && backendFiles.error)) && (
             <Alert variant="destructive" className="m-4 shrink-0">
               <AlertTitle>Unable to load source files</AlertTitle>
-              <AlertDescription>{backendFiles.error}</AlertDescription>
+              <AlertDescription>
+                {isAggregate ? organizationFiles.error : backendFiles.error}
+              </AlertDescription>
               <Button
                 className="mt-3"
                 variant="outline"
                 size="sm"
-                onClick={backendFiles.refresh}
+                onClick={
+                  isAggregate ? organizationFiles.refresh : backendFiles.refresh
+                }
               >
                 Retry
               </Button>
@@ -1144,7 +1198,8 @@ export function DataSourcesWorkspace({
               <AlertDescription>{result.warning}</AlertDescription>
             </Alert>
           )}
-          {(result || !backendFiles.error || isAggregate) && (
+          {(result ||
+            (isAggregate ? !organizationFiles.error : !backendFiles.error)) && (
             <DataSourceFilesTable
               result={result}
               loading={tableLoading}
@@ -1185,6 +1240,7 @@ export function DataSourcesWorkspace({
               }
               onDeleteFile={(file) => setDeleteTargets([file])}
               onBulkRetry={(files) => void runBulkRetry(files)}
+              onBulkReprocess={(files) => void runBulkReprocess(files)}
               onBulkDelete={setDeleteTargets}
               selectedFileKeys={selectedFileKeys}
               onSelectedFileKeysChange={setSelectedFileKeys}
@@ -1243,18 +1299,20 @@ export function DataSourcesWorkspace({
               Delete {deleteTargets.length > 1 ? "files" : "file"} permanently?
             </DialogTitle>
             <DialogDescription>
-              This removes {deleteTargets.length > 1 ? "the selected files" : <strong>{deleteTargets[0]?.name}</strong>},
-              their indexed content, and stored objects. This action cannot be
+              This removes{" "}
+              {deleteTargets.length > 1 ? (
+                "the selected files"
+              ) : (
+                <strong>{deleteTargets[0]?.name}</strong>
+              )}
+              , their indexed content, and stored objects. This action cannot be
               undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose
               render={
-                <Button
-                  variant="outline"
-                  disabled={Boolean(bulkProgress)}
-                />
+                <Button variant="outline" disabled={Boolean(bulkProgress)} />
               }
             >
               Cancel

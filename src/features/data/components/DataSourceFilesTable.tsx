@@ -74,13 +74,14 @@ type DataSourceFilesTableProps = {
   onReprocessIndexing?: (file: DataFile) => void;
   onDeleteFile?: (file: DataFile) => void;
   onBulkRetry?: (files: DataFile[]) => void;
+  onBulkReprocess?: (files: DataFile[]) => void;
   onBulkDelete?: (files: DataFile[]) => void;
   selectedFileKeys?: string[];
   onSelectedFileKeysChange?: (keys: string[]) => void;
   pendingFileKey?: string | null;
   pendingAction?: "cancel" | "retry" | "reprocess" | "delete";
   bulkProgress?: {
-    action: "retry" | "delete";
+    action: "retry" | "reprocess" | "delete";
     completed: number;
     total: number;
     failed: number;
@@ -220,6 +221,7 @@ export function DataSourceFilesTable({
   onReprocessIndexing,
   onDeleteFile,
   onBulkRetry,
+  onBulkReprocess,
   onBulkDelete,
   selectedFileKeys = [],
   onSelectedFileKeysChange,
@@ -241,6 +243,9 @@ export function DataSourceFilesTable({
   );
   const retryableSelectedFiles = selectedFiles.filter(
     (file) => file.status === "failed",
+  );
+  const reprocessableSelectedFiles = selectedFiles.filter((file) =>
+    Boolean(file.datasetId),
   );
   const allVisibleSelected =
     selectableFiles.length > 0 &&
@@ -302,7 +307,7 @@ export function DataSourceFilesTable({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 flex flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="shrink-0 flex flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-start lg:justify-between">
         <Field className="min-w-0 flex-1 lg:max-w-md">
           <FieldLabel htmlFor={searchId} className="sr-only">
             Search data source files
@@ -331,10 +336,22 @@ export function DataSourceFilesTable({
           </div>
         </Field>
         {selectedFiles.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/35 p-1.5">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg p-1.5 lg:h-8 lg:flex-nowrap lg:p-0">
             <span className="px-2 text-xs font-medium text-muted-foreground">
               {selectedFiles.length} selected
             </span>
+            {onBulkReprocess && reprocessableSelectedFiles.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={selectionDisabled}
+                onClick={() => onBulkReprocess(reprocessableSelectedFiles)}
+              >
+                <RefreshCwIcon data-icon="inline-start" />
+                Rerun selected ({reprocessableSelectedFiles.length})
+              </Button>
+            )}
             {onBulkRetry && retryableSelectedFiles.length > 0 && (
               <Button
                 type="button"
@@ -373,7 +390,9 @@ export function DataSourceFilesTable({
           <span className="min-w-0 flex-1 truncate">
             {bulkProgress.action === "delete"
               ? "Deleting"
-              : "Retrying indexing"}{" "}
+              : bulkProgress.action === "reprocess"
+                ? "Rerunning indexing"
+                : "Retrying indexing"}{" "}
             {bulkProgress.completed} of {bulkProgress.total}
             {bulkProgress.failed > 0 && ` · ${bulkProgress.failed} failed`}
           </span>
@@ -494,7 +513,11 @@ export function DataSourceFilesTable({
                           "focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       )}
                     >
-                      <TableCell className="w-12 px-4 py-3">
+                      <TableCell
+                        className="w-12 px-4 py-3"
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
                         <Checkbox
                           checked={selectedFileKeySet.has(file.key)}
                           disabled={!file.datasetId || selectionDisabled}

@@ -1,5 +1,9 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { AlertTriangleIcon, CircleAlertIcon, ServerCrashIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  CircleAlertIcon,
+  ServerCrashIcon,
+} from "lucide-react";
 import {
   Alert,
   AlertAction,
@@ -159,6 +163,7 @@ export function DataPage({
             />
           ) : (
             <DataSourcesWorkspace
+              organizationId={organizationId}
               workspaceId={workspaceId}
               datasources={datasources}
               files={files}

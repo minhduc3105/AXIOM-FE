@@ -373,6 +373,41 @@ function isDataSourceFilesResponseDto(
   );
 }
 
+function isOrganizationFilesResponseDto(
+  value: unknown,
+): value is OrganizationFilesResponseDto {
+  if (
+    !isRecord(value) ||
+    typeof value.organization_id !== "string" ||
+    typeof value.bucket !== "string" ||
+    !isNonNegativeInteger(value.count) ||
+    !Array.isArray(value.files) ||
+    value.files.length !== value.count ||
+    !isRecord(value.bucket_metadata) ||
+    !isRecord(value.pagination)
+  )
+    return false;
+  const pagination = value.pagination;
+  return (
+    isPositiveInteger(pagination.page) &&
+    isPositiveInteger(pagination.page_size) &&
+    pagination.page_size <= 100 &&
+    isNonNegativeInteger(pagination.total_count) &&
+    isNonNegativeInteger(pagination.total_pages) &&
+    pagination.total_pages ===
+      Math.ceil(pagination.total_count / pagination.page_size) &&
+    value.files.every(
+      (file) =>
+        isRecord(file) &&
+        typeof file.key === "string" &&
+        isNonNegativeInteger(file.size) &&
+        isNullableString(file.last_modified) &&
+        isNullableString(file.etag) &&
+        typeof file.presigned_url === "string",
+    )
+  );
+}
+
 async function getJson<T>(url: string, options: RequestInit = {}): Promise<T> {
   const response = await authFetch(url, {
     ...options,
@@ -443,7 +478,14 @@ function getStatusDetail(
 }
 
 export function normalizeFile(
-  file: Omit<OrganizationFilesResponseDto["files"][number], "workspace_id"> & {
+  file: {
+    key: string;
+    size: number;
+    last_modified: string | null;
+    etag: string | null;
+    presigned_url: string;
+    dataset_id?: string | null;
+    name?: string;
     workspace_id?: string;
   },
   processingStatus: DocumentProcessingStatusDto | undefined,
@@ -694,6 +736,79 @@ export async function getDataSourceFiles(
   };
 }
 
+export async function getOrganizationFiles(
+  organizationId: string,
+  workspaceId: string,
+  query: DataSourceFilesQuery,
+  signal: AbortSignal,
+): Promise<DataSourceFilesPage> {
+  const searchParams = new URLSearchParams({
+    page: String(query.page),
+    page_size: String(query.pageSize),
+    workspace_id: workspaceId,
+    sort_by: query.sortBy,
+    sort_order: query.sortOrder,
+  });
+  const search = query.search.trim();
+  if (search) searchParams.set("search", search);
+
+  const payload = await getJson<unknown>(
+    `${documentApiBaseUrl}/organizations/${encodeURIComponent(organizationId)}/files?${searchParams}`,
+    { signal },
+  );
+  if (
+    !isOrganizationFilesResponseDto(payload) ||
+    payload.organization_id !== organizationId ||
+    payload.pagination?.page !== query.page ||
+    payload.pagination?.page_size !== query.pageSize
+  ) {
+    throw new Error("The organization files response was invalid.");
+  }
+
+  const response = payload;
+  let processingStatuses: DocumentProcessingStatusDto[] = [];
+  let warning: string | null = null;
+  if (response.files.length > 0) {
+    try {
+      processingStatuses = await getProcessingStatuses(
+        workspaceId,
+        response.bucket,
+        response.files.map((file) => file.key),
+        signal,
+      );
+    } catch (error) {
+      if (signal.aborted) throw error;
+      warning =
+        "Processing status is temporarily unavailable. File inventory is still current.";
+    }
+  }
+  const statusByObjectKey = new Map(
+    processingStatuses.map((status) => [status.object_key, status]),
+  );
+  const pagination = response.pagination!;
+  return {
+    organizationId: response.organization_id,
+    datasourceId: "__organization_files__",
+    bucket: response.bucket,
+    files: response.files.map((file) =>
+      normalizeFile(file, statusByObjectKey.get(file.key), {
+        organizationId: response.organization_id,
+        datasourceId: null,
+        datasetId: file.dataset_id,
+        bucket: response.bucket,
+        workspaceId,
+        name: file.name,
+      }),
+    ),
+    page: pagination.page,
+    pageSize: pagination.page_size,
+    totalCount: pagination.total_count,
+    totalPages: pagination.total_pages,
+    totalUnfilteredCount: pagination.total_count,
+    warning,
+  };
+}
+
 export async function getDataSourceFileCount(
   datasourceId: string,
   signal: AbortSignal,
@@ -802,14 +917,17 @@ export async function purgeDataFiles(
 export async function retryIndexingFile(
   datasetId: string,
   signal?: AbortSignal,
-): Promise<RetryIndexingJobResponse> {
+): Promise<RetryIndexingJobResponse | ReprocessIndexingJobResponse> {
   const latestJob = await getLatestIndexingJob(datasetId, signal);
-  if (latestJob.status !== "failed") {
-    throw new Error(
-      "Retry is only available after the latest indexing attempt fails.",
-    );
+  if (latestJob.status === "failed") {
+    return retryIndexingJob(latestJob.job_id, crypto.randomUUID(), signal);
   }
-  return retryIndexingJob(latestJob.job_id, crypto.randomUUID(), signal);
+  if (latestJob.status === "completed" || latestJob.status === "cancelled") {
+    return reprocessIndexingFile(datasetId, crypto.randomUUID(), { signal });
+  }
+  throw new Error(
+    "Retry is unavailable while the latest indexing attempt is still running.",
+  );
 }
 
 export async function getLatestIndexingJob(

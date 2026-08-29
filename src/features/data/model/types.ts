@@ -15,8 +15,14 @@ export type OrganizationFilesResponseDto = {
   organization_id: string;
   bucket: string;
   count: number;
-  files: Array<StorageFileDto & { workspace_id: string }>;
+  files: Array<StorageFileDto & { workspace_id: string; name?: string }>;
   bucket_metadata: Record<string, unknown>;
+  pagination?: {
+    page: number;
+    page_size: number;
+    total_count: number;
+    total_pages: number;
+  };
 };
 
 export type DocumentProcessingStatusDto = {
