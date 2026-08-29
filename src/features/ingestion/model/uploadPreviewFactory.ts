@@ -1,5 +1,5 @@
-import mammoth from "mammoth";
 import Papa from "papaparse";
+import { convertDocxToHtml } from "@/shared/lib/docx-preview";
 import type { IngestionFile } from "./types";
 import {
   getUploadFileDefinition,
@@ -173,19 +173,6 @@ async function buildWorkbookPreview(
       { label: "Size", value: file.sizeLabel },
     ],
   };
-}
-
-export async function convertDocxToHtml(arrayBuffer: ArrayBuffer) {
-  const result = await mammoth.convertToHtml(
-    { arrayBuffer },
-    {
-      styleMap: [
-        "p[style-name='Heading 1'] => h1:fresh",
-        "p[style-name='Heading 2'] => h2:fresh",
-      ],
-    },
-  );
-  return result.value;
 }
 
 async function buildDocxPreview(

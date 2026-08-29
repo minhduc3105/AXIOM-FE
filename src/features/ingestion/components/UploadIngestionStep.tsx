@@ -87,9 +87,10 @@ export function UploadIngestionStep() {
 
   return (
     <div
-      className="grid min-h-[30rem] min-w-0 grid-cols-1 gap-0 lg:grid-cols-[18rem_minmax(0,1fr)]"
+      className="grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-0"
       data-testid="upload-ingestion-layout"
     >
+      <div className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-0 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-1">
       <section className="flex min-h-0 min-w-0 flex-col gap-4 pb-6 lg:pr-6 lg:pb-0">
         <Field>
           <FieldLabel
@@ -192,7 +193,9 @@ export function UploadIngestionStep() {
         </div>
       </section>
 
-      <div className="sticky bottom-0 flex justify-end bg-popover pt-5 lg:col-span-2">
+      </div>
+
+      <div className="flex shrink-0 justify-end bg-popover pt-5">
         <Button
           size="lg"
           type="button"

@@ -1,12 +1,28 @@
 export type NumericBbox = [number, number, number, number];
 
+export type BlockOverlayDiagnostic =
+  | "valid"
+  | "missing-coordinate-data"
+  | "outside-page-bounds"
+  | "page-aspect-mismatch";
+
+type PageViewportDimensions = {
+  width: number;
+  height: number;
+};
+
 export type ProcessingFile = {
   key: string;
   filename: string | null;
   contentType: string | null;
 };
 
-export type SourcePreviewKind = "pdf" | "image" | "xlsx" | "unsupported";
+export type SourcePreviewKind =
+  | "pdf"
+  | "image"
+  | "xlsx"
+  | "docx"
+  | "unsupported";
 
 export function getSourcePreviewKind(
   file: ProcessingFile | null | undefined,
@@ -21,6 +37,12 @@ export function getSourcePreviewKind(
     extension === "xlsx"
   )
     return "xlsx";
+  if (
+    contentType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    extension === "docx"
+  )
+    return "docx";
   if (
     contentType === "image/png" ||
     contentType === "image/jpeg" ||
@@ -104,4 +126,27 @@ export function getBlockOverlayStyle(block: LayoutBlock) {
     width: `${((x2 - x1) / pageWidth) * 100}%`,
     height: `${((y2 - y1) / pageHeight) * 100}%`,
   };
+}
+
+export function getBlockOverlayDiagnostic(
+  block: LayoutBlock,
+  viewport?: PageViewportDimensions,
+): BlockOverlayDiagnostic {
+  if (!block.bbox || !block.page_bbox) return "missing-coordinate-data";
+
+  const [pageX1, pageY1, pageX2, pageY2] = block.page_bbox;
+  const [x1, y1, x2, y2] = block.bbox;
+  if (x1 < pageX1 || y1 < pageY1 || x2 > pageX2 || y2 > pageY2) {
+    return "outside-page-bounds";
+  }
+
+  if (!viewport || viewport.width <= 0 || viewport.height <= 0) {
+    return "valid";
+  }
+
+  const pageRatio = (pageX2 - pageX1) / (pageY2 - pageY1);
+  const viewportRatio = viewport.width / viewport.height;
+  return Math.abs(pageRatio - viewportRatio) / pageRatio > 0.02
+    ? "page-aspect-mismatch"
+    : "valid";
 }

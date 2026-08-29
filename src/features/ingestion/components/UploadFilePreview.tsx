@@ -89,7 +89,7 @@ export function UploadFilePreview({ file }: UploadFilePreviewProps) {
 
   if (!file) {
     return (
-      <div className="grid min-h-72 place-items-center rounded-lg border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+      <div className="grid h-full min-h-72 place-items-center rounded-lg border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
         Add a file to preview it here.
       </div>
     );
@@ -106,16 +106,16 @@ export function UploadFilePreview({ file }: UploadFilePreviewProps) {
 
 function PdfPreview({ fileName, url }: { fileName: string; url: string | null }) {
   return (
-    <div className="min-h-72 overflow-hidden rounded-lg border bg-muted/30">
+    <div className="h-full min-h-0 overflow-hidden rounded-lg border bg-muted/30">
       {url ? (
         <object
-          className="min-h-[28rem] w-full"
+          className="h-full w-full"
           data={`${url}#view=FitH`}
           type="application/pdf"
           aria-label={`PDF preview for ${fileName}`}
         >
           <iframe
-            className="min-h-[28rem] w-full"
+            className="h-full w-full"
             src={url}
             title={`PDF preview for ${fileName}`}
           />
@@ -136,7 +136,7 @@ function ImagePreview({
 }) {
   if (!url) return <PreviewLoading />;
   return (
-    <div className="grid min-h-72 place-items-center overflow-auto rounded-lg border bg-foreground p-4">
+    <div className="grid h-full min-h-0 place-items-center overflow-auto rounded-lg border bg-foreground p-4">
       <img
         className="max-h-[34rem] max-w-full object-contain"
         src={url}
@@ -157,7 +157,7 @@ function PreviewLoading() {
 
 function DataFilePreview({ preview }: { preview: DataPreviewState }) {
   return (
-    <div className="flex min-h-72 flex-col gap-4 rounded-lg border bg-muted/10 p-4">
+    <div className="flex h-full min-h-0 flex-col gap-4 rounded-lg border bg-muted/10 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="text-sm leading-6 text-muted-foreground">
           {preview.description}
@@ -170,29 +170,31 @@ function DataFilePreview({ preview }: { preview: DataPreviewState }) {
           ))}
         </div>
       </div>
-      {preview.status === "loading" ? (
-        <PreviewLoading />
-      ) : preview.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Preview unavailable</AlertTitle>
-          <AlertDescription>{preview.error}</AlertDescription>
-        </Alert>
-      ) : preview.presentation === "html" ? (
-        <HtmlPreview html={preview.html ?? ""} />
-      ) : preview.presentation === "markdown" ? (
-        <MarkdownPreview content={preview.content ?? ""} />
-      ) : preview.presentation === "document" ? (
-        <TextPreview content={preview.content ?? ""} />
-      ) : (
-        <TablePreview preview={preview} />
-      )}
+      <div className="min-h-0 flex-1">
+        {preview.status === "loading" ? (
+          <PreviewLoading />
+        ) : preview.error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Preview unavailable</AlertTitle>
+            <AlertDescription>{preview.error}</AlertDescription>
+          </Alert>
+        ) : preview.presentation === "html" ? (
+          <HtmlPreview html={preview.html ?? ""} />
+        ) : preview.presentation === "markdown" ? (
+          <MarkdownPreview content={preview.content ?? ""} />
+        ) : preview.presentation === "document" ? (
+          <TextPreview content={preview.content ?? ""} />
+        ) : (
+          <TablePreview preview={preview} />
+        )}
+      </div>
     </div>
   );
 }
 
 function TablePreview({ preview }: { preview: DataPreviewState }) {
   return (
-    <ScrollArea className="max-h-[34rem] rounded-md border bg-card">
+    <ScrollArea aria-label="Upload file preview" className="h-full min-h-0 rounded-md border bg-card">
       <Table className="min-w-max">
         <TableHeader className="sticky top-0 bg-muted/90">
           <TableRow>
@@ -232,9 +234,9 @@ function TablePreview({ preview }: { preview: DataPreviewState }) {
 
 function HtmlPreview({ html }: { html: string }) {
   return (
-    <ScrollArea className="max-h-[34rem] rounded-md border bg-card">
+    <ScrollArea aria-label="Upload file preview" className="h-full min-h-0 rounded-md border bg-card">
       <article
-        className="p-5 text-sm leading-7 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:mb-3 [&_h2]:mt-5 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:mb-4 [&_table]:mb-4 [&_table]:w-full [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:bg-muted [&_th]:p-2"
+        className="min-w-0 break-words p-5 text-sm leading-7 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:mb-3 [&_h2]:mt-5 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:mb-4 [&_table]:mb-4 [&_table]:w-full [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:bg-muted [&_th]:p-2"
         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
       />
     </ScrollArea>
@@ -243,7 +245,7 @@ function HtmlPreview({ html }: { html: string }) {
 
 function MarkdownPreview({ content }: { content: string }) {
   return (
-    <ScrollArea className="max-h-[34rem] rounded-md border bg-card">
+    <ScrollArea aria-label="Upload file preview" className="h-full min-h-0 rounded-md border bg-card">
       <article className="p-5 text-sm leading-7 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:mb-3 [&_h2]:mt-5 [&_h2]:text-lg [&_h2]:font-semibold [&_p]:mb-4">
         <ReactMarkdown>{content.slice(0, 12_000)}</ReactMarkdown>
       </article>
@@ -259,7 +261,7 @@ function TextPreview({ content }: { content: string }) {
     .filter(Boolean);
 
   return (
-    <ScrollArea className="max-h-[34rem] rounded-md border bg-card">
+    <ScrollArea aria-label="Upload file preview" className="h-full min-h-0 rounded-md border bg-card">
       <article className="flex flex-col gap-4 p-5 text-sm leading-7">
         {paragraphs.length ? (
           paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)

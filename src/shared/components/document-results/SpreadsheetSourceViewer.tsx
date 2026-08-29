@@ -60,10 +60,17 @@ export default function SpreadsheetSourceViewer({
         });
       })
       .then((workbook) => {
-        if (!workbook.SheetNames.length) {
+        const visibleSheetNames = workbook.SheetNames.filter(
+          (_sheetName, index) => !workbook.Workbook?.Sheets?.[index]?.Hidden,
+        );
+        if (!visibleSheetNames.length) {
           throw new Error("The workbook does not contain a visible sheet.");
         }
-        setState({ status: "ready", workbook, error: null });
+        setState({
+          status: "ready",
+          workbook: { ...workbook, SheetNames: visibleSheetNames },
+          error: null,
+        });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -166,13 +173,13 @@ export default function SpreadsheetSourceViewer({
           {fileName}
         </span>
         <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-          First {preview.rows.length} rows
+          Showing up to {preview.rows.length} populated rows and {preview.columns.length} columns
         </span>
       </div>
       <ScrollArea className="min-h-0 min-w-0 flex-1">
         <div className="w-max min-w-full p-3">
           <div className="overflow-hidden rounded-lg border bg-card">
-            <Table>
+            <Table aria-label={`Spreadsheet preview for ${fileName}, sheet ${preview.sheetName}`}>
               <TableHeader>
                 <TableRow>
                   {preview.columns.map((column) => (
