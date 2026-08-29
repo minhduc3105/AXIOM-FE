@@ -28,6 +28,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
 import type { ChatEngine } from "../model/types";
+import type {
+  ChatDataResource,
+  ChatDataScope,
+} from "../model/chatDataScope";
+import { ChatDataScopeSelector } from "./ChatDataScopeSelector";
 
 const engineOptions: Array<{ value: ChatEngine; label: string }> = [
   { value: "auto", label: "Auto" },
@@ -45,7 +50,13 @@ export function ChatComposer({
   sendDisabled = disabled,
   className,
   autoFocus = false,
+  focusRequest = 0,
   onStop,
+  dataScope,
+  dataResources = [],
+  dataResourcesLoading = false,
+  dataResourcesError = null,
+  onDataScopeChange,
 }: {
   onSubmit: (message: string, engine: ChatEngine, files: File[]) => void;
   engine: ChatEngine;
@@ -55,7 +66,13 @@ export function ChatComposer({
   sendDisabled?: boolean;
   className?: string;
   autoFocus?: boolean;
+  focusRequest?: number;
   onStop?: () => void;
+  dataScope?: ChatDataScope;
+  dataResources?: ChatDataResource[];
+  dataResourcesLoading?: boolean;
+  dataResourcesError?: string | null;
+  onDataScopeChange?: (scope: ChatDataScope) => void;
 }) {
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -65,8 +82,10 @@ export function ChatComposer({
   const selectedEngineLabel =
     engineOptions.find((option) => option.value === engine)?.label || "Auto";
   useEffect(() => {
-    if (autoFocus) textareaRef.current?.focus();
-  }, [autoFocus]);
+    if (!autoFocus && focusRequest === 0) return;
+    const frame = requestAnimationFrame(() => textareaRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [autoFocus, focusRequest]);
   const focusComposer = () => {
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
@@ -180,6 +199,16 @@ export function ChatComposer({
           >
             <PaperclipIcon />
           </Button>
+          {dataScope && onDataScopeChange && (
+            <ChatDataScopeSelector
+              scope={dataScope}
+              resources={dataResources}
+              loading={dataResourcesLoading}
+              error={dataResourcesError}
+              disabled={disabled}
+              onChange={onDataScopeChange}
+            />
+          )}
           <DropdownMenu open={engineMenuOpen} onOpenChange={setEngineMenuOpen}>
             <DropdownMenuTrigger
               render={

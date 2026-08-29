@@ -19,6 +19,10 @@ import type {
   MockResult,
   ProcessEvent,
 } from "./types";
+import {
+  chatDataScopeLabel,
+  type ChatDataScope,
+} from "./chatDataScope";
 
 const initialState: ChatWorkflowState = {
   activeConversationId: null,
@@ -344,12 +348,14 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
 const optimisticInvestigation = (
   question: string,
   attachments: ChatAttachment[] = [],
+  dataScope?: ChatDataScope,
 ): Investigation => ({
   question,
   attachments,
+  dataScope,
   confidence: 94,
   intent: "generate_revenue_report",
-  scope: "Q3 revenue, payments",
+  scope: dataScope ? chatDataScopeLabel(dataScope) : "Q3 revenue, payments",
   specMarkdown:
     "# Investigation plan\n\nAXIOM is preparing the workflow specification.",
   policy: "Strict · read-only sandbox · external network blocked",
@@ -359,12 +365,16 @@ const optimisticInvestigation = (
 const streamingDirectAnswerInvestigation = (
   question: string,
   attachments: ChatAttachment[] = [],
+  dataScope?: ChatDataScope,
 ): Investigation => ({
   question,
   attachments,
+  dataScope,
   confidence: 100,
   intent: "general_direct",
-  scope: "Answered from general knowledge or conversation context.",
+  scope: dataScope
+    ? chatDataScopeLabel(dataScope)
+    : "Answered from general knowledge or conversation context.",
   specMarkdown: "",
   policy: "No data workflow or engine execution was required.",
   output: "Direct answer",
@@ -373,12 +383,16 @@ const streamingDirectAnswerInvestigation = (
 const instantEngineInvestigation = (
   question: string,
   attachments: ChatAttachment[] = [],
+  dataScope?: ChatDataScope,
 ): Investigation => ({
   question,
   attachments,
+  dataScope,
   confidence: 100,
   intent: "instant_engine",
-  scope: "Executed immediately by the selected AXIOM engine.",
+  scope: dataScope
+    ? chatDataScopeLabel(dataScope)
+    : "Executed immediately by the selected AXIOM engine.",
   specMarkdown: "",
   policy: "AXIOM engine routing and request-scoped authorization.",
   output: "Engine response and available artifact references",
@@ -392,11 +406,18 @@ function chatAttachmentsFromFiles(files: File[]): ChatAttachment[] {
   }));
 }
 
-function attachFilesToInvestigation(
+function attachSubmissionContext(
   investigation: Investigation,
   attachments: ChatAttachment[],
+  dataScope?: ChatDataScope,
 ): Investigation {
-  return attachments.length ? { ...investigation, attachments } : investigation;
+  return {
+    ...investigation,
+    ...(attachments.length ? { attachments } : {}),
+    ...(dataScope
+      ? { dataScope, scope: chatDataScopeLabel(dataScope) }
+      : {}),
+  };
 }
 
 function isAbortError(error: unknown) {
@@ -453,6 +474,7 @@ export type ChatSubmission = {
   organizationId?: string | null;
   workspaceId?: string | null;
   modelAlias?: string | null;
+  dataScope?: ChatDataScope;
   onConversationCreated?: (conversationId: string) => void;
 };
 
@@ -520,6 +542,7 @@ export function useChatWorkflow() {
         organizationId,
         workspaceId,
         modelAlias,
+        dataScope,
         executionMode,
         onConversationCreated,
       } = submission;
@@ -534,6 +557,7 @@ export function useChatWorkflow() {
         organizationId,
         workspaceId,
         modelAlias,
+        dataScope,
       };
       const controller = new AbortController();
       requestRef.current = controller;
@@ -541,8 +565,8 @@ export function useChatWorkflow() {
         type: "submit/start",
         investigation:
           executionMode === "instant"
-            ? instantEngineInvestigation(question, attachments)
-            : optimisticInvestigation(question, attachments),
+            ? instantEngineInvestigation(question, attachments, dataScope)
+            : optimisticInvestigation(question, attachments, dataScope),
         conversationId: submission.conversationId,
         executionMode,
         replaceCurrent,
@@ -566,6 +590,7 @@ export function useChatWorkflow() {
             organizationId,
             workspaceId,
             modelAlias,
+            dataScope,
           };
           dispatch({ type: "conversation/created", conversationId });
           if (ownsRequest(controller)) onConversationCreated?.(conversationId);
@@ -581,16 +606,22 @@ export function useChatWorkflow() {
             organizationId,
             workspaceId,
             modelAlias,
+            dataScope,
             onOutputText: (result) => {
               if (!ownsRequest(controller)) return;
               dispatch({
                 type: "submit/stream",
                 investigation:
                   executionMode === "instant"
-                    ? instantEngineInvestigation(question, attachments)
+                    ? instantEngineInvestigation(
+                        question,
+                        attachments,
+                        dataScope,
+                      )
                     : streamingDirectAnswerInvestigation(
                         question,
                         attachments,
+                        dataScope,
                       ),
                 result,
                 executionMode,
@@ -606,9 +637,10 @@ export function useChatWorkflow() {
         if (outcome.kind === "completed") {
           dispatch({
             type: "submit/completed",
-            investigation: attachFilesToInvestigation(
+            investigation: attachSubmissionContext(
               outcome.investigation,
               attachments,
+              dataScope,
             ),
             result: outcome.result,
             processEvents: outcome.processEvents,
@@ -617,9 +649,10 @@ export function useChatWorkflow() {
         } else {
           dispatch({
             type: "submit/confirmation",
-            investigation: attachFilesToInvestigation(
+            investigation: attachSubmissionContext(
               outcome.investigation,
               attachments,
+              dataScope,
             ),
           });
         }
