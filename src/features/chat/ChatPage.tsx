@@ -27,6 +27,10 @@ import type {
 } from "./components/process/processEvents";
 import { cn } from "@/shared/lib/utils";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import type {
+  ChatDataResource,
+  ChatDataScope,
+} from "./model/chatDataScope";
 
 type ChatPageProps = {
   conversationId: string | null;
@@ -58,6 +62,11 @@ type ChatPageProps = {
   onRetryProcess: () => void;
   onCloseEvidence: () => void;
   onStopGeneration?: () => void;
+  dataScope?: ChatDataScope;
+  dataResources?: ChatDataResource[];
+  dataResourcesLoading?: boolean;
+  dataResourcesError?: string | null;
+  onDataScopeChange?: (scope: ChatDataScope) => void;
 };
 
 export function ChatPage({
@@ -90,6 +99,11 @@ export function ChatPage({
   onRetryProcess,
   onCloseEvidence,
   onStopGeneration,
+  dataScope,
+  dataResources = [],
+  dataResourcesLoading = false,
+  dataResourcesError = null,
+  onDataScopeChange,
 }: ChatPageProps) {
   const chatMainRef = useRef<HTMLDivElement>(null);
   const processSignature = useMemo(
@@ -138,6 +152,11 @@ export function ChatPage({
         onEngineChange={onEngineChange}
         onSubmit={onSubmit}
         onStop={onStopGeneration}
+        dataScope={dataScope}
+        dataResources={dataResources}
+        dataResourcesLoading={dataResourcesLoading}
+        dataResourcesError={dataResourcesError}
+        onDataScopeChange={onDataScopeChange}
       />
     );
   }
@@ -184,6 +203,7 @@ export function ChatPage({
             <section className="flex min-w-0 flex-col gap-6">
               <UserMessage
                 attachments={investigation.attachments}
+                dataScope={investigation.dataScope}
                 question={investigation.question}
               />
 
@@ -229,6 +249,11 @@ export function ChatPage({
               onEngineChange={onEngineChange}
               onSubmit={onSubmit}
               onStop={onStopGeneration}
+              dataScope={dataScope}
+              dataResources={dataResources}
+              dataResourcesLoading={dataResourcesLoading}
+              dataResourcesError={dataResourcesError}
+              onDataScopeChange={onDataScopeChange}
               placeholder={
                 loading
                   ? "AXIOM is working..."
@@ -312,6 +337,11 @@ function EmptyChatWorkspace({
   loading,
   focusComposerRequest,
   onStop,
+  dataScope,
+  dataResources,
+  dataResourcesLoading,
+  dataResourcesError,
+  onDataScopeChange,
 }: {
   engine: ChatEngine;
   onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
@@ -319,6 +349,11 @@ function EmptyChatWorkspace({
   loading: boolean;
   focusComposerRequest: number;
   onStop?: () => void;
+  dataScope?: ChatDataScope;
+  dataResources: ChatDataResource[];
+  dataResourcesLoading: boolean;
+  dataResourcesError: string | null;
+  onDataScopeChange?: (scope: ChatDataScope) => void;
 }) {
   return (
     <section
@@ -341,6 +376,11 @@ function EmptyChatWorkspace({
           onSubmit={onSubmit}
           onEngineChange={onEngineChange}
           onStop={onStop}
+          dataScope={dataScope}
+          dataResources={dataResources}
+          dataResourcesLoading={dataResourcesLoading}
+          dataResourcesError={dataResourcesError}
+          onDataScopeChange={onDataScopeChange}
           disabled={loading}
           placeholder="Message AXIOM..."
         />
@@ -364,6 +404,7 @@ function HistoryTurn({
     <section className="flex flex-col gap-5">
       <UserMessage
         attachments={turn.investigation.attachments}
+        dataScope={turn.investigation.dataScope}
         question={turn.investigation.question}
       />
       <ReviewCard

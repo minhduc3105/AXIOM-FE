@@ -437,6 +437,53 @@ describe("createInvestigation", () => {
     });
   });
 
+  it("sends the selected retrieval scope with the chat request", async () => {
+    let postedBody = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        postedBody = String(init?.body ?? "");
+        return sseResponse([
+          {
+            type: "response.completed",
+            response_id: "resp-scoped",
+            response: {
+              id: "resp-scoped",
+              status: "completed",
+              output_text: "Scoped answer",
+            },
+          },
+        ]);
+      }),
+    );
+
+    await createInvestigation(
+      "Compare revenue and payments",
+      "conversation-1",
+      "auto",
+      "instant",
+      undefined,
+      {
+        dataScope: {
+          mode: "selected",
+          resourceIds: ["dataset:revenue-q3", "datasource:stripe-payments"],
+          resourceNames: ["Q3 Revenue.xlsx", "Stripe payments"],
+        },
+      },
+    );
+
+    expect(JSON.parse(postedBody)).toMatchObject({
+      data_scope: {
+        mode: "selected",
+        resource_ids: [
+          "dataset:revenue-q3",
+          "datasource:stripe-payments",
+        ],
+        resource_names: ["Q3 Revenue.xlsx", "Stripe payments"],
+      },
+    });
+  });
+
   it("streams tool progress and upserts lifecycle events by tool call", async () => {
     vi.stubGlobal(
       "fetch",

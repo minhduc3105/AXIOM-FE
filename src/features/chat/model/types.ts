@@ -1,3 +1,5 @@
+import type { ChatDataScope } from "./chatDataScope";
+
 export type ChatStage = "welcome" | "pending" | "intent" | "process" | "result";
 export type WorkflowStage = Exclude<ChatStage, "welcome" | "pending">;
 export type ProcessStatus = "waiting" | "running" | "done" | "failed";
@@ -14,6 +16,7 @@ export type ChatModelOption = {
 export type Investigation = {
   question: string;
   attachments?: ChatAttachment[];
+  dataScope?: ChatDataScope;
   confidence: number;
   intent: string;
   scope: string;

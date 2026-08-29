@@ -18,6 +18,11 @@ import {
 import { authFetch } from "@/features/auth/model/authFetch";
 import type { IntelligenceMessage } from "@/shared/types/intelligence";
 import { getChatError, type ChatError } from "../model/chatError";
+import {
+  allChatDataScope,
+  chatDataScopeLabel,
+  type ChatDataScope,
+} from "../model/chatDataScope";
 
 export class ChatApiError extends Error {
   readonly status: number | null;
@@ -111,6 +116,7 @@ type CreateInvestigationOptions = {
   organizationId?: string | null;
   workspaceId?: string | null;
   modelAlias?: string | null;
+  dataScope?: ChatDataScope;
   onProcessEvents?: (events: ProcessEvent[]) => void;
   onOutputText?: (result: MockResult) => void;
 };
@@ -208,6 +214,9 @@ export async function createInvestigation(
       })),
       input_artifact_ids: uploadedFiles.map((file) => file.artifactId),
       execution_mode: executionMode,
+      ...(resolvedOptions.dataScope?.mode === "selected"
+        ? { data_scope: serializeDataScope(resolvedOptions.dataScope) }
+        : {}),
       runtime_options: {
         engine,
         ...(resolvedOptions.modelAlias
@@ -245,6 +254,15 @@ export async function createInvestigation(
   return {
     kind: "confirmation",
     investigation: confirmationToInvestigation(outcome.confirmation, question),
+  };
+}
+
+function serializeDataScope(scope: ChatDataScope) {
+  if (scope.mode === "all") return { mode: "all" };
+  return {
+    mode: "selected",
+    resource_ids: scope.resourceIds,
+    resource_names: scope.resourceNames,
   };
 }
 
@@ -1077,6 +1095,7 @@ function messagesToChatTurns(
   const turns: ChatTurn[] = [];
   let pendingQuestion: string | null = null;
   let pendingAttachments: ChatAttachment[] = [];
+  let pendingDataScope: ChatDataScope | undefined;
   let pendingExecutionMode: ChatExecutionMode = "thinking";
   let pendingInvestigation: Investigation | null = null;
   let historyConfirmation: PendingConfirmation | null = null;
@@ -1086,6 +1105,7 @@ function messagesToChatTurns(
     if (message.role === "user") {
       pendingQuestion = userQuestionFromMessage(message) || pendingQuestion;
       pendingAttachments = attachmentsFromMessage(message);
+      pendingDataScope = dataScopeFromMessage(message);
       pendingExecutionMode = executionModeFromMessage(message);
       pendingInvestigation = null;
       historyConfirmation = null;
@@ -1100,9 +1120,10 @@ function messagesToChatTurns(
           confirmation,
           question,
         );
-        pendingInvestigation = withAttachments(
+        pendingInvestigation = withSubmissionContext(
           pendingInvestigation,
           pendingAttachments,
+          pendingDataScope,
         );
         historyConfirmation = confirmation;
       }
@@ -1123,13 +1144,15 @@ function messagesToChatTurns(
       executionMode: pendingExecutionMode,
       investigation:
         pendingExecutionMode === "instant"
-          ? withAttachments(
+          ? withSubmissionContext(
               instantEngineInvestigation(question),
               pendingAttachments,
+              pendingDataScope,
             )
-          : withAttachments(
+          : withSubmissionContext(
               pendingInvestigation || storedInvestigation(question),
               pendingAttachments,
+              pendingDataScope,
             ),
       result: hydrated.completed ? completedToResult(hydrated.completed) : null,
       error: hydrated.error,
@@ -1138,6 +1161,7 @@ function messagesToChatTurns(
     });
     pendingQuestion = null;
     pendingAttachments = [];
+    pendingDataScope = undefined;
     pendingInvestigation = null;
     historyConfirmation = null;
     pendingExecutionMode = "thinking";
@@ -1197,11 +1221,37 @@ function attachmentsFromMessage(
   });
 }
 
-function withAttachments(
+function dataScopeFromMessage(
+  message: IntelligenceMessage,
+): ChatDataScope | undefined {
+  const rawScope = asRecord(asRecord(message.content).data_scope);
+  const mode = stringValue(rawScope.mode);
+  if (mode === "all") return allChatDataScope;
+  if (mode !== "selected") return undefined;
+
+  const resourceIds = stringArrayValue(rawScope.resource_ids);
+  if (resourceIds.length === 0) return allChatDataScope;
+  const resourceNames = stringArrayValue(rawScope.resource_names);
+  return {
+    mode: "selected",
+    resourceIds,
+    resourceNames:
+      resourceNames.length === resourceIds.length ? resourceNames : resourceIds,
+  };
+}
+
+function withSubmissionContext(
   investigation: Investigation,
   attachments: ChatAttachment[],
+  dataScope?: ChatDataScope,
 ): Investigation {
-  return attachments.length ? { ...investigation, attachments } : investigation;
+  return {
+    ...investigation,
+    ...(attachments.length ? { attachments } : {}),
+    ...(dataScope
+      ? { dataScope, scope: chatDataScopeLabel(dataScope) }
+      : {}),
+  };
 }
 
 function completedResponseFromMessage(
