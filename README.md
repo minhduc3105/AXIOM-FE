@@ -68,9 +68,9 @@ Model Service code is split by responsibility:
 - `model/registryTypes.ts` owns the UI domain types.
 - `model/registryForm.ts` converts form values to the v2 contract enums.
 
-### Skill Hub
+### Skills
 
-The Skill Hub page uses the user-facing Skill Registry API through the Gateway.
+The Skills page uses the user-facing Skill Registry API through the Gateway.
 The browser calls the relative `/skill-registry` path so the existing
 authenticated `Bearer` token is forwarded and trusted user/workspace headers
 remain Gateway-owned.

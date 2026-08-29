@@ -62,7 +62,7 @@ function detailErrorCopy(
   switch (errorKind) {
     case "unauthorized":
       return {
-        title: "Skill Hub session expired",
+        title: "Skills session expired",
         description:
           "Your session could not access this skill. Sign in again or retry the request.",
       };
@@ -142,7 +142,7 @@ export function SkillDetailPage({
             </Button>
           ) : null}
           <Button variant="outline" className="ml-2 mt-5" onClick={onBack}>
-            <ArrowLeftIcon /> Back to Skill Hub
+            <ArrowLeftIcon /> Back to Skills
           </Button>
         </div>
       </section>
@@ -215,7 +215,7 @@ export function SkillDetailPage({
           className="h-9 w-fit rounded-full px-3 text-text-secondary"
           onClick={onBack}
         >
-          <ArrowLeftIcon /> Back to Skill Hub
+          <ArrowLeftIcon /> Back to Skills
         </Button>
 
         <Card className="gap-0 rounded-lg border border-line bg-card p-0 shadow-none">

@@ -193,13 +193,13 @@ vi.mock("@/features/chat/components/ChatModelReasoningSelector", () => ({
 
 vi.mock("@/features/skills/SkillsPage", () => ({
   SkillsPage: ({ workspaceId }: SkillsPageStubProps) => (
-    <div>Skill Hub catalog for {workspaceId}</div>
+    <div>Skills catalog for {workspaceId}</div>
   ),
 }));
 
 vi.mock("@/features/skills/SkillDetailPage", () => ({
   SkillDetailPage: ({ workspaceId }: SkillsPageStubProps) => (
-    <div>Skill Hub detail for {workspaceId}</div>
+    <div>Skills detail for {workspaceId}</div>
   ),
 }));
 
@@ -321,7 +321,7 @@ describe("AppExperience chat controls", () => {
   });
 });
 
-describe("AppExperience Skill Hub routing", () => {
+describe("AppExperience Skills routing", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -340,6 +340,6 @@ describe("AppExperience Skill Hub routing", () => {
       />,
     );
 
-    expect(screen.getByText("Skill Hub catalog for workspace-1")).toBeTruthy();
+    expect(screen.getByText("Skills catalog for workspace-1")).toBeTruthy();
   });
 });

@@ -224,7 +224,7 @@ function catalogErrorCopy(
   switch (errorKind) {
     case "unauthorized":
       return {
-        title: "Skill Hub session expired",
+        title: "Skills session expired",
         description:
           "Your session could not access the live skill catalog. Sign in again or retry the request.",
       };
@@ -373,7 +373,7 @@ export function SkillsPage({
   return (
     <section
       className="relative min-h-[calc(100dvh-var(--app-top-bar-height))] w-full overflow-x-hidden px-5 pb-12 pt-4 sm:px-8 md:pt-6"
-      aria-label="Skill Hub catalog"
+      aria-label="Skills catalog"
     >
       <div className="mx-auto grid w-full max-w-[1360px] gap-6">
         <Card className="gap-0 rounded-xl bg-card p-0 shadow-sm">
@@ -382,7 +382,7 @@ export function SkillsPage({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                    Skill Hub
+                    Skills
                   </h1>
                   <Badge
                     variant="outline"

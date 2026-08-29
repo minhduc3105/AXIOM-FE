@@ -63,7 +63,7 @@ function getPageContext(route: AppRoute) {
     case "skills":
       return {
         icon: SparklesIcon,
-        title: "Skill Hub",
+        title: "Skills",
       };
     case "memory":
       return {
