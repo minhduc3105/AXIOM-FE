@@ -127,10 +127,8 @@ function FileVisual({ file }: { file: DataFile }) {
   return (
     <span
       className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-md transition-colors",
-        showImage
-          ? "overflow-hidden bg-muted"
-          : "bg-white group-hover:bg-transparent",
+        "flex size-9 shrink-0 items-center justify-center transition-colors",
+        showImage ? "overflow-hidden bg-muted" : "bg-transparent",
       )}
     >
       {showImage ? (
@@ -419,7 +417,7 @@ export function DataSourceFilesTable({
                     />
                   </TableHead>
                   {(
-                  [
+                    [
                       ["name", "File", "w-[42%]"],
                       [null, "Status", "w-36"],
                       ["last_modified", "Updated", "w-44"],
@@ -467,8 +465,10 @@ export function DataSourceFilesTable({
               >
                 {files.map((file) => {
                   const actionPending = pendingFileKey === file.key;
-                  const cancelPending = actionPending && pendingAction === "cancel";
-                  const retryPending = actionPending && pendingAction === "retry";
+                  const cancelPending =
+                    actionPending && pendingAction === "cancel";
+                  const retryPending =
+                    actionPending && pendingAction === "retry";
                   const reprocessPending =
                     actionPending && pendingAction === "reprocess";
 
@@ -476,210 +476,212 @@ export function DataSourceFilesTable({
                     <TableRow
                       key={file.key}
                       data-state={
-                        selectedFileKeySet.has(file.key) ? "selected" : undefined
+                        selectedFileKeySet.has(file.key)
+                          ? "selected"
+                          : undefined
                       }
                       data-interactive={file.canInspect || undefined}
-                    tabIndex={file.canInspect ? 0 : undefined}
-                    aria-label={
-                      file.canInspect ? `Open ${file.name}` : undefined
-                    }
-                    onClick={(event) => handleRowClick(event, file)}
-                    onKeyDown={(event) => handleRowKeyDown(event, file)}
+                      tabIndex={file.canInspect ? 0 : undefined}
+                      aria-label={
+                        file.canInspect ? `Open ${file.name}` : undefined
+                      }
+                      onClick={(event) => handleRowClick(event, file)}
+                      onKeyDown={(event) => handleRowKeyDown(event, file)}
                       className={cn(
-                      "group table w-full table-fixed outline-none",
-                      selectedFileKeySet.has(file.key) && "bg-primary/5",
-                      file.canInspect &&
-                        "focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                    )}
-                  >
-                    <TableCell className="w-12 px-4 py-3">
-                      <Checkbox
-                        checked={selectedFileKeySet.has(file.key)}
-                        disabled={!file.datasetId || selectionDisabled}
-                        onCheckedChange={() => toggleFileSelection(file)}
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => event.stopPropagation()}
-                        aria-label={`Select ${file.name}`}
-                      />
-                    </TableCell>
-                    <TableCell className="w-[42%] max-w-0 px-4 py-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <FileVisual file={file} />
-                        <div className="min-w-0">
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <span className="block max-w-full truncate text-sm font-medium text-foreground" />
-                              }
-                            >
-                              {file.name}
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="top"
-                              align="start"
-                              className="max-w-sm break-all"
-                            >
-                              {file.name}
-                            </TooltipContent>
-                          </Tooltip>
-                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                            {file.type}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="w-36 px-4 py-3">
-                      <div className="grid justify-items-start gap-1">
-                        <StatusBadge status={file.status} />
-                      </div>
-                    </TableCell>
-                    <TableCell className="w-44 px-4 py-3 text-sm text-muted-foreground">
-                      {formatDate(file.lastModified)}
-                    </TableCell>
-                    <TableCell className="w-28 px-4 py-3 text-right text-sm font-medium tabular-nums">
-                      {formatFileSize(file.size)}
-                    </TableCell>
-                    <TableCell className="w-40 px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        {onCancelIndexing &&
-                          !retryPending &&
-                          !reprocessPending &&
-                          ((file.status === "processing" &&
-                            file.sourceStatus !== "cancel_requested") ||
-                            cancelPending) && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              disabled={
-                                !file.datasetId ||
-                                Boolean(bulkProgress) ||
-                                actionPending
-                              }
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onCancelIndexing(file);
-                              }}
-                              onKeyDown={(event) => event.stopPropagation()}
-                              aria-label={`Stop processing ${file.name}`}
-                              title={`Stop processing ${file.name}`}
-                              aria-busy={cancelPending}
-                            >
-                              <CircleStopIcon
-                                className={cn(
-                                  cancelPending &&
-                                    "animate-spin motion-reduce:animate-none",
-                                )}
-                              />
-                            </Button>
-                          )}
-                        {onRetryIndexing &&
-                          (file.status === "failed" || retryPending) && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              disabled={
-                                !file.datasetId ||
-                                Boolean(bulkProgress) ||
-                                actionPending
-                              }
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onRetryIndexing(file);
-                              }}
-                              onKeyDown={(event) => event.stopPropagation()}
-                              aria-label={`Retry indexing ${file.name}`}
-                              title={`Retry indexing ${file.name}`}
-                              aria-busy={retryPending}
-                            >
-                              <RefreshCwIcon
-                                className={cn(
-                                  retryPending &&
-                                    "animate-spin motion-reduce:animate-none",
-                                )}
-                              />
-                            </Button>
-                          )}
-                        {onReprocessIndexing &&
-                          (file.status === "success" || reprocessPending) && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              disabled={
-                                !file.datasetId ||
-                                Boolean(bulkProgress) ||
-                                actionPending
-                              }
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onReprocessIndexing(file);
-                              }}
-                              onKeyDown={(event) => event.stopPropagation()}
-                              aria-label={`Reprocess ${file.name}`}
-                              title={`Reprocess ${file.name}`}
-                              aria-busy={reprocessPending}
-                            >
-                              <RefreshCwIcon
-                                className={cn(
-                                  reprocessPending &&
-                                    "animate-spin motion-reduce:animate-none",
-                                )}
-                              />
-                            </Button>
-                          )}
-                        {file.sourceStatus === "cancel_requested" &&
-                          !cancelPending &&
-                          !retryPending &&
-                          !reprocessPending && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              disabled
-                              aria-label={`Stop requested for ${file.name}`}
-                              title={`Stop requested for ${file.name}`}
-                            >
-                              <CircleStopIcon />
-                            </Button>
-                          )}
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          render={<a href={file.downloadUrl} />}
-                          nativeButton={false}
+                        "group table w-full table-fixed outline-none",
+                        selectedFileKeySet.has(file.key) && "bg-primary/5",
+                        file.canInspect &&
+                          "focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                      )}
+                    >
+                      <TableCell className="w-12 px-4 py-3">
+                        <Checkbox
+                          checked={selectedFileKeySet.has(file.key)}
+                          disabled={!file.datasetId || selectionDisabled}
+                          onCheckedChange={() => toggleFileSelection(file)}
                           onClick={(event) => event.stopPropagation()}
                           onKeyDown={(event) => event.stopPropagation()}
-                          aria-label={`Download ${file.name}`}
-                          title={`Download ${file.name}`}
-                        >
-                          <DownloadIcon />
-                        </Button>
-                        {onDeleteFile && (
+                          aria-label={`Select ${file.name}`}
+                        />
+                      </TableCell>
+                      <TableCell className="w-[42%] max-w-0 px-4 py-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <FileVisual file={file} />
+                          <div className="min-w-0">
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <span className="block max-w-full truncate text-sm font-medium text-foreground" />
+                                }
+                              >
+                                {file.name}
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="top"
+                                align="start"
+                                className="max-w-sm break-all"
+                              >
+                                {file.name}
+                              </TooltipContent>
+                            </Tooltip>
+                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                              {file.type}
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="w-36 px-4 py-3">
+                        <div className="grid justify-items-start gap-1">
+                          <StatusBadge status={file.status} />
+                        </div>
+                      </TableCell>
+                      <TableCell className="w-44 px-4 py-3 text-sm text-muted-foreground">
+                        {formatDate(file.lastModified)}
+                      </TableCell>
+                      <TableCell className="w-28 px-4 py-3 text-right text-sm font-medium tabular-nums">
+                        {formatFileSize(file.size)}
+                      </TableCell>
+                      <TableCell className="w-40 px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          {onCancelIndexing &&
+                            !retryPending &&
+                            !reprocessPending &&
+                            ((file.status === "processing" &&
+                              file.sourceStatus !== "cancel_requested") ||
+                              cancelPending) && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                disabled={
+                                  !file.datasetId ||
+                                  Boolean(bulkProgress) ||
+                                  actionPending
+                                }
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onCancelIndexing(file);
+                                }}
+                                onKeyDown={(event) => event.stopPropagation()}
+                                aria-label={`Stop processing ${file.name}`}
+                                title={`Stop processing ${file.name}`}
+                                aria-busy={cancelPending}
+                              >
+                                <CircleStopIcon
+                                  className={cn(
+                                    cancelPending &&
+                                      "animate-spin motion-reduce:animate-none",
+                                  )}
+                                />
+                              </Button>
+                            )}
+                          {onRetryIndexing &&
+                            (file.status === "failed" || retryPending) && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                disabled={
+                                  !file.datasetId ||
+                                  Boolean(bulkProgress) ||
+                                  actionPending
+                                }
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onRetryIndexing(file);
+                                }}
+                                onKeyDown={(event) => event.stopPropagation()}
+                                aria-label={`Retry indexing ${file.name}`}
+                                title={`Retry indexing ${file.name}`}
+                                aria-busy={retryPending}
+                              >
+                                <RefreshCwIcon
+                                  className={cn(
+                                    retryPending &&
+                                      "animate-spin motion-reduce:animate-none",
+                                  )}
+                                />
+                              </Button>
+                            )}
+                          {onReprocessIndexing &&
+                            (file.status === "success" || reprocessPending) && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                disabled={
+                                  !file.datasetId ||
+                                  Boolean(bulkProgress) ||
+                                  actionPending
+                                }
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onReprocessIndexing(file);
+                                }}
+                                onKeyDown={(event) => event.stopPropagation()}
+                                aria-label={`Reprocess ${file.name}`}
+                                title={`Reprocess ${file.name}`}
+                                aria-busy={reprocessPending}
+                              >
+                                <RefreshCwIcon
+                                  className={cn(
+                                    reprocessPending &&
+                                      "animate-spin motion-reduce:animate-none",
+                                  )}
+                                />
+                              </Button>
+                            )}
+                          {file.sourceStatus === "cancel_requested" &&
+                            !cancelPending &&
+                            !retryPending &&
+                            !reprocessPending && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                disabled
+                                aria-label={`Stop requested for ${file.name}`}
+                                title={`Stop requested for ${file.name}`}
+                              >
+                                <CircleStopIcon />
+                              </Button>
+                            )}
                           <Button
-                            type="button"
                             variant="ghost"
                             size="icon-sm"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            disabled={
-                              !file.datasetId ||
-                              Boolean(bulkProgress) ||
-                              actionPending
-                            }
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onDeleteFile(file);
-                            }}
+                            render={<a href={file.downloadUrl} />}
+                            nativeButton={false}
+                            onClick={(event) => event.stopPropagation()}
                             onKeyDown={(event) => event.stopPropagation()}
-                            aria-label={`Delete ${file.name}`}
-                            title={`Delete ${file.name}`}
+                            aria-label={`Download ${file.name}`}
+                            title={`Download ${file.name}`}
                           >
-                            <Trash2Icon />
+                            <DownloadIcon />
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
+                          {onDeleteFile && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              disabled={
+                                !file.datasetId ||
+                                Boolean(bulkProgress) ||
+                                actionPending
+                              }
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onDeleteFile(file);
+                              }}
+                              onKeyDown={(event) => event.stopPropagation()}
+                              aria-label={`Delete ${file.name}`}
+                              title={`Delete ${file.name}`}
+                            >
+                              <Trash2Icon />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
