@@ -7,6 +7,7 @@ The current app is an interaction-rich prototype with mocked async APIs. The tar
 - Vite 8
 - React 19
 - TypeScript 7
+- Oxlint for frontend linting
 - react-pdf + PDF.js for indexed document source review
 - Vitest + Testing Library
 - Tailwind CSS 4 via `@tailwindcss/vite`
@@ -103,12 +104,15 @@ npm run preview
 
 ```bash
 npm run dev      # Start the Vite dev server
+npm run lint     # Lint TypeScript and JavaScript sources
+npm run typecheck # Type-check project references
 npm run build    # Type-check and build for production
 npm run preview  # Preview the production build
 npm run test     # Run Vitest tests
 ```
 
-When linting or formatting scripts are added, keep the README and `package.json` scripts in sync.
+Frontend CI runs `npm run lint`, `npm run typecheck`, `npm test`, and
+`npm run build`.
 
 ## Current Smoke Flows
 
