@@ -30,9 +30,11 @@ export function isPinnedConversation(conversation: ConversationSummary) {
 
 export function useWorkspaceConversations({
   expanded,
+  activeConversationId,
   onConversationDeleted,
 }: {
   expanded: boolean;
+  activeConversationId: string | null;
   onConversationDeleted?: (conversationId: string) => void;
 }) {
   const loadingConversationPagesRef = useRef(
@@ -82,7 +84,8 @@ export function useWorkspaceConversations({
         );
         setConversationsError(null);
       } catch (error: unknown) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
         setConversationsError(
           error instanceof Error
             ? error.message
@@ -113,7 +116,7 @@ export function useWorkspaceConversations({
         loadingConversationPagesRef.current.delete(1);
       }
     };
-  }, [expanded, loadConversationPage]);
+  }, [activeConversationId, expanded, loadConversationPage]);
 
   const loadNextConversationPage = useCallback(() => {
     if (
@@ -163,7 +166,9 @@ export function useWorkspaceConversations({
         return true;
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : "Unable to rename conversation.",
+          error instanceof Error
+            ? error.message
+            : "Unable to rename conversation.",
         );
         return false;
       } finally {
@@ -187,7 +192,9 @@ export function useWorkspaceConversations({
         );
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : "Unable to update conversation.",
+          error instanceof Error
+            ? error.message
+            : "Unable to update conversation.",
         );
       } finally {
         setConversationActionPending(null);
@@ -212,7 +219,9 @@ export function useWorkspaceConversations({
       toast.success("Conversation deleted.");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Unable to delete conversation.",
+        error instanceof Error
+          ? error.message
+          : "Unable to delete conversation.",
       );
     } finally {
       setConversationActionPending(null);

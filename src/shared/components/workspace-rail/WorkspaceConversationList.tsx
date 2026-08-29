@@ -82,6 +82,7 @@ export function WorkspaceConversationList({
     setDeleteTarget,
     togglePinnedConversation,
   } = useWorkspaceConversations({
+    activeConversationId,
     expanded,
     onConversationDeleted,
   });
@@ -213,7 +214,9 @@ export function WorkspaceConversationList({
                   </div>
                 ) : conversationsError && conversations.length === 0 ? (
                   <Alert variant="destructive">
-                    <AlertDescription>Unable to load recent work</AlertDescription>
+                    <AlertDescription>
+                      Unable to load recent work
+                    </AlertDescription>
                   </Alert>
                 ) : recentConversations.length === 0 ? (
                   <Alert>

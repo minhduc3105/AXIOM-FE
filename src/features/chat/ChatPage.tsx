@@ -48,6 +48,7 @@ type ChatPageProps = {
   onProcessInspectorOpen: () => void;
   onProcessInspectorClose: () => void;
   engine: ChatEngine;
+  focusComposerRequest?: number;
   onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
   onEngineChange: (engine: ChatEngine) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
@@ -79,6 +80,7 @@ export function ChatPage({
   onProcessInspectorOpen,
   onProcessInspectorClose,
   engine,
+  focusComposerRequest = 0,
   onSubmit,
   onEngineChange,
   onSpecificationChange,
@@ -95,7 +97,9 @@ export function ChatPage({
     [processEvents],
   );
   const resultScrollSignature = result?.markdown.length ?? 0;
-  function handleProcessEventSelect(...args: Parameters<ProcessStepSelectionHandler>) {
+  function handleProcessEventSelect(
+    ...args: Parameters<ProcessStepSelectionHandler>
+  ) {
     onProcessEventSelect(...args);
     onProcessInspectorOpen();
   }
@@ -130,9 +134,10 @@ export function ChatPage({
       <EmptyChatWorkspace
         engine={engine}
         loading={loading}
+        focusComposerRequest={focusComposerRequest}
         onEngineChange={onEngineChange}
         onSubmit={onSubmit}
-          onStop={onStopGeneration}
+        onStop={onStopGeneration}
       />
     );
   }
@@ -154,84 +159,86 @@ export function ChatPage({
       aria-label="Investigation workspace"
     >
       <div className="flex h-full min-h-0 min-w-0 flex-col">
+        <div
+          ref={chatMainRef}
+          className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
+        >
           <div
-            ref={chatMainRef}
-            className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
+            className={cn(
+              "mx-auto flex w-full min-w-0 flex-col gap-10 px-4 py-6 md:px-8 md:py-8",
+              evidenceOpen && stage === "result" && !processInspectorOpen
+                ? "max-w-[1480px]"
+                : "max-w-5xl",
+            )}
           >
-            <div
-              className={cn(
-                "mx-auto flex w-full min-w-0 flex-col gap-10 px-4 py-6 md:px-8 md:py-8",
-                evidenceOpen && stage === "result" && !processInspectorOpen
-                  ? "max-w-[1480px]"
-                  : "max-w-5xl",
-              )}
-            >
-              {history.map((turn, index) => (
-                <HistoryTurn
-                  key={`${turn.investigation.question}-${index}`}
-                  turn={turn}
-                  processEventKeyPrefix={`history-${index}`}
-                  activeProcessEventKey={activeProcessEventKey}
-                  onProcessEventSelect={handleProcessEventSelect}
-                />
-              ))}
+            {history.map((turn, index) => (
+              <HistoryTurn
+                key={`${turn.investigation.question}-${index}`}
+                turn={turn}
+                processEventKeyPrefix={`history-${index}`}
+                activeProcessEventKey={activeProcessEventKey}
+                onProcessEventSelect={handleProcessEventSelect}
+              />
+            ))}
 
-              <section className="flex min-w-0 flex-col gap-6">
-                <UserMessage
-                  attachments={investigation.attachments}
-                  question={investigation.question}
-                />
+            <section className="flex min-w-0 flex-col gap-6">
+              <UserMessage
+                attachments={investigation.attachments}
+                question={investigation.question}
+              />
 
-                <ReviewCard
-                  stage={stage}
-                  investigation={investigation}
-                  draft={draft}
-                  events={processEvents}
-                  activeProcessEventKey={activeProcessEventKey}
-                  processEventKeyPrefix="current"
-                  error={error}
-                  loading={loading}
-                  result={result}
-                  responseComplete={stage === "result" && !loading}
-                  canRetry={canRetry}
-                  onProcessEventSelect={handleProcessEventSelect}
-                  onSpecificationChange={onSpecificationChange}
-                  onSpecificationRevise={onSpecificationRevise}
-                  onReset={onResetSpecification}
-                  onRun={onApproveAndRun}
-                  onRetry={onRetryProcess}
-                />
-                {stage === "result" && result && evidenceOpen && !processInspectorOpen && (
+              <ReviewCard
+                stage={stage}
+                investigation={investigation}
+                draft={draft}
+                events={processEvents}
+                activeProcessEventKey={activeProcessEventKey}
+                processEventKeyPrefix="current"
+                error={error}
+                loading={loading}
+                result={result}
+                responseComplete={stage === "result" && !loading}
+                canRetry={canRetry}
+                onProcessEventSelect={handleProcessEventSelect}
+                onSpecificationChange={onSpecificationChange}
+                onSpecificationRevise={onSpecificationRevise}
+                onReset={onResetSpecification}
+                onRun={onApproveAndRun}
+                onRetry={onRetryProcess}
+              />
+              {stage === "result" &&
+                result &&
+                evidenceOpen &&
+                !processInspectorOpen && (
                   <EvidencePanel result={result} onClose={onCloseEvidence} />
                 )}
-
-              </section>
-            </div>
+            </section>
           </div>
+        </div>
 
-          <div
-            className="shrink-0 bg-background/95 px-4 py-3 md:px-8"
-            data-chat-composer-dock
-          >
-            <div className="mx-auto w-full max-w-5xl">
-              <ChatComposer
-                className="w-full"
-                engine={engine}
-                sendDisabled={loading}
-                autoFocus={loading}
-                onEngineChange={onEngineChange}
-                onSubmit={onSubmit}
-                onStop={onStopGeneration}
-                placeholder={
-                  loading
-                    ? "AXIOM is working..."
-                    : stage === "result"
-                      ? "Ask a follow-up or start another investigation..."
-                      : "Message AXIOM..."
-                }
-              />
-            </div>
+        <div
+          className="shrink-0 bg-background/95 px-4 py-3 md:px-8"
+          data-chat-composer-dock
+        >
+          <div className="mx-auto w-full max-w-5xl">
+            <ChatComposer
+              className="w-full"
+              engine={engine}
+              sendDisabled={loading}
+              autoFocus={loading}
+              onEngineChange={onEngineChange}
+              onSubmit={onSubmit}
+              onStop={onStopGeneration}
+              placeholder={
+                loading
+                  ? "AXIOM is working..."
+                  : stage === "result"
+                    ? "Ask a follow-up or start another investigation..."
+                    : "Message AXIOM..."
+              }
+            />
           </div>
+        </div>
       </div>
       {processInspectorOpen && !desktopInspector && (
         <Sheet open onOpenChange={(open) => !open && onProcessInspectorClose()}>
@@ -303,12 +310,14 @@ function EmptyChatWorkspace({
   onSubmit,
   onEngineChange,
   loading,
+  focusComposerRequest,
   onStop,
 }: {
   engine: ChatEngine;
   onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
   onEngineChange: (engine: ChatEngine) => void;
   loading: boolean;
+  focusComposerRequest: number;
   onStop?: () => void;
 }) {
   return (
@@ -328,9 +337,10 @@ function EmptyChatWorkspace({
         </div>
         <ChatComposer
           engine={engine}
-        onSubmit={onSubmit}
-        onEngineChange={onEngineChange}
-        onStop={onStop}
+          focusRequest={focusComposerRequest}
+          onSubmit={onSubmit}
+          onEngineChange={onEngineChange}
+          onStop={onStop}
           disabled={loading}
           placeholder="Message AXIOM..."
         />

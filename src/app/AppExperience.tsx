@@ -110,6 +110,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const [selectedModelAlias, setSelectedModelAlias] = useState<string | null>(
     null,
   );
+  const [focusComposerRequest, setFocusComposerRequest] = useState(0);
   const [toolsViewState, setToolsViewState] = useState<ToolCatalogViewState>(
     defaultToolCatalogViewState,
   );
@@ -215,6 +216,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
 
   const newChat = useCallback(() => {
     setProcessInspectorOpen(false);
+    setFocusComposerRequest((current) => current + 1);
     chat.newChat();
     navigate(createChatRoute());
   }, [chat.newChat, navigate]);
@@ -482,6 +484,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
             onProcessInspectorOpen={() => setProcessInspectorOpen(true)}
             onProcessInspectorClose={() => setProcessInspectorOpen(false)}
             engine={chatEngine}
+            focusComposerRequest={focusComposerRequest}
             onSubmit={submitQuestion}
             onEngineChange={changeChatEngine}
             onSpecificationChange={chat.updateSpecification}

@@ -277,8 +277,8 @@ export async function uploadFiles(
     throw new Error("Choose at least one file before uploading.");
 
   const formData = new FormData();
-  files.forEach((file) => formData.append("files", file));
   formData.append("workspace_id", workspaceId);
+  files.forEach((file) => formData.append("files", file));
 
   const response = await authFetch(
     `/api/document/organizations/${encodeURIComponent(normalizedOrganizationId)}/files`,

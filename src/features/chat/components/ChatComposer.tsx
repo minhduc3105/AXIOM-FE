@@ -45,6 +45,7 @@ export function ChatComposer({
   sendDisabled = disabled,
   className,
   autoFocus = false,
+  focusRequest = 0,
   onStop,
 }: {
   onSubmit: (message: string, engine: ChatEngine, files: File[]) => void;
@@ -55,6 +56,7 @@ export function ChatComposer({
   sendDisabled?: boolean;
   className?: string;
   autoFocus?: boolean;
+  focusRequest?: number;
   onStop?: () => void;
 }) {
   const [value, setValue] = useState("");
@@ -65,8 +67,10 @@ export function ChatComposer({
   const selectedEngineLabel =
     engineOptions.find((option) => option.value === engine)?.label || "Auto";
   useEffect(() => {
-    if (autoFocus) textareaRef.current?.focus();
-  }, [autoFocus]);
+    if (!autoFocus && focusRequest === 0) return;
+    const frame = requestAnimationFrame(() => textareaRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [autoFocus, focusRequest]);
   const focusComposer = () => {
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
