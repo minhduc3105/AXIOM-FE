@@ -1,6 +1,4 @@
 import {
-  lazy,
-  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -9,7 +7,6 @@ import {
   useState,
 } from "react";
 import {
-  AlertCircleIcon,
   ArrowLeftIcon,
   BracesIcon,
   ChevronDownIcon,
@@ -21,7 +18,6 @@ import {
   PanelRightOpenIcon,
   PencilIcon,
   CheckIcon,
-  RefreshCwIcon,
   Rows3Icon,
 } from "lucide-react";
 import { useGroupRef, usePanelRef } from "react-resizable-panels";
@@ -63,13 +59,9 @@ import type {
   ParsedDocumentResult,
   ProcessingFile,
 } from "@/shared/types/document-results";
-import { getSourcePreviewKind } from "@/shared/types/document-results";
 import { RenderedBlockContent } from "./RenderedBlockContent";
-import { SourceBlockOverlay } from "./SourceBlockOverlay";
-import { SourceViewerToolbar } from "./SourceViewerToolbar";
-
-const PdfSourceViewer = lazy(() => import("./PdfSourceViewer"));
-const SpreadsheetSourceViewer = lazy(() => import("./SpreadsheetSourceViewer"));
+import { ParsedContentPane } from "./ParsedContentPane";
+import { ResourceError, SourcePreviewPane } from "./SourcePreviewPane";
 
 const EMPTY_BLOCKS: LayoutBlock[] = [];
 const DESKTOP_VIEWER_WIDTH = 960;
@@ -171,7 +163,7 @@ export function DocumentResultViewer({
   const [pageIndex, setPageIndex] = useState(0);
   const [showBoxes, setShowBoxes] = useState(true);
   const [zoom, setZoom] = useState(1);
-  const [compactPane, setCompactPane] = useState("source");
+  const [compactPane, setCompactPane] = useState("parsed");
   const [parsedMode, setParsedMode] = useState("rendered");
   const [pageFilter, setPageFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -214,7 +206,7 @@ export function DocumentResultViewer({
     setPageIndex(0);
     setShowBoxes(true);
     setZoom(1);
-    setCompactPane("source");
+    setCompactPane("parsed");
     setParsedMode("rendered");
     setPageFilter("all");
     setTypeFilter("all");
@@ -224,7 +216,7 @@ export function DocumentResultViewer({
     const frame = window.requestAnimationFrame(() => {
       sourcePanelRef.current?.expand();
       parsedPanelRef.current?.expand();
-      groupRef.current?.setLayout({ source: 52, parsed: 48 });
+      groupRef.current?.setLayout({ parsed: 44, source: 56 });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [file?.key, groupRef, parsedPanelRef, sourcePanelRef]);
@@ -308,7 +300,8 @@ export function DocumentResultViewer({
   const activateFromCard = useCallback((block: LayoutBlock) => {
     setActiveComponentId(block.component_id);
     if (block.page !== null) setPageIndex(block.page);
-  }, []);
+    if (!wide) setCompactPane("source");
+  }, [wide]);
 
   const collapseSource = () => {
     parsedPanelRef.current?.expand();
@@ -342,22 +335,22 @@ export function DocumentResultViewer({
 
   const sourcePane = (
     <InspectorPane
-      title="File preview"
+      title="Source preview"
       description="Original file"
       onCollapse={wide ? collapseSource : undefined}
       collapseLabel="Hide source preview"
-      collapseIcon={<PanelLeftCloseIcon />}
+      collapseIcon={<PanelRightCloseIcon />}
       restoreAction={
         parsedCollapsed
           ? {
               label: "Show parsed content",
-              icon: <PanelRightOpenIcon />,
+              icon: <PanelLeftOpenIcon />,
               onClick: () => parsedPanelRef.current?.expand(),
             }
           : undefined
       }
     >
-      <SourcePane
+      <SourcePreviewPane
         file={file}
         preview={preview}
         blocks={blocks}
@@ -380,18 +373,18 @@ export function DocumentResultViewer({
       description="Rendered blocks and normalized JSON"
       onCollapse={wide ? collapseParsed : undefined}
       collapseLabel="Hide parsed content"
-      collapseIcon={<PanelRightCloseIcon />}
+      collapseIcon={<PanelLeftCloseIcon />}
       restoreAction={
         sourceCollapsed
           ? {
               label: "Show source preview",
-              icon: <PanelLeftOpenIcon />,
+              icon: <PanelRightOpenIcon />,
               onClick: () => sourcePanelRef.current?.expand(),
             }
           : undefined
       }
     >
-      <ParsedPane
+      <ParsedContentPane
         parsing={parsing}
         blocks={blocks}
         filteredBlocks={filteredBlocks}
@@ -433,25 +426,9 @@ export function DocumentResultViewer({
             className="min-h-0 min-w-0"
           >
             <ResizablePanel
-              id="source"
-              panelRef={sourcePanelRef}
-              defaultSize="52%"
-              minSize="35%"
-              maxSize="65%"
-              collapsible
-              collapsedSize={0}
-              onResize={(size) => setSourceCollapsed(size.inPixels <= 1)}
-            >
-              {sourcePane}
-            </ResizablePanel>
-            <ResizableHandle
-              withHandle
-              aria-label="Resize source and parsed content panels"
-            />
-            <ResizablePanel
               id="parsed"
               panelRef={parsedPanelRef}
-              defaultSize="48%"
+              defaultSize="44%"
               minSize="35%"
               maxSize="65%"
               collapsible
@@ -459,6 +436,22 @@ export function DocumentResultViewer({
               onResize={(size) => setParsedCollapsed(size.inPixels <= 1)}
             >
               {parsedPane}
+            </ResizablePanel>
+            <ResizableHandle
+              withHandle
+              aria-label="Resize parsed content and source preview panels"
+            />
+            <ResizablePanel
+              id="source"
+              panelRef={sourcePanelRef}
+              defaultSize="56%"
+              minSize="35%"
+              maxSize="65%"
+              collapsible
+              collapsedSize={0}
+              onResize={(size) => setSourceCollapsed(size.inPixels <= 1)}
+            >
+              {sourcePane}
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
@@ -472,23 +465,23 @@ export function DocumentResultViewer({
                 className="w-full"
                 aria-label="Document comparison views"
               >
-                <TabsTrigger value="source">Source</TabsTrigger>
                 <TabsTrigger value="parsed">Parsed content</TabsTrigger>
+                <TabsTrigger value="source">Source preview</TabsTrigger>
               </TabsList>
             </div>
-            <TabsContent
-              value="source"
-              keepMounted
-              className="m-0 min-h-0 overflow-hidden"
-            >
-              {sourcePane}
-            </TabsContent>
             <TabsContent
               value="parsed"
               keepMounted
               className="m-0 min-h-0 overflow-hidden"
             >
               {parsedPane}
+            </TabsContent>
+            <TabsContent
+              value="source"
+              keepMounted
+              className="m-0 min-h-0 overflow-hidden"
+            >
+              {sourcePane}
             </TabsContent>
           </Tabs>
         )}
@@ -516,7 +509,7 @@ function InspectorHeader({
   const statusTone = context?.statusTone ?? "neutral";
 
   return (
-    <header className="sticky top-0 z-20 flex min-h-16 shrink-0 items-center gap-3 border-b bg-card px-3 py-2 sm:px-4">
+    <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-3 border-b bg-card px-3 sm:px-4">
       {context?.onBack && (
         <Button
           variant="ghost"
@@ -529,10 +522,28 @@ function InspectorHeader({
         </Button>
       )}
       <div className="min-w-0 flex-1">
-        <h2 className="truncate text-sm font-semibold">
+        <h2 className="truncate text-sm font-semibold" title={getDisplayName(file)}>
           {getDisplayName(file)}
         </h2>
       </div>
+      {context?.sourceLabel ? (
+        <Badge variant="secondary" className="max-sm:hidden">
+          {context.sourceLabel}
+        </Badge>
+      ) : null}
+      <Badge
+        variant={statusTone === "failed" ? "destructive" : "outline"}
+        className={
+          statusTone === "success"
+            ? "border-status-success/30 bg-status-success/10 text-status-success"
+            : statusTone === "processing"
+              ? "border-info/30 bg-info/10 text-info"
+              : undefined
+        }
+      >
+        {context?.statusLabel ?? "Status unavailable"}
+      </Badge>
+      <span className="shrink-0 text-xs text-muted-foreground">{blockLabel}</span>
     </header>
   );
 }
@@ -556,215 +567,40 @@ function InspectorPane({
 }) {
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-medium">{title}</h3>
+          <p className="truncate text-xs text-muted-foreground">{description}</p>
+        </div>
+        {restoreAction ? (
+          <Button
+            aria-label={restoreAction.label}
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            title={restoreAction.label}
+            onClick={restoreAction.onClick}
+          >
+            {restoreAction.icon}
+          </Button>
+        ) : null}
+        {onCollapse ? (
+          <Button
+            aria-label={collapseLabel}
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            title={collapseLabel}
+            onClick={onCollapse}
+          >
+            {collapseIcon}
+          </Button>
+        ) : null}
+      </header>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {children}
       </div>
     </section>
-  );
-}
-
-type SourcePaneProps = {
-  file: ProcessingFile;
-  preview: InspectorResource<InlinePreview>;
-  blocks: LayoutBlock[];
-  activeComponentId: string | null;
-  pageIndex: number;
-  showBoxes: boolean;
-  zoom: number;
-  onActivate: (componentId: string) => void;
-  onPageIndexChange: (pageIndex: number) => void;
-  onShowBoxesChange: (visible: boolean) => void;
-  onZoomChange: (zoom: number) => void;
-  onRetry: () => void;
-};
-
-function SourcePane(props: SourcePaneProps) {
-  const kind = getSourcePreviewKind(props.file);
-  const expired = Boolean(
-    props.preview.data && props.preview.data.expiresAt <= Date.now(),
-  );
-
-  if (kind === "unsupported") {
-    return (
-      <div className="grid min-h-0 flex-1 place-items-center p-6">
-        <Alert className="max-w-md">
-          <FileSearchIcon />
-          <AlertTitle>Unsupported preview format</AlertTitle>
-          <AlertDescription>
-            Browser preview is available for PDF, PNG, JPEG, and XLSX files.
-            Parsed content remains available.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  if (props.preview.status === "loading" && !props.preview.data) {
-    return <SourceLoadingState label="Preparing source preview…" />;
-  }
-
-  if (expired || (props.preview.status === "error" && !props.preview.data)) {
-    return (
-      <ResourceError
-        title={expired ? "Preview link expired" : "Preview failed"}
-        message={
-          expired
-            ? "The secure preview link expired. Request a fresh link to continue."
-            : (props.preview.error ?? "Unable to load the source preview.")
-        }
-        onRetry={props.onRetry}
-      />
-    );
-  }
-
-  if (!props.preview.data) return null;
-
-  if (kind === "pdf") {
-    return (
-      <Suspense fallback={<SourceLoadingState label="Loading PDF viewer…" />}>
-        <PdfSourceViewer
-          url={props.preview.data.url}
-          fileName={getDisplayName(props.file)}
-          blocks={props.blocks}
-          activeComponentId={props.activeComponentId}
-          pageIndex={props.pageIndex}
-          showBoxes={props.showBoxes}
-          zoom={props.zoom}
-          onActivate={props.onActivate}
-          onPageIndexChange={props.onPageIndexChange}
-          onShowBoxesChange={props.onShowBoxesChange}
-          onZoomChange={props.onZoomChange}
-          onRetry={props.onRetry}
-        />
-      </Suspense>
-    );
-  }
-
-  if (kind === "xlsx") {
-    return (
-      <Suspense
-        fallback={<SourceLoadingState label="Loading spreadsheet viewer…" />}
-      >
-        <SpreadsheetSourceViewer
-          url={props.preview.data.url}
-          fileName={getDisplayName(props.file)}
-          onRetry={props.onRetry}
-        />
-      </Suspense>
-    );
-  }
-
-  return (
-    <ImageSourceViewer
-      url={props.preview.data.url}
-      fileName={getDisplayName(props.file)}
-      blocks={props.blocks}
-      activeComponentId={props.activeComponentId}
-      showBoxes={props.showBoxes}
-      zoom={props.zoom}
-      onActivate={props.onActivate}
-      onShowBoxesChange={props.onShowBoxesChange}
-      onZoomChange={props.onZoomChange}
-      onRetry={props.onRetry}
-    />
-  );
-}
-
-function ImageSourceViewer({
-  url,
-  fileName,
-  blocks,
-  activeComponentId,
-  showBoxes,
-  zoom,
-  onActivate,
-  onShowBoxesChange,
-  onZoomChange,
-  onRetry,
-}: {
-  url: string;
-  fileName: string;
-  blocks: LayoutBlock[];
-  activeComponentId: string | null;
-  showBoxes: boolean;
-  zoom: number;
-  onActivate: (componentId: string) => void;
-  onShowBoxesChange: (visible: boolean) => void;
-  onZoomChange: (zoom: number) => void;
-  onRetry: () => void;
-}) {
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const [imageError, setImageError] = useState(false);
-
-  useEffect(() => setImageError(false), [url]);
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport || !activeComponentId) return;
-    const target = Array.from(
-      viewport.querySelectorAll<HTMLElement>("[data-block-id]"),
-    ).find((element) => element.dataset.blockId === activeComponentId);
-    if (!target) return;
-    scrollElementWithin(viewport, target, reducedMotion() ? "auto" : "smooth");
-  }, [activeComponentId, zoom]);
-
-  if (imageError) {
-    return (
-      <ResourceError
-        title="Image preview failed"
-        message="The signed image preview could not be rendered."
-        onRetry={onRetry}
-      />
-    );
-  }
-
-  return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-muted/30">
-      <SourceViewerToolbar
-        positionLabel="1 / 1"
-        previousDisabled
-        nextDisabled
-        onPrevious={() => undefined}
-        onNext={() => undefined}
-        zoom={zoom}
-        zoomOutDisabled={zoom <= 0.65}
-        zoomInDisabled={zoom >= 1.75}
-        onZoomOut={() =>
-          onZoomChange(Math.max(0.65, Number((zoom - 0.15).toFixed(2))))
-        }
-        onZoomIn={() =>
-          onZoomChange(Math.min(1.75, Number((zoom + 0.15).toFixed(2))))
-        }
-        onFitWidth={() => onZoomChange(1)}
-        onResetZoom={() => onZoomChange(1)}
-        showBoxes={showBoxes}
-        onShowBoxesChange={onShowBoxesChange}
-      />
-      <ScrollArea className="min-h-0 flex-1">
-        <div ref={viewportRef} className="min-w-0 p-4">
-          <div
-            className="relative mx-auto w-fit max-w-none overflow-hidden border bg-background shadow-sm"
-            style={{
-              width: `${zoom * 100}%`,
-              minWidth: zoom > 1 ? "100%" : undefined,
-            }}
-          >
-            <img
-              className="block h-auto w-full"
-              src={url}
-              alt={`Source preview for ${fileName}`}
-              onError={() => setImageError(true)}
-            />
-            <SourceBlockOverlay
-              blocks={blocks.filter((block) => block.page === 0)}
-              allBlocks={blocks}
-              activeComponentId={activeComponentId}
-              visible={showBoxes}
-              onActivate={onActivate}
-            />
-          </div>
-        </div>
-      </ScrollArea>
-    </div>
   );
 }
 
@@ -792,7 +628,7 @@ type ParsedPaneProps = {
   onRetry: () => void;
 };
 
-function ParsedPane({
+export function ParsedPane({
   parsing,
   blocks,
   filteredBlocks,
@@ -1167,45 +1003,4 @@ async function copyJson(value: string) {
       error instanceof Error ? error.message : "Unable to copy parsed JSON.",
     );
   }
-}
-
-function SourceLoadingState({ label }: { label: string }) {
-  return (
-    <div className="grid min-h-0 flex-1 place-items-center p-6">
-      <div className="flex w-full max-w-md flex-col gap-3">
-        <Skeleton className="h-10" />
-        <Skeleton className="h-80" />
-        <p className="text-center text-xs text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-function ResourceError({
-  title,
-  message,
-  onRetry,
-}: {
-  title: string;
-  message: string;
-  onRetry: () => void;
-}) {
-  return (
-    <div className="grid min-h-0 flex-1 place-items-center p-6">
-      <Alert variant="destructive" className="max-w-sm">
-        <AlertCircleIcon />
-        <AlertTitle>{title}</AlertTitle>
-        <AlertDescription>{message}</AlertDescription>
-        <Button
-          className="mt-3"
-          variant="outline"
-          type="button"
-          onClick={onRetry}
-        >
-          <RefreshCwIcon data-icon="inline-start" />
-          Retry
-        </Button>
-      </Alert>
-    </div>
-  );
 }

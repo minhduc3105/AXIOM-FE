@@ -30,7 +30,7 @@ export function IngestionResultDialog({
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[min(96rem,calc(100vw-2rem))] max-w-[96rem] overflow-y-auto p-5 sm:p-6">
+      <DialogContent className="grid h-[min(52rem,calc(100dvh-2rem))] w-[min(96rem,calc(100vw-2rem))] max-w-[96rem] grid-rows-[auto_minmax(0,1fr)] overflow-hidden p-5 sm:p-6">
         <DialogHeader>
           <DialogTitle>Parsed document result</DialogTitle>
           <DialogDescription>
@@ -74,7 +74,7 @@ function ResultContent({
   }, [initialKey, inspector]);
 
   return (
-    <div className="grid min-h-0 gap-4 xl:grid-cols-[18.75rem_minmax(0,1.12fr)_minmax(22.5rem,0.88fr)]">
+    <div className="grid min-h-0 gap-4 xl:grid-cols-[18.75rem_minmax(0,1fr)]">
       <section className="flex min-h-[16rem] min-w-0 flex-col rounded-lg border">
         <div className="border-b px-4 py-3">
           <p className="font-medium">Indexed objects</p>

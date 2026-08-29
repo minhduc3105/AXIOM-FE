@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 import {
+  type BlockOverlayDiagnostic,
   getBlockOverlayStyle,
   type LayoutBlock,
 } from "@/shared/types/document-results";
@@ -11,6 +12,7 @@ type SourceBlockOverlayProps = {
   allBlocks: LayoutBlock[];
   activeComponentId: string | null;
   visible: boolean;
+  coordinateDiagnostics?: Record<string, BlockOverlayDiagnostic>;
   onActivate: (componentId: string) => void;
 };
 
@@ -19,6 +21,7 @@ export function SourceBlockOverlay({
   allBlocks,
   activeComponentId,
   visible,
+  coordinateDiagnostics,
   onActivate,
 }: SourceBlockOverlayProps) {
   if (!visible) return null;
@@ -36,6 +39,9 @@ export function SourceBlockOverlay({
             (item) => item.component_id === block.component_id,
           ) + 1;
         const active = activeComponentId === block.component_id;
+        const diagnostic =
+          coordinateDiagnostics?.[block.component_id] ?? "valid";
+        const needsCoordinateReview = diagnostic !== "valid";
         return (
           <Button
             variant="ghost"
@@ -43,13 +49,20 @@ export function SourceBlockOverlay({
               "pointer-events-auto absolute h-auto min-h-2 min-w-2 rounded-none border-2 border-primary/70 bg-primary/10 p-0 text-left transition hover:bg-primary/20 focus-visible:ring-2 focus-visible:ring-ring",
               active &&
                 "border-primary bg-primary/25 ring-2 ring-background ring-offset-1 ring-offset-primary",
+              needsCoordinateReview && "border-dashed",
             )}
             key={block.component_id}
             style={style}
             type="button"
             data-block-id={block.component_id}
+            data-coordinate-state={diagnostic}
             aria-pressed={active}
-            aria-label={`Select parsed block ${index}: ${block.type}`}
+            aria-label={`Select parsed block ${index}: ${block.type}${needsCoordinateReview ? ". Coordinate data needs review." : ""}`}
+            title={
+              needsCoordinateReview
+                ? `Coordinate diagnostic: ${diagnostic}`
+                : undefined
+            }
             onClick={() => onActivate(block.component_id)}
           >
             <Badge
