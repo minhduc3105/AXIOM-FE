@@ -1,4 +1,10 @@
-import { useMemo, useState, type ChangeEvent, type DragEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+} from "react";
 import { FileTextIcon, Trash2Icon, UploadCloudIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +49,13 @@ function toIngestionFiles(files: FileList | File[]) {
   return { accepted, rejected };
 }
 
-export function UploadIngestionStep() {
+type UploadIngestionStepProps = {
+  onHasFilesChange?: (hasFiles: boolean) => void;
+};
+
+export function UploadIngestionStep({
+  onHasFilesChange,
+}: UploadIngestionStepProps) {
   const { startUpload } = useGlobalIngestion();
   const [files, setFiles] = useState<IngestionFile[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
@@ -51,6 +63,10 @@ export function UploadIngestionStep() {
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const selectedFile =
     files.find((file) => file.id === selectedFileId) ?? files[0] ?? null;
+  const hasFiles = files.length > 0;
+  useEffect(() => {
+    onHasFilesChange?.(hasFiles);
+  }, [hasFiles, onHasFilesChange]);
   const totalSize = useMemo(
     () =>
       formatFileSize(files.reduce((total, file) => total + file.file.size, 0)),
@@ -87,16 +103,26 @@ export function UploadIngestionStep() {
 
   return (
     <div
-      className="grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-0"
+      className={cn(
+        "min-w-0",
+        hasFiles
+          ? "grid h-full min-h-[30rem] grid-cols-1 gap-0 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)_auto]"
+          : "flex justify-center",
+      )}
+      data-upload-state={hasFiles ? "ready" : "empty"}
       data-testid="upload-ingestion-layout"
     >
-      <div className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-0 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-1">
-      <section className="flex min-h-0 min-w-0 flex-col gap-4 pb-6 lg:pr-6 lg:pb-0">
+      <section
+        className={cn(
+          "flex h-full min-h-0 min-w-0 flex-col gap-4",
+          hasFiles ? "pb-6 lg:pr-2 lg:pb-0 lg:pb-4" : "w-full",
+        )}
+      >
         <Field>
           <FieldLabel
             htmlFor="ingestion-upload-files"
             className={cn(
-              "flex min-h-32 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/20 p-5 text-center transition-colors",
+              "flex min-h-40 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed bg-muted/20 p-6 text-center transition-colors",
               dragging && "border-primary bg-primary/10",
             )}
             onDragOver={(event) => {
@@ -106,7 +132,10 @@ export function UploadIngestionStep() {
             onDragLeave={() => setDragging(false)}
             onDrop={dropFiles}
           >
-            <UploadCloudIcon aria-hidden="true" />
+            <UploadCloudIcon
+              className="size-6 text-primary"
+              aria-hidden="true"
+            />
             <span className="font-medium">Drop files here</span>
             <span className="text-sm text-muted-foreground">
               or choose files from your computer
@@ -133,78 +162,74 @@ export function UploadIngestionStep() {
           </Alert>
         ) : null}
 
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <p className="text-sm font-medium">Upload queue</p>
-          <Badge variant="secondary">
-            {files.length} files · {totalSize}
-          </Badge>
-        </div>
-        <ScrollArea className="min-h-28 flex-1 rounded-xl border bg-card">
-          <div className="flex flex-col ">
-            {files.length ? (
-              files.map((file) => {
-                const selected = file.id === selectedFile?.id;
-                return (
-                  <div className="flex items-center gap-2 px-2" key={file.id}>
-                    <Button
-                      className="min-w-0 flex-1 justify-start"
-                      variant={selected ? "secondary" : "ghost"}
-                      type="button"
-                      onClick={() => setSelectedFileId(file.id)}
-                    >
-                      <FileTextIcon data-icon="inline-start" />
-                      <span className="truncate">{file.name}</span>
-                    </Button>
-                    <Button
-                      aria-label={`Remove ${file.name}`}
-                      size="icon-sm"
-                      type="button"
-                      variant="ghost"
-                      onClick={() => removeFile(file.id)}
-                    >
-                      <Trash2Icon />
-                    </Button>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="p-4 text-sm text-muted-foreground">
-                Add one or more files to begin.
+        {hasFiles && (
+          <>
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <p className="text-sm font-medium">Upload queue</p>
+              <Badge variant="secondary">
+                {files.length} files · {totalSize}
+              </Badge>
+            </div>
+            <ScrollArea className="min-h-0 flex-1 rounded-xl border bg-card">
+              <div className="flex flex-col py-2">
+                {files.map((file) => {
+                  const selected = file.id === selectedFile?.id;
+                  return (
+                    <div className="flex items-center gap-2 px-2" key={file.id}>
+                      <Button
+                        className="min-w-0 flex-1 justify-start"
+                        variant={selected ? "secondary" : "ghost"}
+                        type="button"
+                        onClick={() => setSelectedFileId(file.id)}
+                      >
+                        <FileTextIcon data-icon="inline-start" />
+                        <span className="truncate">{file.name}</span>
+                      </Button>
+                      <Button
+                        aria-label={`Remove ${file.name}`}
+                        size="icon-sm"
+                        type="button"
+                        variant="ghost"
+                        onClick={() => removeFile(file.id)}
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          </>
+        )}
+      </section>
+
+      {hasFiles && (
+        <section className="flex h-full min-h-0 min-w-0 flex-col gap-3 pt-6 lg:pl-2 lg:pt-0 lg:pb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">File preview</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Review the selected file before it enters processing.
               </p>
-            )}
+            </div>
           </div>
-        </ScrollArea>
-      </section>
-
-      <section className="flex min-h-0 min-w-0 flex-col gap-3 pt-6 lg:pl-7 lg:pt-0">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium">File preview</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Review the selected file before it enters processing.
-            </p>
+          <div className="h-full min-h-0 flex-1 overflow-auto">
+            <UploadFilePreview file={selectedFile} />
           </div>
-          {selectedFile ? (
-            <Badge variant="outline">{selectedFile.extension}</Badge>
-          ) : null}
-        </div>
-        <div className="min-h-0 flex-1">
-          <UploadFilePreview file={selectedFile} />
-        </div>
-      </section>
+        </section>
+      )}
 
-      </div>
-
-      <div className="flex shrink-0 justify-end bg-popover pt-5">
-        <Button
-          size="lg"
-          type="button"
-          disabled={!files.length}
-          onClick={() => void startUpload(files)}
-        >
-          Start ingestion
-        </Button>
-      </div>
+      {hasFiles && (
+        <div className="flex justify-end bg-popover lg:col-span-2">
+          <Button
+            size="lg"
+            type="button"
+            onClick={() => void startUpload(files)}
+          >
+            Start ingestion
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

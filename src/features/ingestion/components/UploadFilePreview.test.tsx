@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import { UploadFilePreview } from "./UploadFilePreview";
 
 vi.mock("@/shared/lib/docx-preview", () => ({
@@ -7,6 +7,7 @@ vi.mock("@/shared/lib/docx-preview", () => ({
     '<h1>Quarterly review</h1><p>Summary content</p><img src="x" onerror="window.injected = true"><script>window.injected = true</script>',
   ),
 }));
+afterEach(cleanup);
 
 describe("UploadFilePreview", () => {
   it("renders parsed CSV content for the selected upload", async () => {
@@ -26,11 +27,36 @@ describe("UploadFilePreview", () => {
       />,
     );
 
+    expect(await screen.findByText("name")).toBeTruthy();
+    expect(await screen.findByText("city")).toBeTruthy();
+    expect(await screen.findByText("Minh")).toBeTruthy();
     expect(
-      await screen.findByText(
+      screen.queryByText(
         "CSV preview generated from the selected upload file.",
       ),
-    ).toBeTruthy();
+    ).toBeNull();
+    expect(screen.queryByText("Type: CSV")).toBeNull();
+  });
+
+  it("unwraps CSV rows that are quoted as complete lines", async () => {
+    const file = new File(['"name,city"\n"Minh,Da Nang"'], "wrapped.csv", {
+      type: "text/csv",
+    });
+
+    render(
+      <UploadFilePreview
+        file={{
+          id: "wrapped",
+          file,
+          name: file.name,
+          extension: "CSV",
+          sizeLabel: "25 B",
+        }}
+      />,
+    );
+
+    expect(await screen.findByText("name")).toBeTruthy();
+    expect(await screen.findByText("city")).toBeTruthy();
     expect(await screen.findByText("Minh")).toBeTruthy();
   });
 

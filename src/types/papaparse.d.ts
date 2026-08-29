@@ -5,7 +5,10 @@ declare module "papaparse" {
   };
 
   const Papa: {
-    parse(input: string, options?: { skipEmptyLines?: boolean }): ParseResult;
+    parse(
+      input: string,
+      options?: { delimiter?: string; skipEmptyLines?: boolean },
+    ): ParseResult;
   };
 
   export default Papa;

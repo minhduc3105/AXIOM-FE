@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import { convertDocxToHtml } from "@/shared/lib/docx-preview";
+import * as XLSX from "xlsx";
 import type { IngestionFile } from "./types";
 import {
   getUploadFileDefinition,
@@ -29,9 +30,7 @@ export const emptyDataPreview: DataPreviewState = {
   metrics: [],
 };
 
-type DataPreviewBuilder = (
-  file: IngestionFile,
-) => Promise<DataPreviewState>;
+type DataPreviewBuilder = (file: IngestionFile) => Promise<DataPreviewState>;
 
 export function getUploadPreviewKind(
   fileName: string,
@@ -52,6 +51,33 @@ function baseMetrics(file: IngestionFile) {
   ];
 }
 
+function unwrapQuotedCsvRows(input: string) {
+  const rows = input.split(/\r?\n/).filter((row) => row.trim());
+  const isWrappedRows =
+    rows.length > 0 &&
+    rows.every((row) => {
+      const trimmed = row.trim();
+      return trimmed.startsWith('"') && trimmed.endsWith('"');
+    });
+  if (!isWrappedRows) return input;
+
+  return rows
+    .map((row) => {
+      const trimmed = row.trim();
+      return trimmed.slice(1, -1).replace(/""/g, '"');
+    })
+    .join("\n");
+}
+
+function parseCsvRows(input: string) {
+  const options = { delimiter: ",", skipEmptyLines: true };
+  const parsed = Papa.parse(input, options).data;
+  if (parsed.length && parsed.every((row) => row.length === 1)) {
+    return Papa.parse(unwrapQuotedCsvRows(input), options).data;
+  }
+  return parsed;
+}
+
 async function buildTextDataPreview(
   file: IngestionFile,
 ): Promise<DataPreviewState> {
@@ -63,10 +89,7 @@ async function buildTextDataPreview(
   const metrics = baseMetrics(file);
 
   if (getUploadPreviewKind(file.name) === "csv" && lines.length > 0) {
-    const parsedRows = Papa.parse(sample, { skipEmptyLines: true }).data.slice(
-      0,
-      9,
-    );
+    const parsedRows = parseCsvRows(sample).slice(0, 9);
     const header = parsedRows[0] ?? [];
     const width = Math.max(...parsedRows.map((row) => row.length), 1);
     const columns = header.some(Boolean)
@@ -102,7 +125,6 @@ async function buildTextDataPreview(
 async function buildWorkbookPreview(
   file: IngestionFile,
 ): Promise<DataPreviewState> {
-  const XLSX = await import("xlsx");
   const workbook = XLSX.read(await file.file.arrayBuffer(), {
     type: "array",
     cellDates: true,
@@ -149,13 +171,15 @@ async function buildWorkbookPreview(
     ? header.map((cell, index) => cell || XLSX.utils.encode_col(index))
     : Array.from({ length: width }, (_, index) => XLSX.utils.encode_col(index));
   const rows = normalizeTableRows(
-    sampleRows.slice(1).map((row) =>
-      row
-        .slice(0, width)
-        .map((cell) =>
-          cell instanceof Date ? cell.toLocaleString() : String(cell ?? ""),
-        ),
-    ),
+    sampleRows
+      .slice(1)
+      .map((row) =>
+        row
+          .slice(0, width)
+          .map((cell) =>
+            cell instanceof Date ? cell.toLocaleString() : String(cell ?? ""),
+          ),
+      ),
     width,
   );
 
@@ -220,12 +244,13 @@ async function buildMetadataPreview(
   };
 }
 
-const previewBuilders: Partial<Record<UploadPreviewKind, DataPreviewBuilder>> = {
-  csv: buildTextDataPreview,
-  text: buildTextDataPreview,
-  workbook: buildWorkbookPreview,
-  metadata: buildDocxPreview,
-};
+const previewBuilders: Partial<Record<UploadPreviewKind, DataPreviewBuilder>> =
+  {
+    csv: buildTextDataPreview,
+    text: buildTextDataPreview,
+    workbook: buildWorkbookPreview,
+    metadata: buildDocxPreview,
+  };
 
 export async function buildUploadDataPreview(file: IngestionFile) {
   const previewKind = getUploadPreviewKind(file.name);
