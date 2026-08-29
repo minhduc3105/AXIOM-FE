@@ -84,8 +84,6 @@ export function DataMetrics({
               className={cn(
                 "size-3.5 shrink-0",
                 metric.iconClassName,
-                metric.key === "processing" &&
-                  "animate-spin motion-reduce:animate-none",
               )}
               aria-hidden="true"
             />

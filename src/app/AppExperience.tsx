@@ -5,6 +5,7 @@ import { ProcessInspectorAside } from "@/features/chat/components/process/Proces
 import { toChatModelOptions } from "@/features/chat/model/chatModelOptions";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { useProcessInspector } from "@/features/chat/model/useProcessInspector";
+import { useChatDataScope } from "@/features/chat/model/useChatDataScope";
 import { DataPage } from "@/features/data/DataPage";
 import { GlobalIngestionDock } from "@/features/ingestion/components/GlobalIngestionDock";
 import { IngestionDocumentPage } from "@/features/ingestion/components/IngestionDocumentPage";
@@ -91,6 +92,10 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const chat = useChatWorkflow();
   const dataWorkspace = useDataWorkspace();
   const ingestion = useGlobalIngestion();
+  const chatDataScope = useChatDataScope(
+    auth.user?.organization_id ?? "",
+    dataWorkspace.selectedWorkspace?.id ?? "",
+  );
   const modelRegistryContext = useMemo(
     () =>
       auth.user
@@ -389,6 +394,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
         organizationId: auth.user?.organization_id,
         workspaceId: dataWorkspace.selectedWorkspace?.id,
         modelAlias: selectedModelAlias,
+        dataScope: chatDataScope.scope,
         executionMode: chatExecutionMode,
         onConversationCreated: (conversationId) => {
           skipNextHydrationRef.current = conversationId;
@@ -399,6 +405,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     [
       auth.user?.organization_id,
       chat.submitQuestion,
+      chatDataScope.scope,
       chatExecutionMode,
       dataWorkspace.selectedWorkspace?.id,
       navigate,
@@ -494,6 +501,11 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
             onRetryProcess={chat.retryProcess}
             onCloseEvidence={chat.closeEvidence}
             onStopGeneration={chat.stopGeneration}
+            dataScope={chatDataScope.scope}
+            dataResources={chatDataScope.resources}
+            dataResourcesLoading={chatDataScope.loading}
+            dataResourcesError={chatDataScope.error}
+            onDataScopeChange={chatDataScope.changeScope}
           />
         ) : route.surface === "data" ? (
           route.page === "document" ? (
