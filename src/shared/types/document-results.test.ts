@@ -29,6 +29,11 @@ describe("getSourcePreviewKind", () => {
       "xlsx",
     ],
     ["report.pdf", null, "pdf"],
+    ["notes.md", null, "markdown"],
+    ["notes.markdown", null, "markdown"],
+    ["notes.txt", null, "text"],
+    ["uploads/without-an-extension", "text/markdown", "markdown"],
+    ["uploads/without-an-extension", "text/plain", "text"],
     ["page.jpeg", "image/jpeg", "image"],
     ["archive.zip", "application/zip", "unsupported"],
   ] as const)("classifies %s as %s", (key, contentType, expected) => {

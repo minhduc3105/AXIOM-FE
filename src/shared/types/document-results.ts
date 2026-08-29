@@ -22,6 +22,8 @@ export type SourcePreviewKind =
   | "image"
   | "xlsx"
   | "docx"
+  | "markdown"
+  | "text"
   | "unsupported";
 
 export function getSourcePreviewKind(
@@ -49,6 +51,14 @@ export function getSourcePreviewKind(
     ["png", "jpg", "jpeg"].includes(extension)
   )
     return "image";
+  if (
+    contentType === "text/markdown" ||
+    contentType === "text/x-markdown" ||
+    extension === "md" ||
+    extension === "markdown"
+  )
+    return "markdown";
+  if (contentType === "text/plain" || extension === "txt") return "text";
   return "unsupported";
 }
 

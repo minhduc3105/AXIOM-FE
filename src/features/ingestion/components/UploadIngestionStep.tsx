@@ -226,7 +226,7 @@ export function UploadIngestionStep({
             type="button"
             onClick={() => void startUpload(files)}
           >
-            Start ingestion
+            Upload
           </Button>
         </div>
       )}

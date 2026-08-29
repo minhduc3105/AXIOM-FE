@@ -12,10 +12,6 @@ import {
   ChevronDownIcon,
   CopyIcon,
   FileSearchIcon,
-  PanelLeftCloseIcon,
-  PanelLeftOpenIcon,
-  PanelRightCloseIcon,
-  PanelRightOpenIcon,
   PencilIcon,
   CheckIcon,
   Rows3Icon,
@@ -163,15 +159,13 @@ export function DocumentResultViewer({
   const [pageIndex, setPageIndex] = useState(0);
   const [showBoxes, setShowBoxes] = useState(true);
   const [zoom, setZoom] = useState(1);
-  const [compactPane, setCompactPane] = useState("parsed");
+  const [compactPane, setCompactPane] = useState("source");
   const [parsedMode, setParsedMode] = useState("rendered");
   const [pageFilter, setPageFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [descriptionEdits, setDescriptionEdits] = useState<
     Record<string, string>
   >({});
-  const [sourceCollapsed, setSourceCollapsed] = useState(false);
-  const [parsedCollapsed, setParsedCollapsed] = useState(false);
 
   const pages = useMemo(
     () =>
@@ -206,13 +200,11 @@ export function DocumentResultViewer({
     setPageIndex(0);
     setShowBoxes(true);
     setZoom(1);
-    setCompactPane("parsed");
+    setCompactPane("source");
     setParsedMode("rendered");
     setPageFilter("all");
     setTypeFilter("all");
     setDescriptionEdits({});
-    setSourceCollapsed(false);
-    setParsedCollapsed(false);
     const frame = window.requestAnimationFrame(() => {
       sourcePanelRef.current?.expand();
       parsedPanelRef.current?.expand();
@@ -297,20 +289,14 @@ export function DocumentResultViewer({
     [blocks, revealParsedBlock, wide],
   );
 
-  const activateFromCard = useCallback((block: LayoutBlock) => {
-    setActiveComponentId(block.component_id);
-    if (block.page !== null) setPageIndex(block.page);
-    if (!wide) setCompactPane("source");
-  }, [wide]);
-
-  const collapseSource = () => {
-    parsedPanelRef.current?.expand();
-    sourcePanelRef.current?.collapse();
-  };
-  const collapseParsed = () => {
-    sourcePanelRef.current?.expand();
-    parsedPanelRef.current?.collapse();
-  };
+  const activateFromCard = useCallback(
+    (block: LayoutBlock) => {
+      setActiveComponentId(block.component_id);
+      if (block.page !== null) setPageIndex(block.page);
+      if (!wide) setCompactPane("source");
+    },
+    [wide],
+  );
 
   if (!file) {
     return (
@@ -334,22 +320,7 @@ export function DocumentResultViewer({
   }
 
   const sourcePane = (
-    <InspectorPane
-      title="Source preview"
-      description="Original file"
-      onCollapse={wide ? collapseSource : undefined}
-      collapseLabel="Hide source preview"
-      collapseIcon={<PanelRightCloseIcon />}
-      restoreAction={
-        parsedCollapsed
-          ? {
-              label: "Show parsed content",
-              icon: <PanelLeftOpenIcon />,
-              onClick: () => parsedPanelRef.current?.expand(),
-            }
-          : undefined
-      }
-    >
+    <InspectorPane>
       <SourcePreviewPane
         file={file}
         preview={preview}
@@ -368,22 +339,7 @@ export function DocumentResultViewer({
   );
 
   const parsedPane = (
-    <InspectorPane
-      title="Parsed content"
-      description="Rendered blocks and normalized JSON"
-      onCollapse={wide ? collapseParsed : undefined}
-      collapseLabel="Hide parsed content"
-      collapseIcon={<PanelLeftCloseIcon />}
-      restoreAction={
-        sourceCollapsed
-          ? {
-              label: "Show source preview",
-              icon: <PanelRightOpenIcon />,
-              onClick: () => sourcePanelRef.current?.expand(),
-            }
-          : undefined
-      }
-    >
+    <InspectorPane>
       <ParsedContentPane
         parsing={parsing}
         blocks={blocks}
@@ -426,22 +382,6 @@ export function DocumentResultViewer({
             className="min-h-0 min-w-0"
           >
             <ResizablePanel
-              id="parsed"
-              panelRef={parsedPanelRef}
-              defaultSize="44%"
-              minSize="35%"
-              maxSize="65%"
-              collapsible
-              collapsedSize={0}
-              onResize={(size) => setParsedCollapsed(size.inPixels <= 1)}
-            >
-              {parsedPane}
-            </ResizablePanel>
-            <ResizableHandle
-              withHandle
-              aria-label="Resize parsed content and source preview panels"
-            />
-            <ResizablePanel
               id="source"
               panelRef={sourcePanelRef}
               defaultSize="56%"
@@ -449,9 +389,23 @@ export function DocumentResultViewer({
               maxSize="65%"
               collapsible
               collapsedSize={0}
-              onResize={(size) => setSourceCollapsed(size.inPixels <= 1)}
             >
               {sourcePane}
+            </ResizablePanel>
+            <ResizableHandle
+              withHandle
+              aria-label="Resize source preview and parsed content panels"
+            />
+            <ResizablePanel
+              id="parsed"
+              panelRef={parsedPanelRef}
+              defaultSize="44%"
+              minSize="35%"
+              maxSize="65%"
+              collapsible
+              collapsedSize={0}
+            >
+              {parsedPane}
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
@@ -465,23 +419,23 @@ export function DocumentResultViewer({
                 className="w-full"
                 aria-label="Document comparison views"
               >
-                <TabsTrigger value="parsed">Parsed content</TabsTrigger>
                 <TabsTrigger value="source">Source preview</TabsTrigger>
+                <TabsTrigger value="parsed">Parsed content</TabsTrigger>
               </TabsList>
             </div>
-            <TabsContent
-              value="parsed"
-              keepMounted
-              className="m-0 min-h-0 overflow-hidden"
-            >
-              {parsedPane}
-            </TabsContent>
             <TabsContent
               value="source"
               keepMounted
               className="m-0 min-h-0 overflow-hidden"
             >
               {sourcePane}
+            </TabsContent>
+            <TabsContent
+              value="parsed"
+              keepMounted
+              className="m-0 min-h-0 overflow-hidden"
+            >
+              {parsedPane}
             </TabsContent>
           </Tabs>
         )}
@@ -499,15 +453,6 @@ function InspectorHeader({
   context?: DocumentInspectorContext;
   parsing: InspectorResource<ParsedDocumentResult>;
 }) {
-  const blockLabel = parsing.data
-    ? `${parsing.data.blocks.length.toLocaleString()} blocks`
-    : parsing.status === "loading"
-      ? "Loading blocks"
-      : parsing.status === "error"
-        ? "Blocks unavailable"
-        : "No blocks";
-  const statusTone = context?.statusTone ?? "neutral";
-
   return (
     <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-3 border-b bg-card px-3 sm:px-4">
       {context?.onBack && (
@@ -522,81 +467,20 @@ function InspectorHeader({
         </Button>
       )}
       <div className="min-w-0 flex-1">
-        <h2 className="truncate text-sm font-semibold" title={getDisplayName(file)}>
+        <h2
+          className="truncate text-sm font-semibold"
+          title={getDisplayName(file)}
+        >
           {getDisplayName(file)}
         </h2>
       </div>
-      {context?.sourceLabel ? (
-        <Badge variant="secondary" className="max-sm:hidden">
-          {context.sourceLabel}
-        </Badge>
-      ) : null}
-      <Badge
-        variant={statusTone === "failed" ? "destructive" : "outline"}
-        className={
-          statusTone === "success"
-            ? "border-status-success/30 bg-status-success/10 text-status-success"
-            : statusTone === "processing"
-              ? "border-info/30 bg-info/10 text-info"
-              : undefined
-        }
-      >
-        {context?.statusLabel ?? "Status unavailable"}
-      </Badge>
-      <span className="shrink-0 text-xs text-muted-foreground">{blockLabel}</span>
     </header>
   );
 }
 
-function InspectorPane({
-  title,
-  description,
-  children,
-  onCollapse,
-  collapseLabel,
-  collapseIcon,
-  restoreAction,
-}: {
-  title: string;
-  description: string;
-  children: React.ReactNode;
-  onCollapse?: () => void;
-  collapseLabel: string;
-  collapseIcon: React.ReactNode;
-  restoreAction?: { label: string; icon: React.ReactNode; onClick: () => void };
-}) {
+function InspectorPane({ children }: { children: React.ReactNode }) {
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-medium">{title}</h3>
-          <p className="truncate text-xs text-muted-foreground">{description}</p>
-        </div>
-        {restoreAction ? (
-          <Button
-            aria-label={restoreAction.label}
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            title={restoreAction.label}
-            onClick={restoreAction.onClick}
-          >
-            {restoreAction.icon}
-          </Button>
-        ) : null}
-        {onCollapse ? (
-          <Button
-            aria-label={collapseLabel}
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            title={collapseLabel}
-            onClick={onCollapse}
-          >
-            {collapseIcon}
-          </Button>
-        ) : null}
-      </header>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {children}
       </div>

@@ -29,7 +29,10 @@ const successfulPreview: InspectorResource<InlinePreview> = {
   error: null,
 };
 
-function processingFile(key: string, contentType: string | null = null): ProcessingFile {
+function processingFile(
+  key: string,
+  contentType: string | null = null,
+): ProcessingFile {
   const segments = key.split("/");
   return { key, filename: segments[segments.length - 1] ?? key, contentType };
 }
@@ -70,7 +73,43 @@ describe("SourcePreviewPane", () => {
 
   it("renders an image preview for PNG files", () => {
     renderPane(processingFile("preview.png", "image/png"));
-    expect(screen.getByRole("img", { name: "Source preview for preview.png" })).toBeTruthy();
+    expect(
+      screen.getByRole("img", { name: "Source preview for preview.png" }),
+    ).toBeTruthy();
+  });
+
+  it("renders Markdown source content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response("# Admission report\n\nKey findings", { status: 200 }),
+        ),
+    );
+
+    renderPane(processingFile("report.md"));
+
+    expect(
+      await screen.findByRole("heading", { name: "Admission report" }),
+    ).toBeTruthy();
+    expect(screen.getByText("Key findings")).toBeTruthy();
+  });
+
+  it("renders plain text source content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response("First paragraph\n\nSecond paragraph", { status: 200 }),
+        ),
+    );
+
+    renderPane(processingFile("notes.txt"));
+
+    expect(await screen.findByText("First paragraph")).toBeTruthy();
+    expect(screen.getByText("Second paragraph")).toBeTruthy();
   });
 
   it("keeps parsed content available when a file format is unsupported", () => {
@@ -78,7 +117,7 @@ describe("SourcePreviewPane", () => {
     expect(screen.getByText("Unsupported preview format")).toBeTruthy();
     expect(
       screen.getByText(
-        "Browser preview is available for PDF, PNG, JPEG, XLSX, and DOCX files. Parsed content remains available.",
+        "Browser preview is available for PDF, PNG, JPEG, XLSX, DOCX, MD, and TXT files. Parsed content remains available.",
       ),
     ).toBeTruthy();
   });
@@ -91,7 +130,10 @@ describe("SourcePreviewPane", () => {
     const retry = vi.fn();
     renderPane(
       processingFile("report.docx"),
-      { ...successfulPreview, data: { ...successfulPreview.data, expiresAt: Date.now() - 1 } },
+      {
+        ...successfulPreview,
+        data: { ...successfulPreview.data, expiresAt: Date.now() - 1 },
+      },
       retry,
     );
     expect(screen.getByText("Preview link expired")).toBeTruthy();

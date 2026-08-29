@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AlertCircleIcon, FileSearchIcon, RefreshCwIcon } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -47,7 +48,8 @@ function scrollElementWithin(
   behavior: ScrollBehavior,
 ) {
   const scrollViewport =
-    viewport.closest<HTMLElement>("[data-slot='scroll-area-viewport']") ?? viewport;
+    viewport.closest<HTMLElement>("[data-slot='scroll-area-viewport']") ??
+    viewport;
   const viewportRect = scrollViewport.getBoundingClientRect();
   const targetRect = target.getBoundingClientRect();
   scrollViewport.scrollTo({
@@ -80,7 +82,8 @@ export function SourcePreviewPane(props: SourcePreviewPaneProps) {
           <FileSearchIcon />
           <AlertTitle>Unsupported preview format</AlertTitle>
           <AlertDescription>
-            Browser preview is available for PDF, PNG, JPEG, XLSX, and DOCX files. Parsed content remains available.
+            Browser preview is available for PDF, PNG, JPEG, XLSX, DOCX, MD, and
+            TXT files. Parsed content remains available.
           </AlertDescription>
         </Alert>
       </div>
@@ -131,7 +134,9 @@ export function SourcePreviewPane(props: SourcePreviewPaneProps) {
 
   if (kind === "xlsx") {
     return (
-      <Suspense fallback={<SourceLoadingState label="Loading spreadsheet viewer…" />}>
+      <Suspense
+        fallback={<SourceLoadingState label="Loading spreadsheet viewer…" />}
+      >
         <SpreadsheetSourceViewer
           url={props.preview.data.url}
           fileName={fileName}
@@ -143,7 +148,9 @@ export function SourcePreviewPane(props: SourcePreviewPaneProps) {
 
   if (kind === "docx") {
     return (
-      <Suspense fallback={<SourceLoadingState label="Loading document viewer…" />}>
+      <Suspense
+        fallback={<SourceLoadingState label="Loading document viewer…" />}
+      >
         <DocxSourceViewer
           url={props.preview.data.url}
           fileName={fileName}
@@ -153,7 +160,97 @@ export function SourcePreviewPane(props: SourcePreviewPaneProps) {
     );
   }
 
-  return <ImageSourceViewer {...props} url={props.preview.data.url} fileName={fileName} />;
+  if (kind === "markdown" || kind === "text") {
+    return (
+      <TextSourceViewer
+        url={props.preview.data.url}
+        markdown={kind === "markdown"}
+        onRetry={props.onRetry}
+      />
+    );
+  }
+
+  return (
+    <ImageSourceViewer
+      {...props}
+      url={props.preview.data.url}
+      fileName={fileName}
+    />
+  );
+}
+
+function TextSourceViewer({
+  url,
+  markdown,
+  onRetry,
+}: {
+  url: string;
+  markdown: boolean;
+  onRetry: () => void;
+}) {
+  const [content, setContent] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setContent(null);
+    setError(null);
+
+    void fetch(url, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Unable to load source text (${response.status}).`);
+        }
+        return response.text();
+      })
+      .then((text) => setContent(text))
+      .catch((reason: unknown) => {
+        if (controller.signal.aborted) return;
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to load the source text.",
+        );
+      });
+
+    return () => controller.abort();
+  }, [url]);
+
+  if (error) {
+    return (
+      <ResourceError
+        title="Text preview failed"
+        message={error}
+        onRetry={onRetry}
+      />
+    );
+  }
+  if (content === null)
+    return <SourceLoadingState label="Loading text preview…" />;
+
+  const sample = content.slice(0, 12_000);
+  const paragraphs = sample
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  return (
+    <ScrollArea className="h-full min-h-0 flex-1">
+      {markdown ? (
+        <article className="min-w-0 break-words p-5 text-sm leading-7 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:mb-3 [&_h2]:mt-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:mb-4 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-3">
+          <ReactMarkdown>{sample}</ReactMarkdown>
+        </article>
+      ) : (
+        <article className="flex min-w-0 flex-col gap-4 whitespace-pre-wrap break-words p-5 text-sm leading-7">
+          {paragraphs.length ? (
+            paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
+          ) : (
+            <p className="text-muted-foreground">No readable text was found.</p>
+          )}
+        </article>
+      )}
+    </ScrollArea>
+  );
 }
 
 function ImageSourceViewer({
@@ -203,8 +300,12 @@ function ImageSourceViewer({
         zoom={zoom}
         zoomOutDisabled={zoom <= 0.65}
         zoomInDisabled={zoom >= 1.75}
-        onZoomOut={() => onZoomChange(Math.max(0.65, Number((zoom - 0.15).toFixed(2))))}
-        onZoomIn={() => onZoomChange(Math.min(1.75, Number((zoom + 0.15).toFixed(2))))}
+        onZoomOut={() =>
+          onZoomChange(Math.max(0.65, Number((zoom - 0.15).toFixed(2))))
+        }
+        onZoomIn={() =>
+          onZoomChange(Math.min(1.75, Number((zoom + 0.15).toFixed(2))))
+        }
         onFitWidth={() => onZoomChange(1)}
         onResetZoom={() => onZoomChange(1)}
         showBoxes={showBoxes}
@@ -214,7 +315,10 @@ function ImageSourceViewer({
         <div ref={viewportRef} className="min-w-0 p-4">
           <div
             className="relative mx-auto w-fit max-w-none overflow-hidden border bg-background shadow-sm"
-            style={{ width: `${zoom * 100}%`, minWidth: zoom > 1 ? "100%" : undefined }}
+            style={{
+              width: `${zoom * 100}%`,
+              minWidth: zoom > 1 ? "100%" : undefined,
+            }}
           >
             <img
               className="block h-auto w-full"
@@ -263,7 +367,12 @@ export function ResourceError({
         <AlertCircleIcon />
         <AlertTitle>{title}</AlertTitle>
         <AlertDescription>{message}</AlertDescription>
-        <Button className="mt-3" variant="outline" type="button" onClick={onRetry}>
+        <Button
+          className="mt-3"
+          variant="outline"
+          type="button"
+          onClick={onRetry}
+        >
           <RefreshCwIcon data-icon="inline-start" />
           Retry
         </Button>

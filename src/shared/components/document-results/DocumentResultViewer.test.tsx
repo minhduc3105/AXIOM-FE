@@ -60,10 +60,26 @@ const parsing: InspectorResource<ParsedDocumentResult> = {
       latest_run_id: "run-1",
       size_bytes: 10,
     },
-    processingRun: { run_id: "run-1", status: "completed", error_message: null },
+    processingRun: {
+      run_id: "run-1",
+      status: "completed",
+      error_message: null,
+    },
     blocks: [
-      { component_id: "block-1", page: 0, block_index: 0, type: "paragraph", text: "First block" },
-      { component_id: "block-2", page: 1, block_index: 1, type: "heading", text: "Second block" },
+      {
+        component_id: "block-1",
+        page: 0,
+        block_index: 0,
+        type: "paragraph",
+        text: "First block",
+      },
+      {
+        component_id: "block-2",
+        page: 1,
+        block_index: 1,
+        type: "heading",
+        text: "Second block",
+      },
     ],
     readingOrder: ["block-1", "block-2"],
     mainText: "First block\nSecond block",
@@ -106,30 +122,40 @@ describe("DocumentResultViewer", () => {
     vi.unstubAllGlobals();
   });
 
-  it("uses parsed-first master-detail layout with context and accessible resizing", () => {
+  it("uses source-first master-detail layout with context and accessible resizing", () => {
     containerWidth = 1200;
     renderViewer();
 
-    expect(screen.getByText("Upload queue")).toBeTruthy();
-    expect(screen.getByText("Ready")).toBeTruthy();
-    expect(screen.getByText("2 blocks")).toBeTruthy();
     expect(
       screen.getByRole("separator", {
-        name: "Resize parsed content and source preview panels",
+        name: "Resize source preview and parsed content panels",
       }),
     ).toBeTruthy();
-    const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(headings.indexOf("Parsed content")).toBeLessThan(headings.indexOf("Source preview"));
-    expect(screen.getByRole("button", { name: "Hide parsed content" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Hide source preview" })).toBeTruthy();
+    expect(
+      screen.queryByRole("heading", { name: "Source preview" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("heading", { name: "Parsed content" }),
+    ).toBeNull();
   });
 
-  it("starts compact mode on parsed content and switches to source after selecting a block", () => {
+  it("starts compact mode on source preview and returns there after selecting a block", () => {
     containerWidth = 700;
     renderViewer();
 
-    expect(screen.getByRole("tab", { name: "Parsed content" }).getAttribute("aria-selected")).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "Show block-2 in source document" }));
-    expect(screen.getByRole("tab", { name: "Source preview" }).getAttribute("aria-selected")).toBe("true");
+    expect(
+      screen
+        .getByRole("tab", { name: "Source preview" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("tab", { name: "Parsed content" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show block-2 in source document" }),
+    );
+    expect(
+      screen
+        .getByRole("tab", { name: "Source preview" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
   });
 });
