@@ -57,6 +57,7 @@ export function ChatComposer({
   dataResourcesLoading = false,
   dataResourcesError = null,
   onDataScopeChange,
+  onDataResourcesRefresh,
 }: {
   onSubmit: (message: string, engine: ChatEngine, files: File[]) => void;
   engine: ChatEngine;
@@ -73,6 +74,7 @@ export function ChatComposer({
   dataResourcesLoading?: boolean;
   dataResourcesError?: string | null;
   onDataScopeChange?: (scope: ChatDataScope) => void;
+  onDataResourcesRefresh?: () => void;
 }) {
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -130,7 +132,7 @@ export function ChatComposer({
   return (
     <form
       className={cn(
-        "grid min-h-[100px] w-full gap-0 rounded-[20px] border border-border bg-card p-2 shadow-sm transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/10",
+        "grid min-h-0 w-full gap-0 rounded-[18px] border border-border bg-card p-2 shadow-sm transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/10 sm:min-h-[100px] sm:rounded-[20px]",
         className,
       )}
       onSubmit={submit}
@@ -170,7 +172,7 @@ export function ChatComposer({
       )}
       <Textarea
         ref={textareaRef}
-        className="max-h-40 min-h-12 w-full resize-none border-0 bg-transparent px-4 py-3 text-base leading-6 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent"
+        className="max-h-40 min-h-11 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-base leading-6 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent sm:min-h-12 sm:px-4 sm:py-3"
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={submitFromKeyboard}
@@ -179,8 +181,11 @@ export function ChatComposer({
         rows={1}
         aria-label="Ask AXIOM"
       />
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 px-1 pt-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div
+        className="flex min-w-0 flex-nowrap items-center gap-2 px-1 pt-2 sm:justify-between sm:gap-3"
+        data-chat-composer-actions
+      >
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
           <input
             id={fileInputId}
             type="file"
@@ -207,6 +212,7 @@ export function ChatComposer({
               error={dataResourcesError}
               disabled={disabled}
               onChange={onDataScopeChange}
+              onRefresh={onDataResourcesRefresh}
             />
           )}
           <DropdownMenu open={engineMenuOpen} onOpenChange={setEngineMenuOpen}>
@@ -215,7 +221,7 @@ export function ChatComposer({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-10 min-w-[128px] justify-between rounded-full border-border bg-secondary px-3 text-secondary-foreground shadow-none hover:bg-muted"
+                  className="h-10 w-[92px] shrink-0 justify-between rounded-full border-border bg-secondary px-2 text-secondary-foreground shadow-none hover:bg-muted sm:min-w-[128px] sm:px-3"
                   aria-label="Select response type"
                   disabled={disabled}
                 />
@@ -241,17 +247,15 @@ export function ChatComposer({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex shrink-0 items-center">
-          <Button
-            className="size-10 shrink-0 rounded-full shadow-sm"
-            type="submit"
-            aria-label={sendDisabled && onStop ? "Stop" : "Send"}
-            disabled={sendDisabled && !onStop}
-            onClick={sendDisabled && onStop ? onStop : undefined}
-          >
-            {sendDisabled && onStop ? <SquareIcon /> : <SendIcon />}
-          </Button>
-        </div>
+        <Button
+          className="size-10 shrink-0 rounded-full shadow-sm"
+          type="submit"
+          aria-label={sendDisabled && onStop ? "Stop" : "Send"}
+          disabled={sendDisabled && !onStop}
+          onClick={sendDisabled && onStop ? onStop : undefined}
+        >
+          {sendDisabled && onStop ? <SquareIcon /> : <SendIcon />}
+        </Button>
       </div>
     </form>
   );

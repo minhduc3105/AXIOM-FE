@@ -5,6 +5,7 @@ import {
   FileSpreadsheetIcon,
   Layers3Icon,
   PlugZapIcon,
+  RefreshCwIcon,
   SearchIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,7 @@ type ChatDataScopeSelectorProps = {
   error?: string | null;
   disabled?: boolean;
   onChange: (scope: ChatDataScope) => void;
+  onRefresh?: () => void;
 };
 
 export function ChatDataScopeSelector({
@@ -45,6 +47,7 @@ export function ChatDataScopeSelector({
   error = null,
   disabled = false,
   onChange,
+  onRefresh,
 }: ChatDataScopeSelectorProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -100,7 +103,7 @@ export function ChatDataScopeSelector({
         type="button"
         variant="outline"
         className={cn(
-          "h-10 max-w-[220px] justify-between gap-2 rounded-full border-border bg-secondary px-3 text-secondary-foreground shadow-none hover:bg-muted",
+          "h-10 min-w-0 flex-1 justify-between gap-2 rounded-full border-border bg-secondary px-3 text-secondary-foreground shadow-none hover:bg-muted sm:flex-none sm:max-w-[220px]",
           scope.mode === "selected" &&
             "border-primary/35 bg-primary/8 text-primary hover:bg-primary/12",
         )}
@@ -123,6 +126,22 @@ export function ChatDataScopeSelector({
             <Badge variant="secondary" className="font-normal">
               Workspace files
             </Badge>
+            {onRefresh && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1.5 px-2"
+                aria-label="Refresh workspace files"
+                disabled={disabled || loading}
+                onClick={onRefresh}
+              >
+                <RefreshCwIcon
+                  className={cn(loading && "animate-spin motion-reduce:animate-none")}
+                />
+                Refresh
+              </Button>
+            )}
           </div>
           <DialogDescription className="max-w-2xl leading-5">
             Choose which files AXIOM can use to answer your next questions.

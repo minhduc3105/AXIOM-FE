@@ -67,6 +67,7 @@ type ChatPageProps = {
   dataResourcesLoading?: boolean;
   dataResourcesError?: string | null;
   onDataScopeChange?: (scope: ChatDataScope) => void;
+  onDataResourcesRefresh?: () => void;
 };
 
 export function ChatPage({
@@ -104,6 +105,7 @@ export function ChatPage({
   dataResourcesLoading = false,
   dataResourcesError = null,
   onDataScopeChange,
+  onDataResourcesRefresh,
 }: ChatPageProps) {
   const chatMainRef = useRef<HTMLDivElement>(null);
   const processSignature = useMemo(
@@ -157,6 +159,7 @@ export function ChatPage({
         dataResourcesLoading={dataResourcesLoading}
         dataResourcesError={dataResourcesError}
         onDataScopeChange={onDataScopeChange}
+        onDataResourcesRefresh={onDataResourcesRefresh}
       />
     );
   }
@@ -254,6 +257,7 @@ export function ChatPage({
               dataResourcesLoading={dataResourcesLoading}
               dataResourcesError={dataResourcesError}
               onDataScopeChange={onDataScopeChange}
+              onDataResourcesRefresh={onDataResourcesRefresh}
               placeholder={
                 loading
                   ? "AXIOM is working..."
@@ -342,6 +346,7 @@ function EmptyChatWorkspace({
   dataResourcesLoading,
   dataResourcesError,
   onDataScopeChange,
+  onDataResourcesRefresh,
 }: {
   engine: ChatEngine;
   onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
@@ -354,6 +359,7 @@ function EmptyChatWorkspace({
   dataResourcesLoading: boolean;
   dataResourcesError: string | null;
   onDataScopeChange?: (scope: ChatDataScope) => void;
+  onDataResourcesRefresh?: () => void;
 }) {
   return (
     <section
@@ -381,6 +387,7 @@ function EmptyChatWorkspace({
           dataResourcesLoading={dataResourcesLoading}
           dataResourcesError={dataResourcesError}
           onDataScopeChange={onDataScopeChange}
+          onDataResourcesRefresh={onDataResourcesRefresh}
           disabled={loading}
           placeholder="Message AXIOM..."
         />
