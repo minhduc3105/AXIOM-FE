@@ -25,6 +25,17 @@ const file: DataFile = {
   canInspect: false,
 };
 
+const failedFile: DataFile = {
+  ...file,
+  key: "failed.jpg",
+  name: "failed.jpg",
+  datasetId: "dataset-1",
+  status: "failed",
+  sourceStatus: "failed",
+  statusDetail: "failed",
+  errorMessage: "Unsupported image format",
+};
+
 const result: DataSourceFilesPage = {
   organizationId: "org-1",
   datasourceId: "source-1",
@@ -103,5 +114,34 @@ describe("DataSourceFilesTable", () => {
     ).toBeNull();
     expect(body.contains(fileHeader)).toBe(false);
     expect(body.contains(pagination)).toBe(false);
+  });
+
+  it("offers retry for every failed file", () => {
+    render(
+      <TooltipProvider>
+        <DataSourceFilesTable
+          result={{ ...result, files: [failedFile] }}
+          loading={false}
+          search=""
+          page={1}
+          pageSize={20}
+          sortBy="name"
+          sortOrder="asc"
+          onSearchChange={vi.fn()}
+          onPageChange={vi.fn()}
+          onPageSizeChange={vi.fn()}
+          onSortChange={vi.fn()}
+          onInspect={vi.fn()}
+          onRetryIndexing={vi.fn()}
+          onBulkRetry={vi.fn()}
+          selectedFileKeys={[failedFile.key]}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Retry indexing failed.jpg" }),
+    ).not.toBeNull();
+    expect(screen.queryByText("Retry failed (1)")).not.toBeNull();
   });
 });

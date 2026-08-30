@@ -473,7 +473,7 @@ describe("createInvestigation", () => {
     );
 
     expect(JSON.parse(postedBody)).toMatchObject({
-      data_scope: {
+      selected_files: {
         mode: "selected",
         resource_ids: [
           "dataset:revenue-q3",

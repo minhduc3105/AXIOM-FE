@@ -506,6 +506,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
             dataResourcesLoading={chatDataScope.loading}
             dataResourcesError={chatDataScope.error}
             onDataScopeChange={chatDataScope.changeScope}
+            onDataResourcesRefresh={chatDataScope.refresh}
           />
         ) : route.surface === "data" ? (
           route.page === "document" ? (

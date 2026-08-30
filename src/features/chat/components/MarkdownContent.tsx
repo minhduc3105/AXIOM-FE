@@ -19,6 +19,7 @@ type HeadingDepth = 1 | 2 | 3 | 4 | 5 | 6;
 type MarkdownBlock =
   | { type: "heading"; depth: HeadingDepth; text: string }
   | { type: "paragraph"; text: string }
+  | { type: "blockquote"; text: string }
   | { type: "list"; ordered: boolean; items: string[]; start?: number }
   | { type: "rule" }
   | { type: "table"; headers: string[]; rows: string[][] };
@@ -42,6 +43,7 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
   const lines = normalizeMarkdownSource(markdown).split(/\r?\n/);
   const blocks: MarkdownBlock[] = [];
   let paragraph: string[] = [];
+  let blockquote: string[] = [];
   let list: string[] = [];
   let orderedList = false;
   let orderedListStart: number | undefined;
@@ -65,6 +67,15 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
     orderedListStart = undefined;
   };
 
+  const flushBlockquote = () => {
+    if (!blockquote.length) return;
+    blocks.push({
+      type: "blockquote",
+      text: blockquote.join("\n").trim(),
+    });
+    blockquote = [];
+  };
+
   for (let index = 0; index < lines.length; index += 1) {
     const rawLine = lines[index];
     const line = normalizeMarkdownLine(rawLine);
@@ -72,12 +83,14 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
     if (!line) {
       flushParagraph();
       flushList();
+      flushBlockquote();
       continue;
     }
 
     if (/^([-*_])\1\1+$/.test(line)) {
       flushParagraph();
       flushList();
+      flushBlockquote();
       blocks.push({ type: "rule" });
       continue;
     }
@@ -86,6 +99,7 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
     if (heading) {
       flushParagraph();
       flushList();
+      flushBlockquote();
       blocks.push({
         type: "heading",
         depth: heading[1].length as HeadingDepth,
@@ -98,10 +112,21 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
     if (table) {
       flushParagraph();
       flushList();
+      flushBlockquote();
       blocks.push(table.block);
       index = table.endIndex;
       continue;
     }
+
+    const quotedLine = /^>\s?(.*)$/.exec(line);
+    if (quotedLine) {
+      flushParagraph();
+      flushList();
+      blockquote.push(quotedLine[1]);
+      continue;
+    }
+
+    flushBlockquote();
 
     const listItem = /^[-*]\s+(.+)$/.exec(line);
     if (listItem) {
@@ -128,6 +153,7 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
 
   flushParagraph();
   flushList();
+  flushBlockquote();
 
   return blocks;
 }
@@ -260,6 +286,20 @@ function renderBlock(block: MarkdownBlock, index: number, compact?: boolean) {
           <li key={item}>{renderInline(item)}</li>
         ))}
       </ListTag>
+    );
+  }
+
+  if (block.type === "blockquote") {
+    return (
+      <blockquote
+        className={cn(
+          "border-l-2 border-primary/50 pl-4 text-muted-foreground italic",
+          compact ? "text-sm leading-relaxed" : "text-base leading-relaxed",
+        )}
+        key={`${block.type}-${index}`}
+      >
+        {renderInlineWithBreaks(block.text)}
+      </blockquote>
     );
   }
 

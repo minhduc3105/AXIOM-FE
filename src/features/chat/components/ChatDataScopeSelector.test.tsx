@@ -68,11 +68,38 @@ describe("ChatDataScopeSelector", () => {
         .getAttribute("aria-disabled"),
     ).toBe("true");
 
-    await actor.click(screen.getByRole("button", { name: "Apply scope" }));
+    await actor.click(screen.getByRole("button", { name: "Apply" }));
     expect(onChange).toHaveBeenCalledWith({
       mode: "selected",
       resourceIds: ["datasource:stripe-payments"],
       resourceNames: ["Stripe payments"],
     });
+  });
+
+  it("refreshes workspace files without closing the selector", async () => {
+    const actor = userEvent.setup();
+    const onRefresh = vi.fn();
+    render(
+      <ChatDataScopeSelector
+        scope={allChatDataScope}
+        resources={resources}
+        onChange={vi.fn()}
+        onRefresh={onRefresh}
+      />,
+    );
+
+    await actor.click(
+      screen.getByRole("button", {
+        name: "Select data scope, currently All workspace data",
+      }),
+    );
+    await actor.click(
+      screen.getByRole("button", { name: "Refresh workspace files" }),
+    );
+
+    expect(onRefresh).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole("dialog", { name: "Choose data for this chat" }),
+    ).toBeTruthy();
   });
 });
