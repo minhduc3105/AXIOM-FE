@@ -1149,7 +1149,7 @@ export function DataSourcesWorkspace({
                     </h3>
                   </div>
                 </div>
-                <DataMetrics {...summary} />
+                <DataMetrics loading={tableLoading} {...summary} />
               </div>
               <SourceActions
                 datasource={selectedSource}
