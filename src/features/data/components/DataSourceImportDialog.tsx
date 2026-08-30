@@ -47,7 +47,12 @@ function waitForNextPoll(signal: AbortSignal) {
       "abort",
       () => {
         window.clearTimeout(timer);
-        reject(new DOMException("The import status check was cancelled.", "AbortError"));
+        reject(
+          new DOMException(
+            "The import status check was cancelled.",
+            "AbortError",
+          ),
+        );
       },
       { once: true },
     );
@@ -73,8 +78,10 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 function sourceLabel(datasource: DataSource) {
-  return datasource.name?.trim() ||
-    (datasource.type === "s3" ? "Amazon S3" : "Snowflake");
+  return (
+    datasource.name?.trim() ||
+    (datasource.type === "s3" ? "Amazon S3" : "Snowflake")
+  );
 }
 
 function isActiveJob(status: IngestionJobResponse["status"]) {
@@ -90,8 +97,8 @@ function IngestionStatus({ job }: { job: IngestionJobResponse | null }) {
         <AlertTitle>Import completed</AlertTitle>
         <AlertDescription>
           {job.objects_written.toLocaleString()} object
-          {job.objects_written === 1 ? "" : "s"} stored. The file inventory
-          will refresh when you close this dialog.
+          {job.objects_written === 1 ? "" : "s"} stored. The file inventory will
+          refresh automatically.
         </AlertDescription>
       </Alert>
     );
@@ -110,11 +117,10 @@ function IngestionStatus({ job }: { job: IngestionJobResponse | null }) {
     <Alert>
       <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
       <AlertTitle>
-        {job.status === "pulling" ? "Import is running" : "Import is queued"}
+        {job.status === "pulling" ? "Import is running" : "Importing..."}
       </AlertTitle>
       <AlertDescription>
-        AXIOM is copying source objects into the workspace. This dialog will
-        refresh the job status automatically.
+        AXIOM is copying source objects into the workspace.
       </AlertDescription>
     </Alert>
   );
@@ -162,7 +168,8 @@ export function DataSourceImportDialog({
     [selectedS3Keys],
   );
   const allVisibleS3Selected =
-    s3Files.length > 0 && s3Files.every((file) => selectedS3KeySet.has(file.key));
+    s3Files.length > 0 &&
+    s3Files.every((file) => selectedS3KeySet.has(file.key));
   const busy = browsing || starting || Boolean(job && isActiveJob(job.status));
 
   useEffect(() => {
@@ -204,7 +211,9 @@ export function DataSourceImportDialog({
       setS3NextToken(result.nextToken?.trim() || null);
     } catch (browseError) {
       if (!isAbortError(browseError)) {
-        setError(getErrorMessage(browseError, "Unable to browse this S3 bucket."));
+        setError(
+          getErrorMessage(browseError, "Unable to browse this S3 bucket."),
+        );
       }
     } finally {
       if (!controller.signal.aborted) setBrowsing(false);
@@ -225,12 +234,18 @@ export function DataSourceImportDialog({
         const visibleKeys = new Set(s3Files.map((file) => file.key));
         return current.filter((key) => !visibleKeys.has(key));
       }
-      return Array.from(new Set([...current, ...s3Files.map((file) => file.key)]));
+      return Array.from(
+        new Set([...current, ...s3Files.map((file) => file.key)]),
+      );
     });
   };
 
   const pollJob = async (jobId: string, signal: AbortSignal) => {
-    for (let attempt = 0; attempt < POLL_ATTEMPTS && !signal.aborted; attempt += 1) {
+    for (
+      let attempt = 0;
+      attempt < POLL_ATTEMPTS && !signal.aborted;
+      attempt += 1
+    ) {
       await waitForNextPoll(signal);
       const latest = await getIngestionJob(jobId, signal);
       setJob(latest);
@@ -244,7 +259,9 @@ export function DataSourceImportDialog({
       if (latest.status === "failed") return;
     }
     if (!signal.aborted) {
-      setError("Import is still running. Keep this dialog open or refresh the source later.");
+      setError(
+        "Import is still running. Keep this dialog open or refresh the source later.",
+      );
     }
   };
 
@@ -254,7 +271,11 @@ export function DataSourceImportDialog({
       setError("Choose at least one S3 object before importing.");
       return;
     }
-    if (!isS3 && !snowflakeOptions.discoverTables && !snowflakeOptions.discoverStages) {
+    if (
+      !isS3 &&
+      !snowflakeOptions.discoverTables &&
+      !snowflakeOptions.discoverStages
+    ) {
       setError("Enable table or stage discovery before importing.");
       return;
     }
@@ -289,7 +310,9 @@ export function DataSourceImportDialog({
       }
     } catch (startError) {
       if (!isAbortError(startError)) {
-        setError(getErrorMessage(startError, "Unable to start this source import."));
+        setError(
+          getErrorMessage(startError, "Unable to start this source import."),
+        );
       }
     } finally {
       if (!controller.signal.aborted) setStarting(false);
@@ -321,17 +344,20 @@ export function DataSourceImportDialog({
 
         <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-md border bg-background text-primary">
-            {isS3 ? <CloudIcon className="size-4" /> : <SnowflakeIcon className="size-4" />}
+            {isS3 ? (
+              <CloudIcon className="size-4" />
+            ) : (
+              <SnowflakeIcon className="size-4" />
+            )}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{sourceLabel(datasource)}</p>
+            <p className="truncate text-sm font-medium">
+              {sourceLabel(datasource)}
+            </p>
             <p className="truncate text-xs text-muted-foreground">
               {isS3 ? `${bucketName}${region ? ` · ${region}` : ""}` : account}
             </p>
           </div>
-          <Badge variant={canImport ? "secondary" : "destructive"}>
-            {canImport ? "Credentials ready" : "Credentials missing"}
-          </Badge>
         </div>
 
         {!canImport ? (
@@ -348,7 +374,8 @@ export function DataSourceImportDialog({
               <div>
                 <p className="font-medium">Choose S3 objects</p>
                 <FieldDescription>
-                  Browse the saved bucket without exposing AWS credentials to the browser.
+                  Browse the saved bucket without exposing AWS credentials to
+                  the browser.
                 </FieldDescription>
               </div>
               <Button
@@ -359,19 +386,34 @@ export function DataSourceImportDialog({
               >
                 <RefreshCwIcon
                   data-icon="inline-start"
-                  className={browsing ? "animate-spin motion-reduce:animate-none" : undefined}
+                  className={
+                    browsing
+                      ? "animate-spin motion-reduce:animate-none"
+                      : undefined
+                  }
                 />
-                {browsing ? "Browsing…" : s3Files.length ? "Refresh objects" : "Browse objects"}
+                {browsing
+                  ? "Browsing…"
+                  : s3Files.length
+                    ? "Refresh objects"
+                    : "Browse objects"}
               </Button>
             </div>
 
             {s3Files.length > 0 && (
               <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2 text-sm">
                 <span className="text-muted-foreground">
-                  {selectedS3Keys.length.toLocaleString()} selected of {s3Files.length.toLocaleString()} loaded
+                  {selectedS3Keys.length.toLocaleString()} selected of{" "}
+                  {s3Files.length.toLocaleString()} loaded
                 </span>
-                <Button variant="ghost" size="sm" type="button" onClick={toggleVisibleS3Files} disabled={busy}>
-                  {allVisibleS3Selected ? "Clear loaded" : "Select loaded"}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={toggleVisibleS3Files}
+                  disabled={busy}
+                >
+                  {allVisibleS3Selected ? "Reset" : "Select all"}
                 </Button>
               </div>
             )}
@@ -397,10 +439,16 @@ export function DataSourceImportDialog({
                         />
                         <FileIcon className="size-4 shrink-0 text-muted-foreground" />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{file.name}</span>
-                          <span className="block truncate font-mono text-xs text-muted-foreground">{file.key}</span>
+                          <span className="block truncate text-sm font-medium">
+                            {file.name}
+                          </span>
+                          <span className="block truncate font-mono text-xs text-muted-foreground">
+                            {file.key}
+                          </span>
                         </span>
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{formatFileSize(file.size)}</span>
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                          {formatFileSize(file.size)}
+                        </span>
                       </label>
                     );
                   })}
@@ -428,7 +476,8 @@ export function DataSourceImportDialog({
             <div>
               <p className="font-medium">Choose Snowflake discovery</p>
               <FieldDescription>
-                Select which source objects AXIOM should pull into the workspace.
+                Select which source objects AXIOM should pull into the
+                workspace.
               </FieldDescription>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -437,22 +486,32 @@ export function DataSourceImportDialog({
                   id="saved-snowflake-discover-tables"
                   checked={snowflakeOptions.discoverTables}
                   onCheckedChange={(checked) =>
-                    setSnowflakeOptions((current) => ({ ...current, discoverTables: Boolean(checked) }))
+                    setSnowflakeOptions((current) => ({
+                      ...current,
+                      discoverTables: Boolean(checked),
+                    }))
                   }
                   disabled={busy}
                 />
-                <FieldLabel htmlFor="saved-snowflake-discover-tables">Discover tables</FieldLabel>
+                <FieldLabel htmlFor="saved-snowflake-discover-tables">
+                  Discover tables
+                </FieldLabel>
               </Field>
               <Field orientation="horizontal" className="rounded-lg border p-3">
                 <Checkbox
                   id="saved-snowflake-discover-stages"
                   checked={snowflakeOptions.discoverStages}
                   onCheckedChange={(checked) =>
-                    setSnowflakeOptions((current) => ({ ...current, discoverStages: Boolean(checked) }))
+                    setSnowflakeOptions((current) => ({
+                      ...current,
+                      discoverStages: Boolean(checked),
+                    }))
                   }
                   disabled={busy}
                 />
-                <FieldLabel htmlFor="saved-snowflake-discover-stages">Discover stages</FieldLabel>
+                <FieldLabel htmlFor="saved-snowflake-discover-stages">
+                  Discover stages
+                </FieldLabel>
               </Field>
             </div>
           </div>
@@ -467,7 +526,6 @@ export function DataSourceImportDialog({
 
         <IngestionStatus job={job} />
 
-        <Separator />
         <DialogFooter>
           <DialogClose
             render={
@@ -478,7 +536,11 @@ export function DataSourceImportDialog({
               />
             }
           >
-            {job && isActiveJob(job.status) ? "Close" : job?.status === "completed" ? "Close" : "Cancel"}
+            {job && isActiveJob(job.status)
+              ? "Close"
+              : job?.status === "completed"
+                ? "Close"
+                : "Cancel"}
           </DialogClose>
           {job?.status === "failed" ? (
             <Button type="button" onClick={resetFailedImport} disabled={busy}>
@@ -496,8 +558,19 @@ export function DataSourceImportDialog({
               }
               aria-busy={busy}
             >
-              {busy ? <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" data-icon="inline-start" /> : <ImportIcon data-icon="inline-start" />}
-              {starting ? "Starting…" : job?.status === "completed" ? "Imported" : "Start ingestion"}
+              {busy ? (
+                <LoaderCircleIcon
+                  className="animate-spin motion-reduce:animate-none"
+                  data-icon="inline-start"
+                />
+              ) : (
+                <ImportIcon data-icon="inline-start" />
+              )}
+              {starting
+                ? "Starting…"
+                : job?.status === "completed"
+                  ? "Imported"
+                  : "Import"}
             </Button>
           )}
         </DialogFooter>

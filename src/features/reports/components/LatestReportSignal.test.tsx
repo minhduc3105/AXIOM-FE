@@ -65,6 +65,10 @@ describe("LatestReportSignal", () => {
     expect(screen.queryByText("Source")).toBeNull();
     expect(screen.queryByText("Generated")).toBeNull();
 
+    const title = screen.getByText("Weather report");
+    const openPdfButton = screen.getByRole("button", { name: "Open PDF" });
+    expect(openPdfButton.parentElement?.contains(title)).toBe(true);
+
     await user.click(screen.getByRole("button", { name: "References" }));
 
     const reference = screen.getByText("weather.pdf").closest("a");

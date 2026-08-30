@@ -38,7 +38,41 @@ const result: DataSourceFilesPage = {
   warning: null,
 };
 
+const emptyResult: DataSourceFilesPage = {
+  ...result,
+  files: [],
+  totalCount: 0,
+  totalPages: 0,
+  totalUnfilteredCount: 0,
+};
+
 describe("DataSourceFilesTable", () => {
+  it("hides the empty-state add-files action for imported sources", () => {
+    render(
+      <TooltipProvider>
+        <DataSourceFilesTable
+          result={emptyResult}
+          loading={false}
+          search=""
+          page={1}
+          pageSize={20}
+          sortBy="name"
+          sortOrder="asc"
+          onSearchChange={vi.fn()}
+          onPageChange={vi.fn()}
+          onPageSizeChange={vi.fn()}
+          onSortChange={vi.fn()}
+          onInspect={vi.fn()}
+          onCreateIngestion={vi.fn()}
+          showEmptyStateAction={false}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByText("No files in this source")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Add files" })).toBeNull();
+  });
+
   it("keeps the table header and pagination outside the scrolling file rows", () => {
     render(
       <TooltipProvider>
@@ -64,7 +98,9 @@ describe("DataSourceFilesTable", () => {
     const pagination = screen.getByText("Page 1 of 1");
 
     expect(body.className).toContain("overflow-y-auto");
-    expect(within(body).queryByRole("columnheader", { name: "File" })).toBeNull();
+    expect(
+      within(body).queryByRole("columnheader", { name: "File" }),
+    ).toBeNull();
     expect(body.contains(fileHeader)).toBe(false);
     expect(body.contains(pagination)).toBe(false);
   });

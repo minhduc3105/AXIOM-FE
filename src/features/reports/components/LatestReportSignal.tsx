@@ -146,21 +146,32 @@ export function LatestReportSignal({
   return (
     <Card className="overflow-hidden border-border/80 bg-card shadow-sm p-0">
       <CardHeader className="gap-4 border-b border-border/70 bg-secondary/45 px-5 py-5 sm:px-6">
-        <div className="grid gap-2">
-          <CardTitle className="text-2xl leading-tight sm:text-3xl">
-            {isProcessing
-              ? "Generating report"
-              : dashboard?.headline.title ||
-                report.title ||
-                "Report generation"}
-          </CardTitle>
-          <CardDescription className="line-clamp-2 max-w-3xl text-sm leading-6">
-            {isProcessing
-              ? `Processing ${processingSource?.filename || "the newest workspace file"}. Findings will appear when the run completes.`
-              : dashboard?.headline.summary ||
-                report.summary ||
-                "The report has not returned a summary yet."}
-          </CardDescription>
+        <div className="flex items-start justify-between gap-4">
+          <div className="grid min-w-0 gap-2">
+            <CardTitle className="text-2xl leading-tight sm:text-3xl">
+              {isProcessing
+                ? "Generating report"
+                : dashboard?.headline.title ||
+                  report.title ||
+                  "Report generation"}
+            </CardTitle>
+            <CardDescription className="line-clamp-2 max-w-3xl text-sm leading-6">
+              {isProcessing
+                ? `Processing ${processingSource?.filename || "the newest workspace file"}. Findings will appear when the run completes.`
+                : dashboard?.headline.summary ||
+                  report.summary ||
+                  "The report has not returned a summary yet."}
+            </CardDescription>
+          </div>
+          <Button
+            className="mt-0.5 shrink-0"
+            variant="outline"
+            disabled={isProcessing || !report.report_available}
+            onClick={() => onDownload(report.report_id)}
+          >
+            <DownloadIcon data-icon="inline-start" />
+            {report.report_available ? "Open PDF" : "PDF unavailable"}
+          </Button>
         </div>
       </CardHeader>
 
@@ -213,18 +224,8 @@ export function LatestReportSignal({
         )}
       </CardContent>
 
-      <CardFooter className="flex flex-wrap justify-between gap-2 px-5 py-4 sm:px-6">
+      <CardFooter className="flex flex-wrap gap-2 px-5 py-4 sm:px-6">
         <ReportReferences sources={report.sources} disabled={isProcessing} />
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            disabled={isProcessing || !report.report_available}
-            onClick={() => onDownload(report.report_id)}
-          >
-            <DownloadIcon data-icon="inline-start" />
-            {report.report_available ? "Open PDF" : "PDF unavailable"}
-          </Button>
-        </div>
       </CardFooter>
     </Card>
   );

@@ -17,7 +17,12 @@ export type OrganizationAdministrationTab =
 export type AppRoute =
   | { surface: "chat"; page: "compose"; sessionId: null }
   | { surface: "chat"; page: "conversation"; sessionId: string }
-  | { surface: "data"; page: "dashboard"; sessionId: null }
+  | {
+      surface: "data";
+      page: "dashboard";
+      sourceId: string | null;
+      sessionId: null;
+    }
   | {
       surface: "data";
       page: "document";

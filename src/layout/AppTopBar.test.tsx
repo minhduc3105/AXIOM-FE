@@ -32,7 +32,12 @@ const shellCallbacks = {
 };
 
 function renderTopBar({
-  route = { surface: "data", page: "dashboard", sessionId: null },
+  route = {
+    surface: "data",
+    page: "dashboard",
+    sourceId: null,
+    sessionId: null,
+  },
   navigationOpen = false,
   showNavigationToggle = false,
   showInspectorToggle = false,
@@ -78,7 +83,9 @@ describe("AppTopBar", () => {
     const actor = userEvent.setup();
     renderTopBar();
 
-    expect(screen.getByRole("banner", { name: "Application toolbar" })).toBeTruthy();
+    expect(
+      screen.getByRole("banner", { name: "Application toolbar" }),
+    ).toBeTruthy();
     expect(screen.getByText("Data Management")).toBeTruthy();
     expect(screen.getByLabelText("Current application scope")).toBeTruthy();
 
@@ -105,7 +112,9 @@ describe("AppTopBar", () => {
     themeState.resolvedTheme = "dark";
     renderTopBar();
 
-    expect(screen.getByRole("button", { name: "Use light theme" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Use light theme" }),
+    ).toBeTruthy();
   });
 
   it("does not duplicate workspace navigation in the header", () => {
@@ -154,7 +163,9 @@ describe("AppTopBar", () => {
       showInspectorToggle: true,
     });
 
-    await actor.click(screen.getByRole("button", { name: "Open Logs & Files" }));
+    await actor.click(
+      screen.getByRole("button", { name: "Open Logs & Files" }),
+    );
 
     expect(shellCallbacks.onInspectorOpen).toHaveBeenCalledOnce();
   });
@@ -166,8 +177,8 @@ describe("AppTopBar", () => {
     });
 
     const toolbar = screen.getByRole("banner", { name: "Application toolbar" });
-    const controls = Array.from(toolbar.querySelectorAll("button")).map((button) =>
-      button.getAttribute("aria-label"),
+    const controls = Array.from(toolbar.querySelectorAll("button")).map(
+      (button) => button.getAttribute("aria-label"),
     );
     const theme = screen.getByRole("button", { name: "Use dark theme" });
     const logs = screen.getByRole("button", { name: "Open Logs & Files" });
@@ -200,9 +211,13 @@ describe("AppTopBar", () => {
       chatControls: <button type="button">Chat model settings</button>,
     });
 
-    expect(screen.getByRole("button", { name: "Chat model settings" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Chat model settings" }),
+    ).toBeTruthy();
     expect(screen.queryByText("Chat")).toBeNull();
-    expect(screen.queryByText("Ask questions and explore your workspace.")).toBeNull();
+    expect(
+      screen.queryByText("Ask questions and explore your workspace."),
+    ).toBeNull();
   });
 
   it("places chat controls in the left page-context slot", () => {
@@ -228,6 +243,8 @@ describe("AppTopBar", () => {
       chatControls: <button type="button">Chat model settings</button>,
     });
 
-    expect(screen.queryByRole("button", { name: "Chat model settings" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Chat model settings" }),
+    ).toBeNull();
   });
 });

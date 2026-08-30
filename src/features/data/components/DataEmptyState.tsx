@@ -25,18 +25,18 @@ export function DataEmptyState({
 }: DataEmptyStateProps) {
   const content = (
     <>
-        <CardHeader className="items-center">
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        {actionLabel && onAction && (
-          <CardContent>
-            <Button onClick={onAction}>
-              <PlusIcon data-icon="inline-start" />
-              {actionLabel}
-            </Button>
-          </CardContent>
-        )}
+      <CardHeader className="items-center">
+        <CardTitle>{title}</CardTitle>
+        <CardDescription className="pb-2">{description}</CardDescription>
+      </CardHeader>
+      {actionLabel && onAction && (
+        <CardContent>
+          <Button onClick={onAction}>
+            <PlusIcon data-icon="inline-start" />
+            {actionLabel}
+          </Button>
+        </CardContent>
+      )}
     </>
   );
 

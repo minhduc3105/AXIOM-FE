@@ -26,6 +26,8 @@ import type { DataFile, DataSource } from "./model/types";
 
 type DataPageProps = {
   organizationId: string;
+  selectedDatasourceId?: string | null;
+  onSelectedDatasourceChange?: (datasourceId: string | null) => void;
   onCreateIngestion: () => void;
   onOpenDocument?: (file: DataFile, sourceLabel: string) => void;
   ingestionControl?: ReactNode;
@@ -33,6 +35,8 @@ type DataPageProps = {
 
 export function DataPage({
   organizationId,
+  selectedDatasourceId = null,
+  onSelectedDatasourceChange = () => {},
   onCreateIngestion,
   onOpenDocument = () => {},
   ingestionControl,
@@ -44,6 +48,10 @@ export function DataPage({
   const [importDatasource, setImportDatasource] = useState<DataSource | null>(
     null,
   );
+  const [sourceRefresh, setSourceRefresh] = useState<{
+    datasourceId: string;
+    version: number;
+  } | null>(null);
   const workspace = useDataWorkspace();
   const workspaceId = workspace.selectedWorkspace?.id ?? "";
   const { snapshot, loading, error, refresh } = useDataDashboard(
@@ -62,7 +70,6 @@ export function DataPage({
     remove: removeProfile,
   } = useDataSourceProfiles(organizationId);
   const initialLoading = loading && !activeSnapshot;
-  const refreshing = loading && Boolean(activeSnapshot);
   const summary = useMemo(() => {
     return {
       loading: initialLoading,
@@ -170,11 +177,11 @@ export function DataPage({
               jobs={ingestionJobs}
               profiles={profiles}
               summary={summary}
-              loading={initialLoading}
-              dataLoading={loading}
               profileError={profileError}
-              refreshing={refreshing}
+              sourceRefresh={sourceRefresh}
               onRefresh={refresh}
+              selectedDatasourceId={selectedDatasourceId}
+              onSelectedDatasourceChange={onSelectedDatasourceChange}
               onCreateIngestion={onCreateIngestion}
               ingestionControl={ingestionControl}
               onImportSource={setImportDatasource}
@@ -210,7 +217,16 @@ export function DataPage({
           onOpenChange={(open) => {
             if (!open) setImportDatasource(null);
           }}
-          onCompleted={refresh}
+          onCompleted={() => {
+            if (importDatasource) {
+              setSourceRefresh((current) => ({
+                datasourceId: importDatasource.id,
+                version: (current?.version ?? 0) + 1,
+              }));
+            }
+            refresh();
+            setImportDatasource(null);
+          }}
         />
       )}
     </section>

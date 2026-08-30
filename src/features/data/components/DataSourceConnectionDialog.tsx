@@ -1,5 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { CloudIcon, SaveIcon, SnowflakeIcon } from "lucide-react";
+import {
+  CloudIcon,
+  PlugZapIcon,
+  RefreshCwIcon,
+  SaveIcon,
+  SnowflakeIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -17,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createDatasourceProfile,
+  testDatasourceConnection,
   updateDatasourceProfile,
 } from "@/features/ingestion/api/datasourceProfileApi";
 import type {
@@ -29,7 +36,7 @@ import type {
 type SnowflakeFormState = SavedSnowflakeConfig;
 
 const defaultS3Config: SavedS3Config = {
-  region: "ap-southeast-1",
+  region: "us-east-1",
   bucketName: "",
 };
 
@@ -47,7 +54,9 @@ const defaultSnowflakeConfig: SnowflakeFormState = {
   stageLimit: null,
 };
 
-function toSnowflakeFormState(config: SavedSnowflakeConfig): SnowflakeFormState {
+function toSnowflakeFormState(
+  config: SavedSnowflakeConfig,
+): SnowflakeFormState {
   return { ...config };
 }
 
@@ -70,8 +79,9 @@ export function DataSourceConnectionDialog({
 }) {
   const [name, setName] = useState("");
   const [s3Config, setS3Config] = useState(defaultS3Config);
-  const [snowflakeConfig, setSnowflakeConfig] =
-    useState<SnowflakeFormState>(defaultSnowflakeConfig);
+  const [snowflakeConfig, setSnowflakeConfig] = useState<SnowflakeFormState>(
+    defaultSnowflakeConfig,
+  );
   const [s3AccessKeyId, setS3AccessKeyId] = useState("");
   const [s3SecretAccessKey, setS3SecretAccessKey] = useState("");
   const [snowflakePrivateKey, setSnowflakePrivateKey] = useState("");
@@ -79,19 +89,20 @@ export function DataSourceConnectionDialog({
     useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const busy = saving || testing;
 
   useEffect(() => {
     if (!open) return;
 
     setError(null);
     setSaving(false);
+    setTesting(false);
     setS3AccessKeyId("");
     setS3SecretAccessKey("");
     setSnowflakePrivateKey("");
     setSnowflakePrivateKeyPassphrase("");
-    setName(
-      profile?.name ?? (sourceType === "s3" ? "Amazon S3" : "Snowflake"),
-    );
+    setName(profile?.name ?? (sourceType === "s3" ? "Amazon S3" : "Snowflake"));
     setS3Config(
       profile?.type === "s3"
         ? (profile.config as SavedS3Config)
@@ -104,6 +115,42 @@ export function DataSourceConnectionDialog({
     );
   }, [open, profile, sourceType]);
 
+  const testConnection = async () => {
+    setError(null);
+    setTesting(true);
+
+    try {
+      if (sourceType !== "s3") return;
+      if (!workspaceId.trim()) throw new Error("Choose a workspace first.");
+      if (!s3AccessKeyId.trim() || !s3SecretAccessKey.trim()) {
+        throw new Error(
+          "AWS access key ID and secret access key are required.",
+        );
+      }
+      await testDatasourceConnection({
+        workspaceId,
+        datasourceType: "s3",
+        connectorConfig: {
+          region: s3Config.region.trim(),
+          bucket_name: s3Config.bucketName.trim(),
+        },
+        credentials: {
+          aws_access_key_id: s3AccessKeyId.trim(),
+          aws_secret_access_key: s3SecretAccessKey,
+        },
+      });
+      toast.success("Amazon S3 connection test succeeded.");
+    } catch (testError) {
+      setError(
+        testError instanceof Error
+          ? testError.message
+          : "Unable to test the datasource connection.",
+      );
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -113,7 +160,9 @@ export function DataSourceConnectionDialog({
       if (!workspaceId.trim()) throw new Error("Choose a workspace first.");
       if (sourceType === "s3") {
         if (!s3AccessKeyId.trim() || !s3SecretAccessKey.trim()) {
-          throw new Error("AWS access key ID and secret access key are required.");
+          throw new Error(
+            "AWS access key ID and secret access key are required.",
+          );
         }
         const input = {
           name,
@@ -220,7 +269,7 @@ export function DataSourceConnectionDialog({
                     value={s3AccessKeyId}
                     onChange={(event) => setS3AccessKeyId(event.target.value)}
                     autoComplete="off"
-                    disabled={saving}
+                    disabled={busy}
                     required
                   />
                 </Field>
@@ -236,7 +285,7 @@ export function DataSourceConnectionDialog({
                       setS3SecretAccessKey(event.target.value)
                     }
                     autoComplete="new-password"
-                    disabled={saving}
+                    disabled={busy}
                     required
                   />
                 </Field>
@@ -251,8 +300,8 @@ export function DataSourceConnectionDialog({
                         region: event.target.value,
                       }))
                     }
-                    placeholder="ap-southeast-1"
-                    disabled={saving}
+                    placeholder="us-east-1"
+                    disabled={busy}
                     required
                   />
                 </Field>
@@ -268,7 +317,7 @@ export function DataSourceConnectionDialog({
                       }))
                     }
                     placeholder="company-evidence"
-                    disabled={saving}
+                    disabled={busy}
                     required
                   />
                 </Field>
@@ -287,7 +336,7 @@ export function DataSourceConnectionDialog({
                           account: event.target.value,
                         }))
                       }
-                      disabled={saving}
+                      disabled={busy}
                       required
                     />
                   </Field>
@@ -302,7 +351,7 @@ export function DataSourceConnectionDialog({
                           user: event.target.value,
                         }))
                       }
-                      disabled={saving}
+                      disabled={busy}
                       required
                     />
                   </Field>
@@ -319,7 +368,7 @@ export function DataSourceConnectionDialog({
                       }
                       placeholder="-----BEGIN PRIVATE KEY-----"
                       autoComplete="off"
-                      disabled={saving}
+                      disabled={busy}
                       required
                     />
                   </Field>
@@ -335,7 +384,7 @@ export function DataSourceConnectionDialog({
                         setSnowflakePrivateKeyPassphrase(event.target.value)
                       }
                       autoComplete="new-password"
-                      disabled={saving}
+                      disabled={busy}
                     />
                   </Field>
                   <Field>
@@ -351,7 +400,7 @@ export function DataSourceConnectionDialog({
                           warehouse: event.target.value,
                         }))
                       }
-                      disabled={saving}
+                      disabled={busy}
                     />
                   </Field>
                   <Field>
@@ -367,7 +416,7 @@ export function DataSourceConnectionDialog({
                           database: event.target.value,
                         }))
                       }
-                      disabled={saving}
+                      disabled={busy}
                     />
                   </Field>
                   <Field>
@@ -381,7 +430,7 @@ export function DataSourceConnectionDialog({
                           schema: event.target.value,
                         }))
                       }
-                      disabled={saving}
+                      disabled={busy}
                     />
                   </Field>
                   <Field>
@@ -395,7 +444,7 @@ export function DataSourceConnectionDialog({
                           role: event.target.value,
                         }))
                       }
-                      disabled={saving}
+                      disabled={busy}
                     />
                   </Field>
                 </div>
@@ -414,7 +463,7 @@ export function DataSourceConnectionDialog({
                           discoverTables: Boolean(checked),
                         }))
                       }
-                      disabled={saving}
+                      disabled={busy}
                     />
                     <FieldLabel htmlFor="snowflake-discover-tables">
                       Discover tables
@@ -433,7 +482,7 @@ export function DataSourceConnectionDialog({
                           discoverStages: Boolean(checked),
                         }))
                       }
-                      disabled={saving}
+                      disabled={busy}
                     />
                     <FieldLabel htmlFor="snowflake-discover-stages">
                       Discover stages
@@ -445,20 +494,46 @@ export function DataSourceConnectionDialog({
 
             {error && (
               <Alert variant="destructive">
-                <AlertTitle>Unable to save source</AlertTitle>
+                <AlertTitle>
+                  {isS3 ? "Unable to connect source" : "Unable to save source"}
+                </AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             <DialogFooter>
               <DialogClose
-                render={<Button variant="outline" type="button" disabled={saving} />}
+                render={
+                  <Button variant="outline" type="button" disabled={busy} />
+                }
               >
                 Cancel
               </DialogClose>
-              <Button type="submit" disabled={saving}>
-                <SaveIcon data-icon="inline-start" />
-                {saving ? "Saving securely…" : "Save source"}
+              {isS3 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={testConnection}
+                  disabled={busy}
+                >
+                  <RefreshCwIcon
+                    data-icon="inline-start"
+                    className={testing ? "animate-spin" : undefined}
+                  />
+                  {testing ? "Testing…" : "Test connection"}
+                </Button>
+              )}
+              <Button type="submit" disabled={busy}>
+                {isS3 ? (
+                  <PlugZapIcon data-icon="inline-start" />
+                ) : (
+                  <SaveIcon data-icon="inline-start" />
+                )}
+                {saving
+                  ? "Connecting securely…"
+                  : isS3
+                    ? "Connect"
+                    : "Save source"}
               </Button>
             </DialogFooter>
           </FieldGroup>

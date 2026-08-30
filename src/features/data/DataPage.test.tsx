@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const fixtures = vi.hoisted(() => {
@@ -14,55 +14,59 @@ const fixtures = vi.hoisted(() => {
     role: "editor" as const,
   };
   return {
-  workspace,
-  selectedWorkspace: workspace as typeof workspace | null,
-  files: [
-    {
-      key: "ready.pdf",
-      name: "ready.pdf",
-      type: "PDF file",
-      size: 1024,
-      lastModified: "2026-08-19T08:00:00Z",
-      etag: null,
-      downloadUrl: "/ready.pdf",
-      status: "success" as const,
-      sourceStatus: "completed",
-      statusDetail: "completed",
-      errorMessage: null,
-      organizationId: "org-1",
-      workspaceId: "workspace-1",
-      datasourceId: null,
-      bucket: "axiom-data",
-      runId: null,
-      documentId: null,
-      canInspect: false,
-    },
-    {
-      key: "failed.pdf",
-      name: "failed.pdf",
-      type: "PDF file",
-      size: 2048,
-      lastModified: "2026-08-19T08:00:00Z",
-      etag: null,
-      downloadUrl: "/failed.pdf",
-      status: "failed" as const,
-      sourceStatus: "failed",
-      statusDetail: "failed",
-      errorMessage: "Parser failed",
-      organizationId: "org-1",
-      workspaceId: "workspace-1",
-      datasourceId: null,
-      bucket: "axiom-data",
-      runId: null,
-      documentId: null,
-      canInspect: false,
-    },
-  ],
+    workspace,
+    selectedWorkspace: workspace as typeof workspace | null,
+    files: [
+      {
+        key: "ready.pdf",
+        name: "ready.pdf",
+        type: "PDF file",
+        size: 1024,
+        lastModified: "2026-08-19T08:00:00Z",
+        etag: null,
+        downloadUrl: "/ready.pdf",
+        status: "success" as const,
+        sourceStatus: "completed",
+        statusDetail: "completed",
+        errorMessage: null,
+        organizationId: "org-1",
+        workspaceId: "workspace-1",
+        datasourceId: null,
+        bucket: "axiom-data",
+        runId: null,
+        documentId: null,
+        canInspect: false,
+      },
+      {
+        key: "failed.pdf",
+        name: "failed.pdf",
+        type: "PDF file",
+        size: 2048,
+        lastModified: "2026-08-19T08:00:00Z",
+        etag: null,
+        downloadUrl: "/failed.pdf",
+        status: "failed" as const,
+        sourceStatus: "failed",
+        statusDetail: "failed",
+        errorMessage: "Parser failed",
+        organizationId: "org-1",
+        workspaceId: "workspace-1",
+        datasourceId: null,
+        bucket: "axiom-data",
+        runId: null,
+        documentId: null,
+        canInspect: false,
+      },
+    ],
   };
 });
 
 const workspaceComponent = vi.hoisted(() => ({
   render: vi.fn(),
+}));
+
+const dashboard = vi.hoisted(() => ({
+  refresh: vi.fn(),
 }));
 
 vi.mock("./model/DataWorkspaceProvider", () => ({
@@ -90,7 +94,7 @@ vi.mock("./model/useDataDashboard", () => ({
     },
     loading: false,
     error: null,
-    refresh: vi.fn(),
+    refresh: dashboard.refresh,
   }),
 }));
 
@@ -105,8 +109,47 @@ vi.mock("@/shared/hooks/use-data-source-profiles", () => ({
 vi.mock("./components/DataSourcesWorkspace", () => ({
   DataSourcesWorkspace: (props: unknown) => {
     workspaceComponent.render(props);
-    return <div data-testid="data-sources-workspace" />;
+    return (
+      <div data-testid="data-sources-workspace">
+        <button
+          type="button"
+          onClick={() =>
+            (
+              props as {
+                onImportSource: (datasource: {
+                  id: string;
+                  organizationId: string;
+                  workspaceId: string;
+                  name: string;
+                  type: string;
+                  createdAt: string;
+                  updatedAt: string;
+                }) => void;
+              }
+            ).onImportSource({
+              id: "source-1",
+              organizationId: "org-1",
+              workspaceId: "workspace-1",
+              name: "Amazon S3",
+              type: "s3",
+              createdAt: "2026-08-19T08:00:00Z",
+              updatedAt: "2026-08-19T08:00:00Z",
+            })
+          }
+        >
+          Open import
+        </button>
+      </div>
+    );
   },
+}));
+
+vi.mock("./components/DataSourceImportDialog", () => ({
+  DataSourceImportDialog: ({ onCompleted }: { onCompleted: () => void }) => (
+    <button type="button" onClick={onCompleted}>
+      Complete import
+    </button>
+  ),
 }));
 
 import { DataPage } from "./DataPage";
@@ -115,6 +158,7 @@ describe("DataPage health summary", () => {
   afterEach(() => {
     fixtures.selectedWorkspace = fixtures.workspace;
     workspaceComponent.render.mockClear();
+    dashboard.refresh.mockClear();
     cleanup();
   });
 
@@ -165,6 +209,27 @@ describe("DataPage health summary", () => {
         ingestionControl: expect.anything(),
       }),
     );
+  });
+
+  it("refreshes the imported datasource file list when import completes", () => {
+    render(
+      <TooltipProvider>
+        <DataPage organizationId="org-1" onCreateIngestion={vi.fn()} />
+      </TooltipProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open import" }));
+    fireEvent.click(screen.getByRole("button", { name: "Complete import" }));
+
+    expect(dashboard.refresh).toHaveBeenCalledOnce();
+    expect(workspaceComponent.render).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sourceRefresh: { datasourceId: "source-1", version: 1 },
+      }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Complete import" }),
+    ).toBeNull();
   });
 
   it("keeps every workspace-scoped inventory action unavailable without a workspace", () => {

@@ -35,6 +35,40 @@ function page(datasourceId: string): DataSourceFilesPage {
   };
 }
 
+function processingPage(
+  datasourceId: string,
+  status: "processing" | "completed",
+) {
+  const healthStatus =
+    status === "completed" ? ("success" as const) : ("processing" as const);
+  return {
+    ...page(datasourceId),
+    files: [
+      {
+        key: "report.pdf",
+        name: "report.pdf",
+        type: "PDF file",
+        size: 100,
+        lastModified: null,
+        etag: null,
+        downloadUrl: "/report.pdf",
+        status: healthStatus,
+        sourceStatus: status,
+        statusDetail: status,
+        errorMessage: null,
+        organizationId: "org-1",
+        workspaceId: "workspace-1",
+        datasourceId,
+        bucket: "axiom-data",
+        runId: null,
+        documentId: null,
+        datasetId: "dataset-1",
+        canInspect: status === "completed",
+      },
+    ],
+  };
+}
+
 describe("useDataSourceFiles", () => {
   afterEach(() => {
     cleanup();
@@ -45,9 +79,7 @@ describe("useDataSourceFiles", () => {
   it("debounces the controlled search while preserving pagination and sort", async () => {
     vi.useFakeTimers();
     api.getDataSourceFiles.mockResolvedValue(page("source-1"));
-    renderHook(() =>
-      useDataSourceFiles("source-1", "workspace-1", query),
-    );
+    renderHook(() => useDataSourceFiles("source-1", "workspace-1", query));
 
     await act(async () => {
       await Promise.resolve();
@@ -68,7 +100,12 @@ describe("useDataSourceFiles", () => {
     const pending = new Map<string, (value: DataSourceFilesPage) => void>();
     const signals = new Map<string, AbortSignal>();
     api.getDataSourceFiles.mockImplementation(
-      (datasourceId: string, _workspaceId: string, _query: unknown, signal: AbortSignal) => {
+      (
+        datasourceId: string,
+        _workspaceId: string,
+        _query: unknown,
+        signal: AbortSignal,
+      ) => {
         signals.set(datasourceId, signal);
         return new Promise<DataSourceFilesPage>((resolve) => {
           pending.set(datasourceId, resolve);
@@ -91,5 +128,44 @@ describe("useDataSourceFiles", () => {
 
     await act(async () => pending.get("source-new")?.(page("source-new")));
     expect(result.current.result?.datasourceId).toBe("source-new");
+  });
+
+  it("refreshes processing files until the backend reports completion", async () => {
+    vi.useFakeTimers();
+    let resolveSecondRequest:
+      | ((value: DataSourceFilesPage) => void)
+      | undefined;
+    api.getDataSourceFiles
+      .mockResolvedValueOnce(processingPage("source-1", "processing"))
+      .mockImplementationOnce(
+        () =>
+          new Promise<DataSourceFilesPage>((resolve) => {
+            resolveSecondRequest = resolve;
+          }),
+      );
+    const { result } = renderHook(() =>
+      useDataSourceFiles("source-1", "workspace-1", {
+        ...query,
+        search: "",
+      }),
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+      await Promise.resolve();
+    });
+    expect(api.getDataSourceFiles).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+    expect(api.getDataSourceFiles).toHaveBeenCalledTimes(2);
+    expect(result.current.loading).toBe(false);
+
+    await act(async () => {
+      resolveSecondRequest?.(processingPage("source-1", "completed"));
+      await Promise.resolve();
+    });
   });
 });

@@ -23,16 +23,16 @@ type S3IngestionStepProps = {
 const initialConnection: S3Connection = {
   accessKeyId: "",
   secretAccessKey: "",
-  region: "ap-southeast-1",
+  region: "us-east-1",
   bucketName: "",
 };
 
 function credentialsReady(connection: S3Connection) {
   return Boolean(
     connection.accessKeyId.trim() &&
-      connection.secretAccessKey.trim() &&
-      connection.region.trim() &&
-      connection.bucketName.trim(),
+    connection.secretAccessKey.trim() &&
+    connection.region.trim() &&
+    connection.bucketName.trim(),
   );
 }
 
@@ -121,20 +121,30 @@ export function S3IngestionStep({ onBack }: S3IngestionStepProps) {
               id="s3-access-key"
               autoComplete="off"
               value={connection.accessKeyId}
-              onChange={(event) => updateConnection("accessKeyId", event.target.value)}
+              onChange={(event) =>
+                updateConnection("accessKeyId", event.target.value)
+              }
             />
-            <FieldDescription>Used only to list and copy this selection.</FieldDescription>
+            <FieldDescription>
+              Used only to list and copy this selection.
+            </FieldDescription>
           </Field>
           <Field>
-            <FieldLabel htmlFor="s3-secret-key">AWS secret access key</FieldLabel>
+            <FieldLabel htmlFor="s3-secret-key">
+              AWS secret access key
+            </FieldLabel>
             <Input
               id="s3-secret-key"
               autoComplete="off"
               type="password"
               value={connection.secretAccessKey}
-              onChange={(event) => updateConnection("secretAccessKey", event.target.value)}
+              onChange={(event) =>
+                updateConnection("secretAccessKey", event.target.value)
+              }
             />
-            <FieldDescription>This value is not stored in AXIOM.</FieldDescription>
+            <FieldDescription>
+              This value is not stored in AXIOM.
+            </FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="s3-region">AWS region</FieldLabel>
@@ -142,7 +152,9 @@ export function S3IngestionStep({ onBack }: S3IngestionStepProps) {
               id="s3-region"
               autoComplete="off"
               value={connection.region}
-              onChange={(event) => updateConnection("region", event.target.value)}
+              onChange={(event) =>
+                updateConnection("region", event.target.value)
+              }
             />
           </Field>
           <Field>
@@ -151,7 +163,9 @@ export function S3IngestionStep({ onBack }: S3IngestionStepProps) {
               id="s3-bucket"
               autoComplete="off"
               value={connection.bucketName}
-              onChange={(event) => updateConnection("bucketName", event.target.value)}
+              onChange={(event) =>
+                updateConnection("bucketName", event.target.value)
+              }
             />
           </Field>
         </FieldGroup>
@@ -165,7 +179,8 @@ export function S3IngestionStep({ onBack }: S3IngestionStepProps) {
             {browsing ? "Browsing objects..." : "Browse S3 objects"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            Credentials remain in this dialog and are cleared once the job starts.
+            Credentials remain in this dialog and are cleared once the job
+            starts.
           </p>
         </div>
       </section>
@@ -212,7 +227,9 @@ export function S3IngestionStep({ onBack }: S3IngestionStepProps) {
                     />
                     <FileIcon aria-hidden="true" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{file.name}</span>
+                      <span className="block truncate font-medium">
+                        {file.name}
+                      </span>
                       <span className="block truncate font-mono text-xs text-muted-foreground">
                         {file.key}
                       </span>

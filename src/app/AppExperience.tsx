@@ -520,6 +520,10 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
           ) : (
             <DataPage
               organizationId={user.organization_id}
+              selectedDatasourceId={route.sourceId}
+              onSelectedDatasourceChange={(datasourceId) =>
+                navigate(createDataRoute(datasourceId))
+              }
               onCreateIngestion={openDataIngestion}
               onOpenDocument={openDataDocument}
               ingestionControl={

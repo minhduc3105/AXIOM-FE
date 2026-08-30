@@ -20,6 +20,16 @@ describe("data routing", () => {
     expect(parseAppRoute("/data")).toEqual({
       surface: "data",
       page: "dashboard",
+      sourceId: null,
+      sessionId: null,
+    });
+  });
+
+  it("parses a selected datasource from the data path", () => {
+    expect(parseAppRoute("/data/source-1")).toEqual({
+      surface: "data",
+      page: "dashboard",
+      sourceId: "source-1",
       sessionId: null,
     });
   });
@@ -36,6 +46,7 @@ describe("data routing", () => {
 
   it("creates a stable data URL", () => {
     expect(getAppRoutePath(createDataRoute())).toBe("/data");
+    expect(getAppRoutePath(createDataRoute("source-1"))).toBe("/data/source-1");
   });
 });
 

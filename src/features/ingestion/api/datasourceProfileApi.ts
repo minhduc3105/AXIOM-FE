@@ -1,8 +1,5 @@
 import { authFetch } from "@/features/auth/model/authFetch";
-import type {
-  IngestionJobResponse,
-  S3FileListResponse,
-} from "./ingestionApi";
+import type { IngestionJobResponse, S3FileListResponse } from "./ingestionApi";
 
 const documentApiBaseUrl =
   import.meta.env.VITE_DOCUMENT_API_BASE_URL ?? "/api/document";
@@ -47,9 +44,7 @@ export type DatasourceProfileResponse = {
   created: boolean;
 };
 
-type DatasourceProfileConfig =
-  | S3DatasourceConfig
-  | SnowflakeDatasourceConfig;
+type DatasourceProfileConfig = S3DatasourceConfig | SnowflakeDatasourceConfig;
 type DatasourceProfileCredentials =
   | S3DatasourceCredentials
   | SnowflakeDatasourceCredentials;
@@ -69,6 +64,13 @@ type UpdateDatasourceProfileInput = Omit<
 > & {
   datasourceId: string;
   idempotencyKey?: string;
+};
+
+export type TestDatasourceConnectionInput = {
+  workspaceId: string;
+  datasourceType: DatasourceProfileType;
+  connectorConfig: DatasourceProfileConfig;
+  credentials: DatasourceProfileCredentials;
 };
 
 export type SavedDatasourceIngestionOptions = {
@@ -111,7 +113,10 @@ async function requestJson<T>(
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     throw new Error(
-      getErrorMessage(payload, `Datasource request failed (${response.status}).`),
+      getErrorMessage(
+        payload,
+        `Datasource request failed (${response.status}).`,
+      ),
     );
   }
   return payload as T;
@@ -152,6 +157,18 @@ export function updateDatasourceProfile(input: UpdateDatasourceProfileInput) {
       }),
     },
   );
+}
+
+export function testDatasourceConnection(input: TestDatasourceConnectionInput) {
+  return requestJson<void>("/datasources:test-connection", {
+    method: "POST",
+    body: JSON.stringify({
+      workspace_id: input.workspaceId,
+      datasource_type: input.datasourceType,
+      connector_config: input.connectorConfig,
+      credentials: input.credentials,
+    }),
+  });
 }
 
 export function getDatasourceProfile(datasourceId: string) {

@@ -87,17 +87,16 @@ type DataSourcesWorkspaceProps = {
   jobs: IngestionJob[];
   profiles: SavedDataSourceProfile[];
   summary: {
-    loading: boolean;
     total: number;
     ready: number;
     processing: number;
     failed: number;
   };
-  loading: boolean;
-  dataLoading: boolean;
   profileError: string | null;
-  refreshing: boolean;
+  sourceRefresh: { datasourceId: string; version: number } | null;
   onRefresh: () => void;
+  selectedDatasourceId: string | null;
+  onSelectedDatasourceChange: (datasourceId: string | null) => void;
   onCreateIngestion: () => void;
   ingestionControl?: ReactNode;
   onImportSource: (datasource: DataSource) => void;
@@ -404,8 +403,8 @@ function SourceActions({
 }: {
   datasource: DataSource;
   profile: SavedDataSourceProfile | null;
-  dataLoading: DataSourcesWorkspaceProps["dataLoading"];
-  refreshing: DataSourcesWorkspaceProps["refreshing"];
+  dataLoading: boolean;
+  refreshing: boolean;
   onRefresh: DataSourcesWorkspaceProps["onRefresh"];
   onCreateIngestion: DataSourcesWorkspaceProps["onCreateIngestion"];
   ingestionControl: DataSourcesWorkspaceProps["ingestionControl"];
@@ -438,34 +437,27 @@ function SourceActions({
             Upload files
           </Button>
           {ingestionControl}
-          <Button
-            variant="outline"
-            onClick={onRefresh}
-            disabled={dataLoading}
-            aria-busy={refreshing}
-          >
-            <RefreshCwIcon
-              data-icon="inline-start"
-              className={
-                refreshing
-                  ? "animate-spin motion-reduce:animate-none"
-                  : undefined
-              }
-            />
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </Button>
         </>
       )}
+      <Button
+        variant="outline"
+        onClick={onRefresh}
+        disabled={dataLoading}
+        aria-busy={refreshing}
+      >
+        <RefreshCwIcon
+          data-icon="inline-start"
+          className={
+            refreshing ? "animate-spin motion-reduce:animate-none" : undefined
+          }
+        />
+        {refreshing ? "Refreshing…" : "Refresh"}
+      </Button>
       <div className="hidden flex-wrap items-center gap-2 sm:flex">
         {canImport && (
           <Button onClick={() => onImportSource(datasource)}>
             <ImportIcon data-icon="inline-start" />
             Import from source
-          </Button>
-        )}
-        {canReconnect && (
-          <Button variant="outline" onClick={openConnectionSettings}>
-            Connection settings
           </Button>
         )}
         {profile && !isUpload && (
@@ -534,11 +526,11 @@ export function DataSourcesWorkspace({
   jobs,
   profiles,
   summary,
-  loading,
-  dataLoading,
   profileError,
-  refreshing,
+  sourceRefresh,
   onRefresh,
+  selectedDatasourceId,
+  onSelectedDatasourceChange,
   onCreateIngestion,
   ingestionControl,
   onImportSource,
@@ -567,7 +559,7 @@ export function DataSourcesWorkspace({
     () => [inventorySource, ...datasources],
     [datasources, inventorySource],
   );
-  const [selectedId, setSelectedId] = useState(ORGANIZATION_FILES_SOURCE_ID);
+  const selectedId = selectedDatasourceId ?? ORGANIZATION_FILES_SOURCE_ID;
   const [query, setQuery] = useState<DataSourceFilesQuery>(DEFAULT_QUERY);
   const [forgetProfile, setForgetProfile] =
     useState<SavedDataSourceProfile | null>(null);
@@ -641,7 +633,9 @@ export function DataSourcesWorkspace({
   };
 
   const selectSource = (datasourceId: string) => {
-    setSelectedId(datasourceId);
+    onSelectedDatasourceChange(
+      datasourceId === ORGANIZATION_FILES_SOURCE_ID ? null : datasourceId,
+    );
     setQuery((current) => ({ ...current, page: 1 }));
   };
   const changeSort = (field: DataSourceFileSortField) => {
@@ -657,15 +651,8 @@ export function DataSourcesWorkspace({
   };
 
   useEffect(() => {
-    setSelectedId(ORGANIZATION_FILES_SOURCE_ID);
     setQuery(DEFAULT_QUERY);
   }, [workspaceId]);
-  useEffect(() => {
-    if (!visibleSources.some((datasource) => datasource.id === selectedId)) {
-      setSelectedId(ORGANIZATION_FILES_SOURCE_ID);
-      setQuery((current) => ({ ...current, page: 1 }));
-    }
-  }, [selectedId, visibleSources]);
   useEffect(() => {
     if (!result) return;
     const safePage = Math.min(query.page, Math.max(1, result.totalPages || 1));
@@ -736,6 +723,12 @@ export function DataSourcesWorkspace({
     },
     [backendFiles.refresh, isAggregate, onRefresh, organizationFiles.refresh],
   );
+
+  useEffect(() => {
+    if (sourceRefresh?.datasourceId !== selectedSource.id || isAggregate)
+      return;
+    backendFiles.refresh();
+  }, [backendFiles.refresh, isAggregate, selectedSource.id, sourceRefresh]);
 
   useEffect(() => {
     if (!uploadActivityKey) return;
@@ -1161,9 +1154,9 @@ export function DataSourcesWorkspace({
               <SourceActions
                 datasource={selectedSource}
                 profile={profile}
-                dataLoading={dataLoading}
-                refreshing={refreshing}
-                onRefresh={onRefresh}
+                dataLoading={tableLoading}
+                refreshing={tableLoading}
+                onRefresh={refreshFileInventory}
                 onCreateIngestion={onCreateIngestion}
                 ingestionControl={ingestionControl}
                 onImportSource={onImportSource}
@@ -1233,6 +1226,7 @@ export function DataSourcesWorkspace({
                     ? configureSelectedSource
                     : undefined
               }
+              showEmptyStateAction={selectedSource.type !== "s3"}
               onCancelIndexing={(file) => void runFileAction("cancel", file)}
               onRetryIndexing={(file) => void runFileAction("retry", file)}
               onReprocessIndexing={(file) =>

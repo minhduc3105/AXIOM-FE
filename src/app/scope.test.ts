@@ -4,7 +4,8 @@ import { getRouteWorkspaceScope } from "./scope";
 describe("getRouteWorkspaceScope", () => {
   it("shows workspace context only for workspace-scoped routes", () => {
     expect(
-      getRouteWorkspaceScope({ surface: "memory", sessionId: null }).showWorkspace,
+      getRouteWorkspaceScope({ surface: "memory", sessionId: null })
+        .showWorkspace,
     ).toBe(true);
     expect(
       getRouteWorkspaceScope({
@@ -16,6 +17,7 @@ describe("getRouteWorkspaceScope", () => {
       getRouteWorkspaceScope({
         surface: "data",
         page: "dashboard",
+        sourceId: null,
         sessionId: null,
       }),
     ).toEqual({ showWorkspace: false, workspaceId: null });

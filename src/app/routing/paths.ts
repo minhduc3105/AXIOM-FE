@@ -32,6 +32,7 @@ export function parseAppRoute(pathname: string, search = ""): AppRoute {
     return {
       surface: "data",
       page: "dashboard",
+      sourceId: segments[1] ? decodeURIComponent(segments[1]) : null,
       sessionId: null,
     };
   }
@@ -112,7 +113,9 @@ export function getAppRoutePath(route: AppRoute) {
       if (route.documentId) params.set("document_id", route.documentId);
       return `/${ROUTE_SEGMENTS.data}/document/${encodeURIComponent(route.objectKey)}?${params.toString()}`;
     }
-    return `/${ROUTE_SEGMENTS.data}`;
+    return route.sourceId
+      ? `/${ROUTE_SEGMENTS.data}/${encodeURIComponent(route.sourceId)}`
+      : `/${ROUTE_SEGMENTS.data}`;
   }
   if (route.surface === "reports") return `/${ROUTE_SEGMENTS.reports}`;
   if (route.surface === "memory") return `/${ROUTE_SEGMENTS.memory}`;
@@ -147,8 +150,8 @@ export function createChatRoute(sessionId: string | null = null): AppRoute {
     : { surface: "chat", page: "compose", sessionId: null };
 }
 
-export function createDataRoute(): AppRoute {
-  return { surface: "data", page: "dashboard", sessionId: null };
+export function createDataRoute(sourceId: string | null = null): AppRoute {
+  return { surface: "data", page: "dashboard", sourceId, sessionId: null };
 }
 
 export function createDataDocumentRoute(target: {

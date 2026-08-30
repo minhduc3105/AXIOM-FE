@@ -69,6 +69,7 @@ type DataSourceFilesTableProps = {
   onSortChange: (field: DataSourceFileSortField) => void;
   onInspect: (file: DataFile) => void;
   onCreateIngestion?: () => void;
+  showEmptyStateAction?: boolean;
   onCancelIndexing?: (file: DataFile) => void;
   onRetryIndexing?: (file: DataFile) => void;
   onReprocessIndexing?: (file: DataFile) => void;
@@ -216,6 +217,7 @@ export function DataSourceFilesTable({
   onSortChange,
   onInspect,
   onCreateIngestion,
+  showEmptyStateAction = true,
   onCancelIndexing,
   onRetryIndexing,
   onReprocessIndexing,
@@ -405,8 +407,10 @@ export function DataSourceFilesTable({
         <DataEmptyState
           title="No files in this source"
           description="Start an ingestion to add files to this data source."
-          actionLabel={onCreateIngestion ? "Add files" : undefined}
-          onAction={onCreateIngestion}
+          actionLabel={
+            onCreateIngestion && showEmptyStateAction ? "Add files" : undefined
+          }
+          onAction={showEmptyStateAction ? onCreateIngestion : undefined}
           variant="flat"
         />
       ) : totalCount === 0 ? (

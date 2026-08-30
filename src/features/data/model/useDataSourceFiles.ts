@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { getDataSourceFiles } from "../api/dataApi";
-import type {
-  DataSourceFilesPage,
-  DataSourceFilesQuery,
-} from "./types";
+import type { DataSourceFilesPage, DataSourceFilesQuery } from "./types";
 
 const SEARCH_DEBOUNCE_MS = 300;
+const PROCESSING_POLL_INTERVAL_MS = 2000;
+
+type RefreshRequest = {
+  id: number;
+  background: boolean;
+};
 
 export function useDataSourceFiles(
   datasourceId: string | null,
@@ -16,7 +19,10 @@ export function useDataSourceFiles(
   const [loading, setLoading] = useState(Boolean(datasourceId));
   const [error, setError] = useState<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [refreshToken, setRefreshToken] = useState(0);
+  const [refreshRequest, setRefreshRequest] = useState<RefreshRequest>({
+    id: 0,
+    background: false,
+  });
 
   useEffect(() => {
     const timer = window.setTimeout(
@@ -33,7 +39,7 @@ export function useDataSourceFiles(
       return;
     }
     const controller = new AbortController();
-    setLoading(true);
+    if (!refreshRequest.background) setLoading(true);
     setError(null);
     void getDataSourceFiles(
       datasourceId,
@@ -62,14 +68,41 @@ export function useDataSourceFiles(
     query.pageSize,
     query.sortBy,
     query.sortOrder,
-    refreshToken,
+    refreshRequest,
     workspaceId,
   ]);
 
-  const refresh = useCallback(() => setRefreshToken((value) => value + 1), []);
+  const refresh = useCallback(
+    () =>
+      setRefreshRequest((current) => ({
+        id: current.id + 1,
+        background: false,
+      })),
+    [],
+  );
+  const refreshInBackground = useCallback(
+    () =>
+      setRefreshRequest((current) => ({
+        id: current.id + 1,
+        background: true,
+      })),
+    [],
+  );
 
   const currentResult =
     datasourceId && result?.datasourceId === datasourceId ? result : null;
+
+  useEffect(() => {
+    if (!currentResult?.files.some((file) => file.status === "processing")) {
+      return;
+    }
+
+    const timer = window.setInterval(
+      refreshInBackground,
+      PROCESSING_POLL_INTERVAL_MS,
+    );
+    return () => window.clearInterval(timer);
+  }, [currentResult, refreshInBackground]);
 
   return {
     result: currentResult,
