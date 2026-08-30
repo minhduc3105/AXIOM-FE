@@ -1,62 +1,15 @@
+import { getOrganizationFiles } from "@/features/data/api/dataApi";
+import type { DataFile } from "@/features/data/model/types";
 import type { ChatDataResource } from "../model/chatDataScope";
 
-// FE-only catalog until the retrieval-scope endpoint is available.
-const mockCatalog: ChatDataResource[] = [
-  {
-    id: "dataset:revenue-q3",
-    name: "Q3 Revenue.xlsx",
-    kind: "file",
-    source: "Uploaded files",
-    detail: "8 sheets · 24.6K rows",
-    updatedAt: "2 hours ago",
-    status: "ready",
-  },
-  {
-    id: "dataset:customer-feedback",
-    name: "Customer feedback",
-    kind: "file",
-    source: "Research archive",
-    detail: "186 documents",
-    updatedAt: "Yesterday",
-    status: "ready",
-  },
-  {
-    id: "datasource:stripe-payments",
-    name: "Stripe payments",
-    kind: "connector",
-    source: "Stripe",
-    detail: "Live connector · 38.4K records",
-    updatedAt: "12 minutes ago",
-    status: "ready",
-  },
-  {
-    id: "datasource:support-tickets",
-    name: "Support tickets",
-    kind: "database",
-    source: "MySQL",
-    detail: "4 tables · 9.8K records",
-    updatedAt: "38 minutes ago",
-    status: "ready",
-  },
-  {
-    id: "datasource:product-catalog",
-    name: "Product catalog",
-    kind: "database",
-    source: "Snowflake",
-    detail: "12 tables · 1.2K products",
-    updatedAt: "3 hours ago",
-    status: "ready",
-  },
-  {
-    id: "dataset:market-research",
-    name: "Market research 2026",
-    kind: "file",
-    source: "Amazon S3",
-    detail: "42 documents · indexing",
-    updatedAt: "Just now",
-    status: "syncing",
-  },
-];
+const FILES_PAGE_SIZE = 100;
+const filesQuery = {
+  page: 1,
+  pageSize: FILES_PAGE_SIZE,
+  search: "",
+  sortBy: "last_modified" as const,
+  sortOrder: "desc" as const,
+};
 
 export async function listChatDataResources(
   organizationId: string,
@@ -65,25 +18,68 @@ export async function listChatDataResources(
 ): Promise<ChatDataResource[]> {
   if (!organizationId.trim() || !workspaceId.trim()) return [];
 
-  await mockLatency(signal);
-  return mockCatalog.map((resource) => ({ ...resource }));
+  const requestSignal = signal ?? new AbortController().signal;
+  const firstPage = await getOrganizationFiles(
+    organizationId,
+    workspaceId,
+    filesQuery,
+    requestSignal,
+  );
+  const remainingPages = await Promise.all(
+    Array.from({ length: Math.max(0, firstPage.totalPages - 1) }, (_, index) =>
+      getOrganizationFiles(
+        organizationId,
+        workspaceId,
+        { ...filesQuery, page: index + 2 },
+        requestSignal,
+      ),
+    ),
+  );
+
+  return [firstPage, ...remainingPages]
+    .flatMap((page) => page.files)
+    .map(toChatDataResource);
 }
 
-function mockLatency(signal?: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new DOMException("The request was aborted.", "AbortError"));
-      return;
-    }
+function toChatDataResource(file: DataFile): ChatDataResource {
+  return {
+    id: file.documentId || file.datasetId || file.key,
+    name: file.name,
+    kind: "file",
+    source: "Workspace file",
+    detail: `${file.type} · ${formatFileSize(file.size)}`,
+    updatedAt: formatUpdatedAt(file.lastModified),
+    resourceRef: {
+      resourceId: file.documentId || file.datasetId || file.key,
+      filename: file.name,
+      objectKey: file.key,
+      bucket: file.bucket,
+    },
+    status:
+      file.status === "success"
+        ? "ready"
+        : file.status === "processing"
+          ? "syncing"
+          : "unavailable",
+  };
+}
 
-    const timeoutId = window.setTimeout(resolve, 280);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        window.clearTimeout(timeoutId);
-        reject(new DOMException("The request was aborted.", "AbortError"));
-      },
-      { once: true },
-    );
-  });
+function formatFileSize(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function formatUpdatedAt(value: string | null) {
+  if (!value) return "Unknown update time";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown update time";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }

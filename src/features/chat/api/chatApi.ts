@@ -215,7 +215,7 @@ export async function createInvestigation(
       input_artifact_ids: uploadedFiles.map((file) => file.artifactId),
       execution_mode: executionMode,
       ...(resolvedOptions.dataScope?.mode === "selected"
-        ? { data_scope: serializeDataScope(resolvedOptions.dataScope) }
+        ? { selected_files: serializeDataScope(resolvedOptions.dataScope) }
         : {}),
       runtime_options: {
         engine,
@@ -263,6 +263,19 @@ function serializeDataScope(scope: ChatDataScope) {
     mode: "selected",
     resource_ids: scope.resourceIds,
     resource_names: scope.resourceNames,
+    ...(scope.resourceRefs?.length
+      ? {
+          resource_refs: scope.resourceRefs.map((reference) => ({
+            resource_id: reference.resourceId,
+            filename: reference.filename,
+            object_key: reference.objectKey,
+            bucket: reference.bucket,
+            ...(reference.contentType
+              ? { content_type: reference.contentType }
+              : {}),
+          })),
+        }
+      : {}),
   };
 }
 
@@ -1224,7 +1237,7 @@ function attachmentsFromMessage(
 function dataScopeFromMessage(
   message: IntelligenceMessage,
 ): ChatDataScope | undefined {
-  const rawScope = asRecord(asRecord(message.content).data_scope);
+  const rawScope = asRecord(asRecord(message.content).selected_files);
   const mode = stringValue(rawScope.mode);
   if (mode === "all") return allChatDataScope;
   if (mode !== "selected") return undefined;
@@ -1232,11 +1245,32 @@ function dataScopeFromMessage(
   const resourceIds = stringArrayValue(rawScope.resource_ids);
   if (resourceIds.length === 0) return allChatDataScope;
   const resourceNames = stringArrayValue(rawScope.resource_names);
+  const resourceRefs = Array.isArray(rawScope.resource_refs)
+    ? rawScope.resource_refs.flatMap((item) => {
+        const reference = asRecord(item);
+        const resourceId = stringValue(reference.resource_id);
+        const filename = stringValue(reference.filename);
+        const objectKey = stringValue(reference.object_key);
+        const bucket = stringValue(reference.bucket);
+        if (!resourceId || !filename || !objectKey || !bucket) return [];
+        const contentType = stringValue(reference.content_type);
+        return [
+          {
+            resourceId,
+            filename,
+            objectKey,
+            bucket,
+            ...(contentType ? { contentType } : {}),
+          },
+        ];
+      })
+    : [];
   return {
     mode: "selected",
     resourceIds,
     resourceNames:
       resourceNames.length === resourceIds.length ? resourceNames : resourceIds,
+    ...(resourceRefs.length ? { resourceRefs } : {}),
   };
 }
 
@@ -1248,9 +1282,7 @@ function withSubmissionContext(
   return {
     ...investigation,
     ...(attachments.length ? { attachments } : {}),
-    ...(dataScope
-      ? { dataScope, scope: chatDataScopeLabel(dataScope) }
-      : {}),
+    ...(dataScope ? { dataScope, scope: chatDataScopeLabel(dataScope) } : {}),
   };
 }
 

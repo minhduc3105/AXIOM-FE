@@ -114,26 +114,25 @@ export function ChatDataScopeSelector({
         <ChevronDownIcon className="size-3.5 shrink-0" />
       </Button>
 
-      <DialogContent className="flex max-h-[min(780px,calc(100dvh-2rem))] w-[min(720px,calc(100vw-2rem))] max-w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 sm:max-w-[min(720px,calc(100vw-2rem))]">
+      <DialogContent className="flex h-[min(780px,calc(100dvh-2rem))] max-h-[min(780px,calc(100dvh-2rem))] w-[min(720px,calc(100vw-2rem))] max-w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 sm:max-w-[min(720px,calc(100vw-2rem))]">
         <DialogHeader className="shrink-0 border-b border-border px-5 py-5 pr-14 sm:px-6">
           <div className="flex flex-wrap items-center gap-2">
             <DialogTitle className="text-lg font-semibold">
               Choose data for this chat
             </DialogTitle>
             <Badge variant="secondary" className="font-normal">
-              Mock catalog
+              Workspace files
             </Badge>
           </div>
           <DialogDescription className="max-w-2xl leading-5">
-            Control which workspace sources AXIOM can retrieve for your next
-            questions.
+            Choose which files AXIOM can use to answer your next questions.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid shrink-0 grid-cols-1 gap-3 border-b border-border bg-muted/25 p-5 sm:grid-cols-2 sm:px-6">
           <ScopeChoice
             active={draftMode === "all"}
-            description={`${readyResources.length} ready sources in this workspace`}
+            description={`${readyResources.length} ready files in this workspace`}
             icon={<Layers3Icon />}
             label="All workspace data"
             onClick={() => setDraftMode("all")}
@@ -142,8 +141,8 @@ export function ChatDataScopeSelector({
             active={draftMode === "selected"}
             description={
               draftIds.length > 0
-                ? `${draftIds.length} ${draftIds.length === 1 ? "source" : "sources"} selected`
-                : "Choose one or more sources"
+                ? `${draftIds.length} ${draftIds.length === 1 ? "file" : "files"} selected`
+                : "Choose one or more files"
             }
             icon={<DatabaseIcon />}
             label="Selected data"
@@ -169,13 +168,13 @@ export function ChatDataScopeSelector({
                 className="h-10 bg-background pl-9"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search files, databases, and connectors"
+                placeholder="Search workspace files"
                 disabled={draftMode === "all"}
               />
             </div>
           </div>
 
-          <ScrollArea className="min-h-0 flex-1 px-5 sm:px-6">
+          <ScrollArea className="min-h-0 flex-1 overflow-hidden px-5 sm:px-6">
             <div className="space-y-2 pb-4">
               {loading ? (
                 <DataScopeLoading />
@@ -209,15 +208,19 @@ export function ChatDataScopeSelector({
         <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-muted/30 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p className="text-xs text-muted-foreground" aria-live="polite">
             {draftMode === "all"
-              ? "Newly added workspace data will be included automatically."
-              : `${draftIds.length} of ${readyResources.length} ready sources selected.`}
+              ? "Newly added workspace files will be included automatically."
+              : `${draftIds.length} of ${readyResources.length} ready files selected.`}
           </p>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="button" disabled={applyDisabled} onClick={applyScope}>
-              Apply scope
+              Apply
             </Button>
           </div>
         </div>
@@ -243,7 +246,7 @@ function ScopeChoice({
     <button
       type="button"
       className={cn(
-        "flex min-h-20 items-start gap-3 rounded-xl border bg-card p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+        "flex items-start gap-3 rounded-xl border bg-card p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
         active
           ? "border-primary bg-primary/5"
           : "border-border hover:border-primary/30 hover:bg-accent/50",
@@ -260,7 +263,9 @@ function ScopeChoice({
         {icon}
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-foreground">{label}</span>
+        <span className="block text-sm font-medium text-foreground">
+          {label}
+        </span>
         <span className="mt-1 block text-xs leading-4 text-muted-foreground">
           {description}
         </span>
@@ -306,7 +311,10 @@ function DataResourceRow({
             {resource.name}
           </span>
           {resource.status !== "ready" && (
-            <Badge variant="outline" className="h-5 shrink-0 font-normal capitalize">
+            <Badge
+              variant="outline"
+              className="h-5 shrink-0 font-normal capitalize"
+            >
               {resource.status}
             </Badge>
           )}

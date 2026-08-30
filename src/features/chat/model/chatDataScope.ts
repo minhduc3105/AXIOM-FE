@@ -1,6 +1,14 @@
 export type ChatDataResourceKind = "database" | "file" | "connector";
 export type ChatDataResourceStatus = "ready" | "syncing" | "unavailable";
 
+export type ChatDataResourceReference = {
+  resourceId: string;
+  filename: string;
+  objectKey: string;
+  bucket: string;
+  contentType?: string;
+};
+
 export type ChatDataResource = {
   id: string;
   name: string;
@@ -9,6 +17,7 @@ export type ChatDataResource = {
   detail: string;
   updatedAt: string;
   status: ChatDataResourceStatus;
+  resourceRef?: ChatDataResourceReference;
 };
 
 export type ChatDataScope =
@@ -21,6 +30,7 @@ export type ChatDataScope =
       mode: "selected";
       resourceIds: string[];
       resourceNames: string[];
+      resourceRefs?: ChatDataResourceReference[];
     };
 
 export const allChatDataScope: ChatDataScope = {
@@ -44,12 +54,21 @@ export function createSelectedChatDataScope(
 
   if (uniqueIds.length === 0) return allChatDataScope;
 
+  const selectedResources = uniqueIds.flatMap((id) => {
+    const resource = readyResourcesById.get(id);
+    return resource ? [resource] : [];
+  });
+  const resourceRefs = selectedResources.flatMap((resource) =>
+    resource.resourceRef ? [resource.resourceRef] : [],
+  );
+
   return {
     mode: "selected",
     resourceIds: uniqueIds,
     resourceNames: uniqueIds.map(
       (id) => readyResourcesById.get(id)?.name ?? id,
     ),
+    ...(resourceRefs.length ? { resourceRefs } : {}),
   };
 }
 
