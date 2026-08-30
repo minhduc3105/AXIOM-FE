@@ -192,13 +192,13 @@ function GeneratedFilesDialog({ files }: { files: WorkspaceFile[] }) {
         <FolderOpenIcon data-icon="inline-start" />
         View Files ({files.length})
       </Button>
-      <DialogContent className="max-h-[min(860px,calc(100dvh-2rem))] max-w-[min(920px,calc(100vw-2rem))] gap-5 overflow-hidden rounded-2xl border-border bg-card p-5 sm:max-w-[min(920px,calc(100vw-2rem))]">
+      <DialogContent className="flex max-h-[min(860px,calc(100dvh-2rem))] min-h-0 max-w-[min(920px,calc(100vw-2rem))] flex-col gap-5 overflow-hidden rounded-2xl border-border bg-card p-5 sm:max-w-[min(920px,calc(100vw-2rem))]">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
             Generated Files ({files.length})
           </DialogTitle>
         </DialogHeader>
-        <div className="max-h-[calc(100dvh-140px)] overflow-y-auto pr-1">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           <div className="min-w-0 space-y-3 pb-2">
             {imageFiles.length > 0 && (
               <div className="grid min-w-0 grid-cols-1 items-start gap-3 sm:grid-cols-2">
@@ -233,9 +233,6 @@ function GeneratedFileCard({ file }: { file: WorkspaceFile }) {
           <strong className="block truncate text-sm font-medium text-foreground">
             {file.name}
           </strong>
-          <span className="block truncate text-xs text-muted-foreground">
-            {file.type || "file"}
-          </span>
         </span>
         <ExternalLinkIcon className="size-3.5 shrink-0 text-muted-foreground" />
       </a>
@@ -253,10 +250,6 @@ function GeneratedFileCard({ file }: { file: WorkspaceFile }) {
         <strong className="block truncate text-sm font-medium text-foreground">
           {file.name}
         </strong>
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <ImageIcon className="size-3" />
-          Image
-        </span>
       </div>
       <div className="grid aspect-[16/9] place-items-center bg-secondary">
         <img

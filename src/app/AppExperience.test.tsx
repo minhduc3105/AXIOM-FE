@@ -38,7 +38,6 @@ type ChatPageStubProps = {
   onSubmit: (message: string, engine: "auto", files: File[]) => void;
   activeProcessEventKey?: string | null;
   onProcessEventSelect?: ProcessStepSelectionHandler;
-  onProcessInspectorOpen?: () => void;
 };
 
 type AppShellStubProps = {
@@ -137,7 +136,6 @@ vi.mock("@/features/chat/ChatPage", () => ({
   ChatPage: ({
     activeProcessEventKey,
     onProcessEventSelect,
-    onProcessInspectorOpen,
     onSubmit,
   }: ChatPageStubProps) => (
     <>
@@ -160,7 +158,6 @@ vi.mock("@/features/chat/ChatPage", () => ({
             },
             "current:read-file",
           );
-          onProcessInspectorOpen?.();
         }}
       >
         Select process step
@@ -281,7 +278,7 @@ describe("AppExperience chat controls", () => {
     });
   });
 
-  it("keeps the clicked process step active when opening the inspector", async () => {
+  it("keeps the clicked process step active in the inline action timeline", async () => {
     const actor = userEvent.setup();
     mocks.workflow = {
       ...mocks.workflow,

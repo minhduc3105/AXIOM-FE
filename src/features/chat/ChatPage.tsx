@@ -1,56 +1,38 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ChatComposer } from "./components/ChatComposer";
 import { EvidencePanel } from "./components/EvidencePanel";
-import { ProcessInspectorAside } from "./components/ProcessStepPanel";
 import { ReviewCard } from "./components/ReviewCard";
 import { UserMessage } from "./components/UserMessage";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import type {
   ChatStage,
   ChatEngine,
   ChatTurn,
+  ChatTranscriptItem,
   EditableSpecification,
   Investigation,
   MockResult,
   ProcessEvent,
 } from "./model/types";
 import type { ChatError } from "./model/chatError";
-import type {
-  ProcessInspectorItem,
-  ProcessStepSelectionHandler,
-} from "./components/process/processEvents";
+import type { ProcessStepSelectionHandler } from "./components/process/processEvents";
 import { cn } from "@/shared/lib/utils";
-import { useMediaQuery } from "@/shared/hooks/use-media-query";
-import type {
-  ChatDataResource,
-  ChatDataScope,
-} from "./model/chatDataScope";
+import type { ChatDataResource, ChatDataScope } from "./model/chatDataScope";
 
 type ChatPageProps = {
-  conversationId: string | null;
   stage: ChatStage;
   evidenceOpen: boolean;
   investigation: Investigation | null;
   draft: EditableSpecification | null;
   processEvents: ProcessEvent[];
+  transcript?: ChatTranscriptItem[];
   result: MockResult | null;
   history: ChatTurn[];
   error: ChatError | null;
   historyLoading: boolean;
   loading: boolean;
   canRetry: boolean;
-  inspectorItems: ProcessInspectorItem[];
   activeProcessEventKey: string | null;
   onProcessEventSelect: ProcessStepSelectionHandler;
-  processInspectorOpen: boolean;
-  onProcessInspectorOpen: () => void;
-  onProcessInspectorClose: () => void;
   engine: ChatEngine;
   focusComposerRequest?: number;
   onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
@@ -71,24 +53,20 @@ type ChatPageProps = {
 };
 
 export function ChatPage({
-  conversationId,
   stage,
   evidenceOpen,
   investigation,
   draft,
   processEvents,
+  transcript,
   result,
   history,
   error,
   historyLoading,
   loading,
   canRetry,
-  inspectorItems,
   activeProcessEventKey,
   onProcessEventSelect,
-  processInspectorOpen,
-  onProcessInspectorOpen,
-  onProcessInspectorClose,
   engine,
   focusComposerRequest = 0,
   onSubmit,
@@ -113,13 +91,6 @@ export function ChatPage({
     [processEvents],
   );
   const resultScrollSignature = result?.markdown.length ?? 0;
-  function handleProcessEventSelect(
-    ...args: Parameters<ProcessStepSelectionHandler>
-  ) {
-    onProcessEventSelect(...args);
-    onProcessInspectorOpen();
-  }
-  const desktopInspector = useMediaQuery("(min-width: 1280px)");
 
   useEffect(() => {
     const reducedMotion = window.matchMedia?.(
@@ -165,16 +136,6 @@ export function ChatPage({
   }
   if (!investigation) return null;
 
-  const inspector = (
-    <ProcessInspectorAside
-      items={inspectorItems}
-      conversationId={conversationId}
-      activeProcessEventKey={activeProcessEventKey}
-      onProcessEventSelect={handleProcessEventSelect}
-      onClose={onProcessInspectorClose}
-    />
-  );
-
   return (
     <section
       className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-hidden bg-background"
@@ -188,7 +149,7 @@ export function ChatPage({
           <div
             className={cn(
               "mx-auto flex w-full min-w-0 flex-col gap-10 px-4 py-6 md:px-8 md:py-8",
-              evidenceOpen && stage === "result" && !processInspectorOpen
+              evidenceOpen && stage === "result"
                 ? "max-w-[1480px]"
                 : "max-w-5xl",
             )}
@@ -199,7 +160,7 @@ export function ChatPage({
                 turn={turn}
                 processEventKeyPrefix={`history-${index}`}
                 activeProcessEventKey={activeProcessEventKey}
-                onProcessEventSelect={handleProcessEventSelect}
+                onProcessEventSelect={onProcessEventSelect}
               />
             ))}
 
@@ -215,6 +176,7 @@ export function ChatPage({
                 investigation={investigation}
                 draft={draft}
                 events={processEvents}
+                transcript={transcript}
                 activeProcessEventKey={activeProcessEventKey}
                 processEventKeyPrefix="current"
                 error={error}
@@ -222,19 +184,16 @@ export function ChatPage({
                 result={result}
                 responseComplete={stage === "result" && !loading}
                 canRetry={canRetry}
-                onProcessEventSelect={handleProcessEventSelect}
+                onProcessEventSelect={onProcessEventSelect}
                 onSpecificationChange={onSpecificationChange}
                 onSpecificationRevise={onSpecificationRevise}
                 onReset={onResetSpecification}
                 onRun={onApproveAndRun}
                 onRetry={onRetryProcess}
               />
-              {stage === "result" &&
-                result &&
-                evidenceOpen &&
-                !processInspectorOpen && (
-                  <EvidencePanel result={result} onClose={onCloseEvidence} />
-                )}
+              {stage === "result" && result && evidenceOpen && (
+                <EvidencePanel result={result} onClose={onCloseEvidence} />
+              )}
             </section>
           </div>
         </div>
@@ -269,25 +228,6 @@ export function ChatPage({
           </div>
         </div>
       </div>
-      {processInspectorOpen && !desktopInspector && (
-        <Sheet open onOpenChange={(open) => !open && onProcessInspectorClose()}>
-          <SheetContent
-            id="process-inspector"
-            className="!w-[min(480px,100vw)] border-border bg-card p-0"
-            side="right"
-            showCloseButton={false}
-            aria-label="Logs & Files"
-          >
-            <SheetHeader className="sr-only">
-              <SheetTitle>Logs &amp; Files</SheetTitle>
-              <SheetDescription>
-                Review analysis details and generated files for this chat.
-              </SheetDescription>
-            </SheetHeader>
-            {inspector}
-          </SheetContent>
-        </Sheet>
-      )}
     </section>
   );
 }
@@ -418,6 +358,7 @@ function HistoryTurn({
         stage="result"
         investigation={turn.investigation}
         events={turn.processEvents ?? []}
+        transcript={turn.transcript}
         activeProcessEventKey={activeProcessEventKey}
         processEventKeyPrefix={processEventKeyPrefix}
         onProcessEventSelect={onProcessEventSelect}

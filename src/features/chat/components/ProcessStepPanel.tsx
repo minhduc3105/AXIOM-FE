@@ -1,5 +1,6 @@
 export {
   getProcessPresentation,
+  isToolProcessEvent,
   type ProcessInspectorItem,
   type ProcessPresentation,
   type ProcessStepSelectionHandler,

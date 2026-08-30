@@ -22,7 +22,6 @@ function chatPageProps(
   overrides: Partial<ComponentProps<typeof ChatPage>> = {},
 ): ComponentProps<typeof ChatPage> {
   return {
-    conversationId: "conversation-42",
     stage: "pending",
     evidenceOpen: false,
     investigation,
@@ -34,13 +33,9 @@ function chatPageProps(
     historyLoading: false,
     loading: true,
     canRetry: false,
-    inspectorItems: [],
     activeProcessEventKey: null,
     onProcessEventSelect: vi.fn(),
     engine: "auto",
-    processInspectorOpen: false,
-    onProcessInspectorClose: vi.fn(),
-    onProcessInspectorOpen: vi.fn(),
     onSubmit: vi.fn(),
     onEngineChange: vi.fn(),
     onSpecificationChange: vi.fn(),
@@ -54,11 +49,8 @@ function chatPageProps(
 }
 
 function renderChatPage() {
-  const onProcessInspectorClose = vi.fn();
-  const onProcessInspectorOpen = vi.fn();
   const view = render(
     <ChatPage
-      conversationId="conversation-42"
       stage="process"
       evidenceOpen={false}
       investigation={investigation}
@@ -78,24 +70,9 @@ function renderChatPage() {
       historyLoading={false}
       loading={false}
       canRetry={false}
-      inspectorItems={[
-        {
-          key: "current:tool-1",
-          event: {
-            id: "tool-1",
-            label: "Search workspace files",
-            detail: "Searching approved files",
-            status: "done",
-            phase: "tool",
-          },
-        },
-      ]}
       activeProcessEventKey={null}
       onProcessEventSelect={vi.fn()}
       engine="report"
-      processInspectorOpen
-      onProcessInspectorClose={onProcessInspectorClose}
-      onProcessInspectorOpen={onProcessInspectorOpen}
       onSubmit={vi.fn()}
       onEngineChange={vi.fn()}
       onSpecificationChange={vi.fn()}
@@ -106,7 +83,7 @@ function renderChatPage() {
       onCloseEvidence={vi.fn()}
     />,
   );
-  return { ...view, onProcessInspectorClose, onProcessInspectorOpen };
+  return view;
 }
 
 describe("ChatPage", () => {
@@ -115,30 +92,115 @@ describe("ChatPage", () => {
     vi.clearAllMocks();
   });
 
-  it("keeps Logs & Files as a compact-sheet fallback and closes it from its header", async () => {
-    const actor = userEvent.setup();
-    const { onProcessInspectorClose } = renderChatPage();
+  it("keeps process activity inline instead of opening Logs & Files", () => {
+    renderChatPage();
 
-    expect(screen.getByRole("dialog", { name: "Logs & Files" })).toBeTruthy();
-    await actor.click(
-      screen.getByRole("button", { name: "Close Logs & Files" }),
-    );
-
-    expect(onProcessInspectorClose).toHaveBeenCalledOnce();
+    expect(screen.getByRole("region", { name: "Actions" })).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Logs & Files" })).toBeNull();
   });
 
-  it("opens the inspector when a process step is selected in chat", async () => {
-    const actor = userEvent.setup();
-    const { onProcessInspectorOpen } = renderChatPage();
-
-    await actor.click(
-      screen.getByRole("button", { name: "Analysis DetailsShow" }),
+  it("renders process activity inline as an expandable action timeline", () => {
+    render(
+      <ChatPage
+        {...chatPageProps({
+          stage: "process",
+          loading: true,
+          processEvents: [
+            {
+              id: "read-file",
+              label: "Read file",
+              detail: "Reading the selected file",
+              status: "done",
+              phase: "tool",
+            },
+            {
+              id: "execute-python",
+              label: "Execute python",
+              detail: "Running the analysis",
+              status: "running",
+              phase: "tool",
+            },
+          ],
+        })}
+      />,
     );
+
+    expect(screen.getByRole("region", { name: "Actions" })).toBeTruthy();
+    expect(screen.getByText("Read file")).toBeTruthy();
+    expect(screen.getByText("Execute python")).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Logs & Files" })).toBeNull();
+  });
+
+  it("summarizes actions and keeps each marker row compact", () => {
+    render(
+      <ChatPage
+        {...chatPageProps({
+          stage: "process",
+          processEvents: [
+            {
+              id: "read-file",
+              label: "Read file",
+              detail: "",
+              status: "done",
+              phase: "tool",
+            },
+            {
+              id: "execute-python",
+              label: "Execute python",
+              detail: "",
+              status: "done",
+              phase: "tool",
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText("Loaded a tool, read files, ran commands"),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Read file" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Execute python" })).toBeTruthy();
+    expect(screen.queryByText("Show")).toBeNull();
+  });
+
+  it("uses marker rows as the interactive action controls", () => {
+    render(
+      <ChatPage
+        {...chatPageProps({
+          stage: "process",
+          processEvents: [
+            {
+              id: "read-file",
+              label: "Read file",
+              detail: "",
+              status: "done",
+              phase: "tool",
+            },
+          ],
+        })}
+      />,
+    );
+
+    const markers = screen
+      .getByRole("region", { name: "Actions" })
+      .querySelectorAll('[data-slot="marker"]');
+
+    expect(markers).toHaveLength(2);
+    expect(
+      Array.from(markers).every((marker) => marker.tagName === "BUTTON"),
+    ).toBe(true);
+  });
+
+  it("expands an inline process step when it is selected in chat", async () => {
+    const actor = userEvent.setup();
+    renderChatPage();
     await actor.click(
       screen.getByRole("button", { name: "Search workspace files" }),
     );
 
-    expect(onProcessInspectorOpen).toHaveBeenCalledOnce();
+    expect(screen.getByText("Searching approved files")).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Logs & Files" })).toBeNull();
   });
 
   it("does not render AXIOM identity or an avatar inside a process response", () => {
@@ -153,7 +215,6 @@ describe("ChatPage", () => {
     window.scrollTo = vi.fn();
     render(
       <ChatPage
-        conversationId={null}
         stage="welcome"
         evidenceOpen={false}
         investigation={null}
@@ -165,13 +226,9 @@ describe("ChatPage", () => {
         historyLoading={false}
         loading={false}
         canRetry={false}
-        inspectorItems={[]}
         activeProcessEventKey={null}
         onProcessEventSelect={vi.fn()}
         engine="auto"
-        processInspectorOpen={false}
-        onProcessInspectorClose={vi.fn()}
-        onProcessInspectorOpen={vi.fn()}
         onSubmit={vi.fn()}
         onEngineChange={vi.fn()}
         onSpecificationChange={vi.fn()}
@@ -191,7 +248,6 @@ describe("ChatPage", () => {
   it("shows a stable Thinking response instead of a skeleton while chat is pending", () => {
     render(
       <ChatPage
-        conversationId="conversation-42"
         stage="pending"
         evidenceOpen={false}
         investigation={investigation}
@@ -203,13 +259,9 @@ describe("ChatPage", () => {
         historyLoading={false}
         loading
         canRetry={false}
-        inspectorItems={[]}
         activeProcessEventKey={null}
         onProcessEventSelect={vi.fn()}
         engine="auto"
-        processInspectorOpen={false}
-        onProcessInspectorClose={vi.fn()}
-        onProcessInspectorOpen={vi.fn()}
         onSubmit={vi.fn()}
         onEngineChange={vi.fn()}
         onSpecificationChange={vi.fn()}
@@ -221,7 +273,7 @@ describe("ChatPage", () => {
       />,
     );
 
-    const thinking = screen.getByText("Thinking...");
+    const thinking = screen.getByText("Thinking");
     expect(thinking).toBeTruthy();
     expect(
       thinking
@@ -252,7 +304,7 @@ describe("ChatPage", () => {
     expect(screen.getByRole("alert").textContent).toContain(
       "Chat is temporarily unavailable. Please try again in a moment.",
     );
-    expect(screen.queryByText("Thinking...")).toBeNull();
+    expect(screen.queryByText("Thinking")).toBeNull();
     expect(screen.queryByRole("button", { name: "Copy response" })).toBeNull();
   });
 

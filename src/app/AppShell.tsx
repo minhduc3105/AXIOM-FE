@@ -14,9 +14,9 @@ type AppShellProps = {
   activeStage: ChatStage;
   surface: AppSurface;
   activeConversationId: string | null;
-  processInspectorOpen: boolean;
-  showInspectorToggle: boolean;
-  onInspectorOpen: () => void;
+  processInspectorOpen?: boolean;
+  showInspectorToggle?: boolean;
+  onInspectorOpen?: () => void;
   onNewChat: () => void;
   onConversationOpen: (conversationId: string) => void;
   onConversationDeleted: (conversationId: string) => void;
@@ -45,8 +45,8 @@ export function AppShell({
   activeStage,
   surface,
   activeConversationId,
-  processInspectorOpen,
-  showInspectorToggle,
+  processInspectorOpen = false,
+  showInspectorToggle = false,
   onInspectorOpen,
   onNewChat,
   onConversationOpen,

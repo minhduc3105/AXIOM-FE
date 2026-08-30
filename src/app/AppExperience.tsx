@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { ChatModelReasoningSelector } from "@/features/chat/components/ChatModelReasoningSelector";
-import { ProcessInspectorAside } from "@/features/chat/components/process/ProcessInspectorAside";
 import { toChatModelOptions } from "@/features/chat/model/chatModelOptions";
 import { useChatWorkflow } from "@/features/chat/model/useChatWorkflow";
 import { useProcessInspector } from "@/features/chat/model/useProcessInspector";
@@ -61,7 +60,6 @@ import {
   normalizeExecutionMode,
 } from "@/features/chat/model/executionMode";
 import { useAppScope } from "@/shared/hooks/use-app-scope";
-import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { useDataWorkspace } from "@/features/data/model/DataWorkspaceProvider";
 import type { DataFile } from "@/features/data/model/types";
 import { getRouteWorkspaceScope } from "./scope";
@@ -122,8 +120,6 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const [skillsViewState, setSkillsViewState] = useState<SkillCatalogViewState>(
     defaultSkillCatalogViewState,
   );
-  const [processInspectorOpen, setProcessInspectorOpen] = useState(false);
-  const desktopInspector = useMediaQuery("(min-width: 1280px)");
   const processInspector = useProcessInspector(
     chat.history,
     chat.processEvents,
@@ -197,10 +193,6 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   ]);
 
   useEffect(() => {
-    setProcessInspectorOpen(false);
-  }, [route.sessionId, route.surface]);
-
-  useEffect(() => {
     if (
       route.surface === "chat" &&
       route.page === "compose" &&
@@ -220,7 +212,6 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   ]);
 
   const newChat = useCallback(() => {
-    setProcessInspectorOpen(false);
     setFocusComposerRequest((current) => current + 1);
     chat.newChat();
     navigate(createChatRoute());
@@ -348,7 +339,6 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
 
   const openConversation = useCallback(
     (conversationId: string) => {
-      setProcessInspectorOpen(false);
       navigate(createChatRoute(conversationId));
     },
     [navigate],
@@ -359,7 +349,6 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       if (route.surface !== "chat" || route.sessionId !== conversationId) {
         return;
       }
-      setProcessInspectorOpen(false);
       chat.newChat();
       navigate(createChatRoute());
     },
@@ -371,15 +360,9 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     setChatExecutionMode((mode) => normalizeExecutionMode(engine, mode));
   }, []);
 
-  const openProcessInspector = useCallback(() => {
-    processInspector.selectLatestProcessEvent();
-    setProcessInspectorOpen(true);
-  }, [processInspector]);
-
   const selectProcessEvent = useCallback(
     (...args: Parameters<typeof processInspector.selectProcessEvent>) => {
       processInspector.selectProcessEvent(...args);
-      setProcessInspectorOpen(true);
     },
     [processInspector],
   );
@@ -424,22 +407,6 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
         activeStage={chat.stage}
         surface={route.surface}
         activeConversationId={route.surface === "chat" ? route.sessionId : null}
-        processInspectorOpen={processInspectorOpen}
-        desktopInspector={
-          processInspectorOpen && desktopInspector ? (
-            <ProcessInspectorAside
-              items={processInspector.items}
-              conversationId={route.surface === "chat" ? route.sessionId : null}
-              activeProcessEventKey={processInspector.activeProcessEventKey}
-              onProcessEventSelect={selectProcessEvent}
-              onClose={() => setProcessInspectorOpen(false)}
-            />
-          ) : undefined
-        }
-        showInspectorToggle={
-          route.surface === "chat" && route.page === "conversation"
-        }
-        onInspectorOpen={openProcessInspector}
         onNewChat={newChat}
         onConversationOpen={openConversation}
         onConversationDeleted={handleConversationDeleted}
@@ -472,24 +439,20 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
       >
         {route.surface === "chat" ? (
           <ChatPage
-            conversationId={route.sessionId}
             stage={chat.stage}
             evidenceOpen={chat.evidenceOpen}
             investigation={chat.investigation}
             draft={chat.draft}
             processEvents={chat.processEvents}
+            transcript={chat.transcript}
             result={chat.result}
             history={chat.history}
             error={chat.error}
             historyLoading={chat.historyLoading}
             loading={chat.loading}
             canRetry={chat.canRetry}
-            inspectorItems={processInspector.items}
             activeProcessEventKey={processInspector.activeProcessEventKey}
             onProcessEventSelect={selectProcessEvent}
-            processInspectorOpen={processInspectorOpen}
-            onProcessInspectorOpen={() => setProcessInspectorOpen(true)}
-            onProcessInspectorClose={() => setProcessInspectorOpen(false)}
             engine={chatEngine}
             focusComposerRequest={focusComposerRequest}
             onSubmit={submitQuestion}

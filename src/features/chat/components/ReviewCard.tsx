@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   EditableSpecification,
+  ChatTranscriptItem,
   Investigation,
   MockResult,
   ProcessEvent,
@@ -20,6 +21,7 @@ import { AnswerActions } from "./AnswerActions";
 import { MarkdownContent } from "./MarkdownContent";
 import {
   getProcessPresentation,
+  isToolProcessEvent,
   ProcessWorkspace,
   type ProcessStepSelectionHandler,
 } from "./ProcessStepPanel";
@@ -29,6 +31,7 @@ type ReviewCardProps = {
   investigation: Investigation;
   draft?: EditableSpecification | null;
   events?: ProcessEvent[];
+  transcript?: ChatTranscriptItem[];
   activeProcessEventKey?: string | null;
   processEventKeyPrefix?: string;
   error?: ChatError | null;
@@ -47,6 +50,12 @@ type ReviewCardProps = {
 export function ReviewCard(props: ReviewCardProps) {
   const presentation = getProcessPresentation(props.events ?? []);
   const hasResult = Boolean(props.result?.markdown);
+  const transcript = responseTranscript({
+    transcript: props.transcript,
+    events: props.events ?? [],
+    markdown: props.result?.markdown,
+  });
+  const hasTranscript = transcript.length > 0;
   const errorStatus = props.error && (
     <div
       className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
@@ -71,21 +80,17 @@ export function ReviewCard(props: ReviewCardProps) {
     >
       {props.stage === "intent" && props.draft ? (
         <IntentCard {...props} draft={props.draft} />
-      ) : hasResult && props.result ? (
+      ) : hasResult || hasTranscript ? (
         <>
-          {presentation.transcriptEvents.length > 0 && (
-            <ProcessWorkspace
-              ariaLabel="Completed process transcript"
-              presentation={presentation}
+          <section aria-label={hasResult ? "Final answer" : "Response"}>
+            <TranscriptContent
+              transcript={transcript}
               activeProcessEventKey={props.activeProcessEventKey}
               processEventKeyPrefix={props.processEventKeyPrefix}
               onProcessEventSelect={props.onProcessEventSelect}
             />
-          )}
-          <section aria-label="Final answer">
-            <MarkdownContent markdown={props.result.markdown} />
             {errorStatus}
-            {props.responseComplete && (
+            {hasResult && props.result && props.responseComplete && (
               <AnswerActions
                 markdown={props.result.markdown}
                 events={presentation.transcriptEvents}
@@ -94,15 +99,6 @@ export function ReviewCard(props: ReviewCardProps) {
             )}
           </section>
         </>
-      ) : props.stage === "process" &&
-        presentation.transcriptEvents.length > 0 ? (
-        <ProcessWorkspace
-          ariaLabel="Processing transcript"
-          presentation={presentation}
-          activeProcessEventKey={props.activeProcessEventKey}
-          processEventKeyPrefix={props.processEventKeyPrefix}
-          onProcessEventSelect={props.onProcessEventSelect}
-        />
       ) : !props.error ? (
         <ThinkingIndicator />
       ) : null}
@@ -110,6 +106,115 @@ export function ReviewCard(props: ReviewCardProps) {
       {!hasResult && errorStatus}
     </section>
   );
+}
+
+function TranscriptContent({
+  transcript,
+  activeProcessEventKey,
+  processEventKeyPrefix = "process",
+  onProcessEventSelect,
+}: {
+  transcript: ChatTranscriptItem[];
+  activeProcessEventKey?: string | null;
+  processEventKeyPrefix?: string;
+  onProcessEventSelect?: ProcessStepSelectionHandler;
+}) {
+  const blocks = groupTranscript(transcript);
+
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+      {blocks.map((block, index) => {
+        if (block.kind === "response") {
+          return <MarkdownContent markdown={block.markdown} key={block.id} />;
+        }
+
+        const presentation = getProcessPresentation(block.events);
+        if (presentation.transcriptEvents.length === 0) return null;
+
+        return (
+          <ProcessWorkspace
+            presentation={presentation}
+            activeProcessEventKey={activeProcessEventKey}
+            processEventKeyPrefix={processEventKeyPrefix}
+            onProcessEventSelect={onProcessEventSelect}
+            key={`${processEventKeyPrefix}-actions-${index}`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+type TranscriptBlock =
+  | Extract<ChatTranscriptItem, { kind: "response" }>
+  | {
+      kind: "actions";
+      id: string;
+      events: ProcessEvent[];
+    };
+
+function groupTranscript(transcript: ChatTranscriptItem[]): TranscriptBlock[] {
+  const blocks: TranscriptBlock[] = [];
+
+  for (const item of transcript) {
+    if (item.kind === "response") {
+      if (item.markdown.trim()) blocks.push(item);
+      continue;
+    }
+    if (!isToolProcessEvent(item.event)) continue;
+
+    const previous = blocks[blocks.length - 1];
+    if (previous?.kind === "actions") {
+      previous.events.push(item.event);
+    } else {
+      blocks.push({
+        kind: "actions",
+        id: `actions:${item.id}`,
+        events: [item.event],
+      });
+    }
+  }
+
+  return blocks;
+}
+
+function responseTranscript({
+  transcript,
+  events,
+  markdown,
+}: {
+  transcript?: ChatTranscriptItem[];
+  events: ProcessEvent[];
+  markdown?: string;
+}): ChatTranscriptItem[] {
+  const items = transcript?.length
+    ? transcript
+    : events.map((event) => ({
+        kind: "action" as const,
+        id: event.id,
+        event,
+      }));
+  const responseText = items
+    .filter(
+      (item): item is Extract<ChatTranscriptItem, { kind: "response" }> =>
+        item.kind === "response",
+    )
+    .map((item) => item.markdown)
+    .join("");
+
+  if (!markdown || responseText === markdown) return items;
+  if (!responseText || markdown.startsWith(responseText)) {
+    return [
+      ...items,
+      {
+        kind: "response",
+        id: `response:${items.length}`,
+        markdown: markdown.slice(responseText.length),
+      },
+    ];
+  }
+
+  return items;
 }
 
 function IntentCard({
@@ -256,7 +361,7 @@ function IntentCard({
 function ThinkingIndicator() {
   return (
     <span className="py-1 text-sm text-muted-foreground motion-safe:animate-pulse motion-reduce:animate-none">
-      Thinking...
+      Thinking
     </span>
   );
 }

@@ -12,6 +12,7 @@ import type {
   ChatAttachment,
   ChatEngine,
   ChatExecutionMode,
+  ChatTranscriptItem,
   ChatTurn,
   ChatWorkflowState,
   EditableSpecification,
@@ -19,10 +20,7 @@ import type {
   MockResult,
   ProcessEvent,
 } from "./types";
-import {
-  chatDataScopeLabel,
-  type ChatDataScope,
-} from "./chatDataScope";
+import { chatDataScopeLabel, type ChatDataScope } from "./chatDataScope";
 
 const initialState: ChatWorkflowState = {
   activeConversationId: null,
@@ -33,6 +31,7 @@ const initialState: ChatWorkflowState = {
   draft: null,
   approvedSpecification: null,
   processEvents: createProcessEvents(),
+  transcript: [],
   result: null,
   history: [],
   historyLoading: false,
@@ -61,6 +60,7 @@ type Action =
       investigation: Investigation;
       result: MockResult;
       processEvents: ProcessEvent[];
+      transcript: ChatTranscriptItem[];
       executionMode: ChatExecutionMode;
     }
   | { type: "draft/update"; specification: EditableSpecification }
@@ -69,6 +69,7 @@ type Action =
   | { type: "draft/revise-success"; investigation: Investigation }
   | { type: "process/start"; specification: EditableSpecification }
   | { type: "process/events"; events: ProcessEvent[] }
+  | { type: "process/transcript"; transcript: ChatTranscriptItem[] }
   | { type: "process/success"; result: MockResult; evidenceOpen: boolean }
   | { type: "request/failure"; error: ChatError }
   | { type: "request/stop" }
@@ -88,6 +89,7 @@ type Action =
       result: MockResult | null;
       error: ChatError | null;
       processEvents: ProcessEvent[];
+      transcript: ChatTranscriptItem[];
       pendingInvestigation: Investigation | null;
       pendingQuestion: string | null;
       pendingExecutionMode: ChatExecutionMode;
@@ -110,6 +112,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         draft: null,
         approvedSpecification: null,
         processEvents: createProcessEvents(),
+        transcript: [],
         result: null,
         history:
           !action.replaceCurrent &&
@@ -123,6 +126,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
                   result: state.result,
                   error: state.error,
                   processEvents: state.processEvents,
+                  transcript: state.transcript,
                 },
               ]
             : state.history,
@@ -166,6 +170,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         draft: null,
         approvedSpecification: null,
         processEvents: action.processEvents,
+        transcript: action.transcript,
         result: action.result,
         loading: false,
         error: null,
@@ -210,6 +215,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         draft: action.specification,
         approvedSpecification: action.specification,
         processEvents: createProcessEvents(),
+        transcript: [],
         result: null,
         loading: true,
         error: null,
@@ -218,6 +224,11 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
       return {
         ...state,
         processEvents: action.events,
+      };
+    case "process/transcript":
+      return {
+        ...state,
+        transcript: action.transcript,
       };
     case "process/success":
       return {
@@ -255,6 +266,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         draft: null,
         approvedSpecification: null,
         processEvents: createProcessEvents(),
+        transcript: [],
         result: null,
         history: [],
         historyLoading: true,
@@ -281,6 +293,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           draft: null,
           approvedSpecification: null,
           processEvents: action.processEvents,
+          transcript: action.transcript,
           result: action.result,
           history: action.history,
           loading: action.pendingResponse,
@@ -301,6 +314,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           },
           approvedSpecification: null,
           processEvents: createProcessEvents(),
+          transcript: [],
           result: null,
           history: action.history,
           loading: false,
@@ -321,6 +335,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           draft: null,
           approvedSpecification: null,
           processEvents: createProcessEvents(),
+          transcript: [],
           result: null,
           history: action.history,
           loading: true,
@@ -414,21 +429,17 @@ function attachSubmissionContext(
   return {
     ...investigation,
     ...(attachments.length ? { attachments } : {}),
-    ...(dataScope
-      ? { dataScope, scope: chatDataScopeLabel(dataScope) }
-      : {}),
+    ...(dataScope ? { dataScope, scope: chatDataScopeLabel(dataScope) } : {}),
   };
 }
 
 function isAbortError(error: unknown) {
-  return (
-    error instanceof DOMException
-      ? error.name === "AbortError"
-      : typeof error === "object" &&
+  return error instanceof DOMException
+    ? error.name === "AbortError"
+    : typeof error === "object" &&
         error !== null &&
         "name" in error &&
-        error.name === "AbortError"
-  );
+        error.name === "AbortError";
 }
 
 function markActiveProcessEventFailed(events: ProcessEvent[]): ProcessEvent[] {
@@ -457,6 +468,7 @@ type CachedConversationState = Pick<
   | "draft"
   | "approvedSpecification"
   | "processEvents"
+  | "transcript"
   | "result"
   | "history"
   | "loading"
@@ -490,6 +502,7 @@ function cacheConversationState(state: ChatWorkflowState) {
     draft: state.draft,
     approvedSpecification: state.approvedSpecification,
     processEvents: state.processEvents,
+    transcript: state.transcript,
     result: state.result,
     history: state.history,
     loading: state.loading,
@@ -607,6 +620,10 @@ export function useChatWorkflow() {
             workspaceId,
             modelAlias,
             dataScope,
+            onTranscript: (transcript) => {
+              if (!ownsRequest(controller)) return;
+              dispatch({ type: "process/transcript", transcript });
+            },
             onOutputText: (result) => {
               if (!ownsRequest(controller)) return;
               dispatch({
@@ -644,6 +661,7 @@ export function useChatWorkflow() {
             ),
             result: outcome.result,
             processEvents: outcome.processEvents,
+            transcript: outcome.transcript,
             executionMode,
           });
         } else {
@@ -685,6 +703,10 @@ export function useChatWorkflow() {
             dispatch({ type: "process/events", events });
           },
           controller.signal,
+          (transcript) => {
+            if (!ownsRequest(controller)) return;
+            dispatch({ type: "process/transcript", transcript });
+          },
         );
         if (!ownsRequest(controller)) return;
         dispatch({ type: "process/success", result, evidenceOpen: false });
@@ -787,7 +809,10 @@ export function useChatWorkflow() {
   const retryProcess = useCallback(() => {
     if (state.loading) return;
     const submission = lastSubmissionRef.current;
-    if (!submission || submission.conversationId !== state.activeConversationId) {
+    if (
+      !submission ||
+      submission.conversationId !== state.activeConversationId
+    ) {
       return;
     }
     if (state.executionMode === "thinking" && state.approvedSpecification) {
@@ -847,6 +872,7 @@ export function useChatWorkflow() {
               result: activeTurn?.result || null,
               error: activeTurn?.error || null,
               processEvents: activeTurn?.processEvents || createProcessEvents(),
+              transcript: activeTurn?.transcript || [],
               pendingInvestigation: snapshot.pendingInvestigation,
               pendingQuestion: snapshot.pendingQuestion,
               pendingExecutionMode:
@@ -907,10 +933,11 @@ export function useChatWorkflow() {
   );
 
   const lastSubmission = lastSubmissionRef.current;
-  const canRetry = Boolean(
-    lastSubmission &&
+  const canRetry =
+    Boolean(
+      lastSubmission &&
       lastSubmission.conversationId === state.activeConversationId,
-  ) &&
+    ) &&
     !state.loading &&
     !state.historyLoading &&
     state.error?.retryable === true;

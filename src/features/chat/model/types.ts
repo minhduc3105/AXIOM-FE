@@ -56,6 +56,18 @@ export type ProcessEvent = {
   error?: unknown;
 };
 
+export type ChatTranscriptItem =
+  | {
+      kind: "response";
+      id: string;
+      markdown: string;
+    }
+  | {
+      kind: "action";
+      id: string;
+      event: ProcessEvent;
+    };
+
 export type ResultMetric = {
   label: string;
   value: string;
@@ -85,6 +97,7 @@ export type ChatTurn = {
   result: MockResult | null;
   error: ChatError | null;
   processEvents?: ProcessEvent[];
+  transcript?: ChatTranscriptItem[];
 };
 
 export type ChatWorkflowState = {
@@ -96,6 +109,7 @@ export type ChatWorkflowState = {
   draft: EditableSpecification | null;
   approvedSpecification: EditableSpecification | null;
   processEvents: ProcessEvent[];
+  transcript: ChatTranscriptItem[];
   result: MockResult | null;
   history: ChatTurn[];
   historyLoading: boolean;

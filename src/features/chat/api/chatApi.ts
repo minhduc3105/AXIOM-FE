@@ -4,6 +4,7 @@ import type {
   ChatAttachment,
   ChatEngine,
   ChatExecutionMode,
+  ChatTranscriptItem,
   ChatTurn,
   Investigation,
   MockResult,
@@ -103,11 +104,13 @@ type StreamOutcome = {
   confirmation?: PendingConfirmation;
   completed?: CompletedResponse;
   processEvents: ProcessEvent[];
+  transcript: ChatTranscriptItem[];
   outputText: string;
 };
 
 type StreamCallbacks = {
   onProcessEvents?: (events: ProcessEvent[]) => void;
+  onTranscript?: (transcript: ChatTranscriptItem[]) => void;
   onOutputText?: (result: MockResult) => void;
 };
 
@@ -118,6 +121,7 @@ type CreateInvestigationOptions = {
   modelAlias?: string | null;
   dataScope?: ChatDataScope;
   onProcessEvents?: (events: ProcessEvent[]) => void;
+  onTranscript?: (transcript: ChatTranscriptItem[]) => void;
   onOutputText?: (result: MockResult) => void;
 };
 
@@ -146,6 +150,7 @@ export type InitialChatOutcome =
       investigation: Investigation;
       result: MockResult;
       processEvents: ProcessEvent[];
+      transcript: ChatTranscriptItem[];
     };
 
 let pendingConfirmation: PendingConfirmation | null = null;
@@ -229,6 +234,7 @@ export async function createInvestigation(
   const outcome = await readResponseStream(response, signal, {
     onOutputText: resolvedOptions.onOutputText,
     onProcessEvents: resolvedOptions.onProcessEvents,
+    onTranscript: resolvedOptions.onTranscript,
   });
 
   if (executionMode === "instant" && outcome.confirmation) {
@@ -244,6 +250,7 @@ export async function createInvestigation(
           : directAnswerInvestigation(question),
       result: completedToResult(outcome.completed),
       processEvents: outcome.processEvents,
+      transcript: outcome.transcript,
     };
   }
 
@@ -340,6 +347,7 @@ export async function runWorkflow(
   specification: EditableSpecification,
   onProcessEvents: (events: ProcessEvent[]) => void,
   signal?: AbortSignal,
+  onTranscript?: (transcript: ChatTranscriptItem[]) => void,
 ): Promise<MockResult> {
   if (!pendingConfirmation) {
     throw new Error("No pending AXIOM response is ready to run.");
@@ -362,10 +370,12 @@ export async function runWorkflow(
     );
     const reviseOutcome = await readResponseStream(reviseResponse, signal, {
       onProcessEvents,
+      onTranscript,
     });
     if (reviseOutcome.completed) {
       pendingConfirmation = null;
       markAllDone(reviseOutcome.processEvents, onProcessEvents);
+      markTranscriptActionsDone(reviseOutcome.transcript, onTranscript);
       return completedToResult(reviseOutcome.completed);
     }
     if (!reviseOutcome.confirmation) {
@@ -384,6 +394,7 @@ export async function runWorkflow(
   );
   const outcome = await readResponseStream(confirmResponse, signal, {
     onProcessEvents,
+    onTranscript,
   });
 
   if (!outcome.completed) {
@@ -392,6 +403,7 @@ export async function runWorkflow(
 
   pendingConfirmation = null;
   markAllDone(outcome.processEvents, onProcessEvents);
+  markTranscriptActionsDone(outcome.transcript, onTranscript);
   return completedToResult(outcome.completed);
 }
 
@@ -524,7 +536,11 @@ async function readResponseStream(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   const parser = new ResponsesSSEParser();
-  const outcome: StreamOutcome = { processEvents: [], outputText: "" };
+  const outcome: StreamOutcome = {
+    processEvents: [],
+    transcript: [],
+    outputText: "",
+  };
   let latestResponseId: string | null = null;
   let cancellationSent = false;
   const notifyCancellation = () => {
@@ -584,6 +600,8 @@ function applyStreamEvent(
     const delta = rawStringValue(event.content);
     if (delta) {
       outcome.outputText += delta;
+      appendTranscriptResponse(outcome, delta);
+      callbacks?.onTranscript?.(outcome.transcript);
       callbacks?.onOutputText?.(
         completedToResult(
           streamingCompletedResponse(event, outcome.outputText),
@@ -601,26 +619,34 @@ function applyStreamEvent(
       label: lambdaEventLabel(event),
       details: event,
     };
+    const normalizedProcessEvent = processEventFromApiEvent(processEvent);
     outcome.processEvents = upsertProcessEvent(
       outcome.processEvents,
-      processEventFromApiEvent(processEvent),
+      normalizedProcessEvent,
     );
+    appendTranscriptAction(outcome, normalizedProcessEvent);
     callbacks?.onProcessEvents?.(outcome.processEvents);
+    callbacks?.onTranscript?.(outcome.transcript);
     return;
   }
 
   if (event.type.startsWith("pipeline.")) {
+    const normalizedProcessEvent = processEventFromApiEvent(event);
     outcome.processEvents = upsertProcessEvent(
       outcome.processEvents,
-      processEventFromApiEvent(event),
+      normalizedProcessEvent,
     );
     callbacks?.onProcessEvents?.(outcome.processEvents);
+    appendTranscriptAction(outcome, normalizedProcessEvent);
+    callbacks?.onTranscript?.(outcome.transcript);
   }
 
   if (event.type === "response.output_text.delta") {
     const delta = rawStringValue(event.delta);
     if (delta) {
       outcome.outputText += delta;
+      appendTranscriptResponse(outcome, delta);
+      callbacks?.onTranscript?.(outcome.transcript);
       callbacks?.onOutputText?.(
         completedToResult(
           streamingCompletedResponse(event, outcome.outputText),
@@ -632,7 +658,14 @@ function applyStreamEvent(
 
   if (event.type === "response.output_text.done") {
     const text = stringValue(event.text) || outcome.outputText;
+    const missingText = text.startsWith(outcome.outputText)
+      ? text.slice(outcome.outputText.length)
+      : "";
     outcome.outputText = text;
+    if (missingText) {
+      appendTranscriptResponse(outcome, missingText);
+      callbacks?.onTranscript?.(outcome.transcript);
+    }
     if (text) {
       callbacks?.onOutputText?.(
         completedToResult(streamingCompletedResponse(event, text)),
@@ -648,7 +681,22 @@ function applyStreamEvent(
 
   if (event.type === "response.completed") {
     const completed = completedFromEvent(event, outcome.outputText);
+    if (completed.outputText !== outcome.outputText) {
+      const missingText = completed.outputText.startsWith(outcome.outputText)
+        ? completed.outputText.slice(outcome.outputText.length)
+        : completed.outputText;
+      if (missingText) appendTranscriptResponse(outcome, missingText);
+      outcome.outputText = completed.outputText;
+    }
     outcome.completed = completed;
+    outcome.processEvents = outcome.processEvents.map((processEvent) =>
+      processEvent.status === "running"
+        ? { ...processEvent, status: "done" as const }
+        : processEvent,
+    );
+    outcome.transcript = completedTranscriptActions(outcome.transcript);
+    callbacks?.onProcessEvents?.(outcome.processEvents);
+    callbacks?.onTranscript?.(outcome.transcript);
     const artifactEvent = completionArtifactProcessEvent(completed);
     if (artifactEvent) {
       outcome.processEvents = upsertProcessEvent(
@@ -656,6 +704,8 @@ function applyStreamEvent(
         artifactEvent,
       );
       callbacks?.onProcessEvents?.(outcome.processEvents);
+      appendTranscriptAction(outcome, artifactEvent);
+      callbacks?.onTranscript?.(outcome.transcript);
     }
     return;
   }
@@ -896,18 +946,68 @@ function upsertProcessEvent(
   events: ProcessEvent[],
   nextEvent: ProcessEvent,
 ): ProcessEvent[] {
-  const preparedEvents = events.map((event) =>
-    event.status === "running" ? { ...event, status: "done" as const } : event,
-  );
-  const existingIndex = preparedEvents.findIndex(
-    (event) => event.id === nextEvent.id,
-  );
+  const existingIndex = events.findIndex((event) => event.id === nextEvent.id);
 
-  if (existingIndex < 0) return [...preparedEvents, nextEvent];
+  if (existingIndex < 0) return [...events, nextEvent];
 
-  return preparedEvents.map((event, index) =>
+  return events.map((event, index) =>
     index === existingIndex ? { ...event, ...nextEvent } : event,
   );
+}
+
+function appendTranscriptResponse(outcome: StreamOutcome, delta: string) {
+  const last = outcome.transcript[outcome.transcript.length - 1];
+  if (last?.kind === "response") {
+    outcome.transcript = [
+      ...outcome.transcript.slice(0, -1),
+      { ...last, markdown: last.markdown + delta },
+    ];
+    return;
+  }
+
+  outcome.transcript = [
+    ...outcome.transcript,
+    {
+      kind: "response",
+      id: `response:${outcome.transcript.length}`,
+      markdown: delta,
+    },
+  ];
+}
+
+function appendTranscriptAction(outcome: StreamOutcome, event: ProcessEvent) {
+  const existingIndex = outcome.transcript.findIndex(
+    (item) => item.kind === "action" && item.event.id === event.id,
+  );
+  if (existingIndex < 0) {
+    outcome.transcript = [
+      ...outcome.transcript,
+      { kind: "action", id: event.id, event },
+    ];
+    return;
+  }
+
+  outcome.transcript = outcome.transcript.map((item, index) =>
+    index === existingIndex && item.kind === "action"
+      ? { ...item, event }
+      : item,
+  );
+}
+
+function completedTranscriptActions(transcript: ChatTranscriptItem[]) {
+  return transcript.map((item) =>
+    item.kind === "action" && item.event.status === "running"
+      ? { ...item, event: { ...item.event, status: "done" as const } }
+      : item,
+  );
+}
+
+function markTranscriptActionsDone(
+  transcript: ChatTranscriptItem[],
+  onTranscript?: (transcript: ChatTranscriptItem[]) => void,
+) {
+  if (transcript.length === 0) return;
+  onTranscript?.(completedTranscriptActions(transcript));
 }
 
 function processEventFromApiEvent(event: SseEvent): ProcessEvent {
