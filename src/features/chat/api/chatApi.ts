@@ -22,6 +22,7 @@ import { getChatError, type ChatError } from "../model/chatError";
 import {
   allChatDataScope,
   chatDataScopeLabel,
+  noChatDataScope,
   type ChatDataScope,
 } from "../model/chatDataScope";
 
@@ -219,7 +220,7 @@ export async function createInvestigation(
       })),
       input_artifact_ids: uploadedFiles.map((file) => file.artifactId),
       execution_mode: executionMode,
-      ...(resolvedOptions.dataScope?.mode === "selected"
+      ...(resolvedOptions.dataScope && resolvedOptions.dataScope.mode !== "all"
         ? { selected_files: serializeDataScope(resolvedOptions.dataScope) }
         : {}),
       runtime_options: {
@@ -266,6 +267,7 @@ export async function createInvestigation(
 
 function serializeDataScope(scope: ChatDataScope) {
   if (scope.mode === "all") return { mode: "all" };
+  if (scope.mode === "none") return { mode: "none" };
   return {
     mode: "selected",
     resource_ids: scope.resourceIds,
@@ -1340,6 +1342,7 @@ function dataScopeFromMessage(
   const rawScope = asRecord(asRecord(message.content).selected_files);
   const mode = stringValue(rawScope.mode);
   if (mode === "all") return allChatDataScope;
+  if (mode === "none") return noChatDataScope;
   if (mode !== "selected") return undefined;
 
   const resourceIds = stringArrayValue(rawScope.resource_ids);

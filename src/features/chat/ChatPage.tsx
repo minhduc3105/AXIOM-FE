@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer } from "./components/ChatComposer";
+import { ChatDataScopeSelector } from "./components/ChatDataScopeSelector";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { ReviewCard } from "./components/ReviewCard";
 import { UserMessage } from "./components/UserMessage";
@@ -44,6 +45,7 @@ type ChatPageProps = {
   onRetryProcess: () => void;
   onCloseEvidence: () => void;
   onStopGeneration?: () => void;
+  workspaceId?: string;
   dataScope?: ChatDataScope;
   dataResources?: ChatDataResource[];
   dataResourcesLoading?: boolean;
@@ -78,6 +80,7 @@ export function ChatPage({
   onRetryProcess,
   onCloseEvidence,
   onStopGeneration,
+  workspaceId = "",
   dataScope,
   dataResources = [],
   dataResourcesLoading = false,
@@ -86,6 +89,11 @@ export function ChatPage({
   onDataResourcesRefresh,
 }: ChatPageProps) {
   const chatMainRef = useRef<HTMLDivElement>(null);
+  const [scopeSidebarCollapsed, setScopeSidebarCollapsed] = useState(false);
+  const [scopePreviewOpen, setScopePreviewOpen] = useState(false);
+  const scopeSidebarOpen = Boolean(
+    dataScope && onDataScopeChange && !scopeSidebarCollapsed,
+  );
   const processSignature = useMemo(
     () => processEvents.map((event) => event.status).join("-"),
     [processEvents],
@@ -125,12 +133,20 @@ export function ChatPage({
         onEngineChange={onEngineChange}
         onSubmit={onSubmit}
         onStop={onStopGeneration}
-        dataScope={dataScope}
-        dataResources={dataResources}
-        dataResourcesLoading={dataResourcesLoading}
-        dataResourcesError={dataResourcesError}
-        onDataScopeChange={onDataScopeChange}
-        onDataResourcesRefresh={onDataResourcesRefresh}
+        workspaceId={workspaceId}
+        sidebarOpen={Boolean(
+          dataScope && onDataScopeChange && !scopeSidebarCollapsed,
+        )}
+        sidebarPreviewOpen={scopePreviewOpen}
+        onPreviewChange={setScopePreviewOpen}
+        sidebarCollapsed={scopeSidebarCollapsed}
+        onSidebarCollapsedChange={setScopeSidebarCollapsed}
+        scope={dataScope}
+        resources={dataResources}
+        resourcesLoading={dataResourcesLoading}
+        resourcesError={dataResourcesError}
+        onScopeChange={onDataScopeChange}
+        onResourcesRefresh={onDataResourcesRefresh}
       />
     );
   }
@@ -138,95 +154,112 @@ export function ChatPage({
 
   return (
     <section
-      className="h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-hidden bg-background"
+      className="relative h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-hidden bg-background"
       aria-label="Investigation workspace"
     >
-      <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="flex h-full min-h-0 min-w-0">
         <div
-          ref={chatMainRef}
-          className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1 flex-col",
+            scopeSidebarOpen &&
+              (scopePreviewOpen
+                ? "lg:pr-[min(640px,52vw)]"
+                : "lg:pr-[min(420px,34vw)]"),
+          )}
         >
           <div
-            className={cn(
-              "mx-auto flex w-full min-w-0 flex-col gap-10 px-4 py-6 md:px-8 md:py-8",
-              evidenceOpen && stage === "result"
-                ? "max-w-[1480px]"
-                : "max-w-5xl",
-            )}
+            ref={chatMainRef}
+            className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
           >
-            {history.map((turn, index) => (
-              <HistoryTurn
-                key={`${turn.investigation.question}-${index}`}
-                turn={turn}
-                processEventKeyPrefix={`history-${index}`}
-                activeProcessEventKey={activeProcessEventKey}
-                onProcessEventSelect={onProcessEventSelect}
-              />
-            ))}
-
-            <section className="flex min-w-0 flex-col gap-6">
-              <UserMessage
-                attachments={investigation.attachments}
-                dataScope={investigation.dataScope}
-                question={investigation.question}
-              />
-
-              <ReviewCard
-                stage={stage}
-                investigation={investigation}
-                draft={draft}
-                events={processEvents}
-                transcript={transcript}
-                activeProcessEventKey={activeProcessEventKey}
-                processEventKeyPrefix="current"
-                error={error}
-                loading={loading}
-                result={result}
-                responseComplete={stage === "result" && !loading}
-                canRetry={canRetry}
-                onProcessEventSelect={onProcessEventSelect}
-                onSpecificationChange={onSpecificationChange}
-                onSpecificationRevise={onSpecificationRevise}
-                onReset={onResetSpecification}
-                onRun={onApproveAndRun}
-                onRetry={onRetryProcess}
-              />
-              {stage === "result" && result && evidenceOpen && (
-                <EvidencePanel result={result} onClose={onCloseEvidence} />
+            <div
+              className={cn(
+                "mx-auto flex w-full min-w-0 flex-col gap-10 px-4 py-6 md:px-8 md:py-8",
+                evidenceOpen && stage === "result"
+                  ? "max-w-[1480px]"
+                  : "max-w-5xl",
               )}
-            </section>
-          </div>
-        </div>
+            >
+              {history.map((turn, index) => (
+                <HistoryTurn
+                  key={`${turn.investigation.question}-${index}`}
+                  turn={turn}
+                  processEventKeyPrefix={`history-${index}`}
+                  activeProcessEventKey={activeProcessEventKey}
+                  onProcessEventSelect={onProcessEventSelect}
+                />
+              ))}
 
-        <div
-          className="shrink-0 bg-background/95 px-4 py-3 md:px-8"
-          data-chat-composer-dock
-        >
-          <div className="mx-auto w-full max-w-5xl">
-            <ChatComposer
-              className="w-full"
-              engine={engine}
-              sendDisabled={loading}
-              autoFocus={loading}
-              onEngineChange={onEngineChange}
-              onSubmit={onSubmit}
-              onStop={onStopGeneration}
-              dataScope={dataScope}
-              dataResources={dataResources}
-              dataResourcesLoading={dataResourcesLoading}
-              dataResourcesError={dataResourcesError}
-              onDataScopeChange={onDataScopeChange}
-              onDataResourcesRefresh={onDataResourcesRefresh}
-              placeholder={
-                loading
-                  ? "AXIOM is working..."
-                  : stage === "result"
-                    ? "Ask a follow-up or start another investigation..."
-                    : "Message AXIOM..."
-              }
-            />
+              <section className="flex min-w-0 flex-col gap-6">
+                <UserMessage
+                  attachments={investigation.attachments}
+                  dataScope={investigation.dataScope}
+                  question={investigation.question}
+                />
+
+                <ReviewCard
+                  stage={stage}
+                  investigation={investigation}
+                  draft={draft}
+                  events={processEvents}
+                  transcript={transcript}
+                  activeProcessEventKey={activeProcessEventKey}
+                  processEventKeyPrefix="current"
+                  error={error}
+                  loading={loading}
+                  result={result}
+                  responseComplete={stage === "result" && !loading}
+                  canRetry={canRetry}
+                  onProcessEventSelect={onProcessEventSelect}
+                  onSpecificationChange={onSpecificationChange}
+                  onSpecificationRevise={onSpecificationRevise}
+                  onReset={onResetSpecification}
+                  onRun={onApproveAndRun}
+                  onRetry={onRetryProcess}
+                />
+                {stage === "result" && result && evidenceOpen && (
+                  <EvidencePanel result={result} onClose={onCloseEvidence} />
+                )}
+              </section>
+            </div>
+          </div>
+
+          <div
+            className="shrink-0 bg-background/95 px-4 py-3 md:px-8"
+            data-chat-composer-dock
+          >
+            <div className="mx-auto w-full max-w-5xl">
+              <ChatComposer
+                className="w-full"
+                engine={engine}
+                sendDisabled={loading}
+                autoFocus={loading}
+                onEngineChange={onEngineChange}
+                onSubmit={onSubmit}
+                onStop={onStopGeneration}
+                placeholder={
+                  loading
+                    ? "AXIOM is working..."
+                    : stage === "result"
+                      ? "Ask a follow-up or start another investigation..."
+                      : "Message AXIOM..."
+                }
+              />
+            </div>
           </div>
         </div>
+        <ChatDataScopeSidebar
+          workspaceId={workspaceId}
+          scope={dataScope}
+          resources={dataResources}
+          loading={dataResourcesLoading}
+          error={dataResourcesError}
+          disabled={loading}
+          collapsed={scopeSidebarCollapsed}
+          onCollapsedChange={setScopeSidebarCollapsed}
+          onPreviewChange={setScopePreviewOpen}
+          onChange={onDataScopeChange}
+          onRefresh={onDataResourcesRefresh}
+        />
       </div>
     </section>
   );
@@ -281,12 +314,18 @@ function EmptyChatWorkspace({
   loading,
   focusComposerRequest,
   onStop,
-  dataScope,
-  dataResources,
-  dataResourcesLoading,
-  dataResourcesError,
-  onDataScopeChange,
-  onDataResourcesRefresh,
+  workspaceId,
+  sidebarOpen,
+  sidebarPreviewOpen,
+  onPreviewChange,
+  sidebarCollapsed,
+  onSidebarCollapsedChange,
+  scope,
+  resources,
+  resourcesLoading,
+  resourcesError,
+  onScopeChange,
+  onResourcesRefresh,
 }: {
   engine: ChatEngine;
   onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
@@ -294,45 +333,112 @@ function EmptyChatWorkspace({
   loading: boolean;
   focusComposerRequest: number;
   onStop?: () => void;
-  dataScope?: ChatDataScope;
-  dataResources: ChatDataResource[];
-  dataResourcesLoading: boolean;
-  dataResourcesError: string | null;
-  onDataScopeChange?: (scope: ChatDataScope) => void;
-  onDataResourcesRefresh?: () => void;
+  workspaceId: string;
+  sidebarOpen: boolean;
+  sidebarPreviewOpen: boolean;
+  onPreviewChange: (previewOpen: boolean) => void;
+  sidebarCollapsed: boolean;
+  onSidebarCollapsedChange: (collapsed: boolean) => void;
+  scope?: ChatDataScope;
+  resources: ChatDataResource[];
+  resourcesLoading: boolean;
+  resourcesError: string | null;
+  onScopeChange?: (scope: ChatDataScope) => void;
+  onResourcesRefresh?: () => void;
 }) {
   return (
     <section
-      className="grid min-h-[calc(100dvh-var(--app-top-bar-height))] w-full items-start justify-items-center overflow-hidden px-5 pb-10 pt-[clamp(12rem,30vh,32rem)]"
+      className="relative flex h-[calc(100dvh-var(--app-top-bar-height))] min-h-0 w-full overflow-hidden bg-background"
       aria-label="New chat"
     >
-      <div className="flex w-full max-w-3xl flex-col items-center gap-8">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <h1 className="text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
-            What can I help with?
-          </h1>
-          <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-            Start a new AXIOM investigation, ask for analysis, or request a
-            report draft.
-          </p>
+      <div
+        className={cn(
+          "flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-y-auto px-5 pb-10 pt-[clamp(12rem,30vh,32rem)]",
+          sidebarOpen &&
+            (sidebarPreviewOpen
+              ? "lg:pr-[min(640px,52vw)]"
+              : "lg:pr-[min(420px,34vw)]"),
+        )}
+      >
+        <div className="flex w-full max-w-3xl flex-col items-center gap-8">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <h1 className="text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
+              What can I help with?
+            </h1>
+            <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+              Start a new AXIOM investigation, ask for analysis, or request a
+              report draft.
+            </p>
+          </div>
+          <ChatComposer
+            engine={engine}
+            focusRequest={focusComposerRequest}
+            onSubmit={onSubmit}
+            onEngineChange={onEngineChange}
+            onStop={onStop}
+            disabled={loading}
+            placeholder="Message AXIOM..."
+          />
         </div>
-        <ChatComposer
-          engine={engine}
-          focusRequest={focusComposerRequest}
-          onSubmit={onSubmit}
-          onEngineChange={onEngineChange}
-          onStop={onStop}
-          dataScope={dataScope}
-          dataResources={dataResources}
-          dataResourcesLoading={dataResourcesLoading}
-          dataResourcesError={dataResourcesError}
-          onDataScopeChange={onDataScopeChange}
-          onDataResourcesRefresh={onDataResourcesRefresh}
-          disabled={loading}
-          placeholder="Message AXIOM..."
-        />
       </div>
+      <ChatDataScopeSidebar
+        workspaceId={workspaceId}
+        scope={scope}
+        resources={resources}
+        loading={resourcesLoading}
+        error={resourcesError}
+        disabled={loading}
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={onSidebarCollapsedChange}
+        onPreviewChange={onPreviewChange}
+        onChange={onScopeChange}
+        onRefresh={onResourcesRefresh}
+      />
     </section>
+  );
+}
+
+function ChatDataScopeSidebar({
+  scope,
+  resources,
+  workspaceId,
+  collapsed,
+  onCollapsedChange,
+  onPreviewChange,
+  loading,
+  error,
+  disabled,
+  onChange,
+  onRefresh,
+}: {
+  scope?: ChatDataScope;
+  resources: ChatDataResource[];
+  workspaceId: string;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
+  onPreviewChange: (previewOpen: boolean) => void;
+  loading: boolean;
+  error: string | null;
+  disabled: boolean;
+  onChange?: (scope: ChatDataScope) => void;
+  onRefresh?: () => void;
+}) {
+  if (!scope || !onChange) return null;
+
+  return (
+    <ChatDataScopeSelector
+      workspaceId={workspaceId}
+      scope={scope}
+      resources={resources}
+      loading={loading}
+      error={error}
+      disabled={disabled}
+      collapsed={collapsed}
+      onCollapsedChange={onCollapsedChange}
+      onPreviewChange={onPreviewChange}
+      onChange={onChange}
+      onRefresh={onRefresh}
+    />
   );
 }
 

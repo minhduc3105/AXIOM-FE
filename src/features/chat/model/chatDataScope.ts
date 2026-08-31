@@ -27,6 +27,11 @@ export type ChatDataScope =
       resourceNames: [];
     }
   | {
+      mode: "none";
+      resourceIds: [];
+      resourceNames: [];
+    }
+  | {
       mode: "selected";
       resourceIds: string[];
       resourceNames: string[];
@@ -35,6 +40,12 @@ export type ChatDataScope =
 
 export const allChatDataScope: ChatDataScope = {
   mode: "all",
+  resourceIds: [],
+  resourceNames: [],
+};
+
+export const noChatDataScope: ChatDataScope = {
+  mode: "none",
   resourceIds: [],
   resourceNames: [],
 };
@@ -74,6 +85,7 @@ export function createSelectedChatDataScope(
 
 export function chatDataScopeLabel(scope: ChatDataScope) {
   if (scope.mode === "all") return "All workspace data";
+  if (scope.mode === "none") return "No workspace files";
   if (scope.resourceNames.length === 1) return scope.resourceNames[0];
   return `${scope.resourceNames.length} selected sources`;
 }

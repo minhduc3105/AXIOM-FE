@@ -21,17 +21,21 @@ import { formatJson, hasDisplayValue } from "./processValueUtils";
 
 export function ProcessWorkspace({
   presentation,
+  running,
   activeProcessEventKey,
   processEventKeyPrefix = "process",
   onProcessEventSelect,
 }: {
   presentation: ProcessPresentation;
+  running?: boolean;
   activeProcessEventKey?: string | null;
   processEventKeyPrefix?: string;
   onProcessEventSelect?: ProcessStepSelectionHandler;
 }) {
   const { transcriptEvents } = presentation;
   const [expanded, setExpanded] = useState(false);
+  const isRunning =
+    running ?? transcriptEvents.some((event) => event.status === "running");
 
   if (transcriptEvents.length === 0) return null;
 
@@ -39,11 +43,15 @@ export function ProcessWorkspace({
   return (
     <section
       aria-label="Actions"
+      aria-busy={isRunning}
       className="w-full min-w-0"
       data-inline-action-timeline
     >
       <Marker
-        className="cursor-pointer py-1 transition-colors hover:text-foreground"
+        className={cn(
+          "cursor-pointer overflow-hidden py-1 transition-colors hover:text-foreground",
+          isRunning && "bg-muted/45 dark:bg-muted/55",
+        )}
         render={
           <button
             type="button"
@@ -57,10 +65,16 @@ export function ProcessWorkspace({
           />
         }
       >
-        <MarkerIcon>
+        {isRunning && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 z-0 w-1/3 -translate-x-full bg-gradient-to-r from-transparent via-white/75 to-transparent motion-safe:animate-marker-shimmer motion-reduce:hidden"
+          />
+        )}
+        <MarkerIcon className="relative z-10">
           <TerminalSquareIcon className="text-current" />
         </MarkerIcon>
-        <MarkerContent className="flex min-w-0 items-center gap-1.5">
+        <MarkerContent className="relative z-10 flex min-w-0 items-center gap-1.5">
           <span className="flex min-w-0 items-center text-left text-sm">
             <strong className="min-w-0 truncate font-normal">
               {actionSummary(transcriptEvents)}

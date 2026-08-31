@@ -85,6 +85,7 @@ export function ReviewCard(props: ReviewCardProps) {
           <section aria-label={hasResult ? "Final answer" : "Response"}>
             <TranscriptContent
               transcript={transcript}
+              running={props.loading}
               activeProcessEventKey={props.activeProcessEventKey}
               processEventKeyPrefix={props.processEventKeyPrefix}
               onProcessEventSelect={props.onProcessEventSelect}
@@ -110,11 +111,13 @@ export function ReviewCard(props: ReviewCardProps) {
 
 function TranscriptContent({
   transcript,
+  running,
   activeProcessEventKey,
   processEventKeyPrefix = "process",
   onProcessEventSelect,
 }: {
   transcript: ChatTranscriptItem[];
+  running: boolean;
   activeProcessEventKey?: string | null;
   processEventKeyPrefix?: string;
   onProcessEventSelect?: ProcessStepSelectionHandler;
@@ -134,6 +137,7 @@ function TranscriptContent({
         return (
           <ProcessWorkspace
             presentation={presentation}
+            running={running}
             activeProcessEventKey={activeProcessEventKey}
             processEventKeyPrefix={processEventKeyPrefix}
             onProcessEventSelect={onProcessEventSelect}

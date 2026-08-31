@@ -28,11 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
 import type { ChatEngine } from "../model/types";
-import type {
-  ChatDataResource,
-  ChatDataScope,
-} from "../model/chatDataScope";
-import { ChatDataScopeSelector } from "./ChatDataScopeSelector";
+import type { ChatDataResource, ChatDataScope } from "../model/chatDataScope";
 
 const engineOptions: Array<{ value: ChatEngine; label: string }> = [
   { value: "auto", label: "Auto" },
@@ -52,12 +48,6 @@ export function ChatComposer({
   autoFocus = false,
   focusRequest = 0,
   onStop,
-  dataScope,
-  dataResources = [],
-  dataResourcesLoading = false,
-  dataResourcesError = null,
-  onDataScopeChange,
-  onDataResourcesRefresh,
 }: {
   onSubmit: (message: string, engine: ChatEngine, files: File[]) => void;
   engine: ChatEngine;
@@ -204,17 +194,6 @@ export function ChatComposer({
           >
             <PaperclipIcon />
           </Button>
-          {dataScope && onDataScopeChange && (
-            <ChatDataScopeSelector
-              scope={dataScope}
-              resources={dataResources}
-              loading={dataResourcesLoading}
-              error={dataResourcesError}
-              disabled={disabled}
-              onChange={onDataScopeChange}
-              onRefresh={onDataResourcesRefresh}
-            />
-          )}
           <DropdownMenu open={engineMenuOpen} onOpenChange={setEngineMenuOpen}>
             <DropdownMenuTrigger
               render={
