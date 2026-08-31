@@ -21,7 +21,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/shared/lib/utils";
@@ -420,39 +425,49 @@ export function DataSourceImportDialog({
 
             {s3Files.length > 0 ? (
               <ScrollArea className="h-64 rounded-lg border">
-                <div className="divide-y">
-                  {s3Files.map((file) => {
+                <FieldGroup className="gap-0 divide-y">
+                  {s3Files.map((file, index) => {
                     const selected = selectedS3KeySet.has(file.key);
+                    const checkboxId = `saved-s3-object-${index}`;
                     return (
-                      <label
+                      <Field
+                        orientation="horizontal"
                         className={cn(
-                          "flex cursor-pointer items-center gap-3 p-3 transition-colors hover:bg-muted/40",
+                          "cursor-pointer gap-3 p-3 transition-colors hover:bg-muted/40",
                           selected && "bg-primary/5",
                         )}
                         key={file.key}
                       >
                         <Checkbox
+                          id={checkboxId}
                           checked={selected}
                           onCheckedChange={() => toggleS3Key(file.key)}
                           disabled={busy}
                           aria-label={`Select ${file.name}`}
                         />
-                        <FileIcon className="size-4 shrink-0 text-muted-foreground" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">
-                            {file.name}
+                        <FieldLabel
+                          htmlFor={checkboxId}
+                          className="min-w-0 flex-1 cursor-pointer gap-3 p-0 font-normal"
+                        >
+                          <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
+                            <FileIcon />
                           </span>
-                          <span className="block truncate font-mono text-xs text-muted-foreground">
-                            {file.key}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">
+                              {file.name}
+                            </span>
+                            <span className="block truncate font-mono text-xs text-muted-foreground">
+                              {file.key}
+                            </span>
                           </span>
-                        </span>
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {formatFileSize(file.size)}
-                        </span>
-                      </label>
+                          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                            {formatFileSize(file.size)}
+                          </span>
+                        </FieldLabel>
+                      </Field>
                     );
                   })}
-                </div>
+                </FieldGroup>
               </ScrollArea>
             ) : (
               <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">

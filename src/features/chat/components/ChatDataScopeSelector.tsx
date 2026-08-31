@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Pagination,
   PaginationContent,
@@ -234,9 +235,9 @@ export function ChatDataScopeSelector({
           ) : (
             <div className="flex h-full min-h-0 flex-col">
               <div className="shrink-0 px-3 pb-3 pt-3">
-                <label className="sr-only" htmlFor={inputId}>
+                <Label className="sr-only" htmlFor={inputId}>
                   Search workspace files
-                </label>
+                </Label>
                 <div className="relative">
                   <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -435,19 +436,19 @@ function DataResourceRow({
         onCheckedChange={(nextChecked) => onCheckedChange(nextChecked === true)}
         aria-label={`Select ${resource.name}`}
       />
-      <button
+      <Button
         type="button"
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+          "min-w-0 flex-1 justify-start text-left",
           canPreview && "cursor-pointer",
-          !canPreview && "cursor-default",
         )}
+        variant="ghost"
         disabled={!canPreview}
         onClick={onPreview}
         title={canPreview ? `Preview ${resource.name}` : undefined}
       >
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-secondary text-muted-foreground">
-          <Icon className="size-4" />
+          <Icon />
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1.5">
@@ -468,9 +469,9 @@ function DataResourceRow({
           </span>
         </span>
         {canPreview && (
-          <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+          <ChevronRightIcon className="text-muted-foreground" />
         )}
-      </button>
+      </Button>
     </div>
   );
 }
