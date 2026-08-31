@@ -99,7 +99,7 @@ describe("ChatPage", () => {
     expect(screen.queryByRole("dialog", { name: "Logs & Files" })).toBeNull();
   });
 
-  it("renders process activity inline as an expandable action timeline", () => {
+  it("renders process activity inline as an expandable action timeline", async () => {
     render(
       <ChatPage
         {...chatPageProps({
@@ -126,12 +126,18 @@ describe("ChatPage", () => {
     );
 
     expect(screen.getByRole("region", { name: "Actions" })).toBeTruthy();
-    expect(screen.getByText("Read file")).toBeTruthy();
-    expect(screen.getByText("Execute python")).toBeTruthy();
+    const actionMarker = screen.getByRole("button", {
+      name: "Loaded a tool, read files, ran commands",
+    });
+    expect(actionMarker.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("button", { name: "Read file" })).toBeNull();
+    await userEvent.setup().click(actionMarker);
+    expect(screen.getByRole("button", { name: "Read file" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Execute python" })).toBeTruthy();
     expect(screen.queryByRole("dialog", { name: "Logs & Files" })).toBeNull();
   });
 
-  it("summarizes actions and keeps each marker row compact", () => {
+  it("summarizes actions and keeps each marker row compact", async () => {
     render(
       <ChatPage
         {...chatPageProps({
@@ -159,12 +165,16 @@ describe("ChatPage", () => {
     expect(
       screen.getByText("Loaded a tool, read files, ran commands"),
     ).toBeTruthy();
+    const actionMarker = screen.getByRole("button", {
+      name: "Loaded a tool, read files, ran commands",
+    });
+    expect(actionMarker.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.setup().click(actionMarker);
     expect(screen.getByRole("button", { name: "Read file" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Execute python" })).toBeTruthy();
-    expect(screen.queryByText("Show")).toBeNull();
   });
 
-  it("uses marker rows as the interactive action controls", () => {
+  it("uses marker rows as the interactive action controls", async () => {
     render(
       <ChatPage
         {...chatPageProps({
@@ -182,10 +192,18 @@ describe("ChatPage", () => {
       />,
     );
 
-    const markers = screen
+    const actionMarker = screen.getByRole("button", {
+      name: "Loaded a tool, read files",
+    });
+    let markers = screen
       .getByRole("region", { name: "Actions" })
       .querySelectorAll('[data-slot="marker"]');
 
+    expect(markers).toHaveLength(1);
+    await userEvent.setup().click(actionMarker);
+    markers = screen
+      .getByRole("region", { name: "Actions" })
+      .querySelectorAll('[data-slot="marker"]');
     expect(markers).toHaveLength(2);
     expect(
       Array.from(markers).every((marker) => marker.tagName === "BUTTON"),
@@ -196,10 +214,17 @@ describe("ChatPage", () => {
     const actor = userEvent.setup();
     renderChatPage();
     await actor.click(
+      screen.getByRole("button", { name: "Loaded a tool, searched files" }),
+    );
+    await actor.click(
       screen.getByRole("button", { name: "Search workspace files" }),
     );
 
-    expect(screen.getByText("Searching approved files")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "Search workspace files" })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
     expect(screen.queryByRole("dialog", { name: "Logs & Files" })).toBeNull();
   });
 
@@ -241,8 +266,10 @@ describe("ChatPage", () => {
     );
 
     const welcome = screen.getByRole("region", { name: "New chat" });
-    expect(welcome.className).toContain("items-start");
-    expect(welcome.className).toContain("pt-[clamp(12rem,30vh,32rem)]");
+    expect(welcome.firstElementChild?.className).toContain("items-center");
+    expect(welcome.firstElementChild?.className).toContain(
+      "pt-[clamp(12rem,30vh,32rem)]",
+    );
   });
 
   it("shows a stable Thinking response instead of a skeleton while chat is pending", () => {

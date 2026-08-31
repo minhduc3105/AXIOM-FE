@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { allChatDataScope, type ChatDataResource } from "../model/chatDataScope";
+import {
+  allChatDataScope,
+  noChatDataScope,
+  type ChatDataResource,
+} from "../model/chatDataScope";
 import { ChatDataScopeSelector } from "./ChatDataScopeSelector";
 
 const resources: ChatDataResource[] = [
@@ -37,7 +41,7 @@ const resources: ChatDataResource[] = [
 describe("ChatDataScopeSelector", () => {
   afterEach(cleanup);
 
-  it("applies a specific retrieval scope and excludes unavailable data", async () => {
+  it("shows completed files and applies checkbox changes immediately", async () => {
     const actor = userEvent.setup();
     const onChange = vi.fn();
     render(
@@ -49,34 +53,54 @@ describe("ChatDataScopeSelector", () => {
     );
 
     await actor.click(
-      screen.getByRole("button", {
-        name: "Select data scope, currently All workspace data",
-      }),
-    );
-    expect(
-      screen.getByRole("dialog", { name: "Choose data for this chat" }),
-    ).toBeTruthy();
-
-    await actor.click(screen.getByRole("button", { name: /Selected data/ }));
-    await actor.click(
       screen.getByRole("checkbox", { name: /^Select Stripe payments/ }),
     );
 
+    expect(screen.getByText("2 files")).toBeTruthy();
     expect(
-      screen
-        .getByRole("checkbox", { name: /^Select Market research 2026/ })
-        .getAttribute("aria-disabled"),
-    ).toBe("true");
-
-    await actor.click(screen.getByRole("button", { name: "Apply" }));
+      screen.queryByRole("checkbox", { name: /^Select Market research 2026/ }),
+    ).toBeNull();
     expect(onChange).toHaveBeenCalledWith({
       mode: "selected",
-      resourceIds: ["datasource:stripe-payments"],
-      resourceNames: ["Stripe payments"],
+      resourceIds: ["dataset:revenue-q3"],
+      resourceNames: ["Q3 Revenue.xlsx"],
     });
   });
 
-  it("refreshes workspace files without closing the selector", async () => {
+  it("resets and restores the complete-file selection", async () => {
+    const actor = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <ChatDataScopeSelector
+        scope={allChatDataScope}
+        resources={resources}
+        onChange={onChange}
+      />,
+    );
+
+    await actor.click(screen.getByRole("button", { name: "Reset" }));
+    expect(onChange).toHaveBeenLastCalledWith(noChatDataScope);
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Select Q3 Revenue.xlsx" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Select Stripe payments" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+
+    await actor.click(screen.getByRole("button", { name: "Select all" }));
+    expect(onChange).toHaveBeenLastCalledWith(allChatDataScope);
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Select Q3 Revenue.xlsx" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it("refreshes workspace files from the sidebar", async () => {
     const actor = userEvent.setup();
     const onRefresh = vi.fn();
     render(
@@ -89,17 +113,10 @@ describe("ChatDataScopeSelector", () => {
     );
 
     await actor.click(
-      screen.getByRole("button", {
-        name: "Select data scope, currently All workspace data",
-      }),
-    );
-    await actor.click(
       screen.getByRole("button", { name: "Refresh workspace files" }),
     );
 
     expect(onRefresh).toHaveBeenCalledOnce();
-    expect(
-      screen.getByRole("dialog", { name: "Choose data for this chat" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Chat files" })).toBeTruthy();
   });
 });
