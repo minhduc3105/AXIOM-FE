@@ -1,11 +1,4 @@
-import {
-  BracesIcon,
-  ChevronDownIcon,
-  CopyIcon,
-  FileSearchIcon,
-  Rows3Icon,
-} from "lucide-react";
-import { toast } from "sonner";
+import { ChevronDownIcon, FileSearchIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +11,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   InspectorResource,
   LayoutBlock,
@@ -36,11 +28,9 @@ type Props = {
   typeFilter: string;
   onPageFilterChange: (value: string) => void;
   onTypeFilterChange: (value: string) => void;
-  parsedMode: string;
   activeComponentId: string | null;
   cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   viewportRef: React.RefObject<HTMLDivElement | null>;
-  onModeChange: (value: string) => void;
   onActivate: (block: LayoutBlock) => void;
   descriptionEdits: Record<string, string>;
   onDescriptionEdit: (
@@ -60,11 +50,9 @@ export function ParsedContentPane({
   typeFilter,
   onPageFilterChange,
   onTypeFilterChange,
-  parsedMode,
   activeComponentId,
   cardRefs,
   viewportRef,
-  onModeChange,
   onActivate,
   descriptionEdits,
   onDescriptionEdit,
@@ -96,132 +84,72 @@ export function ParsedContentPane({
       </div>
     );
   if (!parsing.data) return null;
-  const jsonValue = JSON.stringify(
-    {
-      document: parsing.data.document,
-      processing_run: parsing.data.processingRun,
-      reading_order: parsing.data.readingOrder,
-      blocks: parsing.data.blocks,
-    },
-    null,
-    2,
-  );
   return (
-    <Tabs
-      value={parsedMode}
-      onValueChange={onModeChange}
-      className="min-h-0 flex-1 gap-0 overflow-hidden"
-    >
-      <div className="flex min-w-0 flex-col gap-2 border-b px-3 py-2">
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <TabsList aria-label="Parsed content modes">
-            <TabsTrigger value="rendered">
-              <Rows3Icon />
-              Rendered
-            </TabsTrigger>
-            <TabsTrigger value="json">
-              <BracesIcon />
-              JSON
-            </TabsTrigger>
-          </TabsList>
-          {parsedMode === "json" ? (
-            <Button
-              variant="outline"
-              size="sm"
-              type="button"
-              onClick={() => void copyJson(jsonValue)}
-            >
-              <CopyIcon data-icon="inline-start" />
-              Copy
-            </Button>
-          ) : null}
-        </div>
-        {parsedMode === "rendered" ? (
-          <div className="grid grid-cols-2 gap-2">
-            <FilterDropdown
-              label="Filter blocks by page"
-              value={pageFilter}
-              onChange={onPageFilterChange}
-              items={[
-                { label: "All pages", value: "all" },
-                ...pages.map((page) => ({
-                  label: `Page ${page + 1}`,
-                  value: page.toString(),
-                })),
-              ]}
-            />
-            <FilterDropdown
-              label="Filter blocks by type"
-              value={typeFilter}
-              onChange={onTypeFilterChange}
-              items={[
-                { label: "All types", value: "all" },
-                ...blockTypes.map((type) => ({ label: type, value: type })),
-              ]}
-            />
-          </div>
-        ) : null}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="grid grid-cols-2 gap-2 border-b px-3 py-2">
+        <FilterDropdown
+          label="Filter blocks by page"
+          value={pageFilter}
+          onChange={onPageFilterChange}
+          items={[
+            { label: "All pages", value: "all" },
+            ...pages.map((page) => ({
+              label: `Page ${page + 1}`,
+              value: page.toString(),
+            })),
+          ]}
+        />
+        <FilterDropdown
+          label="Filter blocks by type"
+          value={typeFilter}
+          onChange={onTypeFilterChange}
+          items={[
+            { label: "All types", value: "all" },
+            ...blockTypes.map((type) => ({ label: type, value: type })),
+          ]}
+        />
       </div>
-      <TabsContent
-        value="rendered"
-        keepMounted
-        className="m-0 min-h-0 overflow-hidden"
-      >
-        <ScrollArea className="h-full min-h-0">
-          <div ref={viewportRef} className="min-w-0">
-            <div className="grid min-w-0 gap-3 p-3">
-              {!blocks.length ? (
-                <Alert>
-                  <AlertTitle>No layout blocks</AlertTitle>
-                  <AlertDescription>
-                    {parsing.data.mainText ||
-                      "Corpus did not return block or main-text content for this document."}
-                  </AlertDescription>
-                </Alert>
-              ) : !filteredBlocks.length ? (
-                <Alert>
-                  <FileSearchIcon />
-                  <AlertTitle>No matching blocks</AlertTitle>
-                  <AlertDescription>
-                    Change the page or block type filter to continue reviewing.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                filteredBlocks.map((block) => (
-                  <ParsedBlockCard
-                    key={block.component_id}
-                    block={block}
-                    index={blocks.findIndex(
-                      (item) => item.component_id === block.component_id,
-                    )}
-                    active={activeComponentId === block.component_id}
-                    cardRefs={cardRefs}
-                    description={
-                      descriptionEdits[block.component_id] ?? block.description
-                    }
-                    onDescriptionEdit={onDescriptionEdit}
-                    onActivate={onActivate}
-                  />
-                ))
-              )}
-            </div>
+      <ScrollArea className="min-h-0 flex-1">
+        <div ref={viewportRef} className="min-w-0">
+          <div className="grid min-w-0 gap-3 p-3">
+            {!blocks.length ? (
+              <Alert>
+                <AlertTitle>No layout blocks</AlertTitle>
+                <AlertDescription>
+                  {parsing.data.mainText ||
+                    "Corpus did not return block or main-text content for this document."}
+                </AlertDescription>
+              </Alert>
+            ) : !filteredBlocks.length ? (
+              <Alert>
+                <FileSearchIcon />
+                <AlertTitle>No matching blocks</AlertTitle>
+                <AlertDescription>
+                  Change the page or block type filter to continue reviewing.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              filteredBlocks.map((block) => (
+                <ParsedBlockCard
+                  key={block.component_id}
+                  block={block}
+                  index={blocks.findIndex(
+                    (item) => item.component_id === block.component_id,
+                  )}
+                  active={activeComponentId === block.component_id}
+                  cardRefs={cardRefs}
+                  description={
+                    descriptionEdits[block.component_id] ?? block.description
+                  }
+                  onDescriptionEdit={onDescriptionEdit}
+                  onActivate={onActivate}
+                />
+              ))
+            )}
           </div>
-        </ScrollArea>
-      </TabsContent>
-      <TabsContent
-        value="json"
-        keepMounted
-        className="m-0 min-h-0 overflow-hidden"
-      >
-        <ScrollArea className="h-full min-h-0">
-          <div className="p-3">
-            <pre className="min-w-max rounded-lg border bg-muted/50 p-4 font-mono text-xs leading-relaxed text-foreground">
-              {jsonValue}
-            </pre>
-          </div>
-        </ScrollArea>
-      </TabsContent>
-    </Tabs>
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 
@@ -259,7 +187,11 @@ function FilterDropdown({
         <DropdownMenuGroup>
           <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
             {items.map((item) => (
-              <DropdownMenuRadioItem key={item.value} value={item.value}>
+              <DropdownMenuRadioItem
+                key={item.value}
+                value={item.value}
+                closeOnClick
+              >
                 {item.label}
               </DropdownMenuRadioItem>
             ))}
@@ -268,17 +200,4 @@ function FilterDropdown({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-async function copyJson(value: string) {
-  try {
-    if (!navigator.clipboard?.writeText)
-      throw new Error("Clipboard access is unavailable.");
-    await navigator.clipboard.writeText(value);
-    toast.success("Parsed JSON copied.");
-  } catch (error) {
-    toast.error(
-      error instanceof Error ? error.message : "Unable to copy parsed JSON.",
-    );
-  }
 }

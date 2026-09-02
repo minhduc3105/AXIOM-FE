@@ -8,13 +8,10 @@ import {
 } from "react";
 import {
   ArrowLeftIcon,
-  BracesIcon,
   ChevronDownIcon,
-  CopyIcon,
   FileSearchIcon,
   PencilIcon,
   CheckIcon,
-  Rows3Icon,
 } from "lucide-react";
 import { useGroupRef, usePanelRef } from "react-resizable-panels";
 import { toast } from "sonner";
@@ -160,7 +157,6 @@ export function DocumentResultViewer({
   const [showBoxes, setShowBoxes] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [compactPane, setCompactPane] = useState("source");
-  const [parsedMode, setParsedMode] = useState("rendered");
   const [pageFilter, setPageFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [descriptionEdits, setDescriptionEdits] = useState<
@@ -201,7 +197,6 @@ export function DocumentResultViewer({
     setShowBoxes(true);
     setZoom(1);
     setCompactPane("source");
-    setParsedMode("rendered");
     setPageFilter("all");
     setTypeFilter("all");
     setDescriptionEdits({});
@@ -282,7 +277,6 @@ export function DocumentResultViewer({
       }
       setPageFilter("all");
       setTypeFilter("all");
-      setParsedMode("rendered");
       if (!wide) setCompactPane("parsed");
       revealParsedBlock(componentId);
     },
@@ -348,13 +342,11 @@ export function DocumentResultViewer({
         blockTypes={blockTypes}
         pageFilter={pageFilter}
         typeFilter={typeFilter}
-        parsedMode={parsedMode}
         activeComponentId={activeComponentId}
         cardRefs={cardRefs}
         viewportRef={parsedViewportRef}
         onPageFilterChange={setPageFilter}
         onTypeFilterChange={setTypeFilter}
-        onModeChange={setParsedMode}
         onActivate={activateFromCard}
         descriptionEdits={descriptionEdits}
         onDescriptionEdit={handleDescriptionEdit}
@@ -496,13 +488,11 @@ type ParsedPaneProps = {
   blockTypes: string[];
   pageFilter: string;
   typeFilter: string;
-  parsedMode: string;
   activeComponentId: string | null;
   cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   viewportRef: React.RefObject<HTMLDivElement | null>;
   onPageFilterChange: (value: string) => void;
   onTypeFilterChange: (value: string) => void;
-  onModeChange: (value: string) => void;
   onActivate: (block: LayoutBlock) => void;
   descriptionEdits: Record<string, string>;
   onDescriptionEdit: (
@@ -520,13 +510,11 @@ export function ParsedPane({
   blockTypes,
   pageFilter,
   typeFilter,
-  parsedMode,
   activeComponentId,
   cardRefs,
   viewportRef,
   onPageFilterChange,
   onTypeFilterChange,
-  onModeChange,
   onActivate,
   descriptionEdits,
   onDescriptionEdit,
@@ -554,138 +542,76 @@ export function ParsedPane({
 
   if (!parsing.data) return null;
 
-  const jsonValue = JSON.stringify(
-    {
-      document: parsing.data.document,
-      processing_run: parsing.data.processingRun,
-      reading_order: parsing.data.readingOrder,
-      blocks: parsing.data.blocks,
-    },
-    null,
-    2,
-  );
-
   return (
-    <Tabs
-      value={parsedMode}
-      onValueChange={onModeChange}
-      className="min-h-0 flex-1 gap-0 overflow-hidden"
-    >
-      <div className="flex min-w-0 flex-col gap-2 border-b px-3 py-2">
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <TabsList aria-label="Parsed content modes">
-            <TabsTrigger value="rendered">
-              <Rows3Icon />
-              Rendered
-            </TabsTrigger>
-            <TabsTrigger value="json">
-              <BracesIcon />
-              JSON
-            </TabsTrigger>
-          </TabsList>
-          {parsedMode === "json" && (
-            <Button
-              variant="outline"
-              size="sm"
-              type="button"
-              onClick={() => void copyJson(jsonValue)}
-            >
-              <CopyIcon data-icon="inline-start" />
-              Copy
-            </Button>
-          )}
-        </div>
-        {parsedMode === "rendered" && (
-          <div className="grid min-w-0 grid-cols-2 gap-2">
-            <FilterDropdown
-              label="Filter blocks by page"
-              value={pageFilter}
-              onChange={onPageFilterChange}
-              items={[
-                { label: "All pages", value: "all" },
-                ...pages.map((page) => ({
-                  label: `Page ${page + 1}`,
-                  value: page.toString(),
-                })),
-              ]}
-            />
-            <FilterDropdown
-              label="Filter blocks by type"
-              value={typeFilter}
-              onChange={onTypeFilterChange}
-              items={[
-                { label: "All types", value: "all" },
-                ...blockTypes.map((type) => ({ label: type, value: type })),
-              ]}
-            />
-          </div>
-        )}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="grid min-w-0 grid-cols-2 gap-2 border-b px-3 py-2">
+        <FilterDropdown
+          label="Filter blocks by page"
+          value={pageFilter}
+          onChange={onPageFilterChange}
+          items={[
+            { label: "All pages", value: "all" },
+            ...pages.map((page) => ({
+              label: `Page ${page + 1}`,
+              value: page.toString(),
+            })),
+          ]}
+        />
+        <FilterDropdown
+          label="Filter blocks by type"
+          value={typeFilter}
+          onChange={onTypeFilterChange}
+          items={[
+            { label: "All types", value: "all" },
+            ...blockTypes.map((type) => ({ label: type, value: type })),
+          ]}
+        />
       </div>
 
-      <TabsContent
-        value="rendered"
-        keepMounted
-        className="m-0 min-h-0 overflow-hidden"
-      >
-        <ScrollArea className="h-full min-h-0">
-          <div ref={viewportRef} className="min-w-0">
-            <div className="grid min-w-0 gap-3 p-3">
-              {!blocks.length ? (
-                <Alert>
-                  <AlertTitle>No layout blocks</AlertTitle>
-                  <AlertDescription className="whitespace-pre-wrap">
-                    {parsing.data.mainText ||
-                      "Corpus did not return block or main-text content for this document."}
-                  </AlertDescription>
-                </Alert>
-              ) : !filteredBlocks.length ? (
-                <Alert>
-                  <FileSearchIcon />
-                  <AlertTitle>No matching blocks</AlertTitle>
-                  <AlertDescription>
-                    Change the page or block type filter to continue reviewing.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                filteredBlocks.map((block) => {
-                  const index = blocks.findIndex(
-                    (item) => item.component_id === block.component_id,
-                  );
-                  return (
-                    <ParsedBlockCard
-                      key={block.component_id}
-                      block={block}
-                      index={index}
-                      active={activeComponentId === block.component_id}
-                      cardRefs={cardRefs}
-                      description={
-                        descriptionEdits[block.component_id] ??
-                        block.description
-                      }
-                      onDescriptionEdit={onDescriptionEdit}
-                      onActivate={onActivate}
-                    />
-                  );
-                })
-              )}
-            </div>
+      <ScrollArea className="min-h-0 flex-1">
+        <div ref={viewportRef} className="min-w-0">
+          <div className="grid min-w-0 gap-3 p-3">
+            {!blocks.length ? (
+              <Alert>
+                <AlertTitle>No layout blocks</AlertTitle>
+                <AlertDescription className="whitespace-pre-wrap">
+                  {parsing.data.mainText ||
+                    "Corpus did not return block or main-text content for this document."}
+                </AlertDescription>
+              </Alert>
+            ) : !filteredBlocks.length ? (
+              <Alert>
+                <FileSearchIcon />
+                <AlertTitle>No matching blocks</AlertTitle>
+                <AlertDescription>
+                  Change the page or block type filter to continue reviewing.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              filteredBlocks.map((block) => {
+                const index = blocks.findIndex(
+                  (item) => item.component_id === block.component_id,
+                );
+                return (
+                  <ParsedBlockCard
+                    key={block.component_id}
+                    block={block}
+                    index={index}
+                    active={activeComponentId === block.component_id}
+                    cardRefs={cardRefs}
+                    description={
+                      descriptionEdits[block.component_id] ?? block.description
+                    }
+                    onDescriptionEdit={onDescriptionEdit}
+                    onActivate={onActivate}
+                  />
+                );
+              })
+            )}
           </div>
-        </ScrollArea>
-      </TabsContent>
-      <TabsContent
-        value="json"
-        keepMounted
-        className="m-0 min-h-0 overflow-hidden"
-      >
-        <ScrollArea className="h-full min-h-0">
-          <div className="p-3">
-            <pre className="min-w-max rounded-lg border bg-muted/50 p-4 font-mono text-xs leading-relaxed text-foreground">
-              {jsonValue}
-            </pre>
-          </div>
-        </ScrollArea>
-      </TabsContent>
-    </Tabs>
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 
@@ -722,7 +648,11 @@ function FilterDropdown({
         <DropdownMenuGroup>
           <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
             {items.map((item) => (
-              <DropdownMenuRadioItem key={item.value} value={item.value}>
+              <DropdownMenuRadioItem
+                key={item.value}
+                value={item.value}
+                closeOnClick
+              >
                 {item.label}
               </DropdownMenuRadioItem>
             ))}
@@ -873,18 +803,4 @@ function ParsedBlockCard({
       </CardContent>
     </Card>
   );
-}
-
-async function copyJson(value: string) {
-  try {
-    if (!navigator.clipboard?.writeText) {
-      throw new Error("Clipboard access is unavailable.");
-    }
-    await navigator.clipboard.writeText(value);
-    toast.success("Parsed JSON copied.");
-  } catch (error) {
-    toast.error(
-      error instanceof Error ? error.message : "Unable to copy parsed JSON.",
-    );
-  }
 }

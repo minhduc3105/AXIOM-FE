@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import type {
   InlinePreview,
   InspectorResource,
@@ -157,5 +163,32 @@ describe("DocumentResultViewer", () => {
         .getByRole("tab", { name: "Source preview" })
         .getAttribute("aria-selected"),
     ).toBe("true");
+  });
+
+  it("closes the page filter after selecting a page", async () => {
+    containerWidth = 1200;
+    renderViewer();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Filter blocks by page" }),
+    );
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Page 2" }));
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole("button", { name: "Filter blocks by page" })
+          .getAttribute("aria-expanded"),
+      ).toBe("false");
+    });
+  });
+
+  it("shows parsed content without Rendered and JSON mode tabs", () => {
+    containerWidth = 1200;
+    renderViewer();
+
+    expect(screen.queryByRole("tab", { name: /Rendered/ })).toBeNull();
+    expect(screen.queryByRole("tab", { name: /JSON/ })).toBeNull();
+    expect(screen.getByText("First block")).toBeTruthy();
   });
 });
