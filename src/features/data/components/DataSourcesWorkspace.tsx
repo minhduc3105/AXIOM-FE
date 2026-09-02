@@ -581,11 +581,13 @@ export function DataSourcesWorkspace({
     isAggregate ? null : selectedSource.id,
     selectedSource.workspaceId,
     query,
+    onRefresh,
   );
   const organizationFiles = useOrganizationFiles(
     isAggregate ? organizationId : null,
     workspaceId,
     query,
+    onRefresh,
   );
   const result = isAggregate ? organizationFiles.result : backendFiles.result;
   const tableLoading = isAggregate
@@ -715,14 +717,11 @@ export function DataSourcesWorkspace({
     }
   };
 
-  const refreshFileInventory = useCallback(
-    (options: { refreshDashboard?: boolean } = {}) => {
-      if (options.refreshDashboard !== false) onRefresh();
-      if (isAggregate) organizationFiles.refresh();
-      else backendFiles.refresh();
-    },
-    [backendFiles.refresh, isAggregate, onRefresh, organizationFiles.refresh],
-  );
+  const refreshFileInventory = useCallback(() => {
+    onRefresh();
+    if (isAggregate) organizationFiles.refresh();
+    else backendFiles.refresh();
+  }, [backendFiles.refresh, isAggregate, onRefresh, organizationFiles.refresh]);
 
   useEffect(() => {
     if (sourceRefresh?.datasourceId !== selectedSource.id || isAggregate)
@@ -745,7 +744,6 @@ export function DataSourcesWorkspace({
       await waitForActionPoll();
       try {
         latestJob = await getLatestIndexingJob(datasetId);
-        refreshFileInventory({ refreshDashboard: false });
       } catch {
         continue;
       }
@@ -793,7 +791,6 @@ export function DataSourcesWorkspace({
           latestOperation.operation_id,
         );
         updateProgress(latestOperation);
-        refreshFileInventory({ refreshDashboard: false });
       } catch {
         // Keep the accepted operation visible while a status check is unavailable.
       }
@@ -862,7 +859,7 @@ export function DataSourcesWorkspace({
           );
         }
       }
-      refreshFileInventory({ refreshDashboard: false });
+      refreshFileInventory();
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -906,7 +903,7 @@ export function DataSourcesWorkspace({
         });
       }
     }
-    refreshFileInventory({ refreshDashboard: false });
+    refreshFileInventory();
     setBulkProgress(null);
     if (failed) {
       toast.warning(`${completed - failed} retried, ${failed} failed.`);
@@ -957,7 +954,7 @@ export function DataSourcesWorkspace({
         });
       }
     }
-    refreshFileInventory({ refreshDashboard: false });
+    refreshFileInventory();
     setBulkProgress(null);
     if (failed) {
       toast.warning(`${completed - failed} rerun, ${failed} failed.`);
@@ -1004,7 +1001,7 @@ export function DataSourcesWorkspace({
           "Deletion is still running. The inventory will refresh automatically.",
         );
       }
-      refreshFileInventory({ refreshDashboard: false });
+      refreshFileInventory();
     } catch (error) {
       toast.error(
         error instanceof Error

@@ -4,10 +4,19 @@ import type { DataSourceFilesPage, DataSourceFilesQuery } from "./types";
 
 const api = vi.hoisted(() => ({
   getDataSourceFiles: vi.fn(),
+  getProcessingStatuses: vi.fn(),
+  mergeFileProcessingStatus: vi.fn(
+    (file: { status: string }, status: { status: string }) => ({
+      ...file,
+      status: status.status === "completed" ? "success" : "processing",
+    }),
+  ),
 }));
 
 vi.mock("../api/dataApi", () => ({
   getDataSourceFiles: api.getDataSourceFiles,
+  getProcessingStatuses: api.getProcessingStatuses,
+  mergeFileProcessingStatus: api.mergeFileProcessingStatus,
 }));
 
 import { useDataSourceFiles } from "./useDataSourceFiles";
@@ -66,6 +75,20 @@ function processingPage(
         canInspect: status === "completed",
       },
     ],
+  };
+}
+
+function processingStatus(status: "processing" | "completed") {
+  return {
+    object_key: "report.pdf",
+    found: true,
+    run_id: "run-1",
+    document_id: "document-1",
+    status,
+    error_message: null,
+    started_at: "2026-08-19T08:00:00Z",
+    finished_at: status === "completed" ? "2026-08-19T08:01:00Z" : null,
+    created_at: "2026-08-19T08:00:00Z",
   };
 }
 
@@ -132,22 +155,29 @@ describe("useDataSourceFiles", () => {
 
   it("refreshes processing files until the backend reports completion", async () => {
     vi.useFakeTimers();
+    const onProcessingStatusChange = vi.fn();
     let resolveSecondRequest:
-      | ((value: DataSourceFilesPage) => void)
+      | ((value: ReturnType<typeof processingStatus>[]) => void)
       | undefined;
-    api.getDataSourceFiles
-      .mockResolvedValueOnce(processingPage("source-1", "processing"))
-      .mockImplementationOnce(
-        () =>
-          new Promise<DataSourceFilesPage>((resolve) => {
-            resolveSecondRequest = resolve;
-          }),
-      );
+    api.getDataSourceFiles.mockResolvedValueOnce(
+      processingPage("source-1", "processing"),
+    );
+    api.getProcessingStatuses.mockImplementationOnce(
+      () =>
+        new Promise<ReturnType<typeof processingStatus>[]>((resolve) => {
+          resolveSecondRequest = resolve;
+        }),
+    );
     const { result } = renderHook(() =>
-      useDataSourceFiles("source-1", "workspace-1", {
-        ...query,
-        search: "",
-      }),
+      useDataSourceFiles(
+        "source-1",
+        "workspace-1",
+        {
+          ...query,
+          search: "",
+        },
+        onProcessingStatusChange,
+      ),
     );
 
     await act(async () => {
@@ -160,12 +190,17 @@ describe("useDataSourceFiles", () => {
       vi.advanceTimersByTime(2000);
       await Promise.resolve();
     });
-    expect(api.getDataSourceFiles).toHaveBeenCalledTimes(2);
+    expect(api.getDataSourceFiles).toHaveBeenCalledTimes(1);
+    expect(api.getProcessingStatuses).toHaveBeenCalledTimes(1);
+    expect(onProcessingStatusChange).not.toHaveBeenCalled();
     expect(result.current.loading).toBe(false);
 
     await act(async () => {
-      resolveSecondRequest?.(processingPage("source-1", "completed"));
-      await Promise.resolve();
+      resolveSecondRequest?.([processingStatus("completed")]);
+    });
+    await vi.waitFor(() => {
+      expect(onProcessingStatusChange).toHaveBeenCalledOnce();
+      expect(result.current.result?.files[0]?.status).toBe("success");
     });
   });
 });

@@ -530,6 +530,30 @@ export function normalizeFile(
   };
 }
 
+export function mergeFileProcessingStatus(
+  file: DataFile,
+  processingStatus: DocumentProcessingStatusDto | undefined,
+): DataFile {
+  const normalizedProcessingStatus = processingStatus?.status
+    ?.trim()
+    .toLowerCase();
+  return {
+    ...file,
+    status: resolveHealthStatus(
+      processingStatus?.status ?? null,
+      processingStatus?.error_message,
+    ),
+    sourceStatus: processingStatus?.status ?? null,
+    statusDetail: getStatusDetail(processingStatus),
+    errorMessage: processingStatus?.error_message ?? null,
+    runId: processingStatus?.run_id ?? null,
+    documentId: processingStatus?.document_id ?? null,
+    canInspect: Boolean(
+      processingStatus?.found && normalizedProcessingStatus === "completed",
+    ),
+  };
+}
+
 function normalizeIngestionJob(job: IngestionJobDto): IngestionJob {
   return {
     job_id: job.job_id,

@@ -1,5 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
-import { getDataSourceFiles } from "../api/dataApi";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  getDataSourceFiles,
+  getProcessingStatuses,
+  mergeFileProcessingStatus,
+} from "../api/dataApi";
 import type { DataSourceFilesPage, DataSourceFilesQuery } from "./types";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -10,12 +14,64 @@ type RefreshRequest = {
   background: boolean;
 };
 
+function hasHealthStatusChanged(
+  previous: DataSourceFilesPage | null,
+  next: DataSourceFilesPage,
+) {
+  if (!previous) return false;
+  if (previous.files.length !== next.files.length) return true;
+  const previousStatuses = new Map(
+    previous.files.map((file) => [file.key, file.status]),
+  );
+  return next.files.some(
+    (file) => previousStatuses.get(file.key) !== file.status,
+  );
+}
+
+async function pollProcessingStatuses(
+  currentResult: DataSourceFilesPage,
+  workspaceId: string,
+  signal: AbortSignal,
+) {
+  const processingFiles = currentResult.files.filter(
+    (file) => file.status === "processing",
+  );
+  if (!processingFiles.length) return currentResult;
+
+  try {
+    const processingStatuses = await getProcessingStatuses(
+      workspaceId,
+      currentResult.bucket,
+      processingFiles.map((file) => file.key),
+      signal,
+    );
+    const statusByObjectKey = new Map(
+      processingStatuses.map((status) => [status.object_key, status]),
+    );
+    return {
+      ...currentResult,
+      files: currentResult.files.map((file) => {
+        const processingStatus = statusByObjectKey.get(file.key);
+        return processingStatus
+          ? mergeFileProcessingStatus(file, processingStatus)
+          : file;
+      }),
+      warning: null,
+    };
+  } catch (error) {
+    if (signal.aborted) throw error;
+    return currentResult;
+  }
+}
+
 export function useDataSourceFiles(
   datasourceId: string | null,
   workspaceId: string,
   query: DataSourceFilesQuery,
+  onProcessingStatusChange?: () => void,
 ) {
   const [result, setResult] = useState<DataSourceFilesPage | null>(null);
+  const resultRef = useRef<DataSourceFilesPage | null>(null);
   const [loading, setLoading] = useState(Boolean(datasourceId));
   const [error, setError] = useState<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -41,13 +97,27 @@ export function useDataSourceFiles(
     const controller = new AbortController();
     if (!refreshRequest.background) setLoading(true);
     setError(null);
-    void getDataSourceFiles(
-      datasourceId,
-      workspaceId,
-      { ...query, search: debouncedSearch },
-      controller.signal,
-    )
-      .then(setResult)
+    const currentResult = resultRef.current;
+    const request =
+      refreshRequest.background && currentResult
+        ? pollProcessingStatuses(currentResult, workspaceId, controller.signal)
+        : getDataSourceFiles(
+            datasourceId,
+            workspaceId,
+            { ...query, search: debouncedSearch },
+            controller.signal,
+          );
+    void request
+      .then((nextResult) => {
+        if (
+          refreshRequest.background &&
+          hasHealthStatusChanged(resultRef.current, nextResult)
+        ) {
+          onProcessingStatusChange?.();
+        }
+        resultRef.current = nextResult;
+        setResult(nextResult);
+      })
       .catch((requestError: unknown) => {
         if (!controller.signal.aborted) {
           setError(
@@ -70,6 +140,7 @@ export function useDataSourceFiles(
     query.sortOrder,
     refreshRequest,
     workspaceId,
+    onProcessingStatusChange,
   ]);
 
   const refresh = useCallback(

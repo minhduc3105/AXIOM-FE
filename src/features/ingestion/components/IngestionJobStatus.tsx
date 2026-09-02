@@ -19,6 +19,9 @@ type IngestionJobStatusProps = {
 };
 
 const backendStatusLabel = {
+  created: "Upload queued",
+  uploading: "Uploading files…",
+  committed: "Files stored",
   pending: "Import queued",
   pulling: "Importing source data…",
   completed: "Source data stored",
@@ -57,7 +60,8 @@ export function IngestionJobStatus({
               : status === "failed"
                 ? "Import could not start"
                 : "Ready to import";
-  const sourceStored = job?.status === "completed";
+  const sourceStored =
+    job?.status === "completed" || job?.status === "committed";
   const successful = sourceStored && status === "completed";
   const jobFailed = status === "failed" || job?.status === "failed";
   const failed = jobFailed || status === "files_error";
@@ -67,7 +71,9 @@ export function IngestionJobStatus({
     status === "discovering_files";
   const currentStep = sourceStored
     ? 2
-    : job?.status === "pulling" || (job?.status === "failed" && job.started_at)
+    : job?.status === "pulling" ||
+        job?.status === "uploading" ||
+        (job?.status === "failed" && job.started_at)
       ? 1
       : 0;
   const transferSteps = ["Job queued", "Copying objects", "Stored"];

@@ -18,12 +18,19 @@ export type UploadedFile = {
   source_archive?: string;
 };
 
-export type IngestionJobStatus = "pending" | "pulling" | "completed" | "failed";
+export type IngestionJobStatus =
+  | "created"
+  | "uploading"
+  | "committed"
+  | "pending"
+  | "pulling"
+  | "completed"
+  | "failed";
 export type DatasourceType = "UPLOAD" | "s3" | "snowflake";
 
 export type UploadFilesResponse = {
   job_id: string;
-  status: "completed";
+  status: "committed" | "completed";
   organization_id: string;
   workspace_id: string;
   bucket: string;
@@ -128,7 +135,7 @@ function isUploadFilesResponse(value: unknown): value is UploadFilesResponse {
     !isRecord(value) ||
     typeof value.job_id !== "string" ||
     value.job_id.length === 0 ||
-    value.status !== "completed" ||
+    !(value.status === "committed" || value.status === "completed") ||
     typeof value.organization_id !== "string" ||
     typeof value.workspace_id !== "string" ||
     typeof value.bucket !== "string"
@@ -193,6 +200,9 @@ function isNullableArrayOfRecords(
 function isIngestionJobResponse(value: unknown): value is IngestionJobResponse {
   if (!isRecord(value)) return false;
   const statuses: IngestionJobStatus[] = [
+    "created",
+    "uploading",
+    "committed",
     "pending",
     "pulling",
     "completed",
