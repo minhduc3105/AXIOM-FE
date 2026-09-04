@@ -93,6 +93,16 @@ function createMarkdownComponents(compact?: boolean): Components {
         {children}
       </p>
     ),
+    a: ({ children, node: _node, ...props }) => (
+      <a
+        {...props}
+        className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary/80"
+        rel="noreferrer"
+        target="_blank"
+      >
+        {children}
+      </a>
+    ),
     ul: ({ children, node: _node, ...props }) => (
       <ul
         {...props}
@@ -209,15 +219,29 @@ function normalizeMarkdownSource(markdown: string) {
       ? lines.slice(1, -1)
       : lines;
 
-  return withoutOuterFence
-    .flatMap((line) => {
-      const displayMath = /^\s*\$\$(.+)\$\$\s*$/.exec(line);
-      return displayMath
-        ? ["$$", displayMath[1].trim(), "$$"]
-        : [line];
-    })
-    .join("\n")
-    .trim();
+  return linkifyBareUrls(
+    withoutOuterFence
+      .flatMap((line) => {
+        const displayMath = /^\s*\$\$(.+)\$\$\s*$/.exec(line);
+        return displayMath ? ["$$", displayMath[1].trim(), "$$"] : [line];
+      })
+      .join("\n")
+      .trim(),
+  );
+}
+
+function linkifyBareUrls(markdown: string) {
+  return markdown.replace(
+    /(^|\s)((?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gim,
+    (_match, prefix: string, url: string) => {
+      const trailingPunctuation = /[.,;:!?]+$/.exec(url)?.[0] ?? "";
+      const linkedUrl = trailingPunctuation
+        ? url.slice(0, -trailingPunctuation.length)
+        : url;
+      const href = `https://${linkedUrl}`;
+      return `${prefix}[${linkedUrl}](${href})${trailingPunctuation}`;
+    },
+  );
 }
 
 function isLooseFenceLine(line: string) {
