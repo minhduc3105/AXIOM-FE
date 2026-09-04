@@ -97,7 +97,10 @@ export type AutoReportRun = {
 };
 
 class ReportsApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
     super(message);
     this.name = "ReportsApiError";
   }
@@ -144,9 +147,10 @@ export function updateAutoReportPolicy(
   });
 }
 
-export function runAutoReportNow(workspaceId: string) {
+export function runAutoReportNow(workspaceId: string, sourceIds?: string[]) {
   return request<AutoReportRun>(reportPath(workspaceId, "/runs"), {
     method: "POST",
+    ...(sourceIds ? { body: JSON.stringify({ source_ids: sourceIds }) } : {}),
   });
 }
 
@@ -165,7 +169,10 @@ export function listAutoReports(
   );
 }
 
-export function getAutoReportOverview(workspaceId: string, signal?: AbortSignal) {
+export function getAutoReportOverview(
+  workspaceId: string,
+  signal?: AbortSignal,
+) {
   return request<AutoReportOverview>(reportPath(workspaceId, "/overview"), {
     signal,
   });

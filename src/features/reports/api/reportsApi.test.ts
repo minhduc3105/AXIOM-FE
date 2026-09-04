@@ -3,7 +3,7 @@ import {
   configureAuthFetch,
   type AuthRefreshResult,
 } from "@/features/auth/model/authFetch";
-import { listAutoReports } from "./reportsApi";
+import { listAutoReports, runAutoReportNow } from "./reportsApi";
 
 describe("Reports API", () => {
   beforeEach(() => {
@@ -47,5 +47,34 @@ describe("Reports API", () => {
     expect(
       new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("Authorization"),
     ).toBe("Bearer token");
+  });
+
+  it("sends selected source IDs when generating from given sources", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json({ status: "scheduled", source: null }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runAutoReportNow("workspace-1", ["source-1", "source-2"]);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/intelligence-service/api/v1/workspaces/workspace-1/auto-reports/runs",
+    );
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)).toEqual({
+      source_ids: ["source-1", "source-2"],
+    });
+  });
+
+  it("keeps Generate now bodyless", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json({ status: "scheduled", source: null }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runAutoReportNow("workspace-1");
+
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBeUndefined();
   });
 });

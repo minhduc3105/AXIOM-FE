@@ -498,6 +498,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
           )
         ) : route.surface === "reports" ? (
           <ReportsPage
+            organizationId={user.organization_id}
             workspaceId={dataWorkspace.selectedWorkspace?.id ?? null}
           />
         ) : route.surface === "memory" ? (

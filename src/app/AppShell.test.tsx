@@ -2,17 +2,102 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { AppShell } from "./AppShell";
 
+const originalMatchMedia = window.matchMedia;
+
 vi.mock("@/layout/AppTopBar", () => ({
   AppTopBar: () => <header data-testid="app-top-bar">Toolbar</header>,
 }));
 
 vi.mock("@/shared/components/WorkspaceRail", () => ({
-  WorkspaceRail: () => <nav>Navigation</nav>,
+  WorkspaceRail: ({ expanded }: { expanded: boolean }) => (
+    <nav data-expanded={expanded}>Navigation</nav>
+  ),
 }));
 
 describe("AppShell", () => {
   afterEach(() => {
     cleanup();
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: originalMatchMedia,
+    });
+  });
+
+  it("opens workspace navigation by default on desktop", () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+
+    render(
+      <AppShell
+        route={{ surface: "reports", sessionId: null }}
+        activeStage="welcome"
+        surface="reports"
+        activeConversationId={null}
+        onNewChat={vi.fn()}
+        onConversationOpen={vi.fn()}
+        onConversationDeleted={vi.fn()}
+        onData={vi.fn()}
+        onReports={vi.fn()}
+        onMemory={vi.fn()}
+        onModels={vi.fn()}
+        onTools={vi.fn()}
+        onSkills={vi.fn()}
+        onSettings={vi.fn()}
+        onOrganizationAdministration={vi.fn()}
+        user={null}
+        scope={null}
+        workspaces={[]}
+        selectedWorkspace={null}
+        workspacesLoading={false}
+        onWorkspaceSelect={vi.fn()}
+        onLogout={vi.fn()}
+      >
+        <div>Reports content</div>
+      </AppShell>,
+    );
+
+    expect(screen.getByRole("main").dataset.railExpanded).toBe("true");
+    expect(screen.getByRole("navigation").dataset.expanded).toBe("true");
+  });
+
+  it("keeps workspace navigation closed when media queries are unavailable", () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: undefined,
+    });
+
+    render(
+      <AppShell
+        route={{ surface: "reports", sessionId: null }}
+        activeStage="welcome"
+        surface="reports"
+        activeConversationId={null}
+        onNewChat={vi.fn()}
+        onConversationOpen={vi.fn()}
+        onConversationDeleted={vi.fn()}
+        onData={vi.fn()}
+        onReports={vi.fn()}
+        onMemory={vi.fn()}
+        onModels={vi.fn()}
+        onTools={vi.fn()}
+        onSkills={vi.fn()}
+        onSettings={vi.fn()}
+        onOrganizationAdministration={vi.fn()}
+        user={null}
+        scope={null}
+        workspaces={[]}
+        selectedWorkspace={null}
+        workspacesLoading={false}
+        onWorkspaceSelect={vi.fn()}
+        onLogout={vi.fn()}
+      >
+        <div>Reports content</div>
+      </AppShell>,
+    );
+
+    expect(screen.getByRole("main").dataset.railExpanded).toBe("false");
   });
 
   it("owns non-chat scrolling inside the viewport-bound content outlet", () => {
