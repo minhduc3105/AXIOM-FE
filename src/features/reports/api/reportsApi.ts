@@ -29,6 +29,10 @@ export type AutoReport = {
   completed_at: string | null;
   title: string | null;
   summary: string | null;
+  signal: {
+    title: string;
+    description: string;
+  } | null;
   report_available: boolean;
   primary_source: AutoReportSource | null;
   related_source_count: number;
@@ -97,7 +101,10 @@ export type AutoReportRun = {
 };
 
 class ReportsApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
     super(message);
     this.name = "ReportsApiError";
   }
@@ -165,7 +172,10 @@ export function listAutoReports(
   );
 }
 
-export function getAutoReportOverview(workspaceId: string, signal?: AbortSignal) {
+export function getAutoReportOverview(
+  workspaceId: string,
+  signal?: AbortSignal,
+) {
   return request<AutoReportOverview>(reportPath(workspaceId, "/overview"), {
     signal,
   });

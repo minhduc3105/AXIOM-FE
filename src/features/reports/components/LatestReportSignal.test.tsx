@@ -11,6 +11,7 @@ const report: AutoReportDetail = {
   completed_at: "2026-08-27T06:10:00Z",
   title: "Weather report",
   summary: "Summary",
+  signal: null,
   report_available: true,
   primary_source: {
     source_id: "source-1",

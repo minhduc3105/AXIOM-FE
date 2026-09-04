@@ -11,6 +11,7 @@ const report: AutoReport = {
   completed_at: "2026-08-27T08:05:00Z",
   title: "Weekly report",
   summary: "A concise weekly summary.",
+  signal: null,
   report_available: true,
   primary_source: {
     source_id: "source-1",
@@ -28,18 +29,38 @@ describe("ReportHistory", () => {
   afterEach(cleanup);
 
   it("shows each report title and description without source or time metadata", () => {
-    render(
-      <ReportHistory
-        reports={[report]}
-        onDownload={vi.fn()}
-      />,
-    );
+    render(<ReportHistory reports={[report]} onDownload={vi.fn()} />);
 
     expect(screen.getByText("Weekly report")).toBeTruthy();
     expect(screen.getByText("A concise weekly summary.")).toBeTruthy();
     expect(screen.queryByText("source.pdf")).toBeNull();
     expect(screen.queryByText(/2026|Aug|08:00/)).toBeNull();
     expect(screen.getByText("Weekly report").closest("button")).toBeNull();
+  });
+
+  it("prefers the extracted signal title and description over history metadata", () => {
+    const reportWithSignal = {
+      ...report,
+      title: "Automated report for source.pdf",
+      summary: "The raw report-generation summary.",
+      signal: {
+        title: "CodeJIT and HgtJIT improve vulnerability detection",
+        description: "Both approaches raise F1 across the evaluated projects.",
+      },
+    } satisfies AutoReport;
+
+    render(<ReportHistory reports={[reportWithSignal]} onDownload={vi.fn()} />);
+
+    expect(
+      screen.getByText("CodeJIT and HgtJIT improve vulnerability detection"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Both approaches raise F1 across the evaluated projects.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("Automated report for source.pdf")).toBeNull();
+    expect(screen.queryByText("The raw report-generation summary.")).toBeNull();
   });
 
   it("changes pages through the pagination controls", async () => {
@@ -64,12 +85,16 @@ describe("ReportHistory", () => {
 
     expect(screen.getByText("Page 1 of 2")).toBeTruthy();
     expect(
-      (screen.getByRole("button", {
-        name: "Previous reports page",
-      }) as HTMLButtonElement).disabled,
+      (
+        screen.getByRole("button", {
+          name: "Previous reports page",
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(true);
 
-    await actor.click(screen.getByRole("button", { name: "Next reports page" }));
+    await actor.click(
+      screen.getByRole("button", { name: "Next reports page" }),
+    );
 
     expect(onPageChange).toHaveBeenCalledWith(2);
   });

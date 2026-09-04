@@ -84,6 +84,9 @@ export function ReportHistory({
         ) : (
           reports.map((report) => {
             const isSelected = report.report_id === selectedReportId;
+            const title =
+              report.signal?.title || report.title || "Report generation";
+            const description = report.signal?.description || report.summary;
             const StatusIcon =
               report.status === "completed"
                 ? CheckCircle2Icon
@@ -106,7 +109,10 @@ export function ReportHistory({
                   className="min-w-0 text-left"
                   onClick={() => onSelect?.(report)}
                   onKeyDown={(event) => {
-                    if (!onSelect || (event.key !== "Enter" && event.key !== " ")) {
+                    if (
+                      !onSelect ||
+                      (event.key !== "Enter" && event.key !== " ")
+                    ) {
                       return;
                     }
                     event.preventDefault();
@@ -124,13 +130,11 @@ export function ReportHistory({
                       }
                       aria-hidden="true"
                     />
-                    <span className="truncate">
-                      {report.title || "Report generation"}
-                    </span>
+                    <span className="truncate">{title}</span>
                   </span>
-                  {report.summary && (
+                  {description && (
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                      {report.summary}
+                      {description}
                     </p>
                   )}
                 </div>
