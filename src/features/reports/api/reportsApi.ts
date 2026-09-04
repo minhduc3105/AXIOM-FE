@@ -151,9 +151,10 @@ export function updateAutoReportPolicy(
   });
 }
 
-export function runAutoReportNow(workspaceId: string) {
+export function runAutoReportNow(workspaceId: string, sourceIds?: string[]) {
   return request<AutoReportRun>(reportPath(workspaceId, "/runs"), {
     method: "POST",
+    ...(sourceIds ? { body: JSON.stringify({ source_ids: sourceIds }) } : {}),
   });
 }
 

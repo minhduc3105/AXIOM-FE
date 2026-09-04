@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   DatabaseIcon,
+  FileTextIcon,
   LoaderCircleIcon,
   RefreshCwIcon,
   SparklesIcon,
@@ -18,11 +19,12 @@ import {
 import { useReportsDashboard } from "./model/useReportsDashboard";
 import { LatestReportSignal } from "./components/LatestReportSignal";
 import { ReportChartGrid } from "./components/ReportChartGrid";
-import { ReportDetailPanel } from "./components/ReportDetailPanel";
 import { ReportHistory } from "./components/ReportHistory";
 import { ReportMetricGrid } from "./components/ReportMetricGrid";
+import { ReportSourcePickerDialog } from "./components/ReportSourcePickerDialog";
 
 type ReportsPageProps = {
+  organizationId: string | null;
   workspaceId: string | null;
 };
 
@@ -45,13 +47,12 @@ function actionError(error: unknown) {
     : "The report service is unavailable.";
 }
 
-export function ReportsPage({ workspaceId }: ReportsPageProps) {
+export function ReportsPage({ organizationId, workspaceId }: ReportsPageProps) {
   const {
     overview,
     selectedReport,
     loading,
     refreshing,
-    saving,
     running,
     processingSource,
     historyReports,
@@ -62,11 +63,10 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
     selectReport,
     changeHistoryPage,
     runNow,
-    savePolicy,
+    runFromSources,
     download,
-    clearSelection,
   } = useReportsDashboard(workspaceId);
-  const [interval, setInterval] = useState("900");
+  const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
   const generatedAt =
     overview?.latest_report?.completed_at ??
     overview?.latest_report?.created_at ??
@@ -74,21 +74,8 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
     null;
 
   useEffect(() => {
-    if (overview?.automation) {
-      setInterval(String(overview.automation.interval_seconds));
-    }
-  }, [overview?.automation]);
-
-  const handleSavePolicy = async (enabled: boolean) => {
-    try {
-      await savePolicy(enabled, interval);
-      toast.success(enabled ? "Auto reports enabled" : "Auto reports paused");
-    } catch (requestError) {
-      toast.error("Could not update automation", {
-        description: actionError(requestError),
-      });
-    }
-  };
+    if (!workspaceId) setSourcePickerOpen(false);
+  }, [workspaceId]);
 
   const handleRunNow = async () => {
     try {
@@ -112,6 +99,29 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
       toast.error("Could not start report", {
         description: actionError(requestError),
       });
+    }
+  };
+
+  const handleRunFromSources = async (sourceIds: string[]) => {
+    try {
+      const status = await runFromSources(sourceIds);
+      if (status === "failed") {
+        toast.error("The report job could not be started.");
+        return false;
+      }
+      if (status === "scheduled" || status === "created") {
+        toast.success("Report job scheduled for the selected files.");
+        return true;
+      }
+      if (status === "already_running") {
+        toast.error("A report job is already running.");
+      }
+      return false;
+    } catch (requestError) {
+      toast.error("Could not start report", {
+        description: actionError(requestError),
+      });
+      return false;
     }
   };
 
@@ -167,6 +177,14 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
                 <SparklesIcon data-icon="inline-start" />
               )}
               Generate now
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setSourcePickerOpen(true)}
+              disabled={!workspaceId || running || loading}
+            >
+              <FileTextIcon data-icon="inline-start" />
+              Generate from given source
             </Button>
             {generatedAt && (
               <p className="text-xs text-muted-foreground">
@@ -235,6 +253,14 @@ export function ReportsPage({ workspaceId }: ReportsPageProps) {
           </>
         )}
       </div>
+      <ReportSourcePickerDialog
+        open={sourcePickerOpen}
+        organizationId={organizationId}
+        workspaceId={workspaceId}
+        generating={running}
+        onOpenChange={setSourcePickerOpen}
+        onGenerate={handleRunFromSources}
+      />
     </section>
   );
 }

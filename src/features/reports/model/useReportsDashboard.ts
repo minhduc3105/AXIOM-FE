@@ -10,6 +10,7 @@ import {
   type AutoReportDetail,
   type AutoReportPagination,
   type AutoReportOverview,
+  type AutoReportRun,
   type AutoReportSource,
 } from "../api/reportsApi";
 
@@ -28,7 +29,10 @@ type ReportsDashboardState = {
   refresh: (page?: number) => Promise<void>;
   selectReport: (report: AutoReport) => Promise<void>;
   changeHistoryPage: (page: number) => Promise<void>;
-  runNow: () => Promise<"scheduled" | "created" | "skipped_no_source" | "skipped_no_unprocessed_source" | "skipped_already_processed" | "already_running" | "failed" | null>;
+  runNow: () => Promise<AutoReportRun["status"] | null>;
+  runFromSources: (
+    sourceIds: string[],
+  ) => Promise<AutoReportRun["status"] | null>;
   savePolicy: (enabled: boolean, interval: string) => Promise<boolean>;
   download: (reportId: string) => Promise<void>;
   clearSelection: () => void;
@@ -48,13 +52,18 @@ export function useReportsDashboard(
   workspaceId: string | null,
 ): ReportsDashboardState {
   const [overview, setOverview] = useState<AutoReportOverview | null>(null);
-  const [selectedReport, setSelectedReport] = useState<AutoReportDetail | null>(null);
+  const [selectedReport, setSelectedReport] = useState<AutoReportDetail | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
-  const [processingSource, setProcessingSource] = useState<AutoReportSource | null>(null);
-  const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null);
+  const [processingSource, setProcessingSource] =
+    useState<AutoReportSource | null>(null);
+  const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(
+    null,
+  );
   const [historyReports, setHistoryReports] = useState<AutoReport[]>([]);
   const [historyPagination, setHistoryPagination] =
     useState<AutoReportPagination | null>(null);
@@ -111,46 +120,50 @@ export function useReportsDashboard(
     [workspaceId],
   );
 
-  const refresh = useCallback(async (page = historyPageRef.current) => {
-    const currentWorkspaceId = workspaceId;
-    controller.current?.abort();
-    if (!currentWorkspaceId) {
-      requestId.current += 1;
-      setOverview(null);
-      setSelectedReport(null);
-      setError(null);
-      setLoading(false);
-      setRefreshing(false);
-      void loadHistoryPage(1);
-      return;
-    }
-
-    const nextRequestId = ++requestId.current;
-    const nextController = new AbortController();
-    controller.current = nextController;
-    setError(null);
-    setLoading((current) => (overviewRef.current ? current : true));
-    setRefreshing(Boolean(overviewRef.current));
-    void loadHistoryPage(page);
-
-    try {
-      const nextOverview = await getAutoReportOverview(
-        currentWorkspaceId,
-        nextController.signal,
-      );
-      if (requestId.current !== nextRequestId) return;
-      overviewRef.current = nextOverview;
-      setOverview(nextOverview);
-    } catch (requestError) {
-      if (requestId.current !== nextRequestId || isAbortError(requestError)) return;
-      setError(errorMessage(requestError));
-    } finally {
-      if (requestId.current === nextRequestId) {
+  const refresh = useCallback(
+    async (page = historyPageRef.current) => {
+      const currentWorkspaceId = workspaceId;
+      controller.current?.abort();
+      if (!currentWorkspaceId) {
+        requestId.current += 1;
+        setOverview(null);
+        setSelectedReport(null);
+        setError(null);
         setLoading(false);
         setRefreshing(false);
+        void loadHistoryPage(1);
+        return;
       }
-    }
-  }, [loadHistoryPage, workspaceId]);
+
+      const nextRequestId = ++requestId.current;
+      const nextController = new AbortController();
+      controller.current = nextController;
+      setError(null);
+      setLoading((current) => (overviewRef.current ? current : true));
+      setRefreshing(Boolean(overviewRef.current));
+      void loadHistoryPage(page);
+
+      try {
+        const nextOverview = await getAutoReportOverview(
+          currentWorkspaceId,
+          nextController.signal,
+        );
+        if (requestId.current !== nextRequestId) return;
+        overviewRef.current = nextOverview;
+        setOverview(nextOverview);
+      } catch (requestError) {
+        if (requestId.current !== nextRequestId || isAbortError(requestError))
+          return;
+        setError(errorMessage(requestError));
+      } finally {
+        if (requestId.current === nextRequestId) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    },
+    [loadHistoryPage, workspaceId],
+  );
 
   useEffect(() => {
     setOverview(null);
@@ -195,7 +208,11 @@ export function useReportsDashboard(
     const extractionIsRunning = ["pending", "running"].includes(
       overview?.latest_report?.dashboard_extraction?.status ?? "",
     );
-    if (!workspaceId || (!processingSource && !reportIsRunning && !extractionIsRunning)) return;
+    if (
+      !workspaceId ||
+      (!processingSource && !reportIsRunning && !extractionIsRunning)
+    )
+      return;
     const timer = window.setInterval(() => {
       void refresh();
     }, 3_000);
@@ -233,21 +250,30 @@ export function useReportsDashboard(
     [historyPagination, loadHistoryPage, workspaceId],
   );
 
-  const runNow = useCallback(async () => {
-    if (!workspaceId) return null;
-    setRunning(true);
-    try {
-      const result = await runAutoReportNow(workspaceId);
-      if (result.status === "scheduled" || result.status === "created") {
-        setProcessingSource(result.source ?? null);
-        setProcessingStartedAt(result.source ? Date.now() : null);
+  const runReport = useCallback(
+    async (sourceIds?: string[]) => {
+      if (!workspaceId) return null;
+      setRunning(true);
+      try {
+        const result = await runAutoReportNow(workspaceId, sourceIds);
+        if (result.status === "scheduled" || result.status === "created") {
+          setProcessingSource(result.source ?? null);
+          setProcessingStartedAt(result.source ? Date.now() : null);
+        }
+        await refresh();
+        return result.status;
+      } finally {
+        setRunning(false);
       }
-      await refresh();
-      return result.status;
-    } finally {
-      setRunning(false);
-    }
-  }, [refresh, workspaceId]);
+    },
+    [refresh, workspaceId],
+  );
+
+  const runNow = useCallback(() => runReport(), [runReport]);
+  const runFromSources = useCallback(
+    (sourceIds: string[]) => runReport(sourceIds),
+    [runReport],
+  );
 
   const savePolicy = useCallback(
     async (enabled: boolean, interval: string) => {
@@ -303,6 +329,7 @@ export function useReportsDashboard(
     selectReport,
     changeHistoryPage,
     runNow,
+    runFromSources,
     savePolicy,
     download,
     clearSelection: () => setSelectedReport(null),

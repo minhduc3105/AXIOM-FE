@@ -70,7 +70,9 @@ export function AppShell({
   desktopInspector,
   children,
 }: AppShellProps) {
-  const [navigationOpen, setNavigationOpen] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(
+    () => window.matchMedia?.("(min-width: 1280px)").matches ?? false,
+  );
   const managesOwnScroll = surface === "chat" || surface === "data";
 
   return (
