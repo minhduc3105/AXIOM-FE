@@ -34,6 +34,7 @@ export function ToolCard({
     getToolUpdateError,
     retryToolUpdate,
     setToolEnabled,
+    canManageTools,
   } = useToolsState();
   const enabled = enabledProp ?? isToolEnabled(tool.name, tool.enabled);
   const updating = isToolUpdating(tool.name);
@@ -91,8 +92,8 @@ export function ToolCard({
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">
             {enabled
-              ? "Active in current process"
-              : "Disabled in current process"}
+              ? "Registered for this organization"
+              : "Not registered for this organization"}
           </p>
           {availabilityScope ? (
             <p
@@ -136,7 +137,7 @@ export function ToolCard({
             setToolEnabled(tool.name, nextEnabled)
           }
           label={displayName}
-          disabled={updating}
+          disabled={!canManageTools || updating}
         />
       </footer>
     </article>

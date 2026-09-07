@@ -1,3 +1,10 @@
+import { authFetch } from "@/features/auth/model/authFetch";
+import {
+  getToolSubscriptions,
+  ToolSubscriptionsError,
+  toolSubscriptionsUrl,
+  type ToolSubscriptions,
+} from "./toolSubscriptionsApi";
 import type {
   ToolCatalogFilters,
   ToolCatalogResponse,
@@ -28,6 +35,7 @@ export class ToolsApiError extends Error {
 }
 
 export function getToolsErrorKind(error: unknown): ToolsErrorKind {
+  if (error instanceof ToolSubscriptionsError) return "request_failed";
   if (!(error instanceof ToolsApiError)) return "methods_hub_unavailable";
   if (error.operation === "tool_detail" && error.status === 404)
     return "tool_not_found";
@@ -80,7 +88,7 @@ async function patchJson<T>(url: string, body: unknown): Promise<T> {
     Accept: "application/json",
     "Content-Type": "application/json",
   };
-  const response = await fetch(url, {
+  const response = await authFetch(url, {
     method: "PATCH",
     headers,
     body: JSON.stringify(body),
@@ -89,7 +97,7 @@ async function patchJson<T>(url: string, body: unknown): Promise<T> {
   if (!response.ok) {
     const detail = await readErrorDetail(response);
     throw new ToolsApiError(
-      `Methods-Hub request failed (${response.status}).${detail ? ` ${detail}` : ""}`,
+      `Organization tool registration failed (${response.status}).${detail ? ` ${detail}` : ""}`,
       response.status,
       "tool_status",
     );
@@ -98,36 +106,76 @@ async function patchJson<T>(url: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function listTools(filters: ToolCatalogFilters, signal: AbortSignal) {
+export async function listTools(
+  filters: ToolCatalogFilters,
+  signal: AbortSignal,
+) {
   const params = new URLSearchParams();
   if (filters.kind) params.set("kind", filters.kind);
   if (filters.query?.trim()) params.set("query", filters.query.trim());
   const queryString = params.toString();
-  return getJson<ToolCatalogResponse>(
-    `${methodsHubApiBaseUrl}/api/v1/tools${queryString ? `?${queryString}` : ""}`,
-    signal,
-    "catalog",
-  );
+  const [catalog, subscriptions] = await Promise.all([
+    getJson<ToolCatalogResponse>(
+      `${methodsHubApiBaseUrl}/api/v1/tools${queryString ? `?${queryString}` : ""}`,
+      signal,
+      "catalog",
+    ),
+    getToolSubscriptions(signal),
+  ]);
+  const registered = new Set(subscriptions.tool_names);
+  return {
+    ...catalog,
+    tools: catalog.tools.map((tool) => ({
+      ...tool,
+      enabled: registered.has(tool.name),
+    })),
+  };
 }
 
-export function getTool(toolName: string, signal: AbortSignal) {
-  return getJson<ToolDetailResponse>(
+export async function getTool(toolName: string, signal: AbortSignal) {
+  const detail = await getJson<ToolDetailResponse>(
     `${methodsHubApiBaseUrl}/api/v1/tools/${encodeURIComponent(toolName)}`,
     signal,
     "tool_detail",
   );
+  const subscriptions = await getToolSubscriptions(signal);
+  return {
+    ...detail,
+    tool: {
+      ...detail.tool,
+      enabled: subscriptions.tool_names.includes(detail.tool.name),
+    },
+  };
 }
 
-export function updateToolEnabled(toolName: string, enabled: boolean) {
-  return patchJson<ToolEnabledResponse>(
-    `${methodsHubApiBaseUrl}/api/v1/admin/tools/${encodeURIComponent(toolName)}`,
-    { enabled },
-  );
+export async function updateToolEnabled(
+  toolName: string,
+  enabled: boolean,
+): Promise<ToolEnabledResponse> {
+  const result = await patchJson<ToolSubscriptions>(toolSubscriptionsUrl, {
+    tool_names: [toolName],
+    enabled,
+  });
+  return {
+    tool_name: toolName,
+    enabled: result.tool_names.includes(toolName),
+    scope: "organization",
+    persistent: true,
+  };
 }
 
-export function updateAllToolsEnabled(enabled: boolean) {
-  return patchJson<AllToolsEnabledResponse>(
-    `${methodsHubApiBaseUrl}/api/v1/admin/tools`,
-    { enabled },
-  );
+export async function updateAllToolsEnabled(
+  enabled: boolean,
+  names: string[],
+): Promise<AllToolsEnabledResponse> {
+  const result = await patchJson<ToolSubscriptions>(toolSubscriptionsUrl, {
+    tool_names: names,
+    enabled,
+  });
+  return {
+    enabled,
+    tool_names: result.tool_names,
+    scope: "organization",
+    persistent: true,
+  };
 }

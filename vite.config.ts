@@ -12,7 +12,6 @@ export default defineConfig(({ mode }) => {
     "http://localhost:8036";
   const methodsHubTarget =
     environment.METHODS_HUB_PROXY_TARGET ?? "http://localhost:38000";
-  const methodsHubAdminToken = environment.METHOD_HUB_ADMIN_TOKEN;
   const skillRegistryTarget =
     environment.VITE_SKILL_REGISTRY_PROXY_TARGET ?? gatewayApiTarget;
   const modelServiceTarget =
@@ -61,9 +60,6 @@ export default defineConfig(({ mode }) => {
         "/methods-hub": {
           target: methodsHubTarget,
           changeOrigin: true,
-          ...(methodsHubAdminToken
-            ? { headers: { Authorization: `Bearer ${methodsHubAdminToken}` } }
-            : {}),
           rewrite: (path) => path.replace(/^\/methods-hub/, ""),
         },
         "/skill-registry": {

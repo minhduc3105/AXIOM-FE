@@ -21,7 +21,8 @@ describe("ToolCard", () => {
       "fetch",
       vi.fn(async () =>
         Response.json({
-          tool_name: tool.name,
+          tool_names: [tool.name],
+          organization_id: "org",
           enabled: true,
           changed: true,
           scope: "process",
@@ -45,7 +46,9 @@ describe("ToolCard", () => {
       </ToolsProvider>,
     );
 
-    await user.click(screen.getByRole("link", { name: /open keyword extract/i }));
+    await user.click(
+      screen.getByRole("link", { name: /open keyword extract/i }),
+    );
 
     expect(onOpen).toHaveBeenCalledWith("keyword_extract");
   });
@@ -84,9 +87,9 @@ describe("ToolCard", () => {
       screen.getByRole("switch", { name: /disable keyword extract/i }),
     ).toBeTruthy();
     expect(fetch).toHaveBeenCalledWith(
-      "/methods-hub/api/v1/admin/tools/keyword_extract",
+      "/authz-service/api/v1/authz/me/tool-subscriptions",
       expect.objectContaining({
-        body: JSON.stringify({ enabled: true }),
+        body: JSON.stringify({ tool_names: [tool.name], enabled: true }),
         method: "PATCH",
       }),
     );
@@ -95,34 +98,47 @@ describe("ToolCard", () => {
 
   it("restores the previous status and reports the error on the affected card", async () => {
     const user = userEvent.setup();
-    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("Network unavailable"))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("Network unavailable"))),
+    );
     render(
       <ToolsProvider>
         <ToolCard tool={tool} onOpen={vi.fn()} />
       </ToolsProvider>,
     );
 
-    await user.click(screen.getByRole("switch", { name: /enable keyword extract/i }));
+    await user.click(
+      screen.getByRole("switch", { name: /enable keyword extract/i }),
+    );
 
     await waitFor(() => {
-      expect(screen.getByRole("alert").textContent).toMatch(/previous status restored/i);
+      expect(screen.getByRole("alert").textContent).toMatch(
+        /previous status restored/i,
+      );
     });
-    expect(screen.getByRole("switch", { name: /enable keyword extract/i })).toBeTruthy();
+    expect(
+      screen.getByRole("switch", { name: /enable keyword extract/i }),
+    ).toBeTruthy();
   });
 
   it("retries the failed status update from the affected card", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
-      vi.fn()
+      vi
+        .fn()
         .mockRejectedValueOnce(new Error("Network unavailable"))
-        .mockResolvedValueOnce(Response.json({
-          tool_name: tool.name,
-          enabled: true,
-          changed: true,
-          scope: "process",
-          persistent: false,
-        })),
+        .mockResolvedValueOnce(
+          Response.json({
+            tool_names: [tool.name],
+            organization_id: "org",
+            enabled: true,
+            changed: true,
+            scope: "process",
+            persistent: false,
+          }),
+        ),
     );
     render(
       <ToolsProvider>
@@ -130,13 +146,30 @@ describe("ToolCard", () => {
       </ToolsProvider>,
     );
 
-    await user.click(screen.getByRole("switch", { name: /enable keyword extract/i }));
+    await user.click(
+      screen.getByRole("switch", { name: /enable keyword extract/i }),
+    );
     await screen.findByRole("button", { name: /retry update/i });
     await user.click(screen.getByRole("button", { name: /retry update/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /disable keyword extract/i })).toBeTruthy();
+      expect(
+        screen.getByRole("switch", { name: /disable keyword extract/i }),
+      ).toBeTruthy();
     });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+});
+
+it("does not let a member change organization registrations", async () => {
+  render(
+    <ToolsProvider canManageTools={false}>
+      <ToolCard tool={tool} onOpen={vi.fn()} />
+    </ToolsProvider>,
+  );
+  expect(
+    screen.getByRole("switch").getAttribute("aria-disabled") === "true" ||
+      screen.getByRole("switch").hasAttribute("disabled"),
+  ).toBe(true);
+  cleanup();
 });

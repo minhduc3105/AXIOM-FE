@@ -17,6 +17,7 @@ type ToolUpdateError = { message: string; attemptedEnabled: boolean };
 type ToolErrors = Record<string, ToolUpdateError | undefined>;
 
 type ToolsContextValue = {
+  canManageTools: boolean;
   isToolEnabled: (name: string, apiEnabled: boolean) => boolean;
   isToolUpdating: (name: string) => boolean;
   getToolUpdateError: (name: string) => string | null;
@@ -28,7 +29,13 @@ type ToolsContextValue = {
 
 const ToolsContext = createContext<ToolsContextValue | null>(null);
 
-export function ToolsProvider({ children }: { children: React.ReactNode }) {
+export function ToolsProvider({
+  children,
+  canManageTools = true,
+}: {
+  children: React.ReactNode;
+  canManageTools?: boolean;
+}) {
   const [enabledTools, setEnabledTools] = useState<EnabledTools>({});
   const [updatingTools, setUpdatingTools] = useState<ToolFlags>({});
   const [toolErrors, setToolErrors] = useState<ToolErrors>({});
@@ -51,61 +58,69 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
     [toolErrors],
   );
 
-  const setToolEnabled = useCallback(async (name: string, enabled: boolean) => {
-    if (updatingToolsRef.current[name]) return false;
+  const setToolEnabled = useCallback(
+    async (name: string, enabled: boolean) => {
+      if (!canManageTools || updatingToolsRef.current[name]) return false;
 
-    const previousTools = enabledToolsRef.current;
-    const hadOverride = Object.prototype.hasOwnProperty.call(
-      previousTools,
-      name,
-    );
-    const previousOverride = previousTools[name];
-    const optimisticTools = { ...previousTools, [name]: { enabled } };
+      const previousTools = enabledToolsRef.current;
+      const hadOverride = Object.prototype.hasOwnProperty.call(
+        previousTools,
+        name,
+      );
+      const previousOverride = previousTools[name];
+      const optimisticTools = { ...previousTools, [name]: { enabled } };
 
-    enabledToolsRef.current = optimisticTools;
-    updatingToolsRef.current = { ...updatingToolsRef.current, [name]: true };
-    setEnabledTools(optimisticTools);
-    setUpdatingTools(updatingToolsRef.current);
-    setToolErrors((current) => ({ ...current, [name]: undefined }));
+      enabledToolsRef.current = optimisticTools;
+      updatingToolsRef.current = { ...updatingToolsRef.current, [name]: true };
+      setEnabledTools(optimisticTools);
+      setUpdatingTools(updatingToolsRef.current);
+      setToolErrors((current) => ({ ...current, [name]: undefined }));
 
-    try {
-      const response = await updateToolEnabled(name, enabled);
-      const nextTools = {
-        ...enabledToolsRef.current,
-        [name]: { enabled: response.enabled },
-      };
-      enabledToolsRef.current = nextTools;
-      setEnabledTools(nextTools);
-      toast.success(`${name} ${response.enabled ? "enabled" : "disabled"}`, {
-        description: "This visibility change resets when Methods-Hub restarts.",
-      });
-      return true;
-    } catch (error: unknown) {
-      const nextTools = { ...enabledToolsRef.current };
-      if (hadOverride && previousOverride) nextTools[name] = previousOverride;
-      else delete nextTools[name];
-      enabledToolsRef.current = nextTools;
-      setEnabledTools(nextTools);
+      try {
+        const response = await updateToolEnabled(name, enabled);
+        const nextTools = {
+          ...enabledToolsRef.current,
+          [name]: { enabled: response.enabled },
+        };
+        enabledToolsRef.current = nextTools;
+        setEnabledTools(nextTools);
+        toast.success(`${name} ${response.enabled ? "enabled" : "disabled"}`, {
+          description:
+            "Saved for this organization. Applies to new agent runs.",
+        });
+        return true;
+      } catch (error: unknown) {
+        const nextTools = { ...enabledToolsRef.current };
+        if (hadOverride && previousOverride) nextTools[name] = previousOverride;
+        else delete nextTools[name];
+        enabledToolsRef.current = nextTools;
+        setEnabledTools(nextTools);
 
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to update tool status.";
-      setToolErrors((current) => ({
-        ...current,
-        [name]: { message, attemptedEnabled: enabled },
-      }));
-      toast.error("Unable to update tool status", { description: message });
-      return false;
-    } finally {
-      const nextUpdatingTools = { ...updatingToolsRef.current, [name]: false };
-      updatingToolsRef.current = nextUpdatingTools;
-      setUpdatingTools(nextUpdatingTools);
-    }
-  }, []);
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to update tool status.";
+        setToolErrors((current) => ({
+          ...current,
+          [name]: { message, attemptedEnabled: enabled },
+        }));
+        toast.error("Unable to update tool status", { description: message });
+        return false;
+      } finally {
+        const nextUpdatingTools = {
+          ...updatingToolsRef.current,
+          [name]: false,
+        };
+        updatingToolsRef.current = nextUpdatingTools;
+        setUpdatingTools(nextUpdatingTools);
+      }
+    },
+    [canManageTools],
+  );
 
   const setToolsEnabled = useCallback(
     async (names: string[], enabled: boolean) => {
+      if (!canManageTools) return false;
       const pendingNames = names.filter(
         (name) => !updatingToolsRef.current[name],
       );
@@ -130,10 +145,10 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
       });
 
       try {
-        const response = await updateAllToolsEnabled(enabled);
+        const response = await updateAllToolsEnabled(enabled, pendingNames);
         const nextTools = { ...enabledToolsRef.current };
         for (const name of pendingNames) {
-          nextTools[name] = { enabled: response.enabled };
+          nextTools[name] = { enabled: response.tool_names.includes(name) };
         }
         enabledToolsRef.current = nextTools;
         setEnabledTools(nextTools);
@@ -141,7 +156,7 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
           `${pendingNames.length} tools ${response.enabled ? "enabled" : "disabled"}`,
           {
             description:
-              "This visibility change resets when Methods-Hub restarts.",
+              "Saved for this organization. Applies to new agent runs.",
           },
         );
         return true;
@@ -175,7 +190,7 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
         setUpdatingTools(nextUpdatingTools);
       }
     },
-    [],
+    [canManageTools],
   );
 
   const retryToolUpdate = useCallback(
@@ -201,6 +216,7 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
+      canManageTools,
       isToolEnabled,
       isToolUpdating,
       getToolUpdateError,
@@ -210,6 +226,7 @@ export function ToolsProvider({ children }: { children: React.ReactNode }) {
       reconcileCatalogTools,
     }),
     [
+      canManageTools,
       getToolUpdateError,
       isToolEnabled,
       isToolUpdating,

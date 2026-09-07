@@ -2,7 +2,7 @@ import { AppExperience } from "./app/AppExperience";
 import { AppRouter } from "./app/AppRouter";
 import { ThemeProvider } from "./app/ThemeProvider";
 import { Toaster } from "./components/ui/sonner";
-import { AuthProvider } from "./features/auth/model/AuthProvider";
+import { AuthProvider, useAuth } from "./features/auth/model/AuthProvider";
 import { ToolsProvider } from "./features/tools/model/ToolsProvider";
 import { SkillsProvider } from "./features/skills/model/SkillsProvider";
 import { DataWorkspaceProvider } from "./features/data/model/DataWorkspaceProvider";
@@ -15,16 +15,32 @@ export default function App() {
         <AppRouter
           renderApp={(route, navigate) => (
             <DataWorkspaceProvider>
-              <ToolsProvider>
+              <OrganizationToolsProvider>
                 <SkillsProvider>
                   <AppExperience route={route} navigate={navigate} />
                 </SkillsProvider>
-              </ToolsProvider>
+              </OrganizationToolsProvider>
             </DataWorkspaceProvider>
           )}
         />
         <Toaster position="bottom-right" richColors />
       </AuthProvider>
     </ThemeProvider>
+  );
+}
+
+function OrganizationToolsProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user } = useAuth();
+  return (
+    <ToolsProvider
+      key={`${user?.organization_id}:${user?.id}:${user?.org_role}`}
+      canManageTools={user?.org_role === "org_admin"}
+    >
+      {children}
+    </ToolsProvider>
   );
 }

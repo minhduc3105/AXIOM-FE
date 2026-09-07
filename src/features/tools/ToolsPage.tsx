@@ -208,6 +208,7 @@ export function ToolsPage({
     isToolUpdating,
     reconcileCatalogTools,
     setToolsEnabled,
+    canManageTools,
   } = useToolsState();
   const initialLoading = loading && !catalog;
   const isRefreshing = loading && Boolean(catalog);
@@ -337,7 +338,7 @@ export function ToolsPage({
                     {availabilityScope.organizationName}
                   </span>{" "}
                   · {availabilityScope.workspaceName}. Changes apply to the
-                  current Methods-Hub process.
+                  organization’s new agent runs.
                 </p>
               </div>
               <Button
@@ -489,7 +490,7 @@ export function ToolsPage({
             {status !== "disabled" ? (
               <ToolSection
                 title="Active Tools"
-                description="Active tools are exposed by the current Methods-Hub process."
+                description="Registered tools are available to new agents in this organization."
                 tools={activeTools}
                 enabled
                 onOpenTool={handleOpenTool}
@@ -504,7 +505,11 @@ export function ToolsPage({
                       onClick={() => {
                         setPendingBulkAction("disable");
                       }}
-                      disabled={actionableActiveCount === 0 || bulkBusy}
+                      disabled={
+                        !canManageTools ||
+                        actionableActiveCount === 0 ||
+                        bulkBusy
+                      }
                     >
                       <PowerOffIcon />
                       Disable all active tools
@@ -517,7 +522,7 @@ export function ToolsPage({
             {status !== "active" ? (
               <ToolSection
                 title="Disabled Tools"
-                description="Disabled tools are not exposed by the current Methods-Hub process."
+                description="Unregistered tools are excluded from new agents in this organization."
                 tools={disabledTools}
                 enabled={false}
                 onOpenTool={handleOpenTool}
@@ -532,7 +537,11 @@ export function ToolsPage({
                       onClick={() => {
                         setPendingBulkAction("enable");
                       }}
-                      disabled={actionableDisabledCount === 0 || bulkBusy}
+                      disabled={
+                        !canManageTools ||
+                        actionableDisabledCount === 0 ||
+                        bulkBusy
+                      }
                     >
                       <PowerIcon />
                       Enable all disabled tools
@@ -600,8 +609,8 @@ export function ToolsPage({
                   {isBulkEnable
                     ? "The selected tools will become available to AXIOM workflows."
                     : "The selected tools will no longer be available to AXIOM workflows."}{" "}
-                  These visibility changes apply only until Methods-Hub
-                  restarts.
+                  These registrations are saved for this organization and apply
+                  to new agent runs.
                 </>
               )}
             </DialogDescription>
@@ -625,7 +634,7 @@ export function ToolsPage({
                   type="button"
                   variant={isBulkEnable ? "default" : "destructive"}
                   onClick={confirmBulkAction}
-                  disabled={pendingActionableCount === 0}
+                  disabled={!canManageTools || pendingActionableCount === 0}
                 >
                   {isBulkEnable
                     ? `Enable ${pendingActionableCount} tools`

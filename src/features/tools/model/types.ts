@@ -73,18 +73,15 @@ export type ToolDetailResponse = {
 export type ToolEnabledResponse = {
   tool_name: string;
   enabled: boolean;
-  changed: boolean;
-  scope: "process";
-  persistent: false;
+  scope: "organization";
+  persistent: true;
 };
 
 export type AllToolsEnabledResponse = {
   enabled: boolean;
-  changed_count: number;
-  tool_count: number;
-  enabled_tool_count: number;
-  scope: "process";
-  persistent: false;
+  tool_names: string[];
+  scope: "organization";
+  persistent: true;
 };
 
 export type ToolCatalogFilters = {

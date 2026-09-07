@@ -74,6 +74,7 @@ export function ToolDetailPage({
     getToolUpdateError,
     retryToolUpdate,
     setToolEnabled,
+    canManageTools,
   } = useToolsState();
 
   if (loading && !tool) {
@@ -185,7 +186,7 @@ export function ToolDetailPage({
               <ToolStatusSwitch
                 checked={enabled}
                 label={displayName}
-                disabled={updating}
+                disabled={!canManageTools || updating}
                 onCheckedChange={(nextEnabled) =>
                   setToolEnabled(tool.name, nextEnabled)
                 }
@@ -260,8 +261,8 @@ export function ToolDetailPage({
                 </div>
               </dl>
               <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                Enabling or disabling a tool updates the current Methods-Hub
-                process only; the setting resets when it restarts.
+                Tool registrations are saved for this organization and apply to
+                new agent runs. MethodHub continues to publish its full catalog.
               </p>
 
               {(implementation || tool.supported_dataset_types?.length) && (
