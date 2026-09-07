@@ -207,7 +207,7 @@ export function ChatPage({
                   error={error}
                   loading={loading}
                   result={result}
-                  responseComplete={stage === "result" && !loading}
+                  responseComplete={stage === "result" && (!loading || result?.responseComplete === true)}
                   canRetry={canRetry}
                   onProcessEventSelect={onProcessEventSelect}
                   onSpecificationChange={onSpecificationChange}

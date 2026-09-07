@@ -110,12 +110,14 @@ type StreamOutcome = {
 };
 
 type StreamCallbacks = {
+  onCompleted?: (result: MockResult) => void;
   onProcessEvents?: (events: ProcessEvent[]) => void;
   onTranscript?: (transcript: ChatTranscriptItem[]) => void;
   onOutputText?: (result: MockResult) => void;
 };
 
 type CreateInvestigationOptions = {
+  onCompleted?: (result: MockResult) => void;
   files?: File[];
   organizationId?: string | null;
   workspaceId?: string | null;
@@ -234,6 +236,7 @@ export async function createInvestigation(
   );
   const outcome = await readResponseStream(response, signal, {
     onOutputText: resolvedOptions.onOutputText,
+    onCompleted: resolvedOptions.onCompleted,
     onProcessEvents: resolvedOptions.onProcessEvents,
     onTranscript: resolvedOptions.onTranscript,
   });
@@ -350,6 +353,7 @@ export async function runWorkflow(
   onProcessEvents: (events: ProcessEvent[]) => void,
   signal?: AbortSignal,
   onTranscript?: (transcript: ChatTranscriptItem[]) => void,
+  onCompleted?: (result: MockResult) => void,
 ): Promise<MockResult> {
   if (!pendingConfirmation) {
     throw new Error("No pending AXIOM response is ready to run.");
@@ -371,6 +375,7 @@ export async function runWorkflow(
       signal,
     );
     const reviseOutcome = await readResponseStream(reviseResponse, signal, {
+      onCompleted,
       onProcessEvents,
       onTranscript,
     });
@@ -395,6 +400,7 @@ export async function runWorkflow(
     signal,
   );
   const outcome = await readResponseStream(confirmResponse, signal, {
+    onCompleted,
     onProcessEvents,
     onTranscript,
   });
@@ -709,6 +715,7 @@ function applyStreamEvent(
       appendTranscriptAction(outcome, artifactEvent);
       callbacks?.onTranscript?.(outcome.transcript);
     }
+    callbacks?.onCompleted?.(completedToResult(completed));
     return;
   }
 

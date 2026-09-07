@@ -82,6 +82,7 @@ export type EvidenceItem = {
 };
 
 export type MockResult = {
+  responseComplete?: boolean;
   title: string;
   summary: string;
   markdown: string;

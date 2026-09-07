@@ -1,4 +1,56 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+it("publishes the final answer before stream closure and continues reading", async () => {
+  let streamController!: ReadableStreamDefaultController<Uint8Array>;
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      streamController = controller;
+    },
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(stream)),
+  );
+  const onCompleted = vi.fn();
+  let settled = false;
+  const pending = createInvestigation(
+    "hello",
+    "conversation-1",
+    "auto",
+    "instant",
+    undefined,
+    {
+      onCompleted,
+    },
+  ).then((outcome) => {
+    settled = true;
+    return outcome;
+  });
+  streamController.enqueue(
+    new TextEncoder().encode(
+      `event: response.completed\ndata: ${JSON.stringify({
+        type: "response.completed",
+        response_id: "response-1",
+        response: {
+          id: "response-1",
+          status: "completed",
+          output_text: "Hello!",
+        },
+      })}\n\n`,
+    ),
+  );
+  await vi.waitFor(() =>
+    expect(onCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({ markdown: "Hello!" }),
+    ),
+  );
+  expect(settled).toBe(false);
+  streamController.enqueue(
+    new TextEncoder().encode(": trailing keepalive\n\n"),
+  );
+  streamController.close();
+  expect((await pending).kind).toBe("completed");
+});
 import { createInvestigation, loadConversationHistory } from "./chatApi";
 import { createConversation } from "@/shared/lib/intelligence-api";
 import { getChatError } from "../model/chatError";
@@ -475,10 +527,7 @@ describe("createInvestigation", () => {
     expect(JSON.parse(postedBody)).toMatchObject({
       selected_files: {
         mode: "selected",
-        resource_ids: [
-          "dataset:revenue-q3",
-          "datasource:stripe-payments",
-        ],
+        resource_ids: ["dataset:revenue-q3", "datasource:stripe-payments"],
         resource_names: ["Q3 Revenue.xlsx", "Stripe payments"],
       },
     });

@@ -40,6 +40,7 @@ const initialState: ChatWorkflowState = {
 };
 
 type Action =
+  | { type: "answer/completed"; result: MockResult }
   | {
       type: "submit/start";
       investigation: Investigation;
@@ -159,6 +160,12 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           specMarkdown: action.investigation.specMarkdown,
         },
         loading: false,
+      };
+    case "answer/completed":
+      return {
+        ...state,
+        stage: "result",
+        result: { ...action.result, responseComplete: true },
       };
     case "submit/completed":
       return {
@@ -644,6 +651,10 @@ export function useChatWorkflow() {
                 executionMode,
               });
             },
+            onCompleted: (result) => {
+              if (!ownsRequest(controller)) return;
+              dispatch({ type: "answer/completed", result });
+            },
             onProcessEvents: (events) => {
               if (!ownsRequest(controller)) return;
               dispatch({ type: "process/events", events });
@@ -706,6 +717,10 @@ export function useChatWorkflow() {
           (transcript) => {
             if (!ownsRequest(controller)) return;
             dispatch({ type: "process/transcript", transcript });
+          },
+          (result) => {
+            if (!ownsRequest(controller)) return;
+            dispatch({ type: "answer/completed", result });
           },
         );
         if (!ownsRequest(controller)) return;
