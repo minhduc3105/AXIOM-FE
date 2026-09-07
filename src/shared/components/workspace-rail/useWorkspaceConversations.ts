@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   deleteConversation,
+  conversationCreatedEvent,
   listConversationsPage,
   updateConversation,
 } from "@/shared/lib/intelligence-api";
@@ -30,11 +31,9 @@ export function isPinnedConversation(conversation: ConversationSummary) {
 
 export function useWorkspaceConversations({
   expanded,
-  activeConversationId,
   onConversationDeleted,
 }: {
   expanded: boolean;
-  activeConversationId: string | null;
   onConversationDeleted?: (conversationId: string) => void;
 }) {
   const loadingConversationPagesRef = useRef(
@@ -116,7 +115,22 @@ export function useWorkspaceConversations({
         loadingConversationPagesRef.current.delete(1);
       }
     };
-  }, [activeConversationId, expanded, loadConversationPage]);
+  }, [expanded, loadConversationPage]);
+
+  useEffect(() => {
+    const handleCreated = (event: Event) => {
+      const conversation = (event as CustomEvent<ConversationSummary>).detail;
+      setConversations((current) => [
+        conversation,
+        ...current.filter(
+          (item) => item.conversation_id !== conversation.conversation_id,
+        ),
+      ]);
+    };
+    window.addEventListener(conversationCreatedEvent, handleCreated);
+    return () =>
+      window.removeEventListener(conversationCreatedEvent, handleCreated);
+  }, []);
 
   const loadNextConversationPage = useCallback(() => {
     if (

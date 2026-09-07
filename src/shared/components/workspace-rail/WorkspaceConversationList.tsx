@@ -82,7 +82,6 @@ export function WorkspaceConversationList({
     setDeleteTarget,
     togglePinnedConversation,
   } = useWorkspaceConversations({
-    activeConversationId,
     expanded,
     onConversationDeleted,
   });

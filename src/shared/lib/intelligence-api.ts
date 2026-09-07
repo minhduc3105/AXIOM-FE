@@ -47,6 +47,8 @@ type ListConversationsOptions = {
   limit?: number;
 };
 
+export const conversationCreatedEvent = "axiom:conversation-created";
+
 export async function listConversationsPage(
   options: ListConversationsOptions = {},
   signal?: AbortSignal,
@@ -87,7 +89,11 @@ export async function createConversation(
   if (!response.ok) {
     throw await intelligenceApiError(response);
   }
-  return (await response.json()) as ConversationSummary;
+  const conversation = (await response.json()) as ConversationSummary;
+  window.dispatchEvent(
+    new CustomEvent(conversationCreatedEvent, { detail: conversation }),
+  );
+  return conversation;
 }
 
 export type ConversationUpdate = {
