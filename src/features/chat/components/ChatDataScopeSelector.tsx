@@ -464,9 +464,6 @@ function DataResourceRow({
               </Badge>
             )}
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            {resource.detail}
-          </span>
         </span>
         {canPreview && <ChevronRightIcon className="text-muted-foreground" />}
       </Button>

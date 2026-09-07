@@ -1,3 +1,4 @@
+import { fileDisplayName } from "../model/fileDisplayName";
 import type {
   BatchDocumentProcessingStatusResponseDto,
   DataDashboardSnapshot,
@@ -498,7 +499,7 @@ export function normalizeFile(
     name?: string;
   },
 ): DataFile {
-  const name = context.name ?? getFileName(file.key);
+  const name = fileDisplayName(file.key, context.name ?? file.name);
   const normalizedProcessingStatus = processingStatus?.status
     ?.trim()
     .toLowerCase();

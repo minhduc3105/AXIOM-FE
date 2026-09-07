@@ -561,9 +561,6 @@ export function DataSourceFilesTable({
                                 {file.name}
                               </TooltipContent>
                             </Tooltip>
-                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                              {file.type}
-                            </span>
                           </div>
                         </div>
                       </TableCell>
