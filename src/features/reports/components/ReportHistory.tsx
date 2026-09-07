@@ -64,7 +64,7 @@ export function ReportHistory({
           <CardTitle className="mt-1">Recent reports</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-2 p-3 sm:p-4">
+      <CardContent className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2 p-3 sm:p-4">
         {loading && !reports.length ? (
           Array.from({ length: 3 }, (_, index) => (
             <HistorySkeleton key={index} />
@@ -106,7 +106,7 @@ export function ReportHistory({
                 )}
               >
                 <div
-                  className="min-w-0 text-left"
+                  className="min-w-0 flex-1 text-left"
                   onClick={() => onSelect?.(report)}
                   onKeyDown={(event) => {
                     if (

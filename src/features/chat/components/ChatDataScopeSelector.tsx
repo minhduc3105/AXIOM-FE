@@ -182,7 +182,7 @@ export function ChatDataScopeSelector({
     >
       <div
         className={cn(
-          "pointer-events-auto absolute right-4 top-4 bottom-4 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl transition-[width,opacity] duration-150 ease-out max-lg:right-3",
+          "pointer-events-auto absolute right-4 top-4 bottom-4 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-[width,opacity] duration-150 ease-out max-lg:right-3",
           previewResource
             ? "w-[min(640px,52vw)] max-lg:w-[min(92vw,640px)]"
             : "w-[min(420px,34vw)] max-lg:w-[min(92vw,420px)]",
@@ -385,7 +385,7 @@ export function ChatDataScopeSelector({
 
       <div
         className={cn(
-          "pointer-events-auto absolute right-3 top-1/2 flex w-12 -translate-y-1/2 flex-col items-center justify-between rounded-full border border-border/80 bg-card/95 py-3 shadow-lg backdrop-blur-sm transition-opacity duration-150 ease-out md:right-6",
+          "pointer-events-auto absolute right-3 top-1/2 flex w-12 -translate-y-1/2 flex-col items-center justify-between rounded-full border border-border/80 bg-card/95 py-3 backdrop-blur-sm transition-opacity duration-150 ease-out md:right-6",
           isCollapsed ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         aria-hidden={!isCollapsed}
@@ -468,9 +468,7 @@ function DataResourceRow({
             {resource.detail}
           </span>
         </span>
-        {canPreview && (
-          <ChevronRightIcon className="text-muted-foreground" />
-        )}
+        {canPreview && <ChevronRightIcon className="text-muted-foreground" />}
       </Button>
     </div>
   );

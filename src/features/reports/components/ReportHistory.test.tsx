@@ -63,6 +63,30 @@ describe("ReportHistory", () => {
     expect(screen.queryByText("The raw report-generation summary.")).toBeNull();
   });
 
+  it("constrains long report copy so actions remain within the report row", () => {
+    const longTitle =
+      "Cross-domain analysis with an intentionally very long title";
+
+    render(
+      <ReportHistory
+        reports={[{ ...report, title: longTitle }]}
+        onDownload={vi.fn()}
+      />,
+    );
+
+    const copyRegion = screen.getByText(longTitle).parentElement?.parentElement;
+    const reportList = screen
+      .getByText(longTitle)
+      .closest('[data-slot="card-content"]');
+
+    expect(copyRegion?.classList.contains("min-w-0")).toBe(true);
+    expect(copyRegion?.classList.contains("flex-1")).toBe(true);
+    expect(reportList?.classList.contains("min-w-0")).toBe(true);
+    expect(reportList?.classList.contains("grid-cols-[minmax(0,1fr)]")).toBe(
+      true,
+    );
+  });
+
   it("changes pages through the pagination controls", async () => {
     const actor = userEvent.setup();
     const onPageChange = vi.fn();
