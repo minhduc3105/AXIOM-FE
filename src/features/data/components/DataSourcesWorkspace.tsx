@@ -77,6 +77,7 @@ import { useDataSourceFiles } from "../model/useDataSourceFiles";
 import { useOrganizationFiles } from "../model/useOrganizationFiles";
 import { DataMetrics } from "./DataMetrics";
 import { DataSourceFilesTable } from "./DataSourceFilesTable";
+import { RelatedFilesDialog } from "./RelatedFilesDialog";
 import { StatusBadge } from "./StatusBadge";
 
 type DataSourcesWorkspaceProps = {
@@ -565,6 +566,7 @@ export function DataSourcesWorkspace({
     useState<SavedDataSourceProfile | null>(null);
   const [forgetPending, setForgetPending] = useState(false);
   const [deleteTargets, setDeleteTargets] = useState<DataFile[]>([]);
+  const [relatedFilesOpen, setRelatedFilesOpen] = useState(false);
   const [selectedFileKeys, setSelectedFileKeys] = useState<string[]>([]);
   const [pendingFileAction, setPendingFileAction] = useState<{
     key: string;
@@ -654,6 +656,7 @@ export function DataSourcesWorkspace({
 
   useEffect(() => {
     setQuery(DEFAULT_QUERY);
+    setRelatedFilesOpen(false);
   }, [workspaceId]);
   useEffect(() => {
     if (!result) return;
@@ -1193,6 +1196,7 @@ export function DataSourcesWorkspace({
             <DataSourceFilesTable
               result={result}
               loading={tableLoading}
+              onFindRelatedFiles={() => setRelatedFilesOpen(true)}
               search={query.search}
               page={result?.page ?? query.page}
               pageSize={query.pageSize}
@@ -1243,6 +1247,18 @@ export function DataSourcesWorkspace({
         </section>
       </div>
 
+      {relatedFilesOpen && (
+        <RelatedFilesDialog
+          key={`${organizationId}:${workspaceId}`}
+          organizationId={organizationId}
+          workspaceId={workspaceId}
+          initialFiles={(result?.files ?? []).filter((file) =>
+            selectedFileKeys.includes(file.key),
+          )}
+          onClose={() => setRelatedFilesOpen(false)}
+          onOpenDocument={onOpenDocument}
+        />
+      )}
       <Dialog
         open={Boolean(forgetProfile)}
         onOpenChange={(open) => {

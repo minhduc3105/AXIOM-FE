@@ -64,6 +64,7 @@ type DataSourceFilesTableProps = {
   sortBy: DataSourceFileSortField;
   sortOrder: DataSourceFileSortOrder;
   onSearchChange: (value: string) => void;
+  onFindRelatedFiles?: () => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onSortChange: (field: DataSourceFileSortField) => void;
@@ -212,6 +213,7 @@ export function DataSourceFilesTable({
   sortBy,
   sortOrder,
   onSearchChange,
+  onFindRelatedFiles,
   onPageChange,
   onPageSizeChange,
   onSortChange,
@@ -310,33 +312,41 @@ export function DataSourceFilesTable({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 flex flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-start lg:justify-between">
-        <Field className="min-w-0 flex-1 lg:max-w-md">
-          <FieldLabel htmlFor={searchId} className="sr-only">
-            Search data source files
-          </FieldLabel>
-          <div className="relative">
-            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id={searchId}
-              value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder="Search file names"
-              className="pl-9 pr-9"
-            />
-            {search && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2"
-                onClick={() => onSearchChange("")}
-                aria-label="Clear file search"
-              >
-                <XIcon />
-              </Button>
-            )}
-          </div>
-        </Field>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <Field className="min-w-48 flex-1 lg:max-w-md">
+            <FieldLabel htmlFor={searchId} className="sr-only">
+              Search data source files
+            </FieldLabel>
+            <div className="relative">
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id={searchId}
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder="Search file names"
+                className="pl-9 pr-9"
+              />
+              {search && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="absolute right-1 top-1/2 -translate-y-1/2"
+                  onClick={() => onSearchChange("")}
+                  aria-label="Clear file search"
+                >
+                  <XIcon />
+                </Button>
+              )}
+            </div>
+          </Field>
+          {onFindRelatedFiles && (
+            <Button variant="outline" onClick={onFindRelatedFiles}>
+              <SearchIcon />
+              Find related files
+            </Button>
+          )}
+        </div>
         {selectedFiles.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg p-1.5 lg:h-8 lg:flex-nowrap lg:p-0">
             <span className="px-2 text-xs font-medium text-muted-foreground">
