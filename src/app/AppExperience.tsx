@@ -125,6 +125,13 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     chat.processEvents,
   );
   const skipNextHydrationRef = useRef<string | null>(null);
+  const previousRouteSurfaceRef = useRef(route.surface);
+  useEffect(() => {
+    if (route.surface === "chat" && previousRouteSurfaceRef.current !== "chat") {
+      void llmRegistry.refresh();
+    }
+    previousRouteSurfaceRef.current = route.surface;
+  }, [llmRegistry.refresh, route.surface]);
   const providerNameById = useMemo(
     () =>
       new Map(

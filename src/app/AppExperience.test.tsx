@@ -9,6 +9,7 @@ import { AppExperience } from "./AppExperience";
 
 const mocks = vi.hoisted(() => ({
   submitQuestion: vi.fn(),
+  modelRegistryRefresh: vi.fn(),
   workflow: {
     activeConversationId: null as string | null,
     stage: "welcome" as "welcome" | "pending",
@@ -121,7 +122,12 @@ vi.mock("@/features/models/model/useModelRegistry", () => ({
         },
       ],
     },
+    refresh: mocks.modelRegistryRefresh,
   }),
+}));
+
+vi.mock("@/features/models/ModelsPage", () => ({
+  ModelsPage: () => <div>Models page</div>,
 }));
 
 vi.mock("@/shared/hooks/use-app-scope", () => ({
@@ -368,5 +374,34 @@ describe("AppExperience Skills routing", () => {
     );
 
     expect(screen.getByText("Skills catalog for workspace-1")).toBeTruthy();
+  });
+});
+
+describe("AppExperience model registry refresh", () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("refreshes models when returning to chat from model administration", async () => {
+    const view = render(
+      <AppExperience
+        route={{ surface: "models", sessionId: null }}
+        navigate={vi.fn()}
+      />,
+    );
+
+    expect(mocks.modelRegistryRefresh).not.toHaveBeenCalled();
+
+    view.rerender(
+      <AppExperience
+        route={{ surface: "chat", page: "compose", sessionId: null }}
+        navigate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mocks.modelRegistryRefresh).toHaveBeenCalledTimes(1);
+    });
   });
 });
