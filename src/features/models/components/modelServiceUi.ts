@@ -1,7 +1,6 @@
 import {
   BinaryIcon,
   EyeIcon,
-  ListFilterIcon,
   MessageSquareTextIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -34,12 +33,6 @@ export const modelCapabilities: ModelCapabilityDefinition[] = [
     label: "Embedding",
     detail: "Search and indexing",
     icon: BinaryIcon,
-  },
-  {
-    id: "reranker",
-    label: "Reranker",
-    detail: "Evidence relevance",
-    icon: ListFilterIcon,
   },
 ];
 

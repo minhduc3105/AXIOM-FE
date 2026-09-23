@@ -41,14 +41,13 @@ import {
   hasErrors,
   type FormErrors,
   validateCredential,
-  validateHttpUrl,
   validateModelForm,
   validateProviderForm,
 } from "../model/formValidation";
-import { getModelReadiness, type ReadinessLevel } from "../model/readiness";
+import { getModelReadiness } from "../model/readiness";
 import type {
   ModelCapability,
-  ProviderCatalogItem,
+  ProviderModelCandidate,
   ProviderModelView,
   ProviderView,
 } from "../model/registryTypes";
@@ -64,6 +63,8 @@ import {
 
 const consoleDialogClass =
   "w-[96vw] max-w-[96rem] max-h-[92vh] overflow-y-auto p-6 sm:p-7";
+const formDialogClass =
+  "w-[calc(100vw-2rem)] max-w-xl overflow-hidden rounded-2xl p-0";
 type SubmitHandler = (
   event: FormEvent<HTMLFormElement>,
 ) => void | Promise<void>;
@@ -92,7 +93,7 @@ function TextField({
         id={id}
         name={id}
         aria-invalid={Boolean(error)}
-        className={modelServiceInput}
+        className={cn(modelServiceInput, "h-10 rounded-xl px-3")}
         {...props}
       />
       <FieldError>{error}</FieldError>
@@ -193,16 +194,18 @@ function FormDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={consoleDialogClass}>
-        <form className="grid gap-6" onSubmit={onSubmit} noValidate>
-          <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
+      <DialogContent className={formDialogClass}>
+        <form className="grid gap-0" onSubmit={onSubmit} noValidate>
+          <DialogHeader className="border-b bg-muted/20 px-6 py-6 pr-14 sm:px-7">
+            <DialogTitle className="text-lg sm:text-xl">{title}</DialogTitle>
+            <DialogDescription className="mt-2 max-w-lg leading-6">
+              {description}
+            </DialogDescription>
           </DialogHeader>
-          <FieldGroup className="grid gap-4 lg:grid-cols-2">
-            {children}
-          </FieldGroup>
-          <DialogFooter>
+          <div className="px-6 py-6 sm:px-7 sm:py-7">
+            <FieldGroup className="gap-5">{children}</FieldGroup>
+          </div>
+          <DialogFooter className="mx-0 mb-0 rounded-none px-6 py-4 sm:px-7">
             <Button
               type="button"
               variant="outline"
@@ -232,6 +235,7 @@ export function ModelServiceModelDialog({
   model,
   provider,
   capability,
+  discoveredModels,
   busy,
   onOpenChange,
   onSubmit,
@@ -240,79 +244,130 @@ export function ModelServiceModelDialog({
   model: ProviderModelView | null;
   provider: ProviderView | null;
   capability: ModelCapability;
+  discoveredModels: ProviderModelCandidate[];
   busy: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: SubmitHandler;
 }) {
   const [errors, setErrors] = useState<FormErrors>({});
   const usesExistingProvider = Boolean(provider);
+  const candidateOptions = discoveredModels.filter(
+    (candidate) =>
+      candidate.capability === null || candidate.capability === capability,
+  );
   useEffect(() => {
     if (open) setErrors({});
   }, [open]);
   function validate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const nextErrors = validateModelForm(
-      {
-        modelId: String(form.get("model-id") ?? ""),
-        name: String(form.get("model-name") ?? ""),
-        capability: String(form.get("model-capability") ?? ""),
-        maxTokens: String(form.get("max-tokens") ?? ""),
-        contextLength: String(form.get("context-length") ?? ""),
-      },
-      Boolean(model),
-    );
-    if (!usesExistingProvider && !model) {
-      nextErrors.connectionName = String(
-        form.get("connection-name") ?? "",
-      ).trim()
-        ? undefined
-        : "Connection name is required.";
-      nextErrors.connectionUrl = validateHttpUrl(
-        String(form.get("connection-url") ?? ""),
-      );
-    }
+    const nextErrors = validateModelForm({
+      modelName: String(form.get("model-name") ?? ""),
+      capability: String(form.get("model-capability") ?? ""),
+    });
     setErrors(nextErrors);
     if (!hasErrors(nextErrors)) void onSubmit(event);
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:h-[min(48rem,calc(100dvh-3rem))] sm:w-[min(96rem,calc(100vw-3rem))] sm:max-w-[min(96rem,calc(100vw-3rem))]">
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={validate} noValidate>
-          <DialogHeader className="shrink-0 border-b bg-muted/20 px-6 py-6 pr-14 sm:px-9 sm:py-8">
+      <DialogContent className="flex max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden rounded-2xl p-0 shadow-2xl sm:max-h-[calc(100dvh-3rem)]">
+        <form
+          className="flex min-h-0 flex-1 flex-col"
+          onSubmit={validate}
+          noValidate
+        >
+          <DialogHeader className="shrink-0 border-b bg-muted/20 px-5 py-5 pr-14 sm:px-7 sm:py-6">
             <div className="flex items-start gap-4">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <ServerIcon className="size-5" />
-              </div>
               <div className="min-w-0">
-                <DialogTitle className="text-xl sm:text-2xl">{model ? "Edit model" : "Add model"}</DialogTitle>
+                <DialogTitle className="text-xl sm:text-2xl">
+                  {model ? "Edit model" : "Add model"}
+                </DialogTitle>
                 <DialogDescription className="mt-2 max-w-2xl leading-6">
-                  {model ? "Update model metadata and workload limits." : usesExistingProvider ? `Register a model for ${provider?.display_name}. It will use this provider's connection configuration.` : "Register a model and its organization connection in one place."}
+                  {model
+                    ? "Update model metadata."
+                    : usesExistingProvider
+                      ? `Register a model for ${provider?.display_name}. It will use this provider's connection configuration.`
+                      : "Select a provider first to register a model."}
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-9 sm:py-8">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <section className="rounded-xl border bg-card p-5 sm:p-6">
-                <div className="mb-5"><p className="text-sm font-semibold">Model identity</p><p className="mt-1 text-xs text-muted-foreground">How this model appears in AXIOM.</p></div>
-                <div className="grid gap-4">
-                  {!model && <TextField id="model-id" label="Model ID" placeholder="e.g. gpt-4.1-mini" onChange={() => clearError(errors, "modelId", setErrors)} error={errors.modelId} required />}
-                  <TextField id="model-name" label="Display name" defaultValue={model?.name} placeholder="e.g. GPT-4.1 mini" onChange={() => clearError(errors, "name", setErrors)} error={errors.name} required />
-                  <DropdownField id="model-capability" label="Workload" defaultValue={model?.capability ?? capability} error={errors.capability} onValueChange={() => clearError(errors, "capability", setErrors)} options={modelCapabilities.map((item) => ({ value: item.id, label: item.label }))} />
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+            <div className="mx-auto grid max-w-xl gap-5">
+              <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+                <div className="mb-6">
+                  <p className="text-sm font-semibold">Model identity</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    How this model appears in AXIOM.
+                  </p>
+                </div>
+                <div className="grid gap-5">
+                  <TextField
+                    id="model-name"
+                    label="Model name"
+                    list="discovered-model-candidates"
+                    defaultValue={model?.model_id ?? model?.name}
+                    placeholder="e.g. poolside/laguna-xs-2.1"
+                    onChange={() => clearError(errors, "modelName", setErrors)}
+                    error={errors.modelName}
+                    required
+                  />
+                  {candidateOptions.length > 0 && (
+                    <datalist id="discovered-model-candidates">
+                      {candidateOptions.map((candidate) => (
+                        <option
+                          key={candidate.model_id}
+                          value={candidate.model_id}
+                        >
+                          {candidate.name}
+                        </option>
+                      ))}
+                    </datalist>
+                  )}
+                  <DropdownField
+                    id="model-capability"
+                    label="Workload"
+                    defaultValue={model?.capability ?? capability}
+                    error={errors.capability}
+                    onValueChange={() =>
+                      clearError(errors, "capability", setErrors)
+                    }
+                    options={modelCapabilities.map((item) => ({
+                      value: item.id,
+                      label: item.label,
+                    }))}
+                  />
                 </div>
               </section>
-              <section className="rounded-xl border bg-card p-5 sm:p-6">
-                <div className="mb-5"><p className="text-sm font-semibold">Runtime limits</p><p className="mt-1 text-xs text-muted-foreground">Keep requests within the provider’s supported bounds.</p></div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                  <TextField id="max-tokens" label="Max output tokens" type="number" min={1} step={1} defaultValue={model?.max_tokens?.toString()} onChange={() => clearError(errors, "maxTokens", setErrors)} error={errors.maxTokens || errors.limits} />
-                  <TextField id="context-length" label="Context length" type="number" min={1000} step={1} defaultValue={model?.max_context_length?.toString()} onChange={() => clearError(errors, "contextLength", setErrors)} error={errors.contextLength} />
-                </div>
-              </section>
-              {!model && !usesExistingProvider && <section className="rounded-xl border bg-card p-5 sm:col-span-2 sm:p-6"><div className="mb-5"><p className="text-sm font-semibold">Connection</p><p className="mt-1 text-xs text-muted-foreground">This model will create its own organization provider connection.</p></div><div className="grid gap-4 md:grid-cols-2"><TextField id="connection-name" label="Connection name" placeholder="e.g. OpenAI production" onChange={() => clearError(errors, "connectionName", setErrors)} error={errors.connectionName} required /><DropdownField id="connection-source" label="Connection type" defaultValue="cloud" options={[{ value: "cloud", label: "Cloud" }, { value: "custom", label: "Custom" }, { value: "local", label: "Local" }]} /><TextField id="connection-url" label="Base URL" placeholder="https://api.openai.com/v1" onChange={() => clearError(errors, "connectionUrl", setErrors)} error={errors.connectionUrl} required /><DropdownField id="connection-protocol" label="Protocol" defaultValue="openai_compatible" options={[{ value: "openai_compatible", label: "OpenAI compatible" }, { value: "openrouter", label: "OpenRouter" }, { value: "cohere_compatible", label: "Cohere compatible" }]} /><TextField id="api-key" label="API key (optional)" type="password" autoComplete="new-password" spellCheck={false} /></div></section>}
+              {!model && !usesExistingProvider && (
+                <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
+                  Select a provider first.
+                </p>
+              )}
             </div>
           </div>
-          <DialogFooter className="mx-0 mb-0 shrink-0 rounded-none px-6 py-4 sm:px-9"><Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button type="submit" disabled={busy}>{busy && <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />}{model ? "Save model" : "Register model"}</Button></DialogFooter>
+          <DialogFooter className="mx-0 mb-0 shrink-0 rounded-none px-5 py-4 sm:px-7">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={busy}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={busy || (!model && !usesExistingProvider)}
+            >
+              {busy && (
+                <LoaderCircleIcon
+                  data-icon="inline-start"
+                  className="animate-spin"
+                />
+              )}
+              {model ? "Save model" : "Register model"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -322,58 +377,42 @@ export function ModelServiceModelDialog({
 export function ModelServiceProviderDialog({
   open,
   editingProvider,
-  catalog,
   busy,
   onOpenChange,
   onSubmit,
 }: {
   open: boolean;
   editingProvider: ProviderView | null;
-  catalog: ProviderCatalogItem[];
   busy: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: SubmitHandler;
 }) {
-  const [templateId, setTemplateId] = useState("");
   const [values, setValues] = useState({
-    id: "",
     name: "",
-    source: "cloud",
     url: "",
-    protocol: "openai_compatible",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   useEffect(() => {
     if (open) {
-      setTemplateId("");
       setErrors({});
       setValues({
-        id: editingProvider?.id ?? "",
         name: editingProvider?.display_name ?? "",
-        source: editingProvider?.source ?? "cloud",
         url: editingProvider?.base_url ?? "",
-        protocol: editingProvider?.protocol ?? "openai_compatible",
       });
     }
   }, [editingProvider, open]);
-  function selectTemplate(id: string) {
-    setTemplateId(id);
-    const template = catalog.find((item) => item.id === id);
-    if (template)
-      setValues({
-        id: `${template.id}-org`,
-        name: template.display_name,
-        source: template.source,
-        url: template.default_base_url,
-        protocol: template.protocol,
-      });
-  }
   function validate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nextErrors = validateProviderForm(
-      { id: values.id, name: values.name, baseUrl: values.url },
-      Boolean(editingProvider),
-    );
+    const nextErrors = validateProviderForm({
+      name: values.name,
+      baseUrl: values.url,
+    });
+    if (!editingProvider) {
+      const apiKeyErrors = validateCredential(
+        String(new FormData(event.currentTarget).get("provider-api-key") ?? ""),
+      );
+      nextErrors.apiKey = apiKeyErrors.apiKey;
+    }
     setErrors(nextErrors);
     if (!hasErrors(nextErrors)) void onSubmit(event);
   }
@@ -384,42 +423,13 @@ export function ModelServiceProviderDialog({
       title={editingProvider ? "Edit provider" : "Add provider"}
       description={
         editingProvider
-          ? "Update the provider endpoint and protocol."
-          : "Create an organization provider from a template or enter a custom endpoint. Its ID must be unique in this organization."
+          ? "Update the provider name or endpoint. The API key remains encrypted and is never shown again."
+          : "Create an organization provider. Connection settings are inferred from the URL, and the API key is encrypted and never shown again."
       }
       busy={busy}
       submitLabel={editingProvider ? "Save provider" : "Add provider"}
       onSubmit={validate}
     >
-      {!editingProvider && catalog.length > 0 && (
-        <DropdownField
-          id="provider-template"
-          label="Provider template"
-          value={templateId}
-          onValueChange={selectTemplate}
-          options={[
-            { value: "", label: "Custom provider" },
-            ...catalog.map((item) => ({
-              value: item.id,
-              label: item.display_name,
-            })),
-          ]}
-        />
-      )}
-      {!editingProvider && (
-        <TextField
-          id="provider-id"
-          label="Provider ID"
-          value={values.id}
-          onChange={(event) => {
-            setValues((current) => ({ ...current, id: event.target.value }));
-            clearError(errors, "id", setErrors);
-          }}
-          error={errors.id}
-          placeholder="e.g. research-openai"
-          required
-        />
-      )}
       <TextField
         id="provider-name"
         label="Display name"
@@ -431,19 +441,6 @@ export function ModelServiceProviderDialog({
         error={errors.name}
         placeholder="e.g. OpenAI research"
         required
-      />
-      <DropdownField
-        id="provider-source"
-        label="Source"
-        value={values.source}
-        onValueChange={(source) =>
-          setValues((current) => ({ ...current, source }))
-        }
-        options={[
-          { value: "cloud", label: "Cloud" },
-          { value: "custom", label: "Custom" },
-          { value: "local", label: "Local" },
-        ]}
       />
       <TextField
         id="provider-url"
@@ -457,22 +454,18 @@ export function ModelServiceProviderDialog({
         placeholder="https://api.openai.com/v1"
         required
       />
-      <DropdownField
-        id="provider-protocol"
-        label="Protocol"
-        value={values.protocol}
-        onValueChange={(protocol) =>
-          setValues((current) => ({ ...current, protocol }))
-        }
-        options={[
-          ...new Set([
-            "openai_compatible",
-            "openrouter",
-            "cohere_compatible",
-            ...catalog.map((item) => item.protocol),
-          ]),
-        ].map((protocol) => ({ value: protocol, label: protocol }))}
-      />
+      {!editingProvider && (
+        <TextField
+          id="provider-api-key"
+          label="API key"
+          type="password"
+          autoComplete="new-password"
+          spellCheck={false}
+          error={errors.apiKey}
+          onChange={() => clearError(errors, "apiKey", setErrors)}
+          required
+        />
+      )}
     </FormDialog>
   );
 }
@@ -506,7 +499,7 @@ export function ModelServiceCredentialDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={`Store credential for ${provider?.display_name ?? "provider"}`}
+      title={`${provider?.credential_configured ? "Change API key for" : "Add API key for"} ${provider?.display_name ?? "provider"}`}
       description="The API key is sent securely to Model Service and is never shown again."
       busy={busy}
       submitLabel="Save credential"

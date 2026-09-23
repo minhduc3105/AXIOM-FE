@@ -8,13 +8,12 @@ const provider: ProviderView = {
   scope: "organization",
   organization_id: "org-1",
   display_name: "OpenAI",
-  source: "cloud",
   base_url: "https://api.openai.com/v1",
-  protocol: "openai_compatible",
   status: "active",
   connection_status: "available",
   credential_configured: true,
   credential_source: "database",
+  discovered_models: [],
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -50,6 +49,19 @@ describe("model readiness", () => {
     ).toMatchObject({ level: "unknown", action: "test_provider" });
   });
 
+  it("treats an environment-backed system provider as ready without a manual test", () => {
+    expect(
+      getProviderReadiness({
+        ...provider,
+        scope: "system",
+        organization_id: null,
+        connection_status: "unknown",
+        credential_configured: true,
+        credential_source: "environment",
+      }),
+    ).toMatchObject({ level: "ready", action: "none" });
+  });
+
   it("combines provider and model readiness", () => {
     expect(getModelReadiness(provider, model).level).toBe("ready");
     expect(
@@ -61,5 +73,21 @@ describe("model readiness", () => {
         model,
       ),
     ).toMatchObject({ level: "blocked", action: "resolve_provider" });
+  });
+
+  it("does not require a manual model test for a system provider model", () => {
+    expect(
+      getModelReadiness(
+        {
+          ...provider,
+          scope: "system",
+          organization_id: null,
+          connection_status: "unknown",
+          credential_configured: true,
+          credential_source: "environment",
+        },
+        { ...model, provider_scope: "system", organization_id: null, connection_status: "unknown" },
+      ),
+    ).toMatchObject({ level: "ready", action: "none" });
   });
 });

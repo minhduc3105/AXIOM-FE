@@ -4,11 +4,11 @@ import {
   CircleAlertIcon,
   KeyRoundIcon,
   LoaderCircleIcon,
-  MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
   RefreshCwIcon,
   ServerIcon,
+  Settings2Icon,
   Trash2Icon,
 } from "lucide-react";
 import {
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/shared/lib/utils";
 import { getModelReadiness, getProviderReadiness } from "../model/readiness";
 import type { RegistryLoadError } from "../model/useModelRegistry";
@@ -46,43 +47,10 @@ import type {
   ProviderView,
 } from "../model/registryTypes";
 import {
-  capabilityLabel,
   modelCapabilities,
   modelServiceMutedText,
   modelServiceSection,
-  readinessBadgeClass,
-  readinessLabel,
 } from "./modelServiceUi";
-
-function ReadinessBadge({
-  level,
-  label,
-}: {
-  level: ReturnType<typeof getProviderReadiness>["level"];
-  label?: string;
-}) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "text-xs uppercase tracking-wide",
-        readinessBadgeClass(level),
-      )}
-    >
-      {label ?? readinessLabel(level)}
-    </Badge>
-  );
-}
-
-function formatCheckedAt(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "Not available"
-    : new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(date);
-}
 
 type ProviderActions = {
   busy: boolean;
@@ -92,12 +60,12 @@ type ProviderActions = {
   testFailureByTarget: Record<string, string>;
   onAddProvider: () => void;
   onAddModel: () => void;
+  onDiscoverModels: () => void;
   onCredential: () => void;
   onEditProvider: () => void;
   onTestProvider: () => void;
-  onToggleProvider: () => void;
-  onDeleteProvider: () => void;
-  onEditModel: (model: ProviderModelView) => void;
+  onToggleProvider: (provider: ProviderView) => void;
+  onDeleteProvider: (provider: ProviderView) => void;
   onTestModel: (model: ProviderModelView) => void;
   onToggleModel: (model: ProviderModelView) => void;
   onDeleteModel: (model: ProviderModelView) => void;
@@ -138,7 +106,6 @@ export function ModelServiceProviders({
     );
 
   const editable = actions.canManage && provider.scope === "organization";
-  const customProvider = provider.source === "custom";
   const deletable = provider.scope === "organization";
   const testingProvider = actions.testingProviderId === provider.id;
   const readiness = getProviderReadiness(provider, {
@@ -186,6 +153,10 @@ export function ModelServiceProviders({
               item={item}
               selected={provider.resource_id === item.resource_id}
               onSelect={onSelect}
+              canManage={actions.canManage}
+              busy={actions.busy}
+              onToggle={actions.onToggleProvider}
+              onDelete={actions.onDeleteProvider}
             />
           ))}
         </div>
@@ -208,9 +179,6 @@ export function ModelServiceProviders({
           )}
         >
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              <ServerIcon className="size-3" /> Provider
-            </p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <h2
                 id="provider-detail-title"
@@ -218,25 +186,10 @@ export function ModelServiceProviders({
               >
                 {provider.display_name}
               </h2>
-              <ReadinessBadge level={readiness.level} label={readiness.label} />
-              <Badge variant="outline">
-                {provider.scope === "system"
-                  ? "Platform provider"
-                  : customProvider
-                    ? "Custom provider"
-                    : "Organization provider"}
-              </Badge>
             </div>
             <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
               {provider.base_url}
             </p>
-            {provider.scope === "system" && actions.canManage && (
-              <p className="mt-3 max-w-2xl text-xs leading-5 text-muted-foreground">
-                Platform providers are read-only. Add an organization provider
-                from this template to store a credential, test the connection,
-                and manage models.
-              </p>
-            )}
           </div>
           <ProviderActionsMenu
             editable={editable}
@@ -244,32 +197,16 @@ export function ModelServiceProviders({
             provider={provider}
             readiness={readiness}
             testing={testingProvider}
-            {...actions}
+            busy={actions.busy}
+            onCredential={actions.onCredential}
+            onEditProvider={actions.onEditProvider}
+            onTestProvider={actions.onTestProvider}
+            onToggleProvider={() => actions.onToggleProvider(provider)}
+            onDeleteProvider={() => actions.onDeleteProvider(provider)}
           />
         </div>
         <ReadinessGuidance readiness={readiness} />
-        <div className="grid gap-2 border-b px-4 py-3 text-xs sm:grid-cols-4">
-          <Detail
-            label="Scope"
-            value={
-              provider.scope === "organization"
-                ? "This organization"
-                : "Platform"
-            }
-          />
-          <Detail label="Provider status" value={provider.status} />
-          <Detail label="Connection" value={provider.connection_status} />
-          <Detail
-            label="Credential"
-            value={
-              provider.credential_source === "none"
-                ? "Not configured"
-                : provider.credential_source === "unknown"
-                  ? "Unknown"
-                  : provider.credential_source
-            }
-          />
-        </div>
+
         {modelLoadError && (
           <ModelLoadError
             error={modelLoadError}
@@ -297,16 +234,45 @@ export function ModelServiceProviders({
               </p>
             </div>
             {editable && (
-              <Button
-                size="sm"
-                onClick={actions.onAddModel}
-                disabled={actions.busy}
-              >
-                <PlusIcon data-icon="inline-start" /> Add model
-              </Button>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={actions.onDiscoverModels}
+                  disabled={actions.busy}
+                >
+                  {actions.busy ? (
+                    <LoaderCircleIcon
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <RefreshCwIcon data-icon="inline-start" />
+                  )}
+                  Discover models
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={actions.onAddModel}
+                  disabled={actions.busy}
+                >
+                  <PlusIcon data-icon="inline-start" /> Add model
+                </Button>
+              </div>
             )}
           </div>
-          <div className="overflow-x-auto border-b px-4 pt-2 sm:px-5">
+          {provider.discovered_models.length > 0 && (
+            <p
+              className={cn(
+                "border-b px-4 py-3 text-xs sm:px-5",
+                modelServiceMutedText,
+              )}
+            >
+              {provider.discovered_models.length} upstream model candidates
+              detected. Add a candidate to make it routable.
+            </p>
+          )}
+          <div className="overflow-x-auto border-b px-4 py-2 sm:px-5">
             <TabsList
               variant="line"
               className="h-auto min-w-max justify-start gap-1 border-0 p-0"
@@ -353,9 +319,7 @@ export function ModelServiceProviders({
               ) : (
                 <Empty className="min-h-48">
                   <EmptyHeader>
-                    <EmptyTitle>
-                      No {item.label} models registered
-                    </EmptyTitle>
+                    <EmptyTitle>No {item.label} models registered</EmptyTitle>
                     <EmptyDescription>
                       {editable
                         ? `Add a ${item.label} model, test it, then assign it as default.`
@@ -431,13 +395,9 @@ function ProvidersErrorState({
         <AlertDescription>{error.message}</AlertDescription>
         {error.retryable && (
           <AlertAction>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onRetry}
-          >
-            <RefreshCwIcon data-icon="inline-start" /> Retry
-          </Button>
+            <Button size="sm" variant="outline" onClick={onRetry}>
+              <RefreshCwIcon data-icon="inline-start" /> Retry
+            </Button>
           </AlertAction>
         )}
       </Alert>
@@ -510,10 +470,18 @@ function ProviderListItem({
   item,
   selected,
   onSelect,
+  canManage,
+  busy,
+  onToggle,
+  onDelete,
 }: {
   item: ProviderView;
   selected: boolean;
   onSelect: (id: string) => void;
+  canManage: boolean;
+  busy: boolean;
+  onToggle: (provider: ProviderView) => void;
+  onDelete: (provider: ProviderView) => void;
 }) {
   const readiness = getProviderReadiness(item);
   const color =
@@ -522,26 +490,55 @@ function ProviderListItem({
       : readiness.level === "failed"
         ? "bg-destructive"
         : "bg-warning";
+  const toggleLabel = item.status === "active" ? "Deactivate" : "Activate";
   return (
-    <Button
-      type="button"
-      onClick={() => onSelect(item.id)}
-      aria-current={selected ? "true" : undefined}
-      variant={selected ? "secondary" : "ghost"}
-      className="h-auto min-w-52 shrink-0 flex-col items-stretch gap-1.5 p-3 text-left whitespace-normal lg:min-w-0"
-    >
-      <span className="flex items-start justify-between gap-2">
-        <strong className="truncate text-sm" title={item.display_name}>
-          {item.display_name}
-        </strong>
-        <span className={cn("mt-1 size-2 shrink-0 rounded-full", color)} />
-      </span>
-      <span className="mt-1 flex gap-1.5 text-xs text-muted-foreground">
-        <span>{item.source === "custom" ? "Custom" : "Default"}</span>
-        <span>/</span>
-        <span>{readiness.label}</span>
-      </span>
-    </Button>
+    <div className="relative min-w-52 shrink-0 lg:min-w-0">
+      <Button
+        type="button"
+        onClick={() => onSelect(item.id)}
+        aria-current={selected ? "true" : undefined}
+        variant={selected ? "secondary" : "ghost"}
+        className="h-auto w-full flex-col items-stretch gap-1.5 p-3 pr-12 text-left whitespace-normal"
+      >
+        <span className="flex items-start justify-between gap-2">
+          <strong className="truncate text-sm" title={item.display_name}>
+            {item.display_name}
+          </strong>
+          <span className={cn("mt-1 size-2 shrink-0 rounded-full", color)} />
+        </span>
+        <span className="mt-1 flex gap-1.5 text-xs text-muted-foreground">
+          <span className="min-w-0 truncate" title={item.base_url}>
+            {item.base_url}
+          </span>
+        </span>
+      </Button>
+      {canManage && item.scope === "organization" && (
+        <div className="absolute top-2 right-2 flex items-center gap-1">
+          <Switch
+            checked={item.status === "active"}
+            onCheckedChange={() => onToggle(item)}
+            disabled={busy}
+            size="sm"
+            aria-label={`${toggleLabel} ${item.display_name}`}
+          />
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            className="text-muted-foreground hover:text-destructive"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete(item);
+            }}
+            disabled={busy}
+            aria-label={`Delete ${item.display_name}`}
+            title={`Delete ${item.display_name}`}
+          >
+            <Trash2Icon />
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -557,15 +554,13 @@ function ProviderActionsMenu({
   onTestProvider,
   onToggleProvider,
   onDeleteProvider,
-}: Pick<
-  ProviderActions,
-  | "busy"
-  | "onCredential"
-  | "onEditProvider"
-  | "onTestProvider"
-  | "onToggleProvider"
-  | "onDeleteProvider"
-> & {
+}: {
+  busy: boolean;
+  onCredential: () => void;
+  onEditProvider: () => void;
+  onTestProvider: () => void;
+  onToggleProvider: () => void;
+  onDeleteProvider: () => void;
   editable: boolean;
   deletable: boolean;
   provider: ProviderView;
@@ -576,14 +571,6 @@ function ProviderActionsMenu({
     return <span className="text-xs text-muted-foreground">Read-only</span>;
   return (
     <div className="flex flex-wrap gap-2">
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={onEditProvider}
-        disabled={busy}
-      >
-        <PencilIcon data-icon="inline-start" /> Edit provider
-      </Button>
       {readiness.action === "activate_provider" ? (
         <Button size="sm" onClick={onToggleProvider} disabled={busy}>
           Activate provider
@@ -611,25 +598,28 @@ function ProviderActionsMenu({
         <DropdownMenuTrigger
           render={
             <Button size="sm" variant="outline" disabled={busy}>
-              <MoreHorizontalIcon data-icon="inline-start" /> Manage
+              <Settings2Icon data-icon="inline-start" /> Settings
             </Button>
           }
         />
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={onCredential}>
-              <KeyRoundIcon /> Store credential
+            <DropdownMenuItem className="gap-2 py-2" onClick={onEditProvider}>
+              <PencilIcon />
+              Edit provider
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onToggleProvider}>
-              {provider.status === "active"
-                ? "Deactivate provider"
-                : "Activate provider"}
+            <DropdownMenuItem className="gap-2 py-2" onClick={onCredential}>
+              <KeyRoundIcon />
+              {provider.credential_configured
+                ? "Change API key"
+                : "Add API key"}
             </DropdownMenuItem>
             {deletable && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
+                  className="gap-2 py-2"
                   onClick={onDeleteProvider}
                 >
                   <Trash2Icon /> Delete provider
@@ -650,13 +640,12 @@ function ProviderModelRow({
   testing,
   failureReason,
   busy,
-  onEditModel,
   onTestModel,
   onToggleModel,
   onDeleteModel,
 }: Pick<
   ProviderActions,
-  "busy" | "onEditModel" | "onTestModel" | "onToggleModel" | "onDeleteModel"
+  "busy" | "onTestModel" | "onToggleModel" | "onDeleteModel"
 > & {
   model: ProviderModelView;
   provider: ProviderView;
@@ -669,7 +658,7 @@ function ProviderModelRow({
     failureReason,
   });
   return (
-    <article className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(210px,auto)_auto] sm:items-center sm:px-5">
+    <article className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <strong className="truncate text-sm" title={model.name}>
@@ -681,23 +670,7 @@ function ProviderModelRow({
           className={cn("mt-1 truncate text-xs", modelServiceMutedText)}
           title={model.model_id}
         >
-          <code>{model.model_id}</code> / {capabilityLabel(model.capability)}
-        </p>
-        <p
-          className={cn(
-            "mt-1 text-xs leading-5",
-            readiness.level === "ready"
-              ? "text-muted-foreground"
-              : "text-warning",
-          )}
-        >
-          {readiness.detail} Next: {readiness.nextAction}
-        </p>
-      </div>
-      <div>
-        <ReadinessBadge level={readiness.level} label={readiness.label} />
-        <p className="mt-1 text-xs text-muted-foreground">
-          Last checked: {formatCheckedAt(model.updated_at)}
+          <code>{model.model_id}</code>
         </p>
       </div>
       {editable ? (
@@ -733,40 +706,17 @@ function ProviderModelRow({
                 ? "Activate"
                 : "Test"}
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label={`Manage ${model.name}`}
-                  title={`Manage ${model.name}`}
-                  disabled={busy}
-                >
-                  <MoreHorizontalIcon />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end">
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => onEditModel(model)}>
-                  <PencilIcon /> Edit model
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onToggleModel(model)}>
-                  {model.status === "active"
-                    ? "Deactivate model"
-                    : "Activate model"}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => onDeleteModel(model)}
-                >
-                  <Trash2Icon /> Delete model
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            className="text-muted-foreground hover:text-destructive"
+            disabled={busy}
+            aria-label={`Delete ${model.name}`}
+            title={`Delete ${model.name}`}
+            onClick={() => onDeleteModel(model)}
+          >
+            <Trash2Icon />
+          </Button>
         </div>
       ) : (
         <span className="text-xs text-muted-foreground">Read-only</span>
@@ -806,4 +756,15 @@ function Detail({ label, value }: { label: string; value: string }) {
       <p className="mt-1 truncate text-xs font-medium">{value}</p>
     </div>
   );
+}
+
+function connectionLabel(provider: ProviderView) {
+  if (
+    provider.scope === "system" &&
+    provider.connection_status === "unknown" &&
+    provider.credential_configured === true
+  ) {
+    return "Configured";
+  }
+  return provider.connection_status;
 }

@@ -5,11 +5,11 @@ describe("Model Service v2 routes", () => {
   it("keeps every published endpoint under one v2 prefix", () => {
     const routes = [
       modelServiceRoutes.healthReady,
-      modelServiceRoutes.providerCatalog,
       modelServiceRoutes.providers,
       modelServiceRoutes.provider("provider/id"),
       modelServiceRoutes.providerCredential("provider/id"),
       modelServiceRoutes.providerTest("provider/id"),
+      modelServiceRoutes.providerDiscoverModels("provider/id"),
       modelServiceRoutes.providerModels("provider/id"),
       modelServiceRoutes.model("model/id"),
       modelServiceRoutes.modelTest("model/id"),
@@ -20,6 +20,8 @@ describe("Model Service v2 routes", () => {
       modelServiceRoutes.inferenceRequest("request/id"),
       modelServiceRoutes.inferenceAttempts("request/id"),
       modelServiceRoutes.auditOutbox,
+      modelServiceRoutes.modelTasks,
+      modelServiceRoutes.taskAssignments,
     ];
 
     expect(MODEL_SERVICE_API_VERSION).toBe("/api/v2");
@@ -37,5 +39,10 @@ describe("Model Service v2 routes", () => {
     expect(modelServiceRoutes.modelTest("model/id")).toBe(
       "/api/v2/models/model%2Fid:test",
     );
+  });
+
+  it("publishes the task routing endpoints beside the registry endpoints", () => {
+    expect(modelServiceRoutes.modelTasks).toBe("/api/v2/model-tasks");
+    expect(modelServiceRoutes.taskAssignments).toBe("/api/v2/task-assignments");
   });
 });

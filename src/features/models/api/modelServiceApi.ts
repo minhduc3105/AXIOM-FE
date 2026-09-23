@@ -1,18 +1,24 @@
 import { authFetch } from "@/features/auth/model/authFetch";
 import type {
-  ProviderCatalogItem,
   ProviderCreateInput,
   ProviderModelCreateInput,
-  ProviderModelView,
-  ProviderView,
   ResourceStatus,
 } from "../model/registryTypes";
 import {
   modelServiceRoutes,
   type DeleteResult,
+  type ModelTask,
   type ProviderCredentialView,
+  type TaskAssignmentBatchInput,
+  type TaskAssignmentBatchResponse,
+  type TaskAssignmentsView,
 } from "./modelServiceContract";
-import { normalizeProvider, normalizeProviderModel } from "./modelServiceMappers";
+import {
+  normalizeModelTask,
+  normalizeProvider,
+  normalizeProviderModel,
+  normalizeTaskAssignment,
+} from "./modelServiceMappers";
 
 export const modelServiceApiBaseUrl =
   import.meta.env.VITE_MODEL_SERVICE_API_BASE_URL ?? "/model-service";
@@ -81,17 +87,64 @@ async function requestJson<T>(
   return (await response.json()) as T;
 }
 
-export function listProviderCatalog(
+export function listModelTasks(
   context: ModelRegistryContext,
   signal?: AbortSignal,
-) {
-  return requestJson<ProviderCatalogItem[]>(
+): Promise<ModelTask[]> {
+  return requestJson<unknown[]>(
     context,
-    modelServiceRoutes.providerCatalog,
+    modelServiceRoutes.modelTasks,
     {},
     signal,
-  );
+  ).then((tasks) => tasks.map(normalizeModelTask));
 }
+
+export function getTaskAssignments(
+  context: ModelRegistryContext,
+  signal?: AbortSignal,
+): Promise<TaskAssignmentsView> {
+  return requestJson<TaskAssignmentsView>(
+    context,
+    modelServiceRoutes.taskAssignments,
+    {},
+    signal,
+  ).then((view) => ({
+    organization_id: view.organization_id,
+    revision: view.revision,
+    config_revision: view.config_revision,
+    assignments: Array.isArray(view.assignments)
+      ? view.assignments.map(normalizeTaskAssignment)
+      : [],
+  }));
+}
+
+export function updateTaskAssignments(
+  context: ModelRegistryContext,
+  input: TaskAssignmentBatchInput,
+): Promise<TaskAssignmentBatchResponse> {
+  requireRegistryAdmin(context);
+  return requestJson<TaskAssignmentBatchResponse>(
+    context,
+    modelServiceRoutes.taskAssignments,
+    { method: "PUT", body: JSON.stringify(input) },
+  ).then((view) => ({
+    organization_id: view.organization_id,
+    revision: view.revision,
+    config_revision: view.config_revision,
+    changed: view.changed === true,
+    changed_task_ids: Array.isArray(view.changed_task_ids)
+      ? view.changed_task_ids.filter((id): id is string => typeof id === "string")
+      : [],
+    assignments: Array.isArray(view.assignments)
+      ? view.assignments.map(normalizeTaskAssignment)
+      : [],
+  }));
+}
+
+// Keep the verbs discoverable for consumers that name commands after the HTTP
+// method while sharing one implementation and one request contract.
+export const putTaskAssignments = updateTaskAssignments;
+export const listTaskAssignments = getTaskAssignments;
 
 export function listProviders(
   context: ModelRegistryContext,
@@ -123,7 +176,12 @@ export function createProvider(
     modelServiceRoutes.providers,
     {
       method: "POST",
-      body: JSON.stringify({ ...input, status: input.status ?? "inactive" }),
+      body: JSON.stringify({
+        display_name: input.display_name,
+        base_url: input.base_url,
+        api_key: input.api_key,
+        status: input.status ?? "active",
+      }),
     },
   ).then((provider) => normalizeProvider(provider, context.organizationId));
 }
@@ -134,7 +192,7 @@ export function updateProvider(
   input: Partial<
     Pick<
       ProviderCreateInput,
-      "display_name" | "source" | "base_url" | "protocol"
+      "display_name" | "base_url"
     >
   > & { status?: ResourceStatus },
 ) {
@@ -195,6 +253,20 @@ export function testProvider(
   ).then((provider) => normalizeProvider(provider, context.organizationId));
 }
 
+export function discoverProviderModels(
+  context: ModelRegistryContext,
+  providerId: string,
+  capability?: string,
+) {
+  requireRegistryAdmin(context);
+  const query = capability ? `?capability=${encodeURIComponent(capability)}` : "";
+  return requestJson<unknown>(
+    context,
+    `${modelServiceRoutes.providerDiscoverModels(providerId)}${query}`,
+    { method: "POST" },
+  ).then((provider) => normalizeProvider(provider, context.organizationId));
+}
+
 export function listProviderModels(
   context: ModelRegistryContext,
   providerId: string,
@@ -219,7 +291,7 @@ export function createProviderModel(
     modelServiceRoutes.providerModels(providerId),
     {
       method: "POST",
-      body: JSON.stringify({ ...input, status: input.status ?? "inactive" }),
+      body: JSON.stringify({ ...input, status: input.status ?? "active" }),
     },
   ).then((model) => normalizeProviderModel(model, context.organizationId));
 }
@@ -244,6 +316,10 @@ export function updateProviderModel(
       | "max_context_length"
       | "status"
       | "is_default"
+      | "tools"
+      | "streaming"
+      | "structured_output"
+      | "vision"
     >
   > & { status?: ResourceStatus },
 ) {

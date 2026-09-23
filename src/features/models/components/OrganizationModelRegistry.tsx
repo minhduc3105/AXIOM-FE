@@ -1,25 +1,21 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
-  Building2Icon,
   CircleAlertIcon,
   RefreshCwIcon,
   ShieldAlertIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AuthUser } from "@/features/auth/model/types";
 import { cn } from "@/shared/lib/utils";
-import { getProviderReadiness, type ReadinessLevel } from "../model/readiness";
 import {
   createProvider,
   createProviderModel,
+  discoverProviderModels,
   deleteProvider,
   deleteProviderModel,
-  listProviderCatalog,
   testProvider,
   testProviderModel,
   updateProvider,
@@ -28,37 +24,27 @@ import {
   type ModelRegistryContext,
 } from "../api/modelServiceApi";
 import {
-  normalizeProviderId,
+  modelMetadataFromCandidate,
   parseModelCapability,
-  parseProviderProtocol,
-  parseProviderSource,
 } from "../model/registryForm";
 import type {
   ModelCapability,
-  ProviderCatalogItem,
   ProviderModelView,
   ProviderView,
 } from "../model/registryTypes";
 import { useModelRegistry } from "../model/useModelRegistry";
-import { ModelServiceAssignments } from "./ModelServiceAssignments";
+import { useConsumerModelProfiles } from "../model/useConsumerModelProfiles";
+import { ConsumerModelProfiles } from "./ConsumerModelProfiles";
 import {
-  ModelServiceAssignmentPickerDialog,
   ModelServiceCredentialDialog,
   ModelServiceModelDialog,
   ModelServiceConfirmationDialog,
   ModelServiceProviderDialog,
-  ModelServiceSwitchReviewDialog,
 } from "./ModelServiceDialogs";
 import { ModelServiceProviders } from "./ModelServiceProviders";
-import {
-  ModelServiceSetupNotice,
-  ModelServiceSetupPipeline,
-} from "./ModelServiceSetupPipeline";
 import type { ModelOption } from "./modelServiceTypes";
 import {
-  capabilityLabel,
   modelServiceSurface,
-  readinessBadgeClass,
 } from "./modelServiceUi";
 
 type View = "assignments" | "providers";
@@ -83,6 +69,7 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
     [user],
   );
   const registry = useModelRegistry(context);
+  const consumerProfiles = useConsumerModelProfiles(context);
   const [view, setView] = useState<View>("assignments");
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
@@ -99,16 +86,11 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
   );
   const [pendingCapability, setPendingCapability] =
     useState<ModelCapability>("llm");
-  const [assignmentPicker, setAssignmentPicker] =
-    useState<ModelCapability | null>(null);
-  const [pendingSwitch, setPendingSwitch] = useState<ModelOption | null>(null);
-  const [catalog, setCatalog] = useState<ProviderCatalogItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [testingTarget, setTestingTarget] = useState<TestTarget | null>(null);
   const [testFailureByTarget, setTestFailureByTarget] = useState<
     Record<string, string>
   >({});
-  const [setupPipelineOpen, setSetupPipelineOpen] = useState(false);
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
 
@@ -122,36 +104,10 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
       ),
     [registry.modelsByProvider, registry.providers],
   );
-  const assignmentOptions = canManage
-    ? modelOptions.filter((option) => option.provider.scope === "organization")
-    : modelOptions.filter((option) => option.model.is_default);
   const selectedProvider =
     registry.providers.find((provider) => provider.id === selectedProviderId) ??
     registry.providers[0] ??
     null;
-  const systemStatus: { label: string; level: ReadinessLevel } =
-    registry.isInitialLoading
-      ? { label: "Refreshing", level: "testing" }
-      : registry.error
-        ? { label: "Registry unavailable", level: "failed" }
-        : !registry.providers.length
-          ? { label: "No providers", level: "not_configured" }
-          : registry.providers.length &&
-              registry.providers.every(
-                (provider) => getProviderReadiness(provider).level === "ready",
-              )
-            ? { label: "Operational", level: "ready" }
-            : { label: "Readiness review", level: "unknown" };
-
-  useEffect(() => {
-    if (!canManage) return;
-    const controller = new AbortController();
-    listProviderCatalog(context, controller.signal)
-      .then(setCatalog)
-      .catch(() => setCatalog([]));
-    return () => controller.abort();
-  }, [canManage, context]);
-
   async function runAction(
     action: () => Promise<unknown>,
     success: string,
@@ -170,6 +126,7 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
       toast.success(success);
       if (closeDialog) setDialogMode(null);
       await registry.refresh();
+      await consumerProfiles.refresh();
       return true;
     } catch (cause) {
       toast.error(
@@ -217,6 +174,14 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
       setTestingTarget(null);
       setBusy(false);
     }
+  }
+
+  async function runModelDiscovery() {
+    if (!selectedProvider || busy || !canManage) return;
+    await runAction(
+      () => discoverProviderModels(context, selectedProvider.id),
+      `Model candidates refreshed for ${selectedProvider.display_name}.`,
+    );
   }
 
   async function runModelTest(model: ProviderModelView) {
@@ -268,36 +233,35 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
   async function submitProvider(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const input = {
-      id: String(form.get("provider-id") ?? "").trim(),
-      display_name: String(form.get("provider-name") ?? "").trim(),
-      source: parseProviderSource(form.get("provider-source")),
-      base_url: String(form.get("provider-url") ?? "").trim(),
-      protocol: parseProviderProtocol(form.get("provider-protocol")),
-    };
-    if (
-      !input.display_name ||
-      !input.base_url ||
-      (!editingProvider && !input.id)
-    )
-      return;
+    const displayName = String(form.get("provider-name") ?? "").trim();
+    const baseUrl = String(form.get("provider-url") ?? "").trim();
+    const apiKey = String(form.get("provider-api-key") ?? "").trim();
+    if (!displayName || !baseUrl || (!editingProvider && !apiKey)) return;
     let createdProviderId: string | null = null;
     const success = await runAction(
       async () => {
         if (editingProvider)
-          return updateProvider(context, editingProvider.id, input);
-        const created = await createProvider(context, input);
+          return updateProvider(context, editingProvider.id, {
+            display_name: displayName,
+            base_url: baseUrl,
+          });
+        const created = await createProvider(context, {
+          display_name: displayName,
+          base_url: baseUrl,
+          api_key: apiKey,
+          status: "active",
+        });
         createdProviderId = created.id;
         return created;
       },
       editingProvider
         ? "Provider updated."
-        : "Provider added. Add and validate its models next.",
+        : "Provider added. Manage its models from the provider detail.",
       true,
     );
     if (success && createdProviderId) {
       setSelectedProviderId(createdProviderId);
-      setSetupPipelineOpen(true);
+      setView("providers");
     }
   }
 
@@ -314,25 +278,21 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
       setDialogMode(null);
       return;
     }
-    const success = await runAction(
+    await runAction(
       () => upsertProviderCredential(context, selectedProvider.id, apiKey),
       "Credential stored securely.",
       true,
     );
-    if (success) setSetupPipelineOpen(true);
   }
 
   async function submitModel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const name = String(form.get("model-name") ?? "").trim();
-    const modelId = String(form.get("model-id") ?? "").trim();
-    if (!name || (!editingModel && !modelId)) return;
+    const modelName = String(form.get("model-name") ?? "").trim();
+    if (!modelName) return;
     const input = {
-      name,
+      name: modelName,
       capability: parseModelCapability(form.get("model-capability")),
-      max_tokens: Number(form.get("max-tokens")) || undefined,
-      max_context_length: Number(form.get("context-length")) || undefined,
     };
     if (editingModel) {
       await runAction(
@@ -343,56 +303,22 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
       return;
     }
     if (newModelProviderId) {
-      const success = await runAction(
+      const candidate = registry.providers
+        .find((provider) => provider.id === newModelProviderId)
+        ?.discovered_models.find((item) => item.model_id === modelName);
+      await runAction(
         () =>
           createProviderModel(context, newModelProviderId, {
-            model_id: modelId,
+            model_id: modelName,
             ...input,
+            status: "active",
+            ...modelMetadataFromCandidate(candidate),
           }),
         "Model registered. Test it before routing production work.",
         true,
       );
-      if (success) setSetupPipelineOpen(true);
       return;
     }
-    const connectionName = String(form.get("connection-name") ?? "").trim();
-    const connectionUrl = String(form.get("connection-url") ?? "").trim();
-    const connectionId = normalizeProviderId(`${connectionName}-${modelId}`);
-    if (!connectionName || !connectionUrl || !connectionId) return;
-    await runAction(
-      async () => {
-        const provider = await createProvider(context, {
-          id: connectionId,
-          display_name: connectionName,
-          source: parseProviderSource(form.get("connection-source")),
-          base_url: connectionUrl,
-          protocol: parseProviderProtocol(form.get("connection-protocol")),
-          status: "inactive",
-        });
-        const apiKey = String(form.get("api-key") ?? "").trim();
-        if (apiKey)
-          await upsertProviderCredential(context, provider.id, apiKey);
-        return createProviderModel(context, provider.id, {
-          model_id: modelId,
-          ...input,
-        });
-      },
-      "Model registered. Test it before routing production work.",
-      true,
-    );
-  }
-
-  async function confirmSwitch() {
-    if (!pendingSwitch) return;
-    const success = await runAction(
-      () =>
-        updateProviderModel(context, pendingSwitch.model.resource_id, {
-          is_default: true,
-          status: "active",
-        }),
-      `${pendingSwitch.model.name} is now the default for ${pendingSwitch.provider.display_name} / ${capabilityLabel(pendingSwitch.model.capability)}.`,
-    );
-    if (success) setPendingSwitch(null);
   }
 
   async function confirmPendingAction() {
@@ -462,56 +388,6 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
 
   return (
     <section className="grid gap-6" aria-labelledby="model-service-title">
-      {false && (
-        <Card className="hidden">
-        <header className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-              <h1
-                id="model-service-title"
-                className="truncate text-2xl font-semibold tracking-tight sm:text-3xl"
-              >
-                Models
-              </h1>
-              <Badge variant="outline" className="max-w-full">
-                <Building2Icon className="size-3.5 shrink-0" />
-                <span className="truncate">
-                  Organization · {user.organization_id}
-                </span>
-              </Badge>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-xs uppercase tracking-wide",
-                  readinessBadgeClass(systemStatus.level),
-                )}
-              >
-                {systemStatus.label}
-              </Badge>
-            </div>
-            <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Manage the models, provider connections, and workload defaults
-              available to this organization.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => void registry.refresh()}
-              disabled={registry.loading}
-            >
-              <RefreshCwIcon
-                className={cn(registry.loading && "animate-spin")}
-              />{" "}
-              Refresh
-            </Button>
-            {canManage && (
-              <Button onClick={() => openProviderDialog()}>Add provider</Button>
-            )}
-          </div>
-        </header>
-        </Card>
-      )}
       {!canManage && (
         <Alert>
           <ShieldAlertIcon />
@@ -551,28 +427,18 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
           </AlertDescription>
         </Alert>
       )}
-      <ModelServiceSetupNotice
-        provider={selectedProvider}
-        models={
-          selectedProvider
-            ? (registry.modelsByProvider[selectedProvider.id] ?? [])
-            : []
-        }
-        canManage={canManage}
-        onOpen={() => setSetupPipelineOpen(true)}
-      />
       <Tabs
         value={view}
         onValueChange={(value) => setView(value as View)}
         className={cn(
           modelServiceSurface,
-          "gap-0 overflow-hidden rounded-[28px]",
+          "gap-0 overflow-hidden",
         )}
       >
         <div className="flex items-center justify-between gap-3 overflow-x-auto border-b p-2 sm:px-5">
           <TabsList className="min-w-max">
             <TabsTrigger value="assignments" className="shrink-0">
-              Assignments
+              Model profiles
             </TabsTrigger>
             <TabsTrigger value="providers" className="shrink-0">
               Providers{" "}
@@ -594,16 +460,33 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
           </Button>
         </div>
         <TabsContent value="assignments" className="m-0">
-          <ModelServiceAssignments
+          <ConsumerModelProfiles
             organizationId={user.organization_id}
-            options={assignmentOptions}
-            initialLoading={registry.isInitialLoading}
-            updating={registry.isRefreshing}
-            error={registry.error}
+            profiles={consumerProfiles.profiles}
+            draft={consumerProfiles.draft}
+            options={modelOptions}
+            initialLoading={
+              registry.isInitialLoading || consumerProfiles.isInitialLoading
+            }
+            updating={registry.isRefreshing || consumerProfiles.isRefreshing}
+            saving={consumerProfiles.saving}
+            error={consumerProfiles.error ?? registry.error}
+            conflict={consumerProfiles.conflict}
             canManage={canManage}
-            onChoose={setAssignmentPicker}
-            onAddModel={(capability) => openModelDialog(undefined, capability)}
-            onRetry={() => void registry.refresh()}
+            dirty={consumerProfiles.dirty}
+            onChoose={consumerProfiles.choose}
+            onSave={async () => {
+              const saved = await consumerProfiles.save();
+              if (saved) toast.success("Consumer profiles saved.");
+            }}
+            onCancel={consumerProfiles.cancel}
+            onAddModel={(role) =>
+              openModelDialog(undefined, role === "ocr" ? "vlm" : role)
+            }
+            onRetry={() => {
+              void registry.refresh();
+              void consumerProfiles.refresh();
+            }}
           />
         </TabsContent>
         <TabsContent value="providers" className="m-0">
@@ -639,6 +522,7 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
               selectedProvider &&
               openModelDialog(undefined, "llm", selectedProvider.id)
             }
+            onDiscoverModels={() => void runModelDiscovery()}
             onCredential={() => setDialogMode("credential")}
             onEditProvider={() =>
               selectedProvider && openProviderDialog(selectedProvider)
@@ -646,29 +530,23 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
             onTestProvider={() =>
               selectedProvider && void runProviderTest(selectedProvider)
             }
-            onToggleProvider={() =>
-              selectedProvider &&
-              (selectedProvider.status === "active"
+            onToggleProvider={(provider) =>
+              provider.status === "active"
                 ? setPendingConfirmation({
                     type: "disable-provider",
-                    provider: selectedProvider,
+                    provider,
                   })
                 : void runAction(
                     () =>
-                      updateProvider(context, selectedProvider.id, {
+                      updateProvider(context, provider.id, {
                         status: "active",
                       }),
-                    `${selectedProvider.display_name} activated.`,
-                  ))
+                    `${provider.display_name} activated.`,
+                  )
             }
-            onDeleteProvider={() =>
-              selectedProvider &&
-              setPendingConfirmation({
-                type: "delete-provider",
-                provider: selectedProvider,
-              })
+            onDeleteProvider={(provider) =>
+              setPendingConfirmation({ type: "delete-provider", provider })
             }
-            onEditModel={(model) => openModelDialog(model)}
             onTestModel={(model) => void runModelTest(model)}
             onToggleModel={(model) =>
               model.status === "active"
@@ -692,7 +570,6 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
           <ModelServiceProviderDialog
             open={dialogMode === "provider"}
             editingProvider={editingProvider}
-            catalog={catalog}
             busy={busy}
             onOpenChange={(open) => !open && setDialogMode(null)}
             onSubmit={submitProvider}
@@ -714,36 +591,17 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
                   ) ?? null)
                 : null
             }
+            discoveredModels={
+              newModelProviderId
+                ? (registry.providers.find(
+                    (provider) => provider.id === newModelProviderId,
+                  )?.discovered_models ?? [])
+                : []
+            }
             capability={pendingCapability}
             busy={busy}
             onOpenChange={(open) => !open && setDialogMode(null)}
             onSubmit={submitModel}
-          />
-          <ModelServiceSwitchReviewDialog
-            option={pendingSwitch}
-            currentDefault={
-              pendingSwitch
-                ? (modelOptions.find(
-                    (option) =>
-                      option.provider.id === pendingSwitch.provider.id &&
-                      option.model.capability ===
-                        pendingSwitch.model.capability &&
-                      option.model.is_default,
-                  ) ?? null)
-                : null
-            }
-            busy={busy}
-            onOpenChange={(open) => !open && setPendingSwitch(null)}
-            onConfirm={() => void confirmSwitch()}
-          />
-          <ModelServiceAssignmentPickerDialog
-            capability={assignmentPicker}
-            options={assignmentOptions}
-            onOpenChange={(open) => !open && setAssignmentPicker(null)}
-            onSelect={(option) => {
-              setAssignmentPicker(null);
-              setPendingSwitch(option);
-            }}
           />
           <ModelServiceConfirmationDialog
             confirmation={confirmationCopy}
@@ -753,37 +611,6 @@ export function OrganizationModelRegistry({ user }: { user: AuthUser }) {
           />
         </>
       )}
-      <ModelServiceSetupPipeline
-        open={setupPipelineOpen}
-        provider={selectedProvider}
-        models={
-          selectedProvider
-            ? (registry.modelsByProvider[selectedProvider.id] ?? [])
-            : []
-        }
-        busy={busy}
-        onOpenChange={setSetupPipelineOpen}
-        onAddProvider={() => {
-          setSetupPipelineOpen(false);
-          openProviderDialog();
-        }}
-        onCredential={() => {
-          setSetupPipelineOpen(false);
-          setDialogMode("credential");
-        }}
-        onTestConnection={() =>
-          selectedProvider && void runProviderTest(selectedProvider)
-        }
-        onAddModel={() => {
-          setSetupPipelineOpen(false);
-          selectedProvider &&
-            openModelDialog(undefined, "llm", selectedProvider.id);
-        }}
-        onAssignDefault={() => {
-          setSetupPipelineOpen(false);
-          setView("assignments");
-        }}
-      />
     </section>
   );
 }

@@ -39,4 +39,27 @@ describe("toChatModelOptions", () => {
       },
     ]);
   });
+
+  it("keeps equal model labels separate when they belong to different providers", () => {
+    expect(
+      toChatModelOptions([
+        {
+          id: "openai:gpt-4o",
+          alias: "openai:gpt-4o",
+          label: "GPT-4o",
+          providerId: "openai",
+          providerName: "OpenAI",
+          status: "active",
+        },
+        {
+          id: "azure:gpt-4o",
+          alias: "azure:gpt-4o",
+          label: "GPT-4o",
+          providerId: "azure",
+          providerName: "Azure OpenAI",
+          status: "active",
+        },
+      ]),
+    ).toHaveLength(2);
+  });
 });

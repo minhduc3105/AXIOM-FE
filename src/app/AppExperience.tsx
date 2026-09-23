@@ -125,36 +125,54 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     chat.processEvents,
   );
   const skipNextHydrationRef = useRef<string | null>(null);
-  const llmModelOptions: ChatModelOption[] = useMemo(
+  const providerNameById = useMemo(
+    () =>
+      new Map(
+        (llmRegistry.providers ?? []).map((provider) => [
+          provider.id,
+          provider.display_name,
+        ]),
+      ),
+    [llmRegistry.providers],
+  );
+  const chatModelOptions: ChatModelOption[] = useMemo(
     () =>
       toChatModelOptions(
-        Object.values(llmRegistry.modelsByProvider)
-          .flat()
-          .filter((model) => model.capability === "llm")
-          .map((model) => ({
+        Object.entries(llmRegistry.modelsByProvider)
+          .flatMap(([providerId, providerModels]) =>
+            providerModels.map((model) => ({
+              providerId: model.provider_id || providerId,
+              model,
+            })),
+          )
+          .filter(({ model }) => model.capability === "llm" || model.capability === "vlm")
+          .map(({ providerId, model }) => ({
             id: model.resource_id,
             alias: model.resource_id,
-            label: model.name || model.model_id,
+            label: model.model_id.trim() || model.name || model.resource_id,
             status: model.status,
+            providerId,
+            providerName: providerNameById.get(providerId) ?? providerId,
+            capability: model.capability === "vlm" ? "vlm" : "llm",
           })),
       ),
-    [llmRegistry.modelsByProvider],
+    [llmRegistry.modelsByProvider, providerNameById],
   );
 
   useEffect(() => {
     if (
       selectedModelAlias &&
-      llmModelOptions.some((model) => model.alias === selectedModelAlias)
+      chatModelOptions.some((model) => model.alias === selectedModelAlias)
     ) {
       return;
     }
 
     const activeModel =
-      llmModelOptions.find(
+      chatModelOptions.find(
         (model) => model.status?.toLowerCase() === "active",
-      ) ?? llmModelOptions[0];
+      ) ?? chatModelOptions[0];
     setSelectedModelAlias(activeModel?.alias ?? null);
-  }, [llmModelOptions, selectedModelAlias]);
+  }, [chatModelOptions, selectedModelAlias]);
 
   const routeScope = getRouteWorkspaceScope(route);
   const showWorkspace = routeScope.showWorkspace;
@@ -428,9 +446,10 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
         chatControls={
           route.surface === "chat" ? (
             <ChatModelReasoningSelector
-              models={llmModelOptions}
+              models={chatModelOptions}
               selectedModelAlias={selectedModelAlias}
               executionMode={chatExecutionMode}
+              favoriteStorageKey={`axiom.chat.favorite-models:${auth.user?.id ?? "anonymous"}`}
               onModelChange={setSelectedModelAlias}
               onExecutionModeChange={setChatExecutionMode}
             />

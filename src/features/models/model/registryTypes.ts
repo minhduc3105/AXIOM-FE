@@ -1,21 +1,21 @@
+import type { ModelFeatureSupport } from "../api/modelServiceContract";
+
 export type ModelCapability = "llm" | "embedding" | "vlm" | "reranker";
 export type ResourceStatus = "active" | "inactive";
 export type ConnectionStatus = "unknown" | "available" | "unavailable";
 export type CredentialSource = "database" | "environment" | "none" | "unknown";
-export type ProviderSource = "cloud" | "self_hosted" | "custom";
-export type ProviderProtocol =
-  | "builtin"
-  | "openrouter"
-  | "openai_compatible"
-  | "cohere_compatible";
 
-export type ProviderCatalogItem = {
-  id: string;
-  display_name: string;
-  source: ProviderSource;
-  default_base_url: string;
-  protocol: ProviderProtocol;
-  requires_api_key: boolean;
+export type ProviderModelCandidate = {
+  model_id: string;
+  name: string;
+  capability: ModelCapability | null;
+  max_tokens: number | null;
+  max_context_length: number | null;
+  tools: boolean | null;
+  streaming: boolean | null;
+  structured_output: boolean | null;
+  vision: boolean | null;
+  discovered_at: string;
 };
 
 export type ProviderView = {
@@ -24,13 +24,12 @@ export type ProviderView = {
   scope: "system" | "organization";
   organization_id: string | null;
   display_name: string;
-  source: ProviderSource;
   base_url: string;
-  protocol: ProviderProtocol;
   status: ResourceStatus;
   connection_status: ConnectionStatus;
   credential_configured: boolean | null;
   credential_source: CredentialSource;
+  discovered_models: ProviderModelCandidate[];
   created_at: string;
   updated_at: string;
 };
@@ -48,16 +47,21 @@ export type ProviderModelView = {
   status: ResourceStatus;
   connection_status: ConnectionStatus;
   is_default: boolean;
+  /** Flat fields mirror the Model Service v2 registry response. */
+  tools?: boolean | null;
+  streaming?: boolean | null;
+  structured_output?: boolean | null;
+  vision?: boolean | null;
+  /** Canonical feature view used by task eligibility checks. */
+  features?: ModelFeatureSupport;
   created_at: string;
   updated_at: string;
 };
 
 export type ProviderCreateInput = {
-  id: string;
   display_name: string;
-  source: ProviderSource;
   base_url: string;
-  protocol: ProviderProtocol;
+  api_key: string;
   status?: ResourceStatus;
 };
 
@@ -65,8 +69,12 @@ export type ProviderModelCreateInput = {
   model_id: string;
   name: string;
   capability: ModelCapability;
-  max_tokens?: number;
-  max_context_length?: number;
+  max_tokens?: number | null;
+  max_context_length?: number | null;
   status?: ResourceStatus;
   is_default?: boolean;
+  tools?: boolean | null;
+  streaming?: boolean | null;
+  structured_output?: boolean | null;
+  vision?: boolean | null;
 };

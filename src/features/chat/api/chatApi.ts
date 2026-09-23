@@ -222,14 +222,14 @@ export async function createInvestigation(
       })),
       input_artifact_ids: uploadedFiles.map((file) => file.artifactId),
       execution_mode: executionMode,
+      ...(resolvedOptions.modelAlias
+        ? { model: resolvedOptions.modelAlias }
+        : {}),
       ...(resolvedOptions.dataScope && resolvedOptions.dataScope.mode !== "all"
         ? { selected_files: serializeDataScope(resolvedOptions.dataScope) }
         : {}),
       runtime_options: {
         engine,
-        ...(resolvedOptions.modelAlias
-          ? { model: resolvedOptions.modelAlias }
-          : {}),
       },
     },
     signal,
