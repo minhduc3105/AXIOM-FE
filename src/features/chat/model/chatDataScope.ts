@@ -7,6 +7,7 @@ export type ChatDataResourceReference = {
   objectKey: string;
   bucket: string;
   contentType?: string;
+  status: ChatDataResourceStatus;
 };
 
 export type ChatDataResource = {
@@ -50,23 +51,27 @@ export const noChatDataScope: ChatDataScope = {
   resourceNames: [],
 };
 
+export function isSelectableChatDataResource(resource: ChatDataResource) {
+  return resource.status === "ready" || Boolean(resource.resourceRef);
+}
+
 export function createSelectedChatDataScope(
   resourceIds: string[],
   resources: ChatDataResource[],
 ): ChatDataScope {
-  const readyResourcesById = new Map(
+  const selectableResourcesById = new Map(
     resources
-      .filter((resource) => resource.status === "ready")
+      .filter(isSelectableChatDataResource)
       .map((resource) => [resource.id, resource]),
   );
   const uniqueIds = [...new Set(resourceIds)].filter((id) =>
-    readyResourcesById.has(id),
+    selectableResourcesById.has(id),
   );
 
   if (uniqueIds.length === 0) return allChatDataScope;
 
   const selectedResources = uniqueIds.flatMap((id) => {
-    const resource = readyResourcesById.get(id);
+    const resource = selectableResourcesById.get(id);
     return resource ? [resource] : [];
   });
   const resourceRefs = selectedResources.flatMap((resource) =>
@@ -77,7 +82,7 @@ export function createSelectedChatDataScope(
     mode: "selected",
     resourceIds: uniqueIds,
     resourceNames: uniqueIds.map(
-      (id) => readyResourcesById.get(id)?.name ?? id,
+      (id) => selectableResourcesById.get(id)?.name ?? id,
     ),
     ...(resourceRefs.length ? { resourceRefs } : {}),
   };

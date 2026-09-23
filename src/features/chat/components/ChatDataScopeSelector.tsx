@@ -39,6 +39,7 @@ import {
   type ChatDataResource,
   type ChatDataResourceKind,
   type ChatDataScope,
+  isSelectableChatDataResource,
 } from "../model/chatDataScope";
 
 const FILES_PER_PAGE = 8;
@@ -81,19 +82,19 @@ export function ChatDataScopeSelector({
     null,
   );
   const inputId = useId();
-  const readyResources = useMemo(
-    () => resources.filter((resource) => resource.status === "ready"),
+  const selectableResources = useMemo(
+    () => resources.filter(isSelectableChatDataResource),
     [resources],
   );
   const filteredResources = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return readyResources;
-    return readyResources.filter((resource) =>
+    if (!normalizedQuery) return selectableResources;
+    return selectableResources.filter((resource) =>
       [resource.name, resource.source, resource.detail].some((value) =>
         value.toLowerCase().includes(normalizedQuery),
       ),
     );
-  }, [query, readyResources]);
+  }, [query, selectableResources]);
   const pageCount = Math.max(
     1,
     Math.ceil(filteredResources.length / FILES_PER_PAGE),
@@ -116,11 +117,12 @@ export function ChatDataScopeSelector({
     [previewResourceId, resources],
   );
   const isCollapsed = collapsed ?? internalCollapsed;
-  const allReadySelected =
-    readyResources.length > 0 &&
-    (draftMode === "all" ||
-      readyResources.every((resource) => draftIds.includes(resource.id)));
-  const noReadySelected = draftMode === "none";
+  const allSelectableSelected =
+    selectableResources.length > 0 &&
+    ((draftMode === "all" &&
+      selectableResources.every((resource) => resource.status === "ready")) ||
+      selectableResources.every((resource) => draftIds.includes(resource.id)));
+  const noSelectableSelected = draftMode === "none";
 
   useEffect(() => {
     setPage((currentPageValue) => Math.min(currentPageValue, pageCount));
@@ -142,12 +144,15 @@ export function ChatDataScopeSelector({
   };
 
   const toggleResource = (resourceId: string, checked: boolean) => {
-    const readyIds = readyResources.map((resource) => resource.id);
+    const readyIds = selectableResources
+      .filter((resource) => resource.status === "ready")
+      .map((resource) => resource.id);
     const currentIds = draftMode === "all" ? readyIds : draftIds;
     const nextIds = checked
       ? [...new Set([...currentIds, resourceId])]
       : currentIds.filter((id) => id !== resourceId);
     const nextIsAll =
+      readyIds.length === selectableResources.length &&
       nextIds.length === readyIds.length &&
       readyIds.every((id) => nextIds.includes(id));
     const nextScope = nextIsAll
@@ -162,14 +167,27 @@ export function ChatDataScopeSelector({
   };
 
   const selectAllResources = () => {
-    if (allReadySelected) return;
+    if (allSelectableSelected) return;
+    const hasDirectResources = selectableResources.some(
+      (resource) => resource.status !== "ready",
+    );
+    if (hasDirectResources) {
+      const nextScope = createSelectedChatDataScope(
+        selectableResources.map((resource) => resource.id),
+        resources,
+      );
+      setDraftMode(nextScope.mode);
+      setDraftIds(nextScope.resourceIds);
+      onChange(nextScope);
+      return;
+    }
     setDraftMode("all");
     setDraftIds([]);
     onChange(allChatDataScope);
   };
 
   const deselectAllResources = () => {
-    if (noReadySelected) return;
+    if (noSelectableSelected) return;
     setDraftMode("none");
     setDraftIds([]);
     onChange(noChatDataScope);
@@ -255,7 +273,7 @@ export function ChatDataScopeSelector({
 
               <div className="flex shrink-0 items-center justify-between gap-3 px-3 pb-2">
                 <span className="text-xs text-muted-foreground">
-                  {readyResources.length} files
+                  {selectableResources.length} files
                 </span>
                 <div className="flex items-center gap-1">
                   <Button
@@ -263,7 +281,7 @@ export function ChatDataScopeSelector({
                     variant="ghost"
                     size="sm"
                     className="h-8 px-2"
-                    disabled={disabled || loading || allReadySelected}
+                    disabled={disabled || loading || allSelectableSelected}
                     onClick={selectAllResources}
                   >
                     Select all
@@ -273,7 +291,7 @@ export function ChatDataScopeSelector({
                     variant="ghost"
                     size="sm"
                     className="h-8 px-2"
-                    disabled={disabled || loading || noReadySelected}
+                    disabled={disabled || loading || noSelectableSelected}
                     onClick={deselectAllResources}
                   >
                     Reset
@@ -291,7 +309,7 @@ export function ChatDataScopeSelector({
                     </p>
                   ) : filteredResources.length === 0 ? (
                     <p className="rounded-xl border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
-                      No completed files match your search.
+                      No usable workspace files match your search.
                     </p>
                   ) : (
                     paginatedResources.map((resource) => (
@@ -299,7 +317,8 @@ export function ChatDataScopeSelector({
                         key={resource.id}
                         resource={resource}
                         checked={
-                          draftMode === "all" ||
+                          (draftMode === "all" &&
+                            resource.status === "ready") ||
                           (draftMode !== "none" &&
                             draftIds.includes(resource.id))
                         }
@@ -455,14 +474,6 @@ function DataResourceRow({
             <span className="truncate text-sm font-medium text-foreground">
               {resource.name}
             </span>
-            {resource.status !== "ready" && (
-              <Badge
-                variant="outline"
-                className="h-5 shrink-0 px-1.5 text-[10px] font-normal capitalize"
-              >
-                {resource.status}
-              </Badge>
-            )}
           </span>
         </span>
         {canPreview && <ChevronRightIcon className="text-muted-foreground" />}
@@ -662,4 +673,10 @@ function resourceIcon(kind: ChatDataResourceKind) {
   if (kind === "database") return DatabaseIcon;
   if (kind === "connector") return PlugZapIcon;
   return FileSpreadsheetIcon;
+}
+
+function resourceStatusLabel(status: ChatDataResource["status"]) {
+  if (status === "syncing") return "Processing - usable now";
+  if (status === "unavailable") return "Ingestion failed - using original file";
+  return "Indexed";
 }

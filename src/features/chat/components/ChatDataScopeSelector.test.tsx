@@ -35,13 +35,36 @@ const resources: ChatDataResource[] = [
     detail: "Indexing",
     updatedAt: "Just now",
     status: "syncing",
+    resourceRef: {
+      resourceId: "dataset:indexing",
+      filename: "Market research 2026.pdf",
+      objectKey: "workspace/market-research.pdf",
+      bucket: "org-bucket",
+      status: "syncing",
+    },
+  },
+  {
+    id: "dataset:failed",
+    name: "Failed upload.pdf",
+    kind: "file",
+    source: "Workspace file",
+    detail: "Ingestion failed",
+    updatedAt: "Just now",
+    status: "unavailable",
+    resourceRef: {
+      resourceId: "dataset:failed",
+      filename: "Failed upload.pdf",
+      objectKey: "workspace/failed-upload.pdf",
+      bucket: "org-bucket",
+      status: "unavailable",
+    },
   },
 ];
 
 describe("ChatDataScopeSelector", () => {
   afterEach(cleanup);
 
-  it("shows completed files and applies checkbox changes immediately", async () => {
+  it("shows usable files and applies checkbox changes immediately", async () => {
     const actor = userEvent.setup();
     const onChange = vi.fn();
     render(
@@ -56,10 +79,13 @@ describe("ChatDataScopeSelector", () => {
       screen.getByRole("checkbox", { name: /^Select Stripe payments/ }),
     );
 
-    expect(screen.getByText("2 files")).toBeTruthy();
+    expect(screen.getByText("4 files")).toBeTruthy();
     expect(
-      screen.queryByRole("checkbox", { name: /^Select Market research 2026/ }),
-    ).toBeNull();
+      screen.getByRole("checkbox", { name: /^Select Market research 2026/ }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("checkbox", { name: /^Select Failed upload/ }),
+    ).toBeTruthy();
     expect(onChange).toHaveBeenCalledWith({
       mode: "selected",
       resourceIds: ["dataset:revenue-q3"],
@@ -92,10 +118,25 @@ describe("ChatDataScopeSelector", () => {
     ).toBe("false");
 
     await actor.click(screen.getByRole("button", { name: "Select all" }));
-    expect(onChange).toHaveBeenLastCalledWith(allChatDataScope);
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        mode: "selected",
+        resourceIds: [
+          "dataset:revenue-q3",
+          "datasource:stripe-payments",
+          "dataset:indexing",
+          "dataset:failed",
+        ],
+      }),
+    );
     expect(
       screen
         .getByRole("checkbox", { name: "Select Q3 Revenue.xlsx" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Select Market research 2026" })
         .getAttribute("aria-checked"),
     ).toBe("true");
   });

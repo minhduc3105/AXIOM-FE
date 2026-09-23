@@ -23,6 +23,7 @@ import {
   allChatDataScope,
   chatDataScopeLabel,
   noChatDataScope,
+  type ChatDataResourceStatus,
   type ChatDataScope,
 } from "../model/chatDataScope";
 
@@ -282,6 +283,7 @@ function serializeDataScope(scope: ChatDataScope) {
             filename: reference.filename,
             object_key: reference.objectKey,
             bucket: reference.bucket,
+            ingestion_status: reference.status,
             ...(reference.contentType
               ? { content_type: reference.contentType }
               : {}),
@@ -1364,12 +1366,18 @@ function dataScopeFromMessage(
         const bucket = stringValue(reference.bucket);
         if (!resourceId || !filename || !objectKey || !bucket) return [];
         const contentType = stringValue(reference.content_type);
+        const rawStatus = stringValue(reference.ingestion_status);
+        const status: ChatDataResourceStatus =
+          rawStatus === "syncing" || rawStatus === "unavailable"
+            ? rawStatus
+            : "ready";
         return [
           {
             resourceId,
             filename,
             objectKey,
             bucket,
+            status,
             ...(contentType ? { contentType } : {}),
           },
         ];

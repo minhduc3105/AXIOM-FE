@@ -563,6 +563,65 @@ describe("createInvestigation", () => {
     });
   });
 
+  it("sends non-ready workspace refs without uploading browser files", async () => {
+    let postedBody = "";
+    let requestUrl = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        requestUrl = String(input);
+        postedBody = String(init?.body ?? "");
+        return sseResponse([
+          {
+            type: "response.completed",
+            response_id: "resp-processing-file",
+            response: {
+              id: "resp-processing-file",
+              status: "completed",
+              output_text: "Scoped answer",
+            },
+          },
+        ]);
+      }),
+    );
+
+    await createInvestigation(
+      "Read the processing file",
+      "conversation-1",
+      "auto",
+      "instant",
+      undefined,
+      {
+        dataScope: {
+          mode: "selected",
+          resourceIds: ["processing-file"],
+          resourceNames: ["Processing file.pdf"],
+          resourceRefs: [
+            {
+              resourceId: "processing-file",
+              filename: "Processing file.pdf",
+              objectKey: "workspace/processing.pdf",
+              bucket: "org-bucket",
+              status: "syncing",
+            },
+          ],
+        },
+      },
+    );
+
+    expect(requestUrl).toContain("/api/v1/responses");
+    expect(JSON.parse(postedBody)).toMatchObject({
+      selected_files: {
+        resource_refs: [
+          expect.objectContaining({
+            resource_id: "processing-file",
+            ingestion_status: "syncing",
+          }),
+        ],
+      },
+    });
+  });
+
   it("streams tool progress and upserts lifecycle events by tool call", async () => {
     vi.stubGlobal(
       "fetch",

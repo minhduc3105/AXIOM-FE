@@ -42,6 +42,12 @@ export async function listChatDataResources(
 }
 
 function toChatDataResource(file: DataFile): ChatDataResource {
+  const status =
+    file.status === "success"
+      ? "ready"
+      : file.status === "processing"
+        ? "syncing"
+        : "unavailable";
   return {
     id: file.documentId || file.datasetId || file.key,
     name: file.name,
@@ -54,13 +60,9 @@ function toChatDataResource(file: DataFile): ChatDataResource {
       filename: file.name,
       objectKey: file.key,
       bucket: file.bucket,
+      status,
     },
-    status:
-      file.status === "success"
-        ? "ready"
-        : file.status === "processing"
-          ? "syncing"
-          : "unavailable",
+    status,
   };
 }
 
