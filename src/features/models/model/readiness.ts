@@ -66,6 +66,25 @@ export function getProviderReadiness(
       action: "test_provider",
     };
   }
+  if (provider.scope === "system" && provider.credential_configured === true) {
+    return {
+      level: "ready",
+      label: "Platform ready",
+      detail:
+        "Platform provider is active and configured. Connectivity is validated when Model Service uses it.",
+      nextAction: "No action needed.",
+      action: "none",
+    };
+  }
+  if (provider.scope === "system" && provider.credential_configured === false) {
+    return {
+      level: "not_configured",
+      label: "Credentials missing",
+      detail: "This platform provider has no configured credential.",
+      nextAction: "Configure the platform provider credential before using it.",
+      action: "resolve_provider",
+    };
+  }
   if (provider.connection_status !== "available") {
     return {
       level: "unknown",
@@ -126,6 +145,16 @@ export function getModelReadiness(
         : "The last model test failed. Model Service did not retain the failure reason.",
       nextAction: "Review model support and provider configuration, then test the model again.",
       action: "test_model",
+    };
+  }
+  if (provider.scope === "system" && provider.credential_configured === true) {
+    return {
+      level: "ready",
+      label: "Platform ready",
+      detail:
+        "This platform model is part of the active catalog. Connectivity is validated when Model Service uses it.",
+      nextAction: "No action needed.",
+      action: "none",
     };
   }
   if (model.connection_status !== "available") {

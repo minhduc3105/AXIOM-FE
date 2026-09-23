@@ -10,15 +10,19 @@ function isActive(model: ChatModelOption) {
 
 export function toChatModelOptions(models: ChatModelOption[]) {
   const options: ChatModelOption[] = [];
-  const indexByLabel = new Map<string, number>();
+  const indexByIdentity = new Map<string, number>();
 
   for (const model of models) {
-    const option = { ...model, label: normalizedModelLabel(model.label) };
-    const key = option.label.toLowerCase();
-    const existingIndex = indexByLabel.get(key);
+    const option = {
+      ...model,
+      label: normalizedModelLabel(model.label),
+      providerName: model.providerName?.trim() || model.providerName,
+    };
+    const key = option.providerId ? option.alias : option.label.toLowerCase();
+    const existingIndex = indexByIdentity.get(key);
 
     if (existingIndex === undefined) {
-      indexByLabel.set(key, options.length);
+      indexByIdentity.set(key, options.length);
       options.push(option);
       continue;
     }

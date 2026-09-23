@@ -46,6 +46,11 @@ type AppShellStubProps = {
 };
 
 type ChatSelectorStubProps = {
+  models: Array<{
+    label: string;
+    capability?: string;
+    providerId?: string;
+  }>;
   onModelChange: (modelAlias: string | null) => void;
   onExecutionModeChange: (mode: "instant" | "thinking") => void;
 };
@@ -90,20 +95,28 @@ vi.mock("@/features/ingestion/components/GlobalIngestionDock", () => ({
 
 vi.mock("@/features/models/model/useModelRegistry", () => ({
   useModelRegistry: () => ({
+    providers: [{ id: "provider", display_name: "Provider" }],
     modelsByProvider: {
       provider: [
         {
           resource_id: "provider:model-primary",
-          model_id: "model-primary",
-          name: "Primary model",
+          model_id: "deepseek-v4-flash-free",
+          name: "DeepSeek V4 Flash Free",
           capability: "llm",
           status: "active",
         },
         {
           resource_id: "provider:model-secondary",
-          model_id: "model-secondary",
-          name: "Secondary model",
+          model_id: "mimo-v2.5-free",
+          name: "MiMo V2.5 Free",
           capability: "llm",
+          status: "active",
+        },
+        {
+          resource_id: "provider:model-vision",
+          model_id: "nvidia/nemotron-vision-free",
+          name: "Nemotron Vision Free",
+          capability: "vlm",
           status: "active",
         },
       ],
@@ -171,10 +184,14 @@ vi.mock("@/features/chat/ChatPage", () => ({
 
 vi.mock("@/features/chat/components/ChatModelReasoningSelector", () => ({
   ChatModelReasoningSelector: ({
+    models,
     onModelChange,
     onExecutionModeChange,
   }: ChatSelectorStubProps) => (
     <>
+      <output data-testid="chat-model-options">
+        {models.map((model) => `${model.providerId}:${model.label}:${model.capability}`).join("|")}
+      </output>
       <button
         type="button"
         onClick={() => onModelChange("provider:model-secondary")}
@@ -242,6 +259,19 @@ describe("AppExperience chat controls", () => {
         }),
       );
     });
+  });
+
+  it("passes model IDs and both LLM/VLM models from each provider", () => {
+    render(
+      <AppExperience
+        route={{ surface: "chat", page: "compose", sessionId: null }}
+        navigate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("chat-model-options").textContent).toBe(
+      "provider:deepseek-v4-flash-free:llm|provider:mimo-v2.5-free:llm|provider:nvidia/nemotron-vision-free:vlm",
+    );
   });
 
   it("keeps an optimistic new conversation while its route navigation is in flight", async () => {

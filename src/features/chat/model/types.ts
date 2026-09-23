@@ -11,6 +11,9 @@ export type ChatModelOption = {
   alias: string;
   label: string;
   status?: string;
+  providerId?: string;
+  providerName?: string;
+  capability?: "llm" | "vlm";
 };
 
 export type Investigation = {

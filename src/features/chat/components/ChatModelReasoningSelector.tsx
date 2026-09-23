@@ -1,22 +1,18 @@
-import { ChevronDownIcon } from "lucide-react";
-import { useState } from "react";
+import { CheckIcon, ChevronDownIcon, StarIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ChatExecutionMode, ChatModelOption } from "../model/types";
-
-const primaryModelLimit = 3;
 
 const executionModeOptions = [
   { value: "instant", label: "Instant", description: "Run immediately" },
@@ -31,24 +27,89 @@ const executionModeOptions = [
   description: string;
 }>;
 
+function readFavoriteModelAliases(storageKey: string) {
+  try {
+    const saved = window.localStorage.getItem(storageKey);
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((alias): alias is string => typeof alias === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeFavoriteModelAliases(storageKey: string, aliases: string[]) {
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(aliases));
+  } catch {
+    // Favorites remain usable for this session when storage is unavailable.
+  }
+}
+
 export function ChatModelReasoningSelector({
   models,
   selectedModelAlias,
   executionMode,
+  favoriteStorageKey = "axiom.chat.favorite-models",
   onModelChange,
   onExecutionModeChange,
 }: {
   models: ChatModelOption[];
   selectedModelAlias: string | null;
   executionMode: ChatExecutionMode;
+  favoriteStorageKey?: string;
   onModelChange: (modelAlias: string | null) => void;
   onExecutionModeChange: (mode: ChatExecutionMode) => void;
-}) {
+  }) {
   const [open, setOpen] = useState(false);
+  const [favoriteState, setFavoriteState] = useState(() => ({
+    storageKey: favoriteStorageKey,
+    aliases: readFavoriteModelAliases(favoriteStorageKey),
+  }));
+
+  useEffect(() => {
+    if (favoriteState.storageKey !== favoriteStorageKey) {
+      setFavoriteState({
+        storageKey: favoriteStorageKey,
+        aliases: readFavoriteModelAliases(favoriteStorageKey),
+      });
+      return;
+    }
+
+    writeFavoriteModelAliases(favoriteStorageKey, favoriteState.aliases);
+  }, [favoriteState, favoriteStorageKey]);
+
   const selectedModel =
     models.find((model) => model.alias === selectedModelAlias) ?? models[0];
-  const primaryModels = models.slice(0, primaryModelLimit);
-  const overflowModels = models.slice(primaryModelLimit);
+  const favoriteModelAliases =
+    favoriteState.storageKey === favoriteStorageKey ? favoriteState.aliases : [];
+  const favoriteAliases = useMemo(
+    () => new Set(favoriteModelAliases),
+    [favoriteModelAliases],
+  );
+  const favoriteModels = models.filter((model) => favoriteAliases.has(model.alias));
+  const providerGroups = useMemo(() => {
+    const groups = new Map<
+      string,
+      { id: string; label: string; models: ChatModelOption[] }
+    >();
+
+    for (const model of models) {
+      if (favoriteAliases.has(model.alias)) continue;
+      const providerId = model.providerId ?? "other";
+      const providerLabel = model.providerName ?? model.providerId ?? "Other models";
+      const group = groups.get(providerId) ?? {
+        id: providerId,
+        label: providerLabel,
+        models: [],
+      };
+      group.models.push(model);
+      groups.set(providerId, group);
+    }
+
+    return [...groups.values()];
+  }, [favoriteAliases, models]);
   const modelLabel = selectedModel?.label ?? "No model";
   const executionModeLabel =
     executionModeOptions.find((option) => option.value === executionMode)?.label ??
@@ -57,6 +118,61 @@ export function ChatModelReasoningSelector({
   const selectModel = (modelAlias: string) => {
     onModelChange(modelAlias || null);
     setOpen(false);
+  };
+  const toggleFavorite = (modelAlias: string) => {
+    setFavoriteState((current) => ({
+      ...current,
+      aliases: current.aliases.includes(modelAlias)
+        ? current.aliases.filter((alias) => alias !== modelAlias)
+        : [...current.aliases, modelAlias],
+    }));
+  };
+
+  const renderModelItem = (
+    model: ChatModelOption,
+    { showProvider = false }: { showProvider?: boolean } = {},
+  ) => {
+    const isFavorite = favoriteAliases.has(model.alias);
+    const providerLabel = model.providerName ?? model.providerId;
+    const isSelected = model.alias === selectedModel?.alias;
+
+    return (
+      <DropdownMenuItem
+        key={model.id}
+        className="group/model-item min-h-10 cursor-pointer gap-2 py-1.5 pr-1.5"
+        onClick={() => selectModel(model.alias)}
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate">{model.label}</span>
+          {showProvider && providerLabel && (
+            <span className="block truncate text-[11px] text-muted-foreground">
+              {providerLabel}
+            </span>
+          )}
+        </span>
+        {isSelected && (
+          <CheckIcon className="size-4 shrink-0 text-foreground" aria-hidden="true" />
+        )}
+        <button
+          type="button"
+          className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+          aria-label={`${isFavorite ? "Unpin" : "Pin"} ${model.label}`}
+          title={isFavorite ? "Remove from favorites" : "Pin to favorites"}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleFavorite(model.alias);
+          }}
+        >
+          <StarIcon
+            className="size-4"
+            fill={isFavorite ? "currentColor" : "none"}
+            aria-hidden="true"
+          />
+        </button>
+      </DropdownMenuItem>
+    );
   };
 
   return (
@@ -80,60 +196,38 @@ export function ChatModelReasoningSelector({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-72 max-w-[calc(100vw-1rem)] p-1.5"
+        className="w-80 max-w-[calc(100vw-1rem)] p-1.5"
       >
-        <DropdownMenuGroup>
+        <DropdownMenuGroup className="max-h-[min(65vh,30rem)] overflow-x-hidden overflow-y-auto">
           <DropdownMenuLabel>Model</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            aria-label="Model"
-            value={selectedModel?.alias ?? ""}
-            onValueChange={selectModel}
-          >
+          {favoriteModels.length > 0 && (
+            <>
+              <DropdownMenuLabel className="flex items-center gap-1.5 pt-2 text-foreground">
+                <StarIcon className="size-3.5" fill="currentColor" aria-hidden="true" />
+                Favorites
+              </DropdownMenuLabel>
+              {favoriteModels.map((model) =>
+                renderModelItem(model, { showProvider: true }),
+              )}
+              {providerGroups.length > 0 && <DropdownMenuSeparator />}
+            </>
+          )}
+          <div aria-label="Model">
             {models.length > 0 ? (
-              primaryModels.map((model) => (
-                <DropdownMenuRadioItem
-                  className="cursor-pointer py-2 pr-8"
-                  key={model.id}
-                  value={model.alias}
-                >
-                  <span className="min-w-0 truncate">{model.label}</span>
-                </DropdownMenuRadioItem>
+              providerGroups.map((group) => (
+                <div key={group.id} className="mt-1 first:mt-0">
+                  <DropdownMenuLabel className="border-b border-border/70 px-1.5 pb-1 pt-2 text-[11px] uppercase tracking-[0.08em]">
+                    {group.label}
+                  </DropdownMenuLabel>
+                  {group.models.map((model) => renderModelItem(model))}
+                </div>
               ))
             ) : (
               <p className="px-1.5 py-2 text-sm text-muted-foreground">
                 No models available
               </p>
             )}
-          </DropdownMenuRadioGroup>
-          {overflowModels.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="cursor-pointer py-2">
-                  More models
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-64 max-w-[calc(100vw-1rem)] p-1.5">
-                  <DropdownMenuRadioGroup
-                    aria-label="More models"
-                    value={selectedModel?.alias ?? ""}
-                    onValueChange={selectModel}
-                  >
-                    {overflowModels.map((model) => (
-                      <DropdownMenuRadioItem
-                        className="cursor-pointer py-2 pr-8"
-                        key={model.id}
-                        value={model.alias}
-                      >
-                        <span className="min-w-0 truncate">
-                          {model.label}
-                        </span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            </>
-          )}
+          </div>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>

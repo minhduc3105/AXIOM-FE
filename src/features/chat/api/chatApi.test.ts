@@ -489,6 +489,36 @@ describe("createInvestigation", () => {
     });
   });
 
+  it("sends the selected model as a top-level request field", async () => {
+    let postedBody = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        postedBody = String(init?.body ?? "");
+        return sseResponse([
+          {
+            type: "response.completed",
+            response_id: "resp-model",
+            response: { id: "resp-model", status: "completed" },
+          },
+        ]);
+      }),
+    );
+
+    await createInvestigation(
+      "Use the selected model",
+      "conversation-1",
+      "general",
+      "instant",
+      undefined,
+      { modelAlias: "opencode:mimo-v2.5-free" },
+    );
+
+    const payload = JSON.parse(postedBody);
+    expect(payload.model).toBe("opencode:mimo-v2.5-free");
+    expect(payload.runtime_options).toEqual({ engine: "general" });
+  });
+
   it("sends the selected retrieval scope with the chat request", async () => {
     let postedBody = "";
     vi.stubGlobal(

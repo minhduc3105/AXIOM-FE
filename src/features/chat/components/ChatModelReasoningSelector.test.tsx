@@ -47,6 +47,7 @@ function renderSelector({
 describe("ChatModelReasoningSelector", () => {
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -97,36 +98,58 @@ describe("ChatModelReasoningSelector", () => {
     expect(onExecutionModeChange).toHaveBeenCalledWith("thinking");
   });
 
-  it("moves overflow models into a keyboard-accessible More models submenu", async () => {
+  it("groups models by provider and lets users pin a favorite", async () => {
     const actor = userEvent.setup();
-    const models = Array.from({ length: 6 }, (_, index) => ({
-      id: `model-${index + 1}`,
-      alias: `model-${index + 1}`,
-      label: `Model ${index + 1}`,
-      status: "active",
-    }));
+    const models = [
+      {
+        id: "openai:gpt-4o",
+        alias: "openai:gpt-4o",
+        label: "GPT-4o",
+        providerId: "openai",
+        providerName: "OpenAI",
+        status: "active",
+      },
+      {
+        id: "openai:o3",
+        alias: "openai:o3",
+        label: "o3",
+        providerId: "openai",
+        providerName: "OpenAI",
+        status: "active",
+      },
+      {
+        id: "anthropic:claude",
+        alias: "anthropic:claude",
+        label: "Claude Sonnet",
+        providerId: "anthropic",
+        providerName: "Anthropic",
+        status: "active",
+      },
+    ];
     const { onModelChange } = renderSelector({
       models,
-      selectedModelAlias: "model-1",
+      selectedModelAlias: "openai:gpt-4o",
     });
     const trigger = screen.getByRole("button", {
-      name: "Chat model: Model 1; Reasoning: Instant",
+      name: "Chat model: GPT-4o; Reasoning: Instant",
     });
 
     trigger.focus();
     await actor.keyboard("{Enter}");
 
-    expect(screen.getByRole("menuitemradio", { name: "Model 3" })).toBeTruthy();
-    expect(screen.queryByRole("menuitemradio", { name: "Model 4" })).toBeNull();
+    expect(screen.getAllByText("OpenAI").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Anthropic").length).toBeGreaterThan(0);
+    expect(screen.queryByText("More models")).toBeNull();
 
-    const moreModels = screen.getByRole("menuitem", { name: "More models" });
-    moreModels.focus();
-    await actor.keyboard("{ArrowRight}");
+    await actor.click(screen.getByRole("button", { name: "Pin o3" }));
 
-    const overflowModel = screen.getByRole("menuitemradio", { name: "Model 4" });
-    overflowModel.focus();
-    await actor.keyboard("{Enter}");
+    expect(screen.getByText("Favorites")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Unpin o3" })).toBeTruthy();
+    expect(window.localStorage.getItem("axiom.chat.favorite-models")).toContain(
+      "openai:o3",
+    );
 
-    expect(onModelChange).toHaveBeenCalledWith("model-4");
+    await actor.click(screen.getByRole("menuitem", { name: /Claude Sonnet/ }));
+    expect(onModelChange).toHaveBeenCalledWith("anthropic:claude");
   });
 });
