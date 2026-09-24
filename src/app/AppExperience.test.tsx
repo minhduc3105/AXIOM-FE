@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ProcessStepSelectionHandler } from "@/features/chat/components/process/processEvents";
-import type { ProcessEvent } from "@/features/chat/model/types";
+import type { ChatEngine, ProcessEvent } from "@/features/chat/model/types";
 import { AppExperience } from "./AppExperience";
 
 const mocks = vi.hoisted(() => ({
@@ -36,7 +36,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 type ChatPageStubProps = {
-  onSubmit: (message: string, engine: "auto", files: File[]) => void;
+  engine: ChatEngine;
+  onEngineChange: (engine: ChatEngine) => void;
+  onSubmit: (message: string, engine: ChatEngine, files: File[]) => void;
   activeProcessEventKey?: string | null;
   onProcessEventSelect?: ProcessStepSelectionHandler;
 };
@@ -52,6 +54,7 @@ type ChatSelectorStubProps = {
     capability?: string;
     providerId?: string;
   }>;
+  selectedModelAlias: string | null;
   onModelChange: (modelAlias: string | null) => void;
   onExecutionModeChange: (mode: "instant" | "thinking") => void;
 };
@@ -153,11 +156,20 @@ vi.mock("@/app/AppShell", () => ({
 
 vi.mock("@/features/chat/ChatPage", () => ({
   ChatPage: ({
+    engine,
+    onEngineChange,
     activeProcessEventKey,
     onProcessEventSelect,
     onSubmit,
   }: ChatPageStubProps) => (
     <>
+      <output data-testid="selected-chat-engine">{engine}</output>
+      <button
+        type="button"
+        onClick={() => onEngineChange("report")}
+      >
+        Select Report response type
+      </button>
       <button
         type="button"
         onClick={() => onSubmit("Compare reports", "auto", [])}
@@ -191,12 +203,20 @@ vi.mock("@/features/chat/ChatPage", () => ({
 vi.mock("@/features/chat/components/ChatModelReasoningSelector", () => ({
   ChatModelReasoningSelector: ({
     models,
+    selectedModelAlias,
     onModelChange,
     onExecutionModeChange,
   }: ChatSelectorStubProps) => (
     <>
+      <output data-testid="selected-chat-model">
+        {selectedModelAlias ?? "none"}
+      </output>
       <output data-testid="chat-model-options">
-        {models.map((model) => `${model.providerId}:${model.label}:${model.capability}`).join("|")}
+        {models
+          .map(
+            (model) => `${model.providerId}:${model.label}:${model.capability}`,
+          )
+          .join("|")}
       </output>
       <button
         type="button"
@@ -227,6 +247,7 @@ describe("AppExperience chat controls", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    window.localStorage.clear();
     mocks.workflow = {
       ...mocks.workflow,
       activeConversationId: null,
@@ -263,6 +284,60 @@ describe("AppExperience chat controls", () => {
           executionMode: "thinking",
           onConversationCreated: expect.any(Function),
         }),
+      );
+    });
+  });
+
+  it("restores the selected model after the app is remounted", async () => {
+    const actor = userEvent.setup();
+    const route = {
+      surface: "chat" as const,
+      page: "compose" as const,
+      sessionId: null,
+    };
+    const navigate = vi.fn();
+    const view = render(<AppExperience route={route} navigate={navigate} />);
+
+    await actor.click(
+      screen.getByRole("button", { name: "Select secondary model" }),
+    );
+    expect(screen.getByTestId("selected-chat-model").textContent).toBe(
+      "provider:model-secondary",
+    );
+
+    view.unmount();
+    render(<AppExperience route={route} navigate={navigate} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("selected-chat-model").textContent).toBe(
+        "provider:model-secondary",
+      );
+    });
+  });
+
+  it("restores the selected response type after the app is remounted", async () => {
+    const actor = userEvent.setup();
+    const route = {
+      surface: "chat" as const,
+      page: "compose" as const,
+      sessionId: null,
+    };
+    const navigate = vi.fn();
+    const view = render(<AppExperience route={route} navigate={navigate} />);
+
+    await actor.click(
+      screen.getByRole("button", { name: "Select Report response type" }),
+    );
+    expect(screen.getByTestId("selected-chat-engine").textContent).toBe(
+      "report",
+    );
+
+    view.unmount();
+    render(<AppExperience route={route} navigate={navigate} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("selected-chat-engine").textContent).toBe(
+        "report",
       );
     });
   });

@@ -69,6 +69,52 @@ type AppExperienceProps = {
   navigate: (nextRoute: AppRoute) => void;
 };
 
+function readStoredChatModelAlias(storageKey: string) {
+  try {
+    const storedAlias = window.localStorage.getItem(storageKey);
+    return storedAlias || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredChatModelAlias(
+  storageKey: string,
+  modelAlias: string | null,
+) {
+  try {
+    if (modelAlias) {
+      window.localStorage.setItem(storageKey, modelAlias);
+    } else {
+      window.localStorage.removeItem(storageKey);
+    }
+  } catch {
+    // The current selection remains available when storage is unavailable.
+  }
+}
+
+function readStoredChatEngine(storageKey: string): ChatEngine | null {
+  try {
+    const storedEngine = window.localStorage.getItem(storageKey);
+    return storedEngine === "auto" ||
+      storedEngine === "general" ||
+      storedEngine === "reason" ||
+      storedEngine === "report"
+      ? storedEngine
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredChatEngine(storageKey: string, engine: ChatEngine) {
+  try {
+    window.localStorage.setItem(storageKey, engine);
+  } catch {
+    // The current response type remains available when storage is unavailable.
+  }
+}
+
 export function AppExperience({ route, navigate }: AppExperienceProps) {
   const auth = useAuth();
   const dataWorkspace = useDataWorkspace();
@@ -106,12 +152,16 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     [auth.user],
   );
   const llmRegistry = useModelRegistry(modelRegistryContext);
-  const [chatEngine, setChatEngine] = useState<ChatEngine>(DEFAULT_CHAT_ENGINE);
+  const chatEngineStorageKey = `axiom.chat.engine:${auth.user?.id ?? "anonymous"}:${auth.user?.organization_id ?? "unknown"}`;
+  const [chatEngine, setChatEngine] = useState<ChatEngine>(
+    () => readStoredChatEngine(chatEngineStorageKey) ?? DEFAULT_CHAT_ENGINE,
+  );
   const [chatExecutionMode, setChatExecutionMode] = useState<ChatExecutionMode>(
     DEFAULT_CHAT_EXECUTION_MODE,
   );
+  const selectedModelStorageKey = `axiom.chat.selected-model:${auth.user?.id ?? "anonymous"}:${auth.user?.organization_id ?? "unknown"}`;
   const [selectedModelAlias, setSelectedModelAlias] = useState<string | null>(
-    null,
+    () => readStoredChatModelAlias(selectedModelStorageKey),
   );
   const [focusComposerRequest, setFocusComposerRequest] = useState(0);
   const [toolsViewState, setToolsViewState] = useState<ToolCatalogViewState>(
@@ -127,7 +177,10 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const skipNextHydrationRef = useRef<string | null>(null);
   const previousRouteSurfaceRef = useRef(route.surface);
   useEffect(() => {
-    if (route.surface === "chat" && previousRouteSurfaceRef.current !== "chat") {
+    if (
+      route.surface === "chat" &&
+      previousRouteSurfaceRef.current !== "chat"
+    ) {
       void llmRegistry.refresh();
     }
     previousRouteSurfaceRef.current = route.surface;
@@ -152,7 +205,10 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
               model,
             })),
           )
-          .filter(({ model }) => model.capability === "llm" || model.capability === "vlm")
+          .filter(
+            ({ model }) =>
+              model.capability === "llm" || model.capability === "vlm",
+          )
           .map(({ providerId, model }) => ({
             id: model.resource_id,
             alias: model.resource_id,
@@ -167,6 +223,16 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   );
 
   useEffect(() => {
+    writeStoredChatModelAlias(selectedModelStorageKey, selectedModelAlias);
+  }, [selectedModelAlias, selectedModelStorageKey]);
+
+  useEffect(() => {
+    writeStoredChatEngine(chatEngineStorageKey, chatEngine);
+  }, [chatEngine, chatEngineStorageKey]);
+
+  useEffect(() => {
+    if (chatModelOptions.length === 0) return;
+
     if (
       selectedModelAlias &&
       chatModelOptions.some((model) => model.alias === selectedModelAlias)
