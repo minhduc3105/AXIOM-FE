@@ -246,9 +246,6 @@ function UserSessionMenu({
           <span className="truncate text-xs font-normal text-muted-foreground">
             {user?.email}
           </span>
-          <span className="truncate text-xs font-normal text-muted-foreground/80">
-            Org: {user?.organization_id || "unknown"}
-          </span>
         </div>
         <DropdownMenuSeparator className="bg-border" />
         <DropdownMenuItem

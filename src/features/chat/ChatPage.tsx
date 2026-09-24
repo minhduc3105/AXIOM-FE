@@ -17,6 +17,7 @@ import type {
 import type { ChatError } from "./model/chatError";
 import type { ProcessStepSelectionHandler } from "./components/process/processEvents";
 import { cn } from "@/shared/lib/utils";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import type { ChatDataResource, ChatDataScope } from "./model/chatDataScope";
 
 type ChatPageProps = {
@@ -89,8 +90,15 @@ export function ChatPage({
   onDataResourcesRefresh,
 }: ChatPageProps) {
   const chatMainRef = useRef<HTMLDivElement>(null);
-  const [scopeSidebarCollapsed, setScopeSidebarCollapsed] = useState(false);
+  const mobileViewport = useMediaQuery("(max-width: 767px)");
+  const [scopeSidebarCollapsed, setScopeSidebarCollapsed] =
+    useState(mobileViewport);
   const [scopePreviewOpen, setScopePreviewOpen] = useState(false);
+
+  useEffect(() => {
+    if (mobileViewport) setScopeSidebarCollapsed(true);
+  }, [mobileViewport]);
+
   const scopeSidebarOpen = Boolean(
     dataScope && onDataScopeChange && !scopeSidebarCollapsed,
   );
@@ -147,6 +155,7 @@ export function ChatPage({
         resourcesError={dataResourcesError}
         onScopeChange={onDataScopeChange}
         onResourcesRefresh={onDataResourcesRefresh}
+        mobile={mobileViewport}
       />
     );
   }
@@ -207,7 +216,10 @@ export function ChatPage({
                   error={error}
                   loading={loading}
                   result={result}
-                  responseComplete={stage === "result" && (!loading || result?.responseComplete === true)}
+                  responseComplete={
+                    stage === "result" &&
+                    (!loading || result?.responseComplete === true)
+                  }
                   canRetry={canRetry}
                   onProcessEventSelect={onProcessEventSelect}
                   onSpecificationChange={onSpecificationChange}
@@ -233,6 +245,8 @@ export function ChatPage({
                 engine={engine}
                 sendDisabled={loading}
                 autoFocus={loading}
+                dataScope={dataScope}
+                onDataScopeOpen={() => setScopeSidebarCollapsed(false)}
                 onEngineChange={onEngineChange}
                 onSubmit={onSubmit}
                 onStop={onStopGeneration}
@@ -259,6 +273,7 @@ export function ChatPage({
           onPreviewChange={setScopePreviewOpen}
           onChange={onDataScopeChange}
           onRefresh={onDataResourcesRefresh}
+          mobile={mobileViewport}
         />
       </div>
     </section>
@@ -326,6 +341,7 @@ function EmptyChatWorkspace({
   resourcesError,
   onScopeChange,
   onResourcesRefresh,
+  mobile,
 }: {
   engine: ChatEngine;
   onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
@@ -345,6 +361,7 @@ function EmptyChatWorkspace({
   resourcesError: string | null;
   onScopeChange?: (scope: ChatDataScope) => void;
   onResourcesRefresh?: () => void;
+  mobile: boolean;
 }) {
   return (
     <section
@@ -373,6 +390,8 @@ function EmptyChatWorkspace({
           <ChatComposer
             engine={engine}
             focusRequest={focusComposerRequest}
+            dataScope={scope}
+            onDataScopeOpen={() => onSidebarCollapsedChange(false)}
             onSubmit={onSubmit}
             onEngineChange={onEngineChange}
             onStop={onStop}
@@ -393,6 +412,7 @@ function EmptyChatWorkspace({
         onPreviewChange={onPreviewChange}
         onChange={onScopeChange}
         onRefresh={onResourcesRefresh}
+        mobile={mobile}
       />
     </section>
   );
@@ -410,6 +430,7 @@ function ChatDataScopeSidebar({
   disabled,
   onChange,
   onRefresh,
+  mobile,
 }: {
   scope?: ChatDataScope;
   resources: ChatDataResource[];
@@ -422,6 +443,7 @@ function ChatDataScopeSidebar({
   disabled: boolean;
   onChange?: (scope: ChatDataScope) => void;
   onRefresh?: () => void;
+  mobile: boolean;
 }) {
   if (!scope || !onChange) return null;
 
@@ -438,6 +460,7 @@ function ChatDataScopeSidebar({
       onPreviewChange={onPreviewChange}
       onChange={onChange}
       onRefresh={onRefresh}
+      mobile={mobile}
     />
   );
 }

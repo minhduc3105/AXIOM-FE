@@ -2,10 +2,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
+import { allChatDataScope } from "./model/chatDataScope";
 import { ChatPage } from "./ChatPage";
 
+const { mockUseMediaQuery } = vi.hoisted(() => ({
+  mockUseMediaQuery: vi.fn(() => false),
+}));
+
 vi.mock("@/shared/hooks/use-media-query", () => ({
-  useMediaQuery: () => false,
+  useMediaQuery: mockUseMediaQuery,
 }));
 
 const investigation = {
@@ -90,6 +95,32 @@ describe("ChatPage", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    mockUseMediaQuery.mockReturnValue(false);
+  });
+
+  it("collapses the chat files panel by default on mobile", async () => {
+    mockUseMediaQuery.mockReturnValue(true);
+    const actor = userEvent.setup();
+
+    render(
+      <ChatPage
+        {...chatPageProps({
+          stage: "welcome",
+          loading: false,
+          dataScope: allChatDataScope,
+          onDataScopeChange: vi.fn(),
+        })}
+      />,
+    );
+
+    const openFilesButton = screen.getByRole("button", {
+      name: "Open chat files",
+    });
+    expect(screen.queryByRole("heading", { name: "Chat files" })).toBeNull();
+
+    await actor.click(openFilesButton);
+
+    expect(screen.getByRole("dialog", { name: "Chat files" })).toBeTruthy();
   });
 
   it("keeps process activity inline instead of opening Logs & Files", () => {

@@ -5,13 +5,11 @@ import {
   DatabaseIcon,
   FileSearchIcon,
   FileSpreadsheetIcon,
-  PanelRightCloseIcon,
-  PanelRightOpenIcon,
   PlugZapIcon,
   RefreshCwIcon,
   SearchIcon,
+  XIcon,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -28,6 +26,13 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { presignFileForPreview } from "@/shared/lib/document-results-api";
 import { cn } from "@/shared/lib/utils";
 import type { IngestionFile } from "@/features/ingestion/model/types";
@@ -52,6 +57,7 @@ type ChatDataScopeSelectorProps = {
   error?: string | null;
   disabled?: boolean;
   className?: string;
+  mobile?: boolean;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
   onPreviewChange?: (previewOpen: boolean) => void;
@@ -67,6 +73,7 @@ export function ChatDataScopeSelector({
   error = null,
   disabled = false,
   className,
+  mobile = false,
   collapsed,
   onCollapsedChange,
   onPreviewChange,
@@ -193,234 +200,241 @@ export function ChatDataScopeSelector({
     onChange(noChatDataScope);
   };
 
+  const panel = (
+    <div
+      className={cn(
+        mobile
+          ? "flex h-full min-h-0 flex-col overflow-hidden bg-card"
+          : "pointer-events-auto absolute right-4 top-4 bottom-4 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-[width,opacity] duration-150 ease-out",
+        !mobile &&
+          (previewResource
+            ? "w-[min(640px,52vw)] max-lg:w-[min(92vw,640px)]"
+            : "w-[min(420px,34vw)] max-lg:w-[min(92vw,420px)]"),
+        !mobile &&
+          (isCollapsed ? "pointer-events-none opacity-0" : "opacity-100"),
+      )}
+      aria-hidden={mobile ? undefined : isCollapsed}
+      inert={mobile ? undefined : isCollapsed}
+    >
+      <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-4">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2
+              className="truncate text-sm font-semibold text-foreground"
+              aria-hidden={mobile || undefined}
+            >
+              Chat files
+            </h2>
+          </div>
+        </div>
+        {onRefresh && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="ml-auto h-8 shrink-0 gap-1.5 px-2"
+            aria-label="Refresh workspace files"
+            disabled={disabled || loading}
+            onClick={onRefresh}
+          >
+            <RefreshCwIcon />
+            Refresh
+          </Button>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Close chat files"
+          title="Close chat files"
+          onClick={() => setCollapsed(true)}
+        >
+          <XIcon />
+        </Button>
+      </header>
+
+      <div className="min-h-0 flex-1">
+        {previewResource ? (
+          <SelectedFilePreview
+            resource={previewResource}
+            workspaceId={workspaceId}
+            onBack={closePreview}
+          />
+        ) : (
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="shrink-0 px-3 pb-3 pt-3">
+              <Label className="sr-only" htmlFor={inputId}>
+                Search workspace files
+              </Label>
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id={inputId}
+                  className="h-9 bg-background pl-9 text-sm"
+                  value={query}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search workspace files"
+                />
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center justify-between gap-3 px-3 pb-2">
+              <span className="text-xs text-muted-foreground">
+                {selectableResources.length} files
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2"
+                  disabled={disabled || loading || allSelectableSelected}
+                  onClick={selectAllResources}
+                >
+                  Select all
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2"
+                  disabled={disabled || loading || noSelectableSelected}
+                  onClick={deselectAllResources}
+                >
+                  Reset
+                </Button>
+              </div>
+            </div>
+
+            <ScrollArea className="min-h-0 flex-1 px-3">
+              <div className="flex flex-col gap-2 pb-3">
+                {loading ? (
+                  <DataScopeLoading />
+                ) : error ? (
+                  <p className="rounded-xl border border-destructive/25 bg-destructive/5 px-3 py-3 text-sm text-destructive">
+                    {error}
+                  </p>
+                ) : filteredResources.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                    No usable workspace files match your search.
+                  </p>
+                ) : (
+                  paginatedResources.map((resource) => (
+                    <DataResourceRow
+                      key={resource.id}
+                      resource={resource}
+                      checked={
+                        (draftMode === "all" && resource.status === "ready") ||
+                        (draftMode !== "none" && draftIds.includes(resource.id))
+                      }
+                      disabled={false}
+                      onPreview={() => openPreview(resource.id)}
+                      onCheckedChange={(checked) =>
+                        toggleResource(resource.id, checked)
+                      }
+                    />
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+
+            {pageCount > 1 && !loading && !error && (
+              <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-3 py-2">
+                <span className="text-xs text-muted-foreground">
+                  Page {currentPage} of {pageCount}
+                </span>
+                <Pagination className="mx-0 w-auto">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        aria-disabled={currentPage === 1}
+                        tabIndex={currentPage === 1 ? -1 : undefined}
+                        className={cn(
+                          currentPage === 1 && "pointer-events-none opacity-50",
+                        )}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          if (currentPage > 1) setPage(currentPage - 1);
+                        }}
+                      />
+                    </PaginationItem>
+                    {pageItems.map((item, index) =>
+                      item === "ellipsis" ? (
+                        <PaginationItem key={`ellipsis-${index}`}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      ) : (
+                        <PaginationItem key={item}>
+                          <PaginationLink
+                            href="#"
+                            size="icon-sm"
+                            isActive={item === currentPage}
+                            aria-label={`Go to page ${item}`}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setPage(item);
+                            }}
+                          >
+                            {item}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ),
+                    )}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        aria-disabled={currentPage === pageCount}
+                        tabIndex={currentPage === pageCount ? -1 : undefined}
+                        className={cn(
+                          currentPage === pageCount &&
+                            "pointer-events-none opacity-50",
+                        )}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          if (currentPage < pageCount) setPage(currentPage + 1);
+                        }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (mobile) {
+    return (
+      <Sheet open={!isCollapsed} onOpenChange={(open) => setCollapsed(!open)}>
+        <SheetContent
+          side="bottom"
+          showCloseButton={false}
+          className="!h-[min(78dvh,640px)] !max-h-[calc(100dvh-4rem)] w-full gap-0 rounded-t-2xl border-border bg-card p-0 sm:max-w-none"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Chat files</SheetTitle>
+            <SheetDescription>
+              Select workspace files for this chat.
+            </SheetDescription>
+          </SheetHeader>
+          {panel}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
     <aside
       className={cn("pointer-events-none absolute inset-0 z-30", className)}
       aria-label="Chat data scope"
     >
-      <div
-        className={cn(
-          "pointer-events-auto absolute right-4 top-4 bottom-4 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-[width,opacity] duration-150 ease-out max-lg:right-3",
-          previewResource
-            ? "w-[min(640px,52vw)] max-lg:w-[min(92vw,640px)]"
-            : "w-[min(420px,34vw)] max-lg:w-[min(92vw,420px)]",
-          isCollapsed ? "pointer-events-none opacity-0" : "opacity-100",
-        )}
-        aria-hidden={isCollapsed}
-        inert={isCollapsed}
-      >
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-4">
-          <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2">
-              <h2 className="truncate text-sm font-semibold text-foreground">
-                Chat files
-              </h2>
-            </div>
-          </div>
-          {onRefresh && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="ml-auto h-8 shrink-0 gap-1.5 px-2"
-              aria-label="Refresh workspace files"
-              disabled={disabled || loading}
-              onClick={onRefresh}
-            >
-              <RefreshCwIcon />
-              Refresh
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Collapse chat data sidebar"
-            title="Collapse chat data sidebar"
-            onClick={() => setCollapsed(true)}
-          >
-            <PanelRightCloseIcon />
-          </Button>
-        </header>
-
-        <div className="min-h-0 flex-1">
-          {previewResource ? (
-            <SelectedFilePreview
-              resource={previewResource}
-              workspaceId={workspaceId}
-              onBack={closePreview}
-            />
-          ) : (
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="shrink-0 px-3 pb-3 pt-3">
-                <Label className="sr-only" htmlFor={inputId}>
-                  Search workspace files
-                </Label>
-                <div className="relative">
-                  <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id={inputId}
-                    className="h-9 bg-background pl-9 text-sm"
-                    value={query}
-                    onChange={(event) => {
-                      setQuery(event.target.value);
-                      setPage(1);
-                    }}
-                    placeholder="Search workspace files"
-                  />
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center justify-between gap-3 px-3 pb-2">
-                <span className="text-xs text-muted-foreground">
-                  {selectableResources.length} files
-                </span>
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2"
-                    disabled={disabled || loading || allSelectableSelected}
-                    onClick={selectAllResources}
-                  >
-                    Select all
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2"
-                    disabled={disabled || loading || noSelectableSelected}
-                    onClick={deselectAllResources}
-                  >
-                    Reset
-                  </Button>
-                </div>
-              </div>
-
-              <ScrollArea className="min-h-0 flex-1 px-3">
-                <div className="flex flex-col gap-2 pb-3">
-                  {loading ? (
-                    <DataScopeLoading />
-                  ) : error ? (
-                    <p className="rounded-xl border border-destructive/25 bg-destructive/5 px-3 py-3 text-sm text-destructive">
-                      {error}
-                    </p>
-                  ) : filteredResources.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
-                      No usable workspace files match your search.
-                    </p>
-                  ) : (
-                    paginatedResources.map((resource) => (
-                      <DataResourceRow
-                        key={resource.id}
-                        resource={resource}
-                        checked={
-                          (draftMode === "all" &&
-                            resource.status === "ready") ||
-                          (draftMode !== "none" &&
-                            draftIds.includes(resource.id))
-                        }
-                        disabled={false}
-                        onPreview={() => openPreview(resource.id)}
-                        onCheckedChange={(checked) =>
-                          toggleResource(resource.id, checked)
-                        }
-                      />
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-
-              {pageCount > 1 && !loading && !error && (
-                <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-3 py-2">
-                  <span className="text-xs text-muted-foreground">
-                    Page {currentPage} of {pageCount}
-                  </span>
-                  <Pagination className="mx-0 w-auto">
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          href="#"
-                          aria-disabled={currentPage === 1}
-                          tabIndex={currentPage === 1 ? -1 : undefined}
-                          className={cn(
-                            currentPage === 1 &&
-                              "pointer-events-none opacity-50",
-                          )}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            if (currentPage > 1) setPage(currentPage - 1);
-                          }}
-                        />
-                      </PaginationItem>
-                      {pageItems.map((item, index) =>
-                        item === "ellipsis" ? (
-                          <PaginationItem key={`ellipsis-${index}`}>
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                        ) : (
-                          <PaginationItem key={item}>
-                            <PaginationLink
-                              href="#"
-                              size="icon-sm"
-                              isActive={item === currentPage}
-                              aria-label={`Go to page ${item}`}
-                              onClick={(event) => {
-                                event.preventDefault();
-                                setPage(item);
-                              }}
-                            >
-                              {item}
-                            </PaginationLink>
-                          </PaginationItem>
-                        ),
-                      )}
-                      <PaginationItem>
-                        <PaginationNext
-                          href="#"
-                          aria-disabled={currentPage === pageCount}
-                          tabIndex={currentPage === pageCount ? -1 : undefined}
-                          className={cn(
-                            currentPage === pageCount &&
-                              "pointer-events-none opacity-50",
-                          )}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            if (currentPage < pageCount)
-                              setPage(currentPage + 1);
-                          }}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div
-        className={cn(
-          "pointer-events-auto absolute right-3 top-1/2 flex w-12 -translate-y-1/2 flex-col items-center justify-between rounded-full border border-border/80 bg-card/95 py-3 backdrop-blur-sm transition-opacity duration-150 ease-out md:right-6",
-          isCollapsed ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-        aria-hidden={!isCollapsed}
-        inert={!isCollapsed}
-      >
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Expand chat data sidebar"
-          title="Expand chat data sidebar"
-          onClick={() => setCollapsed(false)}
-        >
-          <PanelRightOpenIcon />
-        </Button>
-      </div>
+      {panel}
     </aside>
   );
 }

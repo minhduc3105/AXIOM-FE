@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   ChevronDownIcon,
+  DatabaseIcon,
   FileIcon,
   PaperclipIcon,
   SendIcon,
@@ -48,6 +49,8 @@ export function ChatComposer({
   autoFocus = false,
   focusRequest = 0,
   onStop,
+  dataScope,
+  onDataScopeOpen,
 }: {
   onSubmit: (message: string, engine: ChatEngine, files: File[]) => void;
   engine: ChatEngine;
@@ -65,6 +68,7 @@ export function ChatComposer({
   dataResourcesError?: string | null;
   onDataScopeChange?: (scope: ChatDataScope) => void;
   onDataResourcesRefresh?: () => void;
+  onDataScopeOpen?: () => void;
 }) {
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -225,6 +229,20 @@ export function ChatComposer({
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+          {dataScope && onDataScopeOpen ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="size-10 shrink-0 rounded-full border-border bg-secondary !p-0 text-secondary-foreground shadow-none hover:bg-muted sm:w-auto sm:!px-3"
+              aria-label="Open chat files"
+              title="Open chat files"
+              disabled={disabled}
+              onClick={onDataScopeOpen}
+            >
+              <DatabaseIcon data-icon="inline-start" />
+              <span className="hidden sm:inline">Files</span>
+            </Button>
+          ) : null}
         </div>
         <Button
           className="size-10 shrink-0 rounded-full shadow-sm"

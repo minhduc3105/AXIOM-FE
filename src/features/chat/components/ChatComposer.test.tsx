@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { allChatDataScope } from "../model/chatDataScope";
 import { ChatComposer } from "./ChatComposer";
 
 describe("ChatComposer", () => {
@@ -58,5 +59,24 @@ describe("ChatComposer", () => {
     expect(
       screen.queryByRole("button", { name: /Select data scope/ }),
     ).toBeNull();
+  });
+
+  it("opens chat files from the composer action rail", async () => {
+    const actor = userEvent.setup();
+    const onDataScopeOpen = vi.fn();
+
+    render(
+      <ChatComposer
+        engine="auto"
+        onEngineChange={vi.fn()}
+        onSubmit={vi.fn()}
+        dataScope={allChatDataScope}
+        onDataScopeOpen={onDataScopeOpen}
+      />,
+    );
+
+    await actor.click(screen.getByRole("button", { name: "Open chat files" }));
+
+    expect(onDataScopeOpen).toHaveBeenCalledOnce();
   });
 });
