@@ -1,4 +1,9 @@
 import { getOrganizationFiles } from "@/features/data/api/dataApi";
+import { authFetch } from "@/features/auth/model/authFetch";
+import {
+  intelligenceApiError,
+  intelligenceApiUrl,
+} from "@/shared/lib/intelligence-api";
 import type { DataFile } from "@/features/data/model/types";
 import type { ChatDataResource } from "../model/chatDataScope";
 
@@ -10,6 +15,47 @@ const filesQuery = {
   sortBy: "last_modified" as const,
   sortOrder: "desc" as const,
 };
+
+export type ChatDataScopePreference = {
+  excludedResourceIds: string[];
+  updatedAt: string | null;
+};
+
+export async function getChatDataScopePreference(
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<ChatDataScopePreference> {
+  const requestSignal = signal ?? new AbortController().signal;
+  const response = await authFetch(
+    intelligenceApiUrl(
+      `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/chat-data-scope-preference`,
+    ),
+    { signal: requestSignal },
+  );
+  if (!response.ok) throw await intelligenceApiError(response);
+  return toChatDataScopePreference(await response.json());
+}
+
+export async function replaceChatDataScopePreference(
+  workspaceId: string,
+  excludedResourceIds: string[],
+  signal?: AbortSignal,
+): Promise<ChatDataScopePreference> {
+  const requestSignal = signal ?? new AbortController().signal;
+  const response = await authFetch(
+    intelligenceApiUrl(
+      `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/chat-data-scope-preference`,
+    ),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ excluded_resource_ids: excludedResourceIds }),
+      signal: requestSignal,
+    },
+  );
+  if (!response.ok) throw await intelligenceApiError(response);
+  return toChatDataScopePreference(await response.json());
+}
 
 export async function listChatDataResources(
   organizationId: string,
@@ -63,6 +109,22 @@ function toChatDataResource(file: DataFile): ChatDataResource {
       status,
     },
     status,
+  };
+}
+
+function toChatDataScopePreference(value: unknown): ChatDataScopePreference {
+  const payload =
+    typeof value === "object" && value !== null
+      ? (value as Record<string, unknown>)
+      : {};
+  return {
+    excludedResourceIds: Array.isArray(payload.excluded_resource_ids)
+      ? payload.excluded_resource_ids.filter(
+          (resourceId): resourceId is string => typeof resourceId === "string",
+        )
+      : [],
+    updatedAt:
+      typeof payload.updated_at === "string" ? payload.updated_at : null,
   };
 }
 

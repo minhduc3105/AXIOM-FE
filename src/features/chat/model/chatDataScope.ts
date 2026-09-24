@@ -88,6 +88,26 @@ export function createSelectedChatDataScope(
   };
 }
 
+export function createChatDataScopeFromExclusions(
+  resources: ChatDataResource[],
+  excludedResourceIds: Iterable<string>,
+): ChatDataScope {
+  const selectableResources = resources.filter(isSelectableChatDataResource);
+  const excludedIds = new Set(excludedResourceIds);
+  const selectedIds = selectableResources
+    .filter((resource) => !excludedIds.has(resource.id))
+    .map((resource) => resource.id);
+
+  if (selectedIds.length === 0) return noChatDataScope;
+  if (
+    selectedIds.length === selectableResources.length &&
+    selectableResources.every((resource) => resource.status === "ready")
+  ) {
+    return allChatDataScope;
+  }
+  return createSelectedChatDataScope(selectedIds, resources);
+}
+
 export function chatDataScopeLabel(scope: ChatDataScope) {
   if (scope.mode === "all") return "All workspace data";
   if (scope.mode === "none") return "No workspace files";

@@ -51,6 +51,7 @@ type ChatPageProps = {
   dataResources?: ChatDataResource[];
   dataResourcesLoading?: boolean;
   dataResourcesError?: string | null;
+  dataPreferenceError?: string | null;
   onDataScopeChange?: (scope: ChatDataScope) => void;
   onDataResourcesRefresh?: () => void;
 };
@@ -86,6 +87,7 @@ export function ChatPage({
   dataResources = [],
   dataResourcesLoading = false,
   dataResourcesError = null,
+  dataPreferenceError = null,
   onDataScopeChange,
   onDataResourcesRefresh,
 }: ChatPageProps) {
@@ -153,6 +155,7 @@ export function ChatPage({
         resources={dataResources}
         resourcesLoading={dataResourcesLoading}
         resourcesError={dataResourcesError}
+        preferenceError={dataPreferenceError}
         onScopeChange={onDataScopeChange}
         onResourcesRefresh={onDataResourcesRefresh}
         mobile={mobileViewport}
@@ -267,6 +270,7 @@ export function ChatPage({
           resources={dataResources}
           loading={dataResourcesLoading}
           error={dataResourcesError}
+          preferenceError={dataPreferenceError}
           disabled={loading}
           collapsed={scopeSidebarCollapsed}
           onCollapsedChange={setScopeSidebarCollapsed}
@@ -339,6 +343,7 @@ function EmptyChatWorkspace({
   resources,
   resourcesLoading,
   resourcesError,
+  preferenceError,
   onScopeChange,
   onResourcesRefresh,
   mobile,
@@ -359,6 +364,7 @@ function EmptyChatWorkspace({
   resources: ChatDataResource[];
   resourcesLoading: boolean;
   resourcesError: string | null;
+  preferenceError: string | null;
   onScopeChange?: (scope: ChatDataScope) => void;
   onResourcesRefresh?: () => void;
   mobile: boolean;
@@ -406,6 +412,7 @@ function EmptyChatWorkspace({
         resources={resources}
         loading={resourcesLoading}
         error={resourcesError}
+        preferenceError={preferenceError}
         disabled={loading}
         collapsed={sidebarCollapsed}
         onCollapsedChange={onSidebarCollapsedChange}
@@ -427,6 +434,7 @@ function ChatDataScopeSidebar({
   onPreviewChange,
   loading,
   error,
+  preferenceError,
   disabled,
   onChange,
   onRefresh,
@@ -440,6 +448,7 @@ function ChatDataScopeSidebar({
   onPreviewChange: (previewOpen: boolean) => void;
   loading: boolean;
   error: string | null;
+  preferenceError: string | null;
   disabled: boolean;
   onChange?: (scope: ChatDataScope) => void;
   onRefresh?: () => void;
@@ -454,6 +463,7 @@ function ChatDataScopeSidebar({
       resources={resources}
       loading={loading}
       error={error}
+      preferenceError={preferenceError}
       disabled={disabled}
       collapsed={collapsed}
       onCollapsedChange={onCollapsedChange}

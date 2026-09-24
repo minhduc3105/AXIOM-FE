@@ -55,6 +55,7 @@ type ChatDataScopeSelectorProps = {
   workspaceId?: string;
   loading?: boolean;
   error?: string | null;
+  preferenceError?: string | null;
   disabled?: boolean;
   className?: string;
   mobile?: boolean;
@@ -71,6 +72,7 @@ export function ChatDataScopeSelector({
   workspaceId = "",
   loading = false,
   error = null,
+  preferenceError = null,
   disabled = false,
   className,
   mobile = false,
@@ -126,14 +128,17 @@ export function ChatDataScopeSelector({
   const isCollapsed = collapsed ?? internalCollapsed;
   const allSelectableSelected =
     selectableResources.length > 0 &&
-    ((draftMode === "all" &&
-      selectableResources.every((resource) => resource.status === "ready")) ||
+    (draftMode === "all" ||
       selectableResources.every((resource) => draftIds.includes(resource.id)));
-  const noSelectableSelected = draftMode === "none";
 
   useEffect(() => {
     setPage((currentPageValue) => Math.min(currentPageValue, pageCount));
   }, [pageCount]);
+
+  useEffect(() => {
+    setDraftMode(scope.mode);
+    setDraftIds(scope.resourceIds);
+  }, [scope.mode, scope.resourceIds]);
 
   const setCollapsed = (nextCollapsed: boolean) => {
     if (collapsed === undefined) setInternalCollapsed(nextCollapsed);
@@ -151,17 +156,14 @@ export function ChatDataScopeSelector({
   };
 
   const toggleResource = (resourceId: string, checked: boolean) => {
-    const readyIds = selectableResources
-      .filter((resource) => resource.status === "ready")
-      .map((resource) => resource.id);
-    const currentIds = draftMode === "all" ? readyIds : draftIds;
+    const selectableIds = selectableResources.map((resource) => resource.id);
+    const currentIds = draftMode === "all" ? selectableIds : draftIds;
     const nextIds = checked
       ? [...new Set([...currentIds, resourceId])]
       : currentIds.filter((id) => id !== resourceId);
     const nextIsAll =
-      readyIds.length === selectableResources.length &&
-      nextIds.length === readyIds.length &&
-      readyIds.every((id) => nextIds.includes(id));
+      nextIds.length === selectableIds.length &&
+      selectableIds.every((id) => nextIds.includes(id));
     const nextScope = nextIsAll
       ? allChatDataScope
       : nextIds.length === 0
@@ -193,11 +195,14 @@ export function ChatDataScopeSelector({
     onChange(allChatDataScope);
   };
 
-  const deselectAllResources = () => {
-    if (noSelectableSelected) return;
-    setDraftMode("none");
-    setDraftIds([]);
-    onChange(noChatDataScope);
+  const toggleAllResources = () => {
+    if (allSelectableSelected) {
+      setDraftMode("none");
+      setDraftIds([]);
+      onChange(noChatDataScope);
+      return;
+    }
+    selectAllResources();
   };
 
   const panel = (
@@ -285,29 +290,31 @@ export function ChatDataScopeSelector({
               <span className="text-xs text-muted-foreground">
                 {selectableResources.length} files
               </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2"
-                  disabled={disabled || loading || allSelectableSelected}
-                  onClick={selectAllResources}
-                >
-                  Select all
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2"
-                  disabled={disabled || loading || noSelectableSelected}
-                  onClick={deselectAllResources}
-                >
-                  Reset
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                aria-label={
+                  allSelectableSelected ? "Clear selection" : "Select all"
+                }
+                disabled={
+                  disabled || loading || selectableResources.length === 0
+                }
+                onClick={toggleAllResources}
+              >
+                {allSelectableSelected ? "Clear selection" : "Select all"}
+              </Button>
             </div>
+
+            {preferenceError && (
+              <p
+                className="mx-3 mb-2 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-300"
+                role="alert"
+              >
+                {preferenceError}
+              </p>
+            )}
 
             <ScrollArea className="min-h-0 flex-1 px-3">
               <div className="flex flex-col gap-2 pb-3">
@@ -327,7 +334,7 @@ export function ChatDataScopeSelector({
                       key={resource.id}
                       resource={resource}
                       checked={
-                        (draftMode === "all" && resource.status === "ready") ||
+                        draftMode === "all" ||
                         (draftMode !== "none" && draftIds.includes(resource.id))
                       }
                       disabled={false}

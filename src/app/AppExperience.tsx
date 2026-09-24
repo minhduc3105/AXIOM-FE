@@ -137,6 +137,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const dataWorkspace = useDataWorkspace();
   const ingestion = useGlobalIngestion();
   const chatDataScope = useChatDataScope(
+    auth.user?.id ?? "",
     auth.user?.organization_id ?? "",
     dataWorkspace.selectedWorkspace?.id ?? "",
   );
@@ -561,6 +562,7 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
             dataResources={chatDataScope.resources}
             dataResourcesLoading={chatDataScope.loading}
             dataResourcesError={chatDataScope.error}
+            dataPreferenceError={chatDataScope.preferenceError}
             onDataScopeChange={chatDataScope.changeScope}
             onDataResourcesRefresh={chatDataScope.refresh}
           />

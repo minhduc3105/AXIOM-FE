@@ -178,7 +178,7 @@ export async function listConversationMessagesPage(
   return (await response.json()) as MessageListResponse;
 }
 
-async function intelligenceApiError(response: Response) {
+export async function intelligenceApiError(response: Response) {
   const fallback = `AXIOM returned ${response.status}.`;
   try {
     const text = await response.text();

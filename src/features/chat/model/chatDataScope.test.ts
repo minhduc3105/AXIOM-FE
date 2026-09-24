@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createChatDataScopeFromExclusions,
   createSelectedChatDataScope,
   type ChatDataResource,
 } from "./chatDataScope";
@@ -49,6 +50,42 @@ const resources: ChatDataResource[] = [
 ];
 
 describe("chat data scope", () => {
+  it("derives a scope from exclusions without depending on pagination", () => {
+    const scope = createChatDataScopeFromExclusions(resources, [
+      "ready-file",
+      "stale-file",
+    ]);
+
+    expect(scope).toMatchObject({
+      mode: "selected",
+      resourceIds: ["processing-file", "failed-file"],
+    });
+  });
+
+  it("selects new resources and preserves the all state when everything is ready", () => {
+    const readyResources = [
+      ...resources.filter((resource) => resource.status === "ready"),
+      {
+        ...resources[0],
+        id: "new-ready-file",
+        name: "New ready file.pdf",
+      },
+    ];
+
+    expect(createChatDataScopeFromExclusions(readyResources, []).mode).toBe(
+      "all",
+    );
+    expect(
+      createChatDataScopeFromExclusions(readyResources, ["ready-file"]).mode,
+    ).toBe("selected");
+    expect(
+      createChatDataScopeFromExclusions(
+        readyResources,
+        readyResources.map((resource) => resource.id),
+      ),
+    ).toMatchObject({ mode: "none", resourceIds: [] });
+  });
+
   it("keeps processing and failed file refs in a selected scope", () => {
     const scope = createSelectedChatDataScope(
       ["processing-file", "failed-file"],

@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   allChatDataScope,
+  createSelectedChatDataScope,
   noChatDataScope,
   type ChatDataResource,
 } from "../model/chatDataScope";
@@ -86,36 +87,30 @@ describe("ChatDataScopeSelector", () => {
     expect(
       screen.getByRole("checkbox", { name: /^Select Failed upload/ }),
     ).toBeTruthy();
-    expect(onChange).toHaveBeenCalledWith({
-      mode: "selected",
-      resourceIds: ["dataset:revenue-q3"],
-      resourceNames: ["Q3 Revenue.xlsx"],
-    });
+    expect(onChange).toHaveBeenCalledWith(
+      createSelectedChatDataScope(
+        ["dataset:revenue-q3", "dataset:indexing", "dataset:failed"],
+        resources,
+      ),
+    );
   });
 
-  it("resets and restores the complete-file selection", async () => {
+  it("toggles between selecting and clearing every resource", async () => {
     const actor = userEvent.setup();
     const onChange = vi.fn();
+    const initialScope = createSelectedChatDataScope(
+      ["datasource:stripe-payments"],
+      resources,
+    );
     render(
       <ChatDataScopeSelector
-        scope={allChatDataScope}
+        scope={initialScope}
         resources={resources}
         onChange={onChange}
       />,
     );
 
-    await actor.click(screen.getByRole("button", { name: "Reset" }));
-    expect(onChange).toHaveBeenLastCalledWith(noChatDataScope);
-    expect(
-      screen
-        .getByRole("checkbox", { name: "Select Q3 Revenue.xlsx" })
-        .getAttribute("aria-checked"),
-    ).toBe("false");
-    expect(
-      screen
-        .getByRole("checkbox", { name: "Select Stripe payments" })
-        .getAttribute("aria-checked"),
-    ).toBe("false");
+    expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy();
 
     await actor.click(screen.getByRole("button", { name: "Select all" }));
     expect(onChange).toHaveBeenLastCalledWith(
@@ -130,15 +125,97 @@ describe("ChatDataScopeSelector", () => {
       }),
     );
     expect(
+      screen.getByRole("button", { name: "Clear selection" }),
+    ).toBeTruthy();
+    expect(
       screen
         .getByRole("checkbox", { name: "Select Q3 Revenue.xlsx" })
         .getAttribute("aria-checked"),
     ).toBe("true");
     expect(
       screen
-        .getByRole("checkbox", { name: "Select Market research 2026" })
+        .getByRole("checkbox", { name: "Select Stripe payments" })
         .getAttribute("aria-checked"),
     ).toBe("true");
+
+    await actor.click(screen.getByRole("button", { name: "Clear selection" }));
+    expect(onChange).toHaveBeenLastCalledWith(noChatDataScope);
+    expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy();
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Select Q3 Revenue.xlsx" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Select Stripe payments" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+  });
+
+  it("keeps checkbox state when moving between paginated pages", async () => {
+    const actor = userEvent.setup();
+    const onChange = vi.fn();
+    const paginatedResources = Array.from({ length: 9 }, (_, index) => ({
+      ...resources[0],
+      id: `file-${index + 1}`,
+      name: `File ${index + 1}.pdf`,
+    }));
+    render(
+      <ChatDataScopeSelector
+        scope={allChatDataScope}
+        resources={paginatedResources}
+        onChange={onChange}
+      />,
+    );
+
+    await actor.click(
+      screen.getByRole("checkbox", { name: "Select File 1.pdf" }),
+    );
+    await actor.click(screen.getByRole("button", { name: "Go to page 2" }));
+    expect(
+      screen.getByRole("checkbox", { name: "Select File 9.pdf" }),
+    ).toBeTruthy();
+    await actor.click(screen.getByRole("button", { name: "Go to page 1" }));
+
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Select File 1.pdf" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+  });
+
+  it("selects all resources outside the current page", async () => {
+    const actor = userEvent.setup();
+    const onChange = vi.fn();
+    const paginatedResources = Array.from({ length: 9 }, (_, index) => ({
+      ...resources[0],
+      id: `file-${index + 1}`,
+      name: `File ${index + 1}.pdf`,
+    }));
+    render(
+      <ChatDataScopeSelector
+        scope={createSelectedChatDataScope(["file-1"], paginatedResources)}
+        resources={paginatedResources}
+        onChange={onChange}
+      />,
+    );
+
+    await actor.click(screen.getByRole("button", { name: "Select all" }));
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        mode: "all",
+        resourceIds: [],
+      }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Clear selection" }),
+    ).toBeTruthy();
+
+    await actor.click(screen.getByRole("button", { name: "Clear selection" }));
+    expect(onChange).toHaveBeenLastCalledWith(noChatDataScope);
+    expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy();
   });
 
   it("refreshes workspace files from the sidebar", async () => {
