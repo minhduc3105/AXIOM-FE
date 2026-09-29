@@ -11,6 +11,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
@@ -77,14 +79,14 @@ function statusLabel(status: ConsumerRole["status"]) {
   return status === "assigned" ? "Configured" : "Unavailable";
 }
 
-function statusClass(status: ConsumerRole["status"]) {
-  if (status === "assigned") {
-    return "border-success/30 bg-success/10 text-success";
-  }
+function statusVariant(
+  status: ConsumerRole["status"],
+): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "assigned") return "secondary";
   if (status === "unavailable" || status === "conflict") {
-    return "border-destructive/25 bg-destructive/10 text-destructive";
+    return "destructive";
   }
-  return "border-border bg-muted/70 text-muted-foreground";
+  return "outline";
 }
 
 function fallbackRole(role: ModelRole): ConsumerRole {
@@ -233,7 +235,7 @@ export function ConsumerModelProfiles({
   );
 
   return (
-    <div className="bg-card">
+    <div>
       <header className="border-b px-4 py-5 sm:px-5">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-2xl">
@@ -296,20 +298,21 @@ export function ConsumerModelProfiles({
       </header>
 
       {updating && (
-        <div className="flex items-center gap-2 border-b bg-primary/5 px-4 py-2.5 text-xs text-muted-foreground sm:px-5">
-          <LoaderCircleIcon className="size-3.5 animate-spin" />
-          Refreshing the latest organization profile…
-        </div>
+        <Alert className="rounded-none border-x-0 border-t-0 px-4 py-2.5 sm:px-5">
+          <LoaderCircleIcon className="animate-spin" />
+          <AlertDescription>
+            Refreshing the latest organization profile…
+          </AlertDescription>
+        </Alert>
       )}
       {conflict && (
-        <div
-          role="alert"
-          className="flex gap-2 border-b border-warning/30 bg-warning/10 px-4 py-3 text-xs text-warning sm:px-5"
-        >
-          <CircleAlertIcon className="size-4 shrink-0" />
-          This profile changed while you were editing. Review the latest
-          revision and save again.
-        </div>
+        <Alert className="rounded-none border-x-0 border-t-0 px-4 py-3 sm:px-5">
+          <CircleAlertIcon />
+          <AlertDescription>
+            This profile changed while you were editing. Review the latest
+            revision and save again.
+          </AlertDescription>
+        </Alert>
       )}
 
       {initialLoading ? (
@@ -338,18 +341,23 @@ export function ConsumerModelProfiles({
               <Card
                 key={consumer.id}
                 aria-labelledby={`consumer-profile-${consumer.id}`}
-                className="rounded-xl border shadow-sm"
+                className="border shadow-none"
               >
                 <CardHeader className="flex items-center justify-between gap-3 border-b px-4 py-4 sm:px-5">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary">
-                      {consumer.label.slice(0, 2).toUpperCase()}
-                    </div>
+                    <Avatar size="lg" className="rounded-xl after:rounded-xl">
+                      <AvatarFallback className="rounded-xl bg-primary/10 font-bold text-primary">
+                        {consumer.label.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="min-w-0">
-                      <CardTitle className="truncate text-sm font-semibold">
-                        <h3 id={`consumer-profile-${consumer.id}`}>
-                          {profile.display_name || consumer.label}
-                        </h3>
+                      <CardTitle
+                        id={`consumer-profile-${consumer.id}`}
+                        role="heading"
+                        aria-level={3}
+                        className="truncate text-sm font-semibold"
+                      >
+                        {profile.display_name || consumer.label}
                       </CardTitle>
                       <CardDescription className="mt-0.5 truncate font-mono text-[11px]">
                         {consumer.id}
@@ -358,19 +366,13 @@ export function ConsumerModelProfiles({
                   </div>
                   <CardAction className="shrink-0">
                     <Badge
-                      variant="outline"
-                      className={cn(
-                        "gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium",
-                        configured === used.length
-                          ? statusClass("assigned")
-                          : statusClass("unconfigured"),
-                      )}
+                      variant={
+                        configured === used.length ? "secondary" : "outline"
+                      }
+                      className="gap-1.5"
                     >
                       {configured === used.length && (
-                        <CircleCheckIcon
-                          data-icon="inline-start"
-                          className="size-3"
-                        />
+                        <CircleCheckIcon data-icon="inline-start" />
                       )}
                       {configured}/{used.length} ready
                     </Badge>
@@ -395,9 +397,13 @@ export function ConsumerModelProfiles({
         </div>
       )}
       {error && profiles.length > 0 && (
-        <div className="border-t bg-destructive/5 px-4 py-3 text-xs text-destructive sm:px-5">
-          {error.message}
-        </div>
+        <Alert
+          variant="destructive"
+          className="rounded-none border-x-0 border-b-0 px-4 py-3 sm:px-5"
+        >
+          <CircleAlertIcon />
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
       )}
     </div>
   );
@@ -499,15 +505,8 @@ function RoleRow({
   const canSelect = canManage && role.status !== "not_used";
 
   return (
-    <div
-      className={cn(
-        "min-w-0 rounded-xl border p-3 transition-colors",
-        role.status === "assigned"
-          ? "border-primary/20 bg-primary/[0.025]"
-          : "border-border/70 bg-muted/[0.18]",
-      )}
-    >
-      <div className="flex items-start gap-2.5">
+    <Card size="sm" className="min-w-0 gap-0 border p-3 shadow-none">
+      <CardHeader className="flex items-start gap-2.5 p-0">
         <span
           className={cn(
             "flex size-8 shrink-0 items-center justify-center rounded-lg",
@@ -517,21 +516,13 @@ function RoleRow({
           <Icon className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold">
-              {modelRoleLabels[role.role]}
-            </p>
-            <Badge
-              variant="outline"
-              className={cn(
-                "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
-                statusClass(role.status),
-              )}
-            >
+          <CardTitle className="flex items-center justify-between gap-2">
+            <span className="truncate">{modelRoleLabels[role.role]}</span>
+            <Badge variant={statusVariant(role.status)} className="shrink-0">
               {statusLabel(role.status)}
             </Badge>
-          </div>
-          <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+          </CardTitle>
+          <CardDescription className="mt-0.5 truncate text-[10px]">
             {role.inherited
               ? "Inherited from System"
               : role.required
@@ -539,104 +530,111 @@ function RoleRow({
                 : role.used
                   ? "Optional"
                   : meta.description}
-          </p>
+          </CardDescription>
         </div>
-      </div>
+      </CardHeader>
 
-      {role.status === "not_used" ? (
-        <p className="mt-3 rounded-lg border border-dashed px-2.5 py-2 text-[11px] text-muted-foreground">
-          Not used by this consumer
-        </p>
-      ) : canSelect ? (
-        <div className="mt-3">
-          {selected &&
-            (role.status === "unavailable" || role.status === "conflict") && (
-              <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-dashed bg-background/60 px-2.5 py-2 text-[10px]">
-                <span className="shrink-0 font-semibold uppercase tracking-wide text-muted-foreground">
-                  Current
-                </span>
-                <span className="truncate font-mono text-foreground">
-                  {selected}
-                </span>
-              </div>
-            )}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  id={`${consumerId}-${role.role}-model`}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={`${modelRoleLabels[role.role]} model`}
-                  disabled={!candidates.length}
-                  className="h-9 w-full justify-between bg-background text-xs"
-                >
-                  <span className="min-w-0 truncate">
-                    {selectedOption
-                      ? `${selectedOption.provider.id} / ${selectedOption.model.model_id}`
-                      : "Choose an active model"}
-                  </span>
-                  <ChevronDownIcon data-icon="inline-end" />
-                </Button>
-              }
-            />
-            <DropdownMenuContent
-              align="start"
-              className="max-w-[calc(100vw-2rem)]"
-            >
-              <DropdownMenuRadioGroup
-                value={selected}
-                onValueChange={(value) => {
-                  const [providerId, ...modelParts] = value.split("/");
-                  if (providerId && modelParts.length) {
-                    onChoose(
-                      consumerId,
-                      role.role,
-                      providerId,
-                      modelParts.join("/"),
-                    );
-                  }
-                }}
-              >
-                {candidates.map((option) => {
-                  const value = `${option.provider.id}/${option.model.model_id}`;
-                  return (
-                    <DropdownMenuRadioItem key={value} value={value}>
-                      {option.provider.id} / {option.model.model_id}
-                    </DropdownMenuRadioItem>
-                  );
-                })}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {!candidates.length && (
-            <button
-              type="button"
-              className="mt-2 text-[11px] font-medium text-primary underline-offset-2 hover:underline"
-              onClick={() => onAddModel(role.role)}
-            >
-              Add an eligible model
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="mt-3 min-w-0 rounded-lg border bg-background/70 px-2.5 py-2">
-          <p className="truncate font-mono text-[10px] text-foreground">
-            {selected || "No model assigned"}
+      <CardContent className="p-0">
+        {role.status === "not_used" ? (
+          <p className="mt-3 rounded-lg border border-dashed px-2.5 py-2 text-[11px] text-muted-foreground">
+            Not used by this consumer
           </p>
-        </div>
-      )}
-      {role.reason && (
-        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-          {role.reason}
-        </p>
-      )}
-      {role.warning && (
-        <p className="mt-2 rounded-lg border border-warning/30 bg-warning/10 px-2.5 py-2 text-[10px] leading-4 text-warning">
-          {role.warning}
-        </p>
-      )}
-    </div>
+        ) : canSelect ? (
+          <div className="mt-3">
+            {selected &&
+              (role.status === "unavailable" || role.status === "conflict") && (
+                <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-dashed bg-background/60 px-2.5 py-2 text-[10px]">
+                  <span className="shrink-0 font-semibold uppercase tracking-wide text-muted-foreground">
+                    Current
+                  </span>
+                  <span className="truncate font-mono text-foreground">
+                    {selected}
+                  </span>
+                </div>
+              )}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    id={`${consumerId}-${role.role}-model`}
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    aria-label={`${modelRoleLabels[role.role]} model`}
+                    disabled={!candidates.length}
+                    className="w-full justify-between"
+                  >
+                    <span className="min-w-0 truncate">
+                      {selectedOption
+                        ? `${selectedOption.provider.id} / ${selectedOption.model.model_id}`
+                        : "Choose an active model"}
+                    </span>
+                    <ChevronDownIcon data-icon="inline-end" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent
+                align="start"
+                className="max-w-[calc(100vw-2rem)]"
+              >
+                <DropdownMenuGroup>
+                  <DropdownMenuRadioGroup
+                    value={selected}
+                    onValueChange={(value) => {
+                      const [providerId, ...modelParts] = value.split("/");
+                      if (providerId && modelParts.length) {
+                        onChoose(
+                          consumerId,
+                          role.role,
+                          providerId,
+                          modelParts.join("/"),
+                        );
+                      }
+                    }}
+                  >
+                    {candidates.map((option) => {
+                      const value = `${option.provider.id}/${option.model.model_id}`;
+                      return (
+                        <DropdownMenuRadioItem key={value} value={value}>
+                          {option.provider.id} / {option.model.model_id}
+                        </DropdownMenuRadioItem>
+                      );
+                    })}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {!candidates.length && (
+              <Button
+                type="button"
+                variant="link"
+                size="xs"
+                className="mt-2 px-0"
+                onClick={() => onAddModel(role.role)}
+              >
+                Add an eligible model
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="mt-3 min-w-0 rounded-lg border bg-background/70 px-2.5 py-2">
+            <p className="truncate font-mono text-[10px] text-foreground">
+              {selected || "No model assigned"}
+            </p>
+          </div>
+        )}
+        {role.reason && (
+          <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+            {role.reason}
+          </p>
+        )}
+        {role.warning && (
+          <Alert className="mt-2 px-2.5 py-2">
+            <CircleAlertIcon />
+            <AlertDescription>{role.warning}</AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
   );
 }

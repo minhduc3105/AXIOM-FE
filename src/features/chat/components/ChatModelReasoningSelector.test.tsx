@@ -96,10 +96,10 @@ describe("ChatModelReasoningSelector", () => {
     const selectedModelItem = await screen.findByRole("menuitem", {
       name: /qwen\/qwen3\.7-flash/,
     });
-    expect(selectedModelItem.className).toContain("hover:!bg-accent");
-    expect(selectedModelItem.className).toContain("focus:bg-transparent");
-    expect(selectedModelItem.className).not.toContain("focus:bg-accent");
-    expect(selectedModelItem.className).toContain("focus-visible:bg-accent");
+    expect(selectedModelItem.getAttribute("data-highlighted")).toBeNull();
+
+    await actor.hover(selectedModelItem);
+    expect(selectedModelItem.getAttribute("data-highlighted")).toBe("");
   });
 
   it("selects a model using keyboard menu navigation", async () => {

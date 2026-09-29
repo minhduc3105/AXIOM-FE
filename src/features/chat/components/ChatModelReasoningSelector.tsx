@@ -142,59 +142,48 @@ export function ChatModelReasoningSelector({
     const isSelected = model.alias === selectedModel?.alias;
 
     return (
-      <DropdownMenuItem
-        key={model.id}
-        className="group/model-item min-h-10 cursor-pointer gap-2 py-1.5 pr-1.5 hover:!bg-accent focus:bg-transparent focus-visible:bg-accent"
-        onClick={() => selectModel(model.alias)}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="block truncate">{model.label}</span>
-          {showProvider && providerLabel && (
-            <span className="block truncate text-[11px] text-muted-foreground">
-              {providerLabel}
-            </span>
-          )}
-        </span>
-        {isSelected && (
-          <CheckIcon
-            className="size-4 shrink-0 text-foreground"
-            aria-hidden="true"
-          />
-        )}
-        <button
+      <div key={model.id} className="flex min-w-0 items-center gap-1">
+        <DropdownMenuItem
+          className="min-h-10 min-w-0 flex-1 gap-2 py-1.5 pr-1.5"
+          onClick={() => selectModel(model.alias)}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block truncate">{model.label}</span>
+            {showProvider && providerLabel && (
+              <span className="block truncate text-[11px] text-muted-foreground">
+                {providerLabel}
+              </span>
+            )}
+          </span>
+          {isSelected && <CheckIcon aria-hidden="true" />}
+        </DropdownMenuItem>
+        <Button
           type="button"
-          className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+          variant="ghost"
+          size="icon-xs"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
           aria-label={`${isFavorite ? "Unpin" : "Pin"} ${model.label}`}
+          aria-pressed={isFavorite}
           title={isFavorite ? "Remove from favorites" : "Pin to favorites"}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            toggleFavorite(model.alias);
-          }}
+          onClick={() => toggleFavorite(model.alias)}
         >
           <StarIcon
-            className="size-4"
             fill={isFavorite ? "currentColor" : "none"}
             aria-hidden="true"
           />
-        </button>
-      </DropdownMenuItem>
+        </Button>
+      </div>
     );
   };
 
   return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={setOpen}
-      highlightItemOnHover={false}
-    >
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         render={
           <Button
             type="button"
             variant="ghost"
-            className="h-9 max-w-[240px] min-w-0 cursor-pointer justify-start gap-1.5 px-2 text-sm font-medium text-foreground hover:bg-muted/70 sm:max-w-[280px]"
+            className="h-9 max-w-[240px] min-w-0 justify-start gap-1.5 px-2 sm:max-w-[280px]"
             aria-label={accessibleLabel}
             title={`${modelLabel} · ${executionModeLabel}`}
           />
@@ -204,7 +193,7 @@ export function ChatModelReasoningSelector({
         <span className="shrink-0 text-muted-foreground" aria-hidden="true">
           · {executionModeLabel}
         </span>
-        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
+        <ChevronDownIcon data-icon="inline-end" />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
@@ -214,12 +203,8 @@ export function ChatModelReasoningSelector({
           <DropdownMenuLabel>Model</DropdownMenuLabel>
           {favoriteModels.length > 0 && (
             <>
-              <DropdownMenuLabel className="flex items-center gap-1.5 pt-2 text-foreground">
-                <StarIcon
-                  className="size-3.5"
-                  fill="currentColor"
-                  aria-hidden="true"
-                />
+              <DropdownMenuLabel className="flex items-center gap-1.5 pt-2 [&>svg]:size-3.5">
+                <StarIcon fill="currentColor" aria-hidden="true" />
                 Favorites
               </DropdownMenuLabel>
               {favoriteModels.map((model) =>
@@ -228,22 +213,20 @@ export function ChatModelReasoningSelector({
               {providerGroups.length > 0 && <DropdownMenuSeparator />}
             </>
           )}
-          <div aria-label="Model">
-            {models.length > 0 ? (
-              providerGroups.map((group) => (
-                <div key={group.id} className="mt-1 first:mt-0">
-                  <DropdownMenuLabel className="border-b border-border/70 px-1.5 pb-1 pt-2 text-[11px] uppercase tracking-[0.08em]">
-                    {group.label}
-                  </DropdownMenuLabel>
-                  {group.models.map((model) => renderModelItem(model))}
-                </div>
-              ))
-            ) : (
-              <p className="px-1.5 py-2 text-sm text-muted-foreground">
-                No models available
-              </p>
-            )}
-          </div>
+          {models.length > 0 ? (
+            providerGroups.map((group) => (
+              <DropdownMenuGroup key={group.id} className="mt-1 first:mt-0">
+                <DropdownMenuLabel className="pt-2">
+                  {group.label}
+                </DropdownMenuLabel>
+                {group.models.map((model) => renderModelItem(model))}
+              </DropdownMenuGroup>
+            ))
+          ) : (
+            <p className="px-1.5 py-2 text-sm text-muted-foreground">
+              No models available
+            </p>
+          )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
@@ -258,9 +241,9 @@ export function ChatModelReasoningSelector({
           >
             {executionModeOptions.map((option) => (
               <DropdownMenuRadioItem
-                className="cursor-pointer items-start py-2 pr-8"
                 key={option.value}
                 value={option.value}
+                className="items-start py-2 pr-8"
               >
                 <span className="flex min-w-0 flex-col">
                   <span>{option.label}</span>
