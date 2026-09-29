@@ -1,5 +1,6 @@
 import {
   BracesIcon,
+  BookOpenIcon,
   DatabaseIcon,
   HardDriveDownloadIcon,
   WrenchIcon,
@@ -12,6 +13,7 @@ const icons = {
   database_method: DatabaseIcon,
   datalake_action: HardDriveDownloadIcon,
   utility_method: BracesIcon,
+  skill_registry_tool: BookOpenIcon,
 };
 
 export function ToolKindIcon({
@@ -21,7 +23,7 @@ export function ToolKindIcon({
   kind: ToolKind;
   className?: string;
 }) {
-  const ToolIcon = icons[kind];
+  const ToolIcon = icons[kind] ?? WrenchIcon;
   return (
     <span
       className={cn(

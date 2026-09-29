@@ -449,6 +449,88 @@ describe("ChatPage", () => {
     expect(dock?.className).not.toContain("border-t");
   });
 
+  it("sends the remember request from a current or historical answer", async () => {
+    const actor = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <ChatPage
+        {...chatPageProps({
+          stage: "result",
+          loading: false,
+          workspaceId: "workspace-1",
+          onSubmit,
+          result: {
+            title: "Answer",
+            summary: "",
+            markdown: "Current response",
+            metrics: [],
+            flags: [],
+            evidence: [],
+            artifacts: [],
+          },
+          processEvents: [
+            {
+              id: "current-tool",
+              label: "Review report",
+              detail: "Reviewed the report",
+              status: "done",
+              phase: "tool",
+            },
+          ],
+          history: [
+            {
+              executionMode: "instant",
+              investigation,
+              result: {
+                title: "Previous answer",
+                summary: "",
+                markdown: "Historical response",
+                metrics: [],
+                flags: [],
+                evidence: [],
+                artifacts: [],
+              },
+              error: null,
+              processEvents: [
+                {
+                  id: "history-tool",
+                  label: "Review older report",
+                  detail: "Reviewed an older report",
+                  status: "done",
+                  phase: "tool",
+                },
+              ],
+            },
+          ],
+        })}
+      />,
+    );
+
+    const rememberButtons = screen.getAllByRole("button", {
+      name: "Remember this",
+    });
+    expect(rememberButtons).toHaveLength(2);
+
+    await actor.click(rememberButtons[0]);
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Remember how you answered this, so you can reuse it when I ask this again.",
+      "auto",
+      [],
+      "Historical response",
+    );
+    await actor.click(rememberButtons[1]);
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+    expect(onSubmit).toHaveBeenNthCalledWith(
+      2,
+      "Remember how you answered this, so you can reuse it when I ask this again.",
+      "auto",
+      [],
+      "Current response",
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("renders a historical failure without offering retry", () => {
     render(
       <ChatPage

@@ -73,6 +73,39 @@ describe("createInvestigation", () => {
     vi.unstubAllGlobals();
   });
 
+  it("sends reply context separately from the visible user prompt", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      sseResponse([
+        {
+          type: "response.completed",
+          response_id: "response-1",
+          response: {
+            id: "response-1",
+            status: "completed",
+            output_text: "Saved the workflow.",
+          },
+        },
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createInvestigation(
+      "Remember how you answered this, so you can reuse it when I ask this again.",
+      "conversation-1",
+      "auto",
+      "instant",
+      undefined,
+      { replyContext: "The previous analysis steps" },
+    );
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(requestBody).toMatchObject({
+      input:
+        "Remember how you answered this, so you can reuse it when I ask this again.",
+      reply_context: "The previous analysis steps",
+    });
+  });
+
   it("retains structured HTTP error code and retryability without exposing server text", async () => {
     vi.stubGlobal(
       "fetch",
@@ -1136,6 +1169,64 @@ describe("createInvestigation", () => {
     expect(snapshot.turns[0].investigation.attachments).toEqual([
       { name: "revenue.csv", size: 2048, type: "text/csv" },
     ]);
+  });
+});
+
+describe("loadConversationHistory", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("restores reply context from a persisted user message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                message_id: "message-1",
+                conversation_id: "conversation-1",
+                role: "user",
+                content: {
+                  type: "response.request",
+                  input:
+                    "Remember how you answered this, so you can reuse it when I ask this again.",
+                  reply_context: "The previous analysis steps",
+                  execution_mode: "instant",
+                },
+                response_id: "response-1",
+                artifact_ref: null,
+                status: "completed",
+                metadata: {},
+                created_at: "2026-09-29T00:00:00Z",
+                updated_at: "2026-09-29T00:00:00Z",
+              },
+              {
+                message_id: "message-2",
+                conversation_id: "conversation-1",
+                role: "assistant",
+                content: { output_text: "Saved the workflow." },
+                response_id: "response-1",
+                artifact_ref: null,
+                status: "completed",
+                metadata: {},
+                created_at: "2026-09-29T00:00:01Z",
+                updated_at: "2026-09-29T00:00:01Z",
+              },
+            ],
+            pagination: { has_next: false },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const history = await loadConversationHistory("conversation-1");
+
+    expect(history.turns[0]?.investigation.replyContext).toBe(
+      "The previous analysis steps",
+    );
   });
 });
 

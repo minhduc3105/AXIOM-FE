@@ -3,6 +3,7 @@ export const toolKinds = [
   "database_method",
   "datalake_action",
   "utility_method",
+  "skill_registry_tool",
 ] as const;
 
 export type ToolKind = (typeof toolKinds)[number];

@@ -460,9 +460,15 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   );
 
   const submitQuestion = useCallback(
-    (question: string, engine: ChatEngine, files: File[] = []) => {
+    (
+      question: string,
+      engine: ChatEngine,
+      files: File[] = [],
+      replyContext?: string,
+    ) => {
       void chat.submitQuestion({
         question,
+        replyContext,
         engine,
         files,
         conversationId: route.surface === "chat" ? route.sessionId : null,

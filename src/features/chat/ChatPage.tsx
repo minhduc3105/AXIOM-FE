@@ -37,7 +37,12 @@ type ChatPageProps = {
   onProcessEventSelect: ProcessStepSelectionHandler;
   engine: ChatEngine;
   focusComposerRequest?: number;
-  onSubmit: (value: string, engine: ChatEngine, files: File[]) => void;
+  onSubmit: (
+    value: string,
+    engine: ChatEngine,
+    files: File[],
+    replyContext?: string,
+  ) => void;
   onEngineChange: (engine: ChatEngine) => void;
   onSpecificationChange: (specification: EditableSpecification) => void;
   onSpecificationRevise: (feedback: string) => void;
@@ -91,6 +96,13 @@ export function ChatPage({
   onDataScopeChange,
   onDataResourcesRefresh,
 }: ChatPageProps) {
+  const handleRememberThis = (replyContext: string) =>
+    onSubmit(
+      "Remember how you answered this, so you can reuse it when I ask this again.",
+      "auto",
+      [],
+      replyContext,
+    );
   const chatMainRef = useRef<HTMLDivElement>(null);
   const mobileViewport = useMediaQuery("(max-width: 767px)");
   const [scopeSidebarCollapsed, setScopeSidebarCollapsed] =
@@ -198,6 +210,7 @@ export function ChatPage({
                   processEventKeyPrefix={`history-${index}`}
                   activeProcessEventKey={activeProcessEventKey}
                   onProcessEventSelect={onProcessEventSelect}
+                  onRemember={handleRememberThis}
                 />
               ))}
 
@@ -206,6 +219,7 @@ export function ChatPage({
                   attachments={investigation.attachments}
                   dataScope={investigation.dataScope}
                   question={investigation.question}
+                  replyContext={investigation.replyContext}
                 />
 
                 <ReviewCard
@@ -230,6 +244,7 @@ export function ChatPage({
                   onReset={onResetSpecification}
                   onRun={onApproveAndRun}
                   onRetry={onRetryProcess}
+                  onRemember={handleRememberThis}
                 />
                 {stage === "result" && result && evidenceOpen && (
                   <EvidencePanel result={result} onClose={onCloseEvidence} />
@@ -480,11 +495,13 @@ function HistoryTurn({
   processEventKeyPrefix,
   activeProcessEventKey,
   onProcessEventSelect,
+  onRemember,
 }: {
   turn: ChatTurn;
   processEventKeyPrefix: string;
   activeProcessEventKey?: string | null;
   onProcessEventSelect: (event: ProcessEvent, key: string) => void;
+  onRemember: (markdown: string) => void;
 }) {
   return (
     <section className="flex flex-col gap-5">
@@ -492,6 +509,7 @@ function HistoryTurn({
         attachments={turn.investigation.attachments}
         dataScope={turn.investigation.dataScope}
         question={turn.investigation.question}
+        replyContext={turn.investigation.replyContext}
       />
       <ReviewCard
         stage="result"
@@ -505,6 +523,7 @@ function HistoryTurn({
         error={turn.error}
         responseComplete
         loading={false}
+        onRemember={onRemember}
       />
     </section>
   );

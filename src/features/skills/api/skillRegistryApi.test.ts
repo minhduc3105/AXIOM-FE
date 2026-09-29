@@ -9,6 +9,8 @@ import {
   getSkillRegistryErrorKind,
   listUserSkills,
   SkillRegistryError,
+  shareSkillWithOrganization,
+  updateAllSkillsEnabled,
   updateSkillEnabled,
 } from "./skillRegistryApi";
 import type { UserSkillSummary } from "../model/types";
@@ -24,6 +26,8 @@ const skill: UserSkillSummary = {
   entry: "SKILL.md",
   description: "Read and write documents.",
   metadata: {},
+  organization_shared: false,
+  is_owner: false,
 };
 
 describe("Skill Registry API", () => {
@@ -96,6 +100,49 @@ describe("Skill Registry API", () => {
     expect(url).toBe(
       "/skill-registry/me/skills/docx-en?workspace_id=workspace-1",
     );
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body)).toEqual({ enabled: true });
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer token");
+  });
+
+  it("updates all visible skill preferences in one request", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ enabled: false, skill_count: 4, changed_count: 4 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(updateAllSkillsEnabled("workspace-1", false)).resolves.toEqual(
+      {
+        enabled: false,
+        skill_count: 4,
+        changed_count: 4,
+      },
+    );
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/skill-registry/me/skills?workspace_id=workspace-1");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body)).toEqual({ enabled: false });
+  });
+
+  it("updates organization sharing for a user-owned skill", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ skill_id: "docx-en", enabled: true, changed: true }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(shareSkillWithOrganization("docx-en", true)).resolves.toEqual({
+      skill_id: "docx-en",
+      enabled: true,
+      changed: true,
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/skill-registry/skills/docx-en/organization-sharing");
     expect(init.method).toBe("PATCH");
     expect(JSON.parse(init.body)).toEqual({ enabled: true });
     expect(new Headers(init.headers).get("Authorization")).toBe("Bearer token");

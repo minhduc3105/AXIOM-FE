@@ -13,10 +13,10 @@ import {
   ExternalLinkIcon,
   FileTextIcon,
   FolderOpenIcon,
-  ImageIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from "lucide-react";
+import { RememberSkillAction } from "./RememberSkillAction";
 import {
   Tooltip,
   TooltipContent,
@@ -33,10 +33,12 @@ export function AnswerActions({
   markdown,
   events,
   artifacts,
+  onRemember,
 }: {
   markdown: string;
   events: ProcessEvent[];
   artifacts: string[];
+  onRemember?: (markdown: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"helpful" | "unhelpful" | null>(
@@ -127,6 +129,9 @@ export function AnswerActions({
         }
         tooltip="Bad response"
       />
+      {onRemember && (
+        <RememberSkillAction onRemember={() => onRemember(markdown)} />
+      )}
       {files.length > 0 && <GeneratedFilesDialog files={files} />}
     </div>
   );

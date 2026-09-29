@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangleIcon,
   ArrowDownAZIcon,
-  CheckCircle2Icon,
   ChevronDownIcon,
-  CircleOffIcon,
+  PowerIcon,
+  PowerOffIcon,
   RefreshCwIcon,
   SearchIcon,
   SlidersHorizontalIcon,
@@ -20,6 +20,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
@@ -27,13 +35,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { getSkillRegistryErrorKind } from "./api/skillRegistryApi";
+import { useAuth } from "@/features/auth/model/AuthProvider";
+import {
+  getSkillRegistryErrorKind,
+  shareSkillWithOrganization,
+} from "./api/skillRegistryApi";
 import { SkillCard } from "./components/SkillCard";
 import { SkillCatalogSkeleton } from "./components/SkillCatalogSkeleton";
 import {
   formatSkillLanguage,
   formatSkillName,
+  isGeneralSkill,
 } from "./model/skillPresentation";
 import { useSkillCatalog } from "./model/useSkillCatalog";
 import { useSkillsState } from "./model/SkillsProvider";
@@ -53,6 +67,8 @@ type SkillsPageProps = {
   viewState: SkillCatalogViewState;
   onViewStateChange: (viewState: SkillCatalogViewState) => void;
 };
+
+type BulkSkillAction = "enable" | "disable";
 
 function SortDropdown({
   value,
@@ -152,69 +168,91 @@ function LanguageDropdown({
 }
 
 function SkillSection({
-  title,
   description,
-  skills,
-  enabled,
+  enabledSkills,
+  disabledSkills,
   workspaceId,
   onOpenSkill,
+  canManageOrganization,
+  sharingSkillId,
+  onSetOrganizationSharing,
+  onBulkAction,
+  bulkBusy,
 }: {
-  title: string;
   description: string;
-  skills: UserSkillSummary[];
-  enabled: boolean;
+  enabledSkills: UserSkillSummary[];
+  disabledSkills: UserSkillSummary[];
   workspaceId: string | null;
   onOpenSkill: (skillId: string) => void;
+  canManageOrganization: boolean;
+  sharingSkillId: string | null;
+  onSetOrganizationSharing: (skillId: string, enabled: boolean) => void;
+  onBulkAction: (enabled: boolean) => void;
+  bulkBusy: boolean;
 }) {
+  const groups = [
+    { title: "Enabled", skills: enabledSkills },
+    { title: "Disabled", skills: disabledSkills },
+  ];
+
   return (
-    <section
-      aria-labelledby={`${enabled ? "enabled" : "available"}-skills-title`}
-    >
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <div
-            className={
-              enabled
-                ? "mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl border border-success/30 bg-success/10 text-success"
-                : "mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl border bg-muted text-muted-foreground"
-            }
+    <div className="grid gap-8">
+      <p className="text-sm text-muted-foreground">{description}</p>
+      {groups.map(({ title, skills: groupSkills }) =>
+        groupSkills.length > 0 ? (
+          <section
+            key={title}
+            aria-label={`${title} skills`}
+            className="grid gap-3"
           >
-            {enabled ? (
-              <CheckCircle2Icon className="size-4" />
-            ) : (
-              <CircleOffIcon className="size-4" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2
-                id={`${enabled ? "enabled" : "available"}-skills-title`}
-                className="text-lg font-semibold text-foreground"
-              >
-                {title}
-              </h2>
-              <Badge
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold text-foreground">
+                  {title}
+                </h2>
+                <Badge
+                  aria-hidden="true"
+                  variant="outline"
+                  className="h-5 rounded-full bg-card px-2 text-[10px] tabular-nums text-muted-foreground"
+                >
+                  {groupSkills.length}
+                </Badge>
+              </div>
+              <Button
+                type="button"
                 variant="outline"
-                className="h-5 rounded-full bg-card px-2 text-[10px] tabular-nums text-muted-foreground"
+                size="sm"
+                className="h-8 shrink-0 rounded-full px-3"
+                onClick={() => onBulkAction(title === "Disabled")}
+                disabled={bulkBusy}
               >
-                {skills.length}
-              </Badge>
+                {title === "Disabled" ? <PowerIcon /> : <PowerOffIcon />}
+                {title === "Disabled"
+                  ? "Enable all disabled skills"
+                  : "Disable all active skills"}
+              </Button>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-          </div>
-        </div>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {skills.map((skill) => (
-          <SkillCard
-            key={skill.id}
-            skill={skill}
-            workspaceId={workspaceId}
-            onOpen={onOpenSkill}
-          />
-        ))}
-      </div>
-    </section>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {groupSkills.map((skill) => (
+                <SkillCard
+                  key={skill.id}
+                  skill={skill}
+                  workspaceId={workspaceId}
+                  onOpen={onOpenSkill}
+                  canShareWithOrganization={
+                    canManageOrganization &&
+                    skill.is_owner &&
+                    !isGeneralSkill(skill)
+                  }
+                  organizationSharingPending={sharingSkillId === skill.id}
+                  onSetOrganizationSharing={onSetOrganizationSharing}
+                />
+              ))}
+            </div>
+          </section>
+        ) : null,
+      )}
+    </div>
   );
 }
 
@@ -260,12 +298,22 @@ export function SkillsPage({
   );
   const filtersRef = useRef(filters);
   const restoreScrollRef = useRef(viewState.scrollY);
+  const [sharingSkillId, setSharingSkillId] = useState<string | null>(null);
+  const [organizationSharingError, setOrganizationSharingError] = useState<
+    string | null
+  >(null);
+  const [pendingBulkAction, setPendingBulkAction] =
+    useState<BulkSkillAction | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const { user } = useAuth();
+  const canManageOrganization = user?.org_role === "org_admin";
   const { query, language, status, sort } = filters;
   const { skills, loading, error, errorKind, refresh } = useSkillCatalog({
     workspaceId,
     language,
   });
-  const { isSkillEnabled, reconcileCatalogSkills } = useSkillsState();
+  const { isSkillEnabled, reconcileCatalogSkills, setAllSkillsEnabled } =
+    useSkillsState();
   const initialLoading = loading && !skills;
   const isRefreshing = loading && Boolean(skills);
 
@@ -301,60 +349,149 @@ export function SkillsPage({
     [skills],
   );
 
-  const { enabledSkills, availableSkills, resultCount, totalCount } =
-    useMemo(() => {
-      const matchingSkills = (skills ?? []).filter((skill) => {
-        const enabled = isSkillEnabled(skill.id, skill.user_enabled);
-        const normalizedQuery = query.trim().toLocaleLowerCase();
-        const searchable = [
-          skill.name,
-          skill.id,
-          skill.description,
-          skill.path,
-          skill.entry,
-        ]
-          .join(" ")
-          .toLocaleLowerCase();
+  const {
+    generalSkills,
+    yourSkills,
+    resultCount,
+    totalCount,
+    enabledCount,
+    disabledCount,
+  } = useMemo(() => {
+    const matchingSkills = (skills ?? []).filter((skill) => {
+      const enabled = isSkillEnabled(skill.id, skill.user_enabled);
+      const normalizedQuery = query.trim().toLocaleLowerCase();
+      const searchable = [
+        skill.name,
+        skill.id,
+        skill.description,
+        skill.path,
+        skill.entry,
+      ]
+        .join(" ")
+        .toLocaleLowerCase();
+      return (
+        (!normalizedQuery || searchable.includes(normalizedQuery)) &&
+        (status === "all" || (status === "enabled" ? enabled : !enabled))
+      );
+    });
+    const compareSkills = (left: UserSkillSummary, right: UserSkillSummary) => {
+      if (sort === "language") {
         return (
-          (!normalizedQuery || searchable.includes(normalizedQuery)) &&
-          (status === "all" || (status === "enabled" ? enabled : !enabled))
+          formatSkillLanguage(left.language).localeCompare(
+            formatSkillLanguage(right.language),
+          ) || formatSkillName(left).localeCompare(formatSkillName(right))
         );
-      });
-      const compareSkills = (
-        left: UserSkillSummary,
-        right: UserSkillSummary,
-      ) => {
-        if (sort === "language") {
-          return (
-            formatSkillLanguage(left.language).localeCompare(
-              formatSkillLanguage(right.language),
-            ) || formatSkillName(left).localeCompare(formatSkillName(right))
-          );
-        }
-        if (sort === "version") {
-          return (
-            right.version.localeCompare(left.version, undefined, {
-              numeric: true,
-            }) || formatSkillName(left).localeCompare(formatSkillName(right))
-          );
-        }
-        return formatSkillName(left).localeCompare(formatSkillName(right));
-      };
-      return {
-        enabledSkills: matchingSkills
-          .filter((skill) => isSkillEnabled(skill.id, skill.user_enabled))
-          .sort(compareSkills),
-        availableSkills: matchingSkills
-          .filter((skill) => !isSkillEnabled(skill.id, skill.user_enabled))
-          .sort(compareSkills),
-        resultCount: matchingSkills.length,
-        totalCount: skills?.length ?? 0,
-      };
-    }, [isSkillEnabled, query, skills, sort, status]);
+      }
+      if (sort === "version") {
+        return (
+          right.version.localeCompare(left.version, undefined, {
+            numeric: true,
+          }) || formatSkillName(left).localeCompare(formatSkillName(right))
+        );
+      }
+      return formatSkillName(left).localeCompare(formatSkillName(right));
+    };
+    const enabledCount = (skills ?? []).filter((skill) =>
+      isSkillEnabled(skill.id, skill.user_enabled),
+    ).length;
+    return {
+      generalSkills: matchingSkills.filter(isGeneralSkill).sort(compareSkills),
+      yourSkills: matchingSkills
+        .filter((skill) => !isGeneralSkill(skill))
+        .sort(compareSkills),
+      resultCount: matchingSkills.length,
+      totalCount: skills?.length ?? 0,
+      enabledCount,
+      disabledCount: (skills?.length ?? 0) - enabledCount,
+    };
+  }, [isSkillEnabled, query, skills, sort, status]);
 
   const hasActiveFilters = Boolean(
     query.trim() || language || status !== "all",
   );
+  const generalEnabledSkills = generalSkills.filter((skill) =>
+    isSkillEnabled(skill.id, skill.user_enabled),
+  );
+  const generalDisabledSkills = generalSkills.filter(
+    (skill) => !isSkillEnabled(skill.id, skill.user_enabled),
+  );
+  const yourEnabledSkills = yourSkills.filter((skill) =>
+    isSkillEnabled(skill.id, skill.user_enabled),
+  );
+  const yourDisabledSkills = yourSkills.filter(
+    (skill) => !isSkillEnabled(skill.id, skill.user_enabled),
+  );
+  const allSkillIds = (skills ?? []).map((skill) => skill.id);
+  const pendingBulkSkillCount =
+    pendingBulkAction === "enable" ? disabledCount : enabledCount;
+
+  const runBulkAction = async () => {
+    if (!pendingBulkAction) return;
+    setBulkBusy(true);
+    const succeeded = await setAllSkillsEnabled(
+      allSkillIds,
+      workspaceId,
+      pendingBulkAction === "enable",
+    );
+    setBulkBusy(false);
+    if (succeeded) {
+      setPendingBulkAction(null);
+      refresh();
+    }
+  };
+  const renderSkillTab = (
+    label: string,
+    enabledSkills: UserSkillSummary[],
+    disabledSkills: UserSkillSummary[],
+    description: string,
+  ) => {
+    if (initialLoading) return <SkillCatalogSkeleton />;
+    if (!skills) return null;
+    if (enabledSkills.length > 0 || disabledSkills.length > 0) {
+      return (
+        <SkillSection
+          description={description}
+          enabledSkills={enabledSkills}
+          disabledSkills={disabledSkills}
+          workspaceId={workspaceId}
+          onOpenSkill={handleOpenSkill}
+          canManageOrganization={canManageOrganization}
+          sharingSkillId={sharingSkillId}
+          onSetOrganizationSharing={handleOrganizationSharing}
+          onBulkAction={(enabled) =>
+            setPendingBulkAction(enabled ? "enable" : "disable")
+          }
+          bulkBusy={bulkBusy}
+        />
+      );
+    }
+
+    return (
+      <div className="grid min-h-64 place-items-center rounded-xl border border-dashed bg-card px-5 text-center">
+        <div>
+          <SparklesIcon className="mx-auto size-6 text-muted-foreground" />
+          <h2 className="mt-3 text-sm font-semibold">
+            {hasActiveFilters ? "No matching skills" : `No ${label} available`}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {hasActiveFilters
+              ? `No ${label.toLocaleLowerCase()} match the current filters. Try another tab or adjust the filters.`
+              : `${label} will appear here when available.`}
+          </p>
+          {hasActiveFilters ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
   const clearFilters = () =>
     updateFilters({
       query: "",
@@ -368,6 +505,25 @@ export function SkillsPage({
     onViewStateChange(returnViewState);
     window.scrollTo({ top: 0, behavior: "instant" });
     onOpenSkill(skillId, returnViewState);
+  };
+  const handleOrganizationSharing = async (
+    skillId: string,
+    enabled: boolean,
+  ) => {
+    setSharingSkillId(skillId);
+    setOrganizationSharingError(null);
+    try {
+      await shareSkillWithOrganization(skillId, enabled);
+      refresh();
+    } catch (error) {
+      setOrganizationSharingError(
+        error instanceof Error
+          ? error.message
+          : "Could not update organization sharing.",
+      );
+    } finally {
+      setSharingSkillId(null);
+    }
   };
 
   return (
@@ -388,28 +544,19 @@ export function SkillsPage({
                     variant="outline"
                     className="h-6 rounded-full bg-muted px-2.5 text-[10px] font-medium tabular-nums text-muted-foreground"
                   >
-                    {totalCount} visible
+                    {enabledCount} enabled
                   </Badge>
                   <Badge
                     variant="outline"
                     className="h-6 rounded-full bg-muted px-2.5 text-[10px] font-medium tabular-nums text-muted-foreground"
                   >
-                    {enabledSkills.length} enabled
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="h-6 rounded-full bg-muted px-2.5 text-[10px] font-medium tabular-nums text-muted-foreground"
-                  >
-                    {availableSkills.length} disabled
+                    {disabledCount} disabled
                   </Badge>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Skills visible in{" "}
-                  {workspaceId
-                    ? "the selected workspace"
-                    : "all authorized workspaces"}
-                  . Enabled preferences apply to your agent&apos;s next skill
-                  discovery.
+                  General skills are provided by your organization. Your skills
+                  are learned from conversations and available across your
+                  workspaces. Toggles apply only to your agent.
                 </p>
               </div>
               <Button
@@ -494,16 +641,6 @@ export function SkillsPage({
           </header>
         </Card>
 
-        <Alert className="border-primary/20 bg-primary/5 text-primary">
-          <SparklesIcon />
-          <AlertTitle>User skill preferences</AlertTitle>
-          <AlertDescription className="text-muted-foreground">
-            Enable a skill to make its instructions and bundled files available
-            to your agent. The Registry remains the authority for workspace
-            visibility.
-          </AlertDescription>
-        </Alert>
-
         {error ? (
           <Alert className="border-warning/40 bg-warning/10 text-warning">
             <AlertTriangleIcon />
@@ -532,67 +669,110 @@ export function SkillsPage({
           </Alert>
         ) : null}
 
-        {initialLoading ? (
-          <SkillCatalogSkeleton />
-        ) : skills && resultCount > 0 ? (
-          <div className="grid gap-10">
-            {status !== "disabled" && enabledSkills.length > 0 ? (
-              <SkillSection
-                title="Enabled Skills"
-                description="These skills are available to your agent."
-                skills={enabledSkills}
-                enabled
-                workspaceId={workspaceId}
-                onOpenSkill={handleOpenSkill}
-              />
-            ) : null}
-            {status === "all" &&
-            enabledSkills.length > 0 &&
-            availableSkills.length > 0 ? (
-              <div className="h-px bg-border" />
-            ) : null}
-            {status !== "enabled" && availableSkills.length > 0 ? (
-              <SkillSection
-                title="Available Skills"
-                description="These skills are visible in scope but disabled for your agent."
-                skills={availableSkills}
-                enabled={false}
-                workspaceId={workspaceId}
-                onOpenSkill={handleOpenSkill}
-              />
-            ) : null}
-          </div>
-        ) : skills && !hasActiveFilters && skills.length === 0 ? (
-          <div className="grid min-h-64 place-items-center rounded-xl border border-dashed bg-card px-5 text-center">
-            <div>
-              <SparklesIcon className="mx-auto size-6 text-muted-foreground" />
-              <h2 className="mt-3 text-sm font-semibold">No skills visible</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Skill Registry returned no skills for the current workspace
-                scope.
-              </p>
-            </div>
-          </div>
-        ) : skills ? (
-          <div className="grid min-h-64 place-items-center rounded-xl border border-dashed bg-card px-5 text-center">
-            <div>
-              <SparklesIcon className="mx-auto size-6 text-muted-foreground" />
-              <h2 className="mt-3 text-sm font-semibold">No matching skills</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Try a different keyword, language, or status.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={clearFilters}
-              >
-                Clear filters
-              </Button>
-            </div>
-          </div>
+        {organizationSharingError ? (
+          <Alert className="border-warning/40 bg-warning/10 text-warning">
+            <AlertTriangleIcon />
+            <AlertTitle>Organization sharing failed</AlertTitle>
+            <AlertDescription className="text-warning">
+              {organizationSharingError}
+            </AlertDescription>
+          </Alert>
         ) : null}
+
+        <Tabs defaultValue="general" className="gap-4">
+          <TabsList
+            variant="line"
+            aria-label="Skill categories"
+            className="w-full justify-start gap-2 border-b border-border pb-1"
+          >
+            <TabsTrigger value="general" className="flex-none gap-2 px-3">
+              General Skills
+              <Badge
+                aria-hidden="true"
+                variant="outline"
+                className="h-5 rounded-full px-2 text-[10px] tabular-nums"
+              >
+                {generalSkills.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="your" className="flex-none gap-2 px-3">
+              Your Skills
+              <Badge
+                aria-hidden="true"
+                variant="outline"
+                className="h-5 rounded-full px-2 text-[10px] tabular-nums"
+              >
+                {yourSkills.length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="general" className="mt-0">
+            {renderSkillTab(
+              "General Skills",
+              generalEnabledSkills,
+              generalDisabledSkills,
+              "Bootstrap skills provided for everyone in your organization.",
+            )}
+          </TabsContent>
+          <TabsContent value="your" className="mt-0">
+            {renderSkillTab(
+              "Your Skills",
+              yourEnabledSkills,
+              yourDisabledSkills,
+              "Skills learned from conversations and available across your workspaces.",
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
+      <Dialog
+        open={pendingBulkAction !== null}
+        onOpenChange={(open) => {
+          if (!open && !bulkBusy) setPendingBulkAction(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {bulkBusy
+                ? `${pendingBulkAction === "enable" ? "Enabling" : "Disabling"} skills...`
+                : `${pendingBulkAction === "enable" ? "Enable" : "Disable"} ${pendingBulkSkillCount} skills?`}
+            </DialogTitle>
+            <DialogDescription>
+              {bulkBusy
+                ? "Updating all visible skills in one request."
+                : "This changes your personal skill preferences only and applies to your next agent run."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            {bulkBusy ? (
+              <Button type="button" variant="outline" disabled>
+                Updating skills...
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPendingBulkAction(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant={
+                    pendingBulkAction === "enable" ? "default" : "destructive"
+                  }
+                  onClick={() => void runBulkAction()}
+                  disabled={pendingBulkSkillCount === 0}
+                >
+                  {pendingBulkAction === "enable" ? "Enable" : "Disable"}{" "}
+                  {pendingBulkSkillCount} skills
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

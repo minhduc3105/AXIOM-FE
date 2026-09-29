@@ -45,6 +45,7 @@ type ReviewCardProps = {
   onReset?: () => void;
   onRun?: () => void;
   onRetry?: () => void;
+  onRemember?: (markdown: string) => void;
 };
 
 export function ReviewCard(props: ReviewCardProps) {
@@ -96,6 +97,7 @@ export function ReviewCard(props: ReviewCardProps) {
                 markdown={props.result.markdown}
                 events={presentation.transcriptEvents}
                 artifacts={props.result.artifacts}
+                onRemember={props.onRemember}
               />
             )}
           </section>

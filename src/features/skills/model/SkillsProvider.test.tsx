@@ -23,6 +23,8 @@ const catalogSkill = {
   entry: "SKILL.md",
   description: "Read and write documents.",
   metadata: {},
+  organization_shared: false,
+  is_owner: false,
 };
 
 function Harness() {

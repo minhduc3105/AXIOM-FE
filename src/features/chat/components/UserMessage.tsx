@@ -1,23 +1,39 @@
 import { DatabaseIcon, PaperclipIcon } from "lucide-react";
 import type { ChatAttachment } from "../model/types";
-import {
-  chatDataScopeLabel,
-  type ChatDataScope,
-} from "../model/chatDataScope";
+import { chatDataScopeLabel, type ChatDataScope } from "../model/chatDataScope";
 
 export function UserMessage({
   attachments = [],
   dataScope,
   question,
+  replyContext,
 }: {
   attachments?: ChatAttachment[];
   dataScope?: ChatDataScope;
   question: string;
+  replyContext?: string;
 }) {
   return (
     <div className="flex justify-end">
-      <div className="grid max-w-[min(72%,680px)] justify-items-end gap-3">
-        <div className="rounded-[18px] bg-primary px-4 py-3 text-primary-foreground shadow-sm">
+      <div className="grid w-full max-w-[min(72%,680px)] justify-items-end gap-2">
+        {replyContext && (
+          <div
+            className="flex max-w-full min-w-0 items-center gap-2 border-l-2 border-muted-foreground/25 py-0.5 pl-2.5 text-left"
+            data-reply-preview
+            title={replyContext}
+          >
+            <span
+              aria-hidden="true"
+              className="shrink-0 text-xs leading-4 text-muted-foreground"
+            >
+              ↳
+            </span>
+            <p className="min-w-0 truncate text-xs leading-4 text-muted-foreground">
+              {replyContext}
+            </p>
+          </div>
+        )}
+        <div className="w-fit max-w-full rounded-[18px] bg-primary px-4 py-3 text-primary-foreground shadow-sm">
           <p className="text-sm leading-relaxed break-words">{question}</p>
         </div>
         <div className="flex min-w-0 flex-wrap justify-end gap-2">
@@ -33,9 +49,15 @@ function AttachmentList({ attachments }: { attachments: ChatAttachment[] }) {
   if (attachments.length === 0) return null;
 
   return (
-    <div className="flex min-w-0 flex-wrap justify-end gap-2" aria-label="Attached files">
+    <div
+      className="flex min-w-0 flex-wrap justify-end gap-2"
+      aria-label="Attached files"
+    >
       {attachments.map((file, index) => (
-        <AttachmentChip file={file} key={`${file.name}-${file.size}-${index}`} />
+        <AttachmentChip
+          file={file}
+          key={`${file.name}-${file.size}-${index}`}
+        />
       ))}
     </div>
   );

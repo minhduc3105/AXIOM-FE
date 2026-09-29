@@ -7,7 +7,10 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { updateSkillEnabled } from "../api/skillRegistryApi";
+import {
+  updateAllSkillsEnabled,
+  updateSkillEnabled,
+} from "../api/skillRegistryApi";
 import type { UserSkillSummary } from "./types";
 
 type SkillOverride = { enabled: boolean };
@@ -22,6 +25,11 @@ type SkillsContextValue = {
   getSkillUpdateError: (skillId: string) => string | null;
   setSkillEnabled: (
     skillId: string,
+    workspaceId: string | null,
+    enabled: boolean,
+  ) => Promise<boolean>;
+  setAllSkillsEnabled: (
+    skillIds: string[],
     workspaceId: string | null,
     enabled: boolean,
   ) => Promise<boolean>;
@@ -148,6 +156,71 @@ export function SkillsProvider({ children }: { children: React.ReactNode }) {
     [setSkillEnabled, skillErrors],
   );
 
+  const setAllSkillsEnabled = useCallback(
+    async (
+      skillIds: string[],
+      workspaceId: string | null,
+      enabled: boolean,
+    ) => {
+      const pendingIds = skillIds.filter(
+        (skillId) => !updatingSkillsRef.current[skillId],
+      );
+      if (!pendingIds.length) return false;
+
+      const optimisticOverrides = { ...skillOverridesRef.current };
+      const nextUpdatingSkills = { ...updatingSkillsRef.current };
+      for (const skillId of pendingIds) {
+        optimisticOverrides[skillId] = { enabled };
+        nextUpdatingSkills[skillId] = true;
+      }
+      skillOverridesRef.current = optimisticOverrides;
+      updatingSkillsRef.current = nextUpdatingSkills;
+      setSkillOverrides(optimisticOverrides);
+      setUpdatingSkills(nextUpdatingSkills);
+      setSkillErrors((current) => {
+        const next = { ...current };
+        for (const skillId of pendingIds) delete next[skillId];
+        return next;
+      });
+
+      try {
+        const response = await updateAllSkillsEnabled(workspaceId, enabled);
+        const confirmedOverrides = { ...skillOverridesRef.current };
+        for (const skillId of pendingIds) {
+          confirmedOverrides[skillId] = { enabled: response.enabled };
+        }
+        skillOverridesRef.current = confirmedOverrides;
+        setSkillOverrides(confirmedOverrides);
+        toast.success(
+          `${response.changed_count} skill${response.changed_count === 1 ? "" : "s"} updated`,
+          {
+            description:
+              "The preference applies to your agent's next skill discovery.",
+          },
+        );
+        return true;
+      } catch (error: unknown) {
+        const nextOverrides = { ...skillOverridesRef.current };
+        for (const skillId of pendingIds) delete nextOverrides[skillId];
+        skillOverridesRef.current = nextOverrides;
+        setSkillOverrides(nextOverrides);
+        toast.error("Unable to update skill preferences", {
+          description:
+            error instanceof Error
+              ? error.message
+              : "Unable to update skill preferences.",
+        });
+        return false;
+      } finally {
+        const nextUpdatingSkills = { ...updatingSkillsRef.current };
+        for (const skillId of pendingIds) delete nextUpdatingSkills[skillId];
+        updatingSkillsRef.current = nextUpdatingSkills;
+        setUpdatingSkills(nextUpdatingSkills);
+      }
+    },
+    [],
+  );
+
   const reconcileCatalogSkills = useCallback((skills: UserSkillSummary[]) => {
     const catalogSkillIds = new Set(skills.map((skill) => skill.id));
     const nextOverrides = Object.fromEntries(
@@ -166,6 +239,7 @@ export function SkillsProvider({ children }: { children: React.ReactNode }) {
       isSkillUpdating,
       getSkillUpdateError,
       setSkillEnabled,
+      setAllSkillsEnabled,
       retrySkillUpdate,
       reconcileCatalogSkills,
     }),
@@ -176,6 +250,7 @@ export function SkillsProvider({ children }: { children: React.ReactNode }) {
       reconcileCatalogSkills,
       retrySkillUpdate,
       setSkillEnabled,
+      setAllSkillsEnabled,
     ],
   );
 

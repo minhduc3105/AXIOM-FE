@@ -124,6 +124,7 @@ type CreateInvestigationOptions = {
   workspaceId?: string | null;
   modelAlias?: string | null;
   dataScope?: ChatDataScope;
+  replyContext?: string;
   onProcessEvents?: (events: ProcessEvent[]) => void;
   onTranscript?: (transcript: ChatTranscriptItem[]) => void;
   onOutputText?: (result: MockResult) => void;
@@ -223,6 +224,9 @@ export async function createInvestigation(
       })),
       input_artifact_ids: uploadedFiles.map((file) => file.artifactId),
       execution_mode: executionMode,
+      ...(resolvedOptions.replyContext?.trim()
+        ? { reply_context: resolvedOptions.replyContext }
+        : {}),
       ...(resolvedOptions.modelAlias
         ? { model: resolvedOptions.modelAlias }
         : {}),
@@ -1220,6 +1224,7 @@ function messagesToChatTurns(
   let pendingQuestion: string | null = null;
   let pendingAttachments: ChatAttachment[] = [];
   let pendingDataScope: ChatDataScope | undefined;
+  let pendingReplyContext: string | undefined;
   let pendingExecutionMode: ChatExecutionMode = "thinking";
   let pendingInvestigation: Investigation | null = null;
   let historyConfirmation: PendingConfirmation | null = null;
@@ -1230,6 +1235,7 @@ function messagesToChatTurns(
       pendingQuestion = userQuestionFromMessage(message) || pendingQuestion;
       pendingAttachments = attachmentsFromMessage(message);
       pendingDataScope = dataScopeFromMessage(message);
+      pendingReplyContext = replyContextFromMessage(message);
       pendingExecutionMode = executionModeFromMessage(message);
       pendingInvestigation = null;
       historyConfirmation = null;
@@ -1248,6 +1254,7 @@ function messagesToChatTurns(
           pendingInvestigation,
           pendingAttachments,
           pendingDataScope,
+          pendingReplyContext,
         );
         historyConfirmation = confirmation;
       }
@@ -1272,11 +1279,13 @@ function messagesToChatTurns(
               instantEngineInvestigation(question),
               pendingAttachments,
               pendingDataScope,
+              pendingReplyContext,
             )
           : withSubmissionContext(
               pendingInvestigation || storedInvestigation(question),
               pendingAttachments,
               pendingDataScope,
+              pendingReplyContext,
             ),
       result: hydrated.completed ? completedToResult(hydrated.completed) : null,
       error: hydrated.error,
@@ -1286,6 +1295,7 @@ function messagesToChatTurns(
     pendingQuestion = null;
     pendingAttachments = [];
     pendingDataScope = undefined;
+    pendingReplyContext = undefined;
     pendingInvestigation = null;
     historyConfirmation = null;
     pendingExecutionMode = "thinking";
@@ -1319,6 +1329,10 @@ function userQuestionFromMessage(message: IntelligenceMessage) {
     stringValue(record.question) ||
     ""
   );
+}
+
+function replyContextFromMessage(message: IntelligenceMessage) {
+  return stringValue(asRecord(message.content).reply_context) || undefined;
 }
 
 function attachmentsFromMessage(
@@ -1396,11 +1410,13 @@ function withSubmissionContext(
   investigation: Investigation,
   attachments: ChatAttachment[],
   dataScope?: ChatDataScope,
+  replyContext?: string,
 ): Investigation {
   return {
     ...investigation,
     ...(attachments.length ? { attachments } : {}),
     ...(dataScope ? { dataScope, scope: chatDataScopeLabel(dataScope) } : {}),
+    ...(replyContext ? { replyContext } : {}),
   };
 }
 

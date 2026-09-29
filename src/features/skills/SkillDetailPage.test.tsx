@@ -25,6 +25,8 @@ const summary: UserSkillSummary = {
   entry: "SKILL.md",
   description: "Tóm tắt nguồn và kết quả nghiên cứu.",
   metadata: {},
+  organization_shared: false,
+  is_owner: true,
 };
 
 const detail: SkillDetail = {
@@ -104,6 +106,8 @@ describe("SkillDetailPage", () => {
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     renderDetail();
 
+    expect(screen.getByText("Origin")).toBeTruthy();
+    expect(screen.getByText("Your skill")).toBeTruthy();
     expect(
       screen.getByRole("heading", { name: "Research Assistant" }),
     ).toBeTruthy();

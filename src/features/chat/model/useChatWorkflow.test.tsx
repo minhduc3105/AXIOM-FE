@@ -80,6 +80,36 @@ describe("useChatWorkflow", () => {
     expect(chatApi.createInvestigation).not.toHaveBeenCalled();
   });
 
+  it("forwards reply context to the response request", async () => {
+    const requestOptions: unknown[] = [];
+    chatApi.createInvestigation.mockImplementationOnce(
+      async (...args: unknown[]) => {
+        requestOptions.push(args[5]);
+        return completedOutcome("Saved the workflow.");
+      },
+    );
+    const { result } = renderHook(() => useChatWorkflow());
+
+    await act(async () => {
+      await result.current.submitQuestion({
+        question:
+          "Remember how you answered this, so you can reuse it when I ask this again.",
+        replyContext: "The previous analysis steps",
+        conversationId: "conversation-1",
+        engine: "auto",
+        executionMode: "instant",
+        files: [],
+      });
+    });
+
+    expect(requestOptions[0]).toMatchObject({
+      replyContext: "The previous analysis steps",
+    });
+    expect(result.current.investigation?.replyContext).toBe(
+      "The previous analysis steps",
+    );
+  });
+
   it("keeps the final hydrated partial response and typed error in the active response state", async () => {
     chatApi.loadConversationHistory.mockResolvedValue({
       turns: [
@@ -107,7 +137,8 @@ describe("useChatWorkflow", () => {
             kind: "unavailable",
             code: "runtime_unavailable",
             retryable: true,
-            message: "Chat is temporarily unavailable. Please try again in a moment.",
+            message:
+              "Chat is temporarily unavailable. Please try again in a moment.",
             status: null,
             cause: "runtime pool drain details",
           },
@@ -174,7 +205,9 @@ describe("useChatWorkflow", () => {
     };
     chatApi.createInvestigation
       .mockImplementationOnce(async (...args: unknown[]) => {
-        const options = args[5] as { onOutputText?: (result: typeof partialResult) => void };
+        const options = args[5] as {
+          onOutputText?: (result: typeof partialResult) => void;
+        };
         options.onOutputText?.(partialResult);
         throw { code: "runtime_unavailable", retryable: true };
       })
@@ -248,7 +281,9 @@ describe("useChatWorkflow", () => {
   it("keeps a replacement response when the earlier request streams and fails late", async () => {
     const firstRequest = deferred<ReturnType<typeof completedOutcome>>();
     const secondRequest = deferred<ReturnType<typeof completedOutcome>>();
-    let staleOutput: ((result: ReturnType<typeof completedOutcome>["result"]) => void) | undefined;
+    let staleOutput:
+      | ((result: ReturnType<typeof completedOutcome>["result"]) => void)
+      | undefined;
     chatApi.createInvestigation
       .mockImplementationOnce((...args: unknown[]) => {
         staleOutput = (args[5] as { onOutputText?: typeof staleOutput })
@@ -388,7 +423,8 @@ describe("useChatWorkflow", () => {
             kind: "unavailable",
             code: "runtime_unavailable",
             retryable: true,
-            message: "Chat is temporarily unavailable. Please try again in a moment.",
+            message:
+              "Chat is temporarily unavailable. Please try again in a moment.",
             status: null,
             cause: "runtime unavailable",
           },

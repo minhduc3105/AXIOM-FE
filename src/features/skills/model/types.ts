@@ -8,10 +8,12 @@ export type SkillSummary = {
   entry: string;
   description: string;
   metadata: Record<string, unknown>;
+  organization_shared: boolean;
 };
 
 export type UserSkillSummary = SkillSummary & {
   user_enabled: boolean;
+  is_owner: boolean;
 };
 
 export type SkillDetail = SkillSummary & {
@@ -23,6 +25,12 @@ export type SkillPreferenceResponse = {
   skill_id: string;
   enabled: boolean;
   changed: boolean;
+};
+
+export type BulkSkillPreferenceResponse = {
+  enabled: boolean;
+  skill_count: number;
+  changed_count: number;
 };
 
 export type SkillStatusFilter = "all" | "enabled" | "disabled";

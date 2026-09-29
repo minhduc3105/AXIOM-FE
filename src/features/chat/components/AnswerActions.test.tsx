@@ -28,9 +28,9 @@ describe("AnswerActions", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Copy response" }).querySelector(
-        ".lucide-clipboard",
-      ),
+      screen
+        .getByRole("button", { name: "Copy response" })
+        .querySelector(".lucide-clipboard"),
     ).toBeTruthy();
 
     await act(async () => {
@@ -40,11 +40,13 @@ describe("AnswerActions", () => {
 
     expect(writeText).toHaveBeenCalledOnce();
     expect(writeText).toHaveBeenCalledWith("Copied answer");
-    expect(screen.getByRole("button", { name: "Response copied" })).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Response copied" }).querySelector(
-        ".lucide-check",
-      ),
+      screen.getByRole("button", { name: "Response copied" }),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "Response copied" })
+        .querySelector(".lucide-check"),
     ).toBeTruthy();
 
     act(() => vi.advanceTimersByTime(1400));
@@ -59,16 +61,51 @@ describe("AnswerActions", () => {
       </TooltipProvider>,
     );
 
-    const helpful = screen.getByRole("button", { name: "Mark response as helpful" });
-    const unhelpful = screen.getByRole("button", { name: "Mark response as unhelpful" });
+    const helpful = screen.getByRole("button", {
+      name: "Mark response as helpful",
+    });
+    const unhelpful = screen.getByRole("button", {
+      name: "Mark response as unhelpful",
+    });
 
     fireEvent.click(helpful);
-    expect(screen.getByRole("button", { name: "Remove helpful rating" }).getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Remove helpful rating" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
     expect(unhelpful.getAttribute("aria-pressed")).toBe("false");
 
     fireEvent.click(unhelpful);
-    expect(screen.getByRole("button", { name: "Mark response as helpful" }).getAttribute("aria-pressed")).toBe("false");
-    expect(screen.getByRole("button", { name: "Remove unhelpful rating" }).getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Mark response as helpful" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
+    expect(
+      screen
+        .getByRole("button", { name: "Remove unhelpful rating" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
   });
 
+  it("forwards Remember this to the conversation", () => {
+    const onRemember = vi.fn();
+    render(
+      <TooltipProvider>
+        <AnswerActions
+          markdown="Answer"
+          events={[]}
+          artifacts={[]}
+          onRemember={onRemember}
+        />
+      </TooltipProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remember this" }));
+
+    expect(onRemember).toHaveBeenCalledOnce();
+    expect(onRemember).toHaveBeenCalledWith("Answer");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 });

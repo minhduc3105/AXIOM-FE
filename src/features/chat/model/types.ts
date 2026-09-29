@@ -18,6 +18,7 @@ export type ChatModelOption = {
 
 export type Investigation = {
   question: string;
+  replyContext?: string;
   attachments?: ChatAttachment[];
   dataScope?: ChatDataScope;
   confidence: number;

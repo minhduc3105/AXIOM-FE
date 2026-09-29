@@ -25,6 +25,7 @@ const emptyCatalog: ToolCatalogResponse = {
     database_method: 0,
     datalake_action: 0,
     utility_method: 0,
+    skill_registry_tool: 0,
   },
 };
 

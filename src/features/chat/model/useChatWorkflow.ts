@@ -432,11 +432,13 @@ function attachSubmissionContext(
   investigation: Investigation,
   attachments: ChatAttachment[],
   dataScope?: ChatDataScope,
+  replyContext?: string,
 ): Investigation {
   return {
     ...investigation,
     ...(attachments.length ? { attachments } : {}),
     ...(dataScope ? { dataScope, scope: chatDataScopeLabel(dataScope) } : {}),
+    ...(replyContext ? { replyContext } : {}),
   };
 }
 
@@ -486,6 +488,7 @@ const conversationStateCache = new Map<string, CachedConversationState>();
 
 export type ChatSubmission = {
   question: string;
+  replyContext?: string;
   conversationId: string | null;
   engine: ChatEngine;
   executionMode: ChatExecutionMode;
@@ -557,6 +560,7 @@ export function useChatWorkflow() {
     async (submission: ChatSubmission, replaceCurrent = false) => {
       const {
         question,
+        replyContext,
         engine,
         files,
         organizationId,
@@ -570,6 +574,7 @@ export function useChatWorkflow() {
       const attachments = chatAttachmentsFromFiles(files);
       lastSubmissionRef.current = {
         question,
+        replyContext,
         conversationId: submission.conversationId,
         engine,
         executionMode,
@@ -583,10 +588,14 @@ export function useChatWorkflow() {
       requestRef.current = controller;
       dispatch({
         type: "submit/start",
-        investigation:
+        investigation: attachSubmissionContext(
           executionMode === "instant"
             ? instantEngineInvestigation(question, attachments, dataScope)
             : optimisticInvestigation(question, attachments, dataScope),
+          attachments,
+          dataScope,
+          replyContext,
+        ),
         conversationId: submission.conversationId,
         executionMode,
         replaceCurrent,
@@ -603,6 +612,7 @@ export function useChatWorkflow() {
           conversationId = conversation.conversation_id;
           lastSubmissionRef.current = {
             question,
+            replyContext,
             conversationId,
             engine,
             executionMode,
@@ -627,6 +637,7 @@ export function useChatWorkflow() {
             workspaceId,
             modelAlias,
             dataScope,
+            replyContext,
             onTranscript: (transcript) => {
               if (!ownsRequest(controller)) return;
               dispatch({ type: "process/transcript", transcript });
@@ -635,7 +646,7 @@ export function useChatWorkflow() {
               if (!ownsRequest(controller)) return;
               dispatch({
                 type: "submit/stream",
-                investigation:
+                investigation: attachSubmissionContext(
                   executionMode === "instant"
                     ? instantEngineInvestigation(
                         question,
@@ -647,6 +658,10 @@ export function useChatWorkflow() {
                         attachments,
                         dataScope,
                       ),
+                  attachments,
+                  dataScope,
+                  replyContext,
+                ),
                 result,
                 executionMode,
               });
@@ -669,6 +684,7 @@ export function useChatWorkflow() {
               outcome.investigation,
               attachments,
               dataScope,
+              replyContext,
             ),
             result: outcome.result,
             processEvents: outcome.processEvents,
@@ -682,6 +698,7 @@ export function useChatWorkflow() {
               outcome.investigation,
               attachments,
               dataScope,
+              replyContext,
             ),
           });
         }

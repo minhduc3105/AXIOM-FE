@@ -1,5 +1,6 @@
 import { authFetch } from "@/features/auth/model/authFetch";
 import type {
+  BulkSkillPreferenceResponse,
   SkillCatalogFilters,
   SkillDetail,
   SkillPreferenceResponse,
@@ -179,6 +180,23 @@ export function updateSkillEnabled(
       `/me/skills/${encodeURIComponent(skillId)}`,
       workspaceParams(workspaceId),
     ),
+    { enabled },
+  );
+}
+
+export function updateAllSkillsEnabled(
+  workspaceId: string | null,
+  enabled: boolean,
+) {
+  return patchJson<BulkSkillPreferenceResponse>(
+    buildUrl("/me/skills", workspaceParams(workspaceId)),
+    { enabled },
+  );
+}
+
+export function shareSkillWithOrganization(skillId: string, enabled: boolean) {
+  return patchJson<SkillPreferenceResponse>(
+    buildUrl(`/skills/${encodeURIComponent(skillId)}/organization-sharing`),
     { enabled },
   );
 }

@@ -1,3 +1,5 @@
+import type { SkillSummary } from "./types";
+
 export function formatSkillName(skill: { name: string; id: string }) {
   const value = skill.name || skill.id;
   return value
@@ -7,14 +9,19 @@ export function formatSkillName(skill: { name: string; id: string }) {
     .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }
 
-export function formatSkillLanguage(language: string) {
-  return language.trim() ? language.trim().toUpperCase() : "Unknown language";
+export function isGeneralSkill(skill: Pick<SkillSummary, "metadata">) {
+  return skill.metadata.axiom_system_bootstrap === true;
 }
 
-export function getSkillScope(path: string) {
-  if (path.startsWith("skills/global/")) return "Global";
-  if (path.startsWith("skills/tenants/")) return "Workspace";
-  return "Visible in current scope";
+export function formatSkillOrigin(
+  skill: Pick<SkillSummary, "metadata" | "organization_shared">,
+) {
+  if (isGeneralSkill(skill)) return "General";
+  return skill.organization_shared ? "Organization" : "Your skill";
+}
+
+export function formatSkillLanguage(language: string) {
+  return language.trim() ? language.trim().toUpperCase() : "Unknown language";
 }
 
 export function formatSkillVersion(version: string) {

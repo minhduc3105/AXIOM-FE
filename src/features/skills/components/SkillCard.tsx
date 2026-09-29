@@ -11,8 +11,8 @@ import { useSkillsState } from "../model/SkillsProvider";
 import {
   formatSkillLanguage,
   formatSkillName,
+  formatSkillOrigin,
   formatSkillVersion,
-  getSkillScope,
 } from "../model/skillPresentation";
 import type { UserSkillSummary } from "../model/types";
 import { SkillStatusSwitch } from "./SkillStatusSwitch";
@@ -21,9 +21,19 @@ type SkillCardProps = {
   skill: UserSkillSummary;
   workspaceId: string | null;
   onOpen: (skillId: string) => void;
+  canShareWithOrganization?: boolean;
+  organizationSharingPending?: boolean;
+  onSetOrganizationSharing?: (skillId: string, enabled: boolean) => void;
 };
 
-export function SkillCard({ skill, workspaceId, onOpen }: SkillCardProps) {
+export function SkillCard({
+  skill,
+  workspaceId,
+  onOpen,
+  canShareWithOrganization = false,
+  organizationSharingPending = false,
+  onSetOrganizationSharing,
+}: SkillCardProps) {
   const {
     isSkillEnabled,
     isSkillUpdating,
@@ -44,7 +54,7 @@ export function SkillCard({ skill, workspaceId, onOpen }: SkillCardProps) {
       aria-label={`Open ${displayName}`}
       data-status={enabled ? "enabled" : "disabled"}
       style={{ viewTransitionName: transitionName } as CSSProperties}
-      className="group relative grid min-h-[292px] cursor-pointer grid-rows-[auto_1fr_auto] overflow-hidden rounded-xl border border-line bg-card outline-none transition-[transform,border-color,box-shadow,background-color] duration-300 animate-in fade-in slide-in-from-bottom-2 hover:-translate-y-0.5 hover:border-muted-foreground/45 hover:shadow-md focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/20"
+      className="group relative grid min-h-[225px] cursor-pointer grid-rows-[auto_1fr_auto] overflow-hidden rounded-xl border border-line bg-card outline-none transition-[transform,border-color,box-shadow,background-color] duration-300 animate-in fade-in slide-in-from-bottom-2 hover:-translate-y-0.5 hover:border-muted-foreground/45 hover:shadow-md focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/20"
       onClick={() => onOpen(skill.id)}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -67,50 +77,14 @@ export function SkillCard({ skill, workspaceId, onOpen }: SkillCardProps) {
         </div>
       </div>
 
-      <div className="px-5 pb-5">
-        <p className="min-h-[60px] line-clamp-3 text-sm leading-5 text-text-secondary">
+      <div className="px-5">
+        <p className="line-clamp-3 text-sm leading-5 text-text-secondary">
           {skill.description || "No description is available for this skill."}
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <Badge
-            variant="outline"
-            className="h-6 rounded-full border-line bg-soft px-2.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-text-secondary"
-          >
-            {formatSkillLanguage(skill.language)}
-          </Badge>
-          <Badge
-            variant="outline"
-            className="h-6 rounded-full border-line bg-soft px-2.5 text-[10px] font-medium text-text-secondary"
-          >
-            {formatSkillVersion(skill.version)}
-          </Badge>
-          <Badge
-            variant="outline"
-            className="h-6 max-w-full truncate rounded-full border-line bg-soft px-2.5 text-[10px] font-medium text-text-secondary"
-          >
-            {getSkillScope(skill.path)}
-          </Badge>
-        </div>
-        <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
-          <span className="truncate" title={skill.entry}>
-            Entry:{" "}
-            <code className="text-text-secondary">
-              {skill.entry || "SKILL.md"}
-            </code>
-          </span>
-          <span>
-            {skill.metadata && typeof skill.metadata.file_count === "number"
-              ? `${skill.metadata.file_count} bundled files`
-              : "Bundle details on open"}
-          </span>
-        </div>
       </div>
 
       <footer className="flex min-h-16 items-center justify-between gap-3 border-t border-line bg-soft/55 px-5">
         <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">
-            {enabled ? "Available to your agent" : "Available but disabled"}
-          </p>
           {updateError ? (
             <div
               role="alert"
@@ -136,14 +110,37 @@ export function SkillCard({ skill, workspaceId, onOpen }: SkillCardProps) {
             </div>
           ) : null}
         </div>
-        <SkillStatusSwitch
-          checked={enabled}
-          onCheckedChange={(nextEnabled) =>
-            void setSkillEnabled(skill.id, workspaceId, nextEnabled)
-          }
-          label={displayName}
-          disabled={updating}
-        />
+        <div className="flex shrink-0 items-center gap-2">
+          {canShareWithOrganization && onSetOrganizationSharing ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              className="rounded-full"
+              aria-label={`${skill.organization_shared ? "Remove" : "Share"} ${displayName} ${skill.organization_shared ? "from" : "with"} organization`}
+              disabled={organizationSharingPending}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSetOrganizationSharing(skill.id, !skill.organization_shared);
+              }}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              {organizationSharingPending
+                ? "Updating…"
+                : skill.organization_shared
+                  ? "Org-wide"
+                  : "Share"}
+            </Button>
+          ) : null}
+          <SkillStatusSwitch
+            checked={enabled}
+            onCheckedChange={(nextEnabled) =>
+              void setSkillEnabled(skill.id, workspaceId, nextEnabled)
+            }
+            label={displayName}
+            disabled={updating}
+          />
+        </div>
       </footer>
     </article>
   );

@@ -28,8 +28,8 @@ import { useSkillsState } from "./model/SkillsProvider";
 import {
   formatSkillLanguage,
   formatSkillName,
+  formatSkillOrigin,
   formatSkillVersion,
-  getSkillScope,
   skillArchiveFileName,
 } from "./model/skillPresentation";
 import { useSkillDetail } from "./model/useSkillDetail";
@@ -369,10 +369,10 @@ export function SkillDetailPage({
             </div>
             <div className="bg-soft p-3.5">
               <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <FolderTreeIcon className="size-3.5" /> Scope
+                <SparklesIcon className="size-3.5" /> Origin
               </dt>
               <dd className="mt-1.5 text-sm font-semibold">
-                {getSkillScope(summary.path)}
+                {formatSkillOrigin(summary)}
               </dd>
             </div>
             <div className="bg-soft p-3.5">
