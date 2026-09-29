@@ -61,7 +61,7 @@ export function ChatModelReasoningSelector({
   favoriteStorageKey?: string;
   onModelChange: (modelAlias: string | null) => void;
   onExecutionModeChange: (mode: ChatExecutionMode) => void;
-  }) {
+}) {
   const [open, setOpen] = useState(false);
   const [favoriteState, setFavoriteState] = useState(() => ({
     storageKey: favoriteStorageKey,
@@ -83,12 +83,16 @@ export function ChatModelReasoningSelector({
   const selectedModel =
     models.find((model) => model.alias === selectedModelAlias) ?? models[0];
   const favoriteModelAliases =
-    favoriteState.storageKey === favoriteStorageKey ? favoriteState.aliases : [];
+    favoriteState.storageKey === favoriteStorageKey
+      ? favoriteState.aliases
+      : [];
   const favoriteAliases = useMemo(
     () => new Set(favoriteModelAliases),
     [favoriteModelAliases],
   );
-  const favoriteModels = models.filter((model) => favoriteAliases.has(model.alias));
+  const favoriteModels = models.filter((model) =>
+    favoriteAliases.has(model.alias),
+  );
   const providerGroups = useMemo(() => {
     const groups = new Map<
       string,
@@ -98,7 +102,8 @@ export function ChatModelReasoningSelector({
     for (const model of models) {
       if (favoriteAliases.has(model.alias)) continue;
       const providerId = model.providerId ?? "other";
-      const providerLabel = model.providerName ?? model.providerId ?? "Other models";
+      const providerLabel =
+        model.providerName ?? model.providerId ?? "Other models";
       const group = groups.get(providerId) ?? {
         id: providerId,
         label: providerLabel,
@@ -112,8 +117,8 @@ export function ChatModelReasoningSelector({
   }, [favoriteAliases, models]);
   const modelLabel = selectedModel?.label ?? "No model";
   const executionModeLabel =
-    executionModeOptions.find((option) => option.value === executionMode)?.label ??
-    "Instant";
+    executionModeOptions.find((option) => option.value === executionMode)
+      ?.label ?? "Instant";
   const accessibleLabel = `Chat model: ${modelLabel}; Reasoning: ${executionModeLabel}`;
   const selectModel = (modelAlias: string) => {
     onModelChange(modelAlias || null);
@@ -139,7 +144,7 @@ export function ChatModelReasoningSelector({
     return (
       <DropdownMenuItem
         key={model.id}
-        className="group/model-item min-h-10 cursor-pointer gap-2 py-1.5 pr-1.5"
+        className="group/model-item min-h-10 cursor-pointer gap-2 py-1.5 pr-1.5 hover:!bg-accent focus:bg-transparent focus-visible:bg-accent"
         onClick={() => selectModel(model.alias)}
       >
         <span className="min-w-0 flex-1">
@@ -151,7 +156,10 @@ export function ChatModelReasoningSelector({
           )}
         </span>
         {isSelected && (
-          <CheckIcon className="size-4 shrink-0 text-foreground" aria-hidden="true" />
+          <CheckIcon
+            className="size-4 shrink-0 text-foreground"
+            aria-hidden="true"
+          />
         )}
         <button
           type="button"
@@ -176,7 +184,11 @@ export function ChatModelReasoningSelector({
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      highlightItemOnHover={false}
+    >
       <DropdownMenuTrigger
         render={
           <Button
@@ -203,7 +215,11 @@ export function ChatModelReasoningSelector({
           {favoriteModels.length > 0 && (
             <>
               <DropdownMenuLabel className="flex items-center gap-1.5 pt-2 text-foreground">
-                <StarIcon className="size-3.5" fill="currentColor" aria-hidden="true" />
+                <StarIcon
+                  className="size-3.5"
+                  fill="currentColor"
+                  aria-hidden="true"
+                />
                 Favorites
               </DropdownMenuLabel>
               {favoriteModels.map((model) =>

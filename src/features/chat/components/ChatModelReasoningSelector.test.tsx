@@ -62,6 +62,46 @@ describe("ChatModelReasoningSelector", () => {
     expect(trigger.querySelector(".truncate")).toBeTruthy();
   });
 
+  it("highlights model rows on hover or keyboard focus, not on mouse-open", async () => {
+    const actor = userEvent.setup();
+    const models = [
+      {
+        id: "deepseek:flash",
+        alias: "deepseek:flash",
+        label: "deepseek/deepseek-v4-flash-0731",
+        providerId: "deepseek",
+        providerName: "DeepSeek",
+        status: "active",
+      },
+      {
+        id: "qwen:flash",
+        alias: "qwen:flash",
+        label: "qwen/qwen3.7-flash",
+        providerId: "qwen",
+        providerName: "Qwen",
+        status: "active",
+      },
+    ];
+    window.localStorage.setItem(
+      "axiom.chat.favorite-models",
+      JSON.stringify(["deepseek:flash"]),
+    );
+    renderSelector({ models, selectedModelAlias: "qwen:flash" });
+
+    const trigger = screen.getByRole("button", {
+      name: "Chat model: qwen/qwen3.7-flash; Reasoning: Instant",
+    });
+    await actor.click(trigger);
+
+    const selectedModelItem = await screen.findByRole("menuitem", {
+      name: /qwen\/qwen3\.7-flash/,
+    });
+    expect(selectedModelItem.className).toContain("hover:!bg-accent");
+    expect(selectedModelItem.className).toContain("focus:bg-transparent");
+    expect(selectedModelItem.className).not.toContain("focus:bg-accent");
+    expect(selectedModelItem.className).toContain("focus-visible:bg-accent");
+  });
+
   it("selects a model using keyboard menu navigation", async () => {
     const actor = userEvent.setup();
     const { onModelChange } = renderSelector();
