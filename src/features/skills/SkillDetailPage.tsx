@@ -9,12 +9,10 @@ import {
   DownloadIcon,
   FileCode2Icon,
   FolderTreeIcon,
-  LockKeyholeIcon,
   RefreshCwIcon,
   SparklesIcon,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -98,15 +96,8 @@ export function SkillDetailPage({
   workspaceId,
   onBack,
 }: SkillDetailPageProps) {
-  const {
-    summary,
-    detail,
-    requiresEnable,
-    loading,
-    error,
-    errorKind,
-    refresh,
-  } = useSkillDetail(skillId, workspaceId);
+  const { summary, detail, loading, error, errorKind, refresh } =
+    useSkillDetail(skillId, workspaceId);
   const {
     isSkillEnabled,
     isSkillUpdating,
@@ -229,22 +220,7 @@ export function SkillDetailPage({
                   <h1 className="min-w-0 max-w-full break-words text-xl font-semibold leading-tight text-foreground sm:text-2xl">
                     {displayName}
                   </h1>
-                  <Badge
-                    variant="outline"
-                    className="h-6 rounded-full border-line bg-soft px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-secondary"
-                  >
-                    {formatSkillLanguage(summary.language)}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="h-6 rounded-full border-line bg-soft px-2.5 text-[10px] font-medium text-text-secondary"
-                  >
-                    {formatSkillVersion(summary.version)}
-                  </Badge>
                 </div>
-                <code className="mt-1.5 block break-all text-xs text-muted-foreground">
-                  {summary.id}
-                </code>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
                   {summary.description ||
                     "No description is available for this skill."}
@@ -252,12 +228,6 @@ export function SkillDetailPage({
               </div>
             </div>
             <div className="flex w-full shrink-0 flex-col gap-2 border-t border-line pt-3 sm:w-auto sm:min-w-52 sm:border-t-0 sm:pt-0 lg:justify-self-end">
-              <Badge
-                variant="outline"
-                className="h-7 w-fit rounded-full border-line bg-soft px-3 text-[10px] font-medium text-text-secondary"
-              >
-                <LockKeyholeIcon className="mr-1.5 size-3" /> User preference
-              </Badge>
               <SkillStatusSwitch
                 checked={enabled}
                 onCheckedChange={(nextEnabled) =>
@@ -266,11 +236,6 @@ export function SkillDetailPage({
                 label={displayName}
                 disabled={updating}
               />
-              <p className="max-w-xs text-xs leading-5 text-muted-foreground">
-                {workspaceId
-                  ? "Visible in the selected workspace"
-                  : "Visible in all authorized workspaces"}
-              </p>
               {updateError ? (
                 <div
                   role="alert"
@@ -292,7 +257,7 @@ export function SkillDetailPage({
           </header>
         </Card>
 
-        {error && !requiresEnable ? (
+        {error ? (
           <Alert className="border-warning/40 bg-warning/10 text-warning">
             <AlertTriangleIcon />
             <AlertTitle>
@@ -315,84 +280,7 @@ export function SkillDetailPage({
           </Alert>
         ) : null}
 
-        {requiresEnable || !enabled ? (
-          <Alert className="border-primary/30 bg-primary/5 text-primary">
-            <LockKeyholeIcon />
-            <AlertTitle>Enable this skill to inspect its bundle</AlertTitle>
-            <AlertDescription className="text-muted-foreground">
-              Skill metadata is visible, but the Registry only returns SKILL.md
-              content and archive files for a skill enabled for your agent.
-              <Button
-                type="button"
-                size="sm"
-                className="mt-3 w-fit"
-                onClick={() => void handleEnabledChange(true)}
-                disabled={updating}
-              >
-                {updating ? (
-                  <RefreshCwIcon className="animate-spin" />
-                ) : (
-                  <SparklesIcon />
-                )}{" "}
-                Enable skill
-              </Button>
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        <section
-          className="overflow-hidden rounded-xl border border-line bg-card p-5 shadow-sm"
-          aria-labelledby="skill-overview-title"
-        >
-          <div className="mb-4 flex items-center gap-2">
-            <ActivityIcon className="size-4 text-brand" />
-            <h2 id="skill-overview-title" className="text-sm font-semibold">
-              Overview
-            </h2>
-          </div>
-          <dl className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
-            <div className="bg-soft p-3.5">
-              <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <CodeXmlIcon className="size-3.5" /> Entry file
-              </dt>
-              <dd className="mt-1.5 break-all text-sm font-semibold">
-                <code>{summary.entry || "SKILL.md"}</code>
-              </dd>
-            </div>
-            <div className="bg-soft p-3.5">
-              <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <ArchiveIcon className="size-3.5" /> Version
-              </dt>
-              <dd className="mt-1.5 text-sm font-semibold">
-                {formatSkillVersion(summary.version)}
-              </dd>
-            </div>
-            <div className="bg-soft p-3.5">
-              <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <SparklesIcon className="size-3.5" /> Origin
-              </dt>
-              <dd className="mt-1.5 text-sm font-semibold">
-                {formatSkillOrigin(summary)}
-              </dd>
-            </div>
-            <div className="bg-soft p-3.5">
-              <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <FileCode2Icon className="size-3.5" /> Bundle files
-              </dt>
-              <dd className="mt-1.5 text-sm font-semibold tabular-nums">
-                {activeDetail?.files.length ?? "—"}
-              </dd>
-            </div>
-          </dl>
-          <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
-            <span>Published path</span>
-            <code className="break-all rounded-md bg-soft px-2.5 py-2 text-text-secondary">
-              {summary.path || "Path unavailable"}
-            </code>
-          </div>
-        </section>
-
-        {activeDetail && enabled ? (
+        {activeDetail ? (
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
             <section
               className="min-w-0 overflow-hidden rounded-xl border border-line bg-card p-5 shadow-sm"
@@ -408,9 +296,6 @@ export function SkillDetailPage({
                     SKILL.md
                   </h2>
                 </div>
-                <Badge variant="outline" className="rounded-full text-[10px]">
-                  {activeDetail.body ? "Loaded" : "Empty"}
-                </Badge>
               </div>
               {activeDetail.body ? (
                 <MarkdownContent markdown={activeDetail.body} />

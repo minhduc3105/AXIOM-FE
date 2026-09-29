@@ -127,12 +127,12 @@ describe("SkillDetailPage", () => {
     });
   });
 
-  it("shows metadata and an enable-first recovery state for disabled skills", async () => {
+  it("shows the bundle while a skill is disabled", async () => {
     const refresh = vi.fn();
     mocks.detail.mockReturnValue({
       summary: { ...summary, user_enabled: false },
-      detail: null,
-      requiresEnable: true,
+      detail,
+      requiresEnable: false,
       loading: false,
       error: null,
       errorKind: null,
@@ -150,14 +150,12 @@ describe("SkillDetailPage", () => {
         onBack={vi.fn()}
       />,
     );
-    expect(
-      screen.getByText("Enable this skill to inspect its bundle"),
-    ).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Setup" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Setup" })).toBeTruthy();
+    expect(screen.getByText("scripts/summarize.py")).toBeTruthy();
 
     await userEvent
       .setup()
-      .click(screen.getByRole("button", { name: "Enable skill" }));
+      .click(screen.getByRole("switch", { name: "Enable Research Assistant" }));
     await waitFor(() => {
       expect(mocks.setSkillEnabled).toHaveBeenCalledWith(
         "research-vi",

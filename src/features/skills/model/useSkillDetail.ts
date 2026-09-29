@@ -9,7 +9,6 @@ import type { SkillDetail, UserSkillSummary } from "./types";
 export function useSkillDetail(skillId: string, workspaceId: string | null) {
   const [summary, setSummary] = useState<UserSkillSummary | null>(null);
   const [detail, setDetail] = useState<SkillDetail | null>(null);
-  const [requiresEnable, setRequiresEnable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorKind, setErrorKind] = useState<ReturnType<
@@ -21,7 +20,6 @@ export function useSkillDetail(skillId: string, workspaceId: string | null) {
     const controller = new AbortController();
     setSummary(null);
     setDetail(null);
-    setRequiresEnable(false);
     setLoading(true);
     setError(null);
     setErrorKind(null);
@@ -40,11 +38,6 @@ export function useSkillDetail(skillId: string, workspaceId: string | null) {
         }
 
         setSummary(nextSummary);
-        if (!nextSummary.user_enabled) {
-          setRequiresEnable(true);
-          return;
-        }
-
         try {
           const nextDetail = await getSkill(
             skillId,
@@ -82,7 +75,6 @@ export function useSkillDetail(skillId: string, workspaceId: string | null) {
   return {
     summary,
     detail,
-    requiresEnable,
     loading,
     error,
     errorKind,
