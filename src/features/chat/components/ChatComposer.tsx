@@ -28,8 +28,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
-import type { ChatEngine } from "../model/types";
+import type {
+  ChatEngine,
+  PendingUserInput,
+  UserInputAnswer,
+} from "../model/types";
 import type { ChatDataResource, ChatDataScope } from "../model/chatDataScope";
+import { AskUserQuestion } from "./AskUserQuestion";
 
 const engineOptions: Array<{ value: ChatEngine; label: string }> = [
   { value: "auto", label: "Auto" },
@@ -51,6 +56,10 @@ export function ChatComposer({
   onStop,
   dataScope,
   onDataScopeOpen,
+  pendingUserInput = null,
+  onUserInputSubmit,
+  onUserInputCancel,
+  userInputError = null,
 }: {
   onSubmit: (message: string, engine: ChatEngine, files: File[]) => void;
   engine: ChatEngine;
@@ -69,6 +78,10 @@ export function ChatComposer({
   onDataScopeChange?: (scope: ChatDataScope) => void;
   onDataResourcesRefresh?: () => void;
   onDataScopeOpen?: () => void;
+  pendingUserInput?: PendingUserInput | null;
+  onUserInputSubmit?: (answer: UserInputAnswer) => void;
+  onUserInputCancel?: () => void;
+  userInputError?: string | null;
 }) {
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -77,6 +90,9 @@ export function ChatComposer({
   const fileInputId = useId();
   const selectedEngineLabel =
     engineOptions.find((option) => option.value === engine)?.label || "Auto";
+  const visibleUserInput = disabled || sendDisabled ? null : pendingUserInput;
+  const composerDisabled = disabled || Boolean(visibleUserInput);
+  const effectiveSendDisabled = sendDisabled || Boolean(visibleUserInput);
   useEffect(() => {
     if (!autoFocus && focusRequest === 0) return;
     const frame = requestAnimationFrame(() => textareaRef.current?.focus());
@@ -91,7 +107,7 @@ export function ChatComposer({
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (value.trim() && !sendDisabled) {
+    if (value.trim() && !effectiveSendDisabled) {
       onSubmit(value.trim(), engine, files);
       setValue("");
       setFiles([]);
@@ -100,7 +116,8 @@ export function ChatComposer({
   };
 
   const submitFromKeyboard = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.shiftKey || sendDisabled) return;
+    if (event.key !== "Enter" || event.shiftKey || effectiveSendDisabled)
+      return;
     event.preventDefault();
     if (value.trim()) {
       onSubmit(value.trim(), engine, files);
@@ -126,134 +143,151 @@ export function ChatComposer({
   return (
     <form
       className={cn(
-        "grid min-h-0 w-full gap-0 rounded-[18px] border border-border bg-card p-2 shadow-sm transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/10 sm:min-h-[100px] sm:rounded-[20px]",
+        "grid min-h-0 w-full gap-0 sm:min-h-[100px]",
+        !visibleUserInput &&
+          "rounded-[18px] border border-border bg-card p-2 shadow-sm transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/10 sm:rounded-[20px]",
         className,
       )}
       onSubmit={submit}
     >
-      {files.length > 0 && (
-        <div
-          className="flex min-w-0 gap-2 overflow-x-auto px-2 pb-1"
-          aria-label="Selected files"
-        >
-          {files.map((file, index) => {
-            const FileTypeIcon = isSpreadsheetFile(file.name)
-              ? SheetIcon
-              : FileIcon;
-            return (
-              <Badge
-                variant="outline"
-                className="h-8 max-w-[320px] shrink-0 gap-2 rounded-full border-border bg-secondary px-3 text-secondary-foreground"
-                key={`${file.name}-${file.size}-${index}`}
-              >
-                <FileTypeIcon className="size-3.5 shrink-0 text-primary" />
-                <span className="max-w-[240px] truncate">{file.name}</span>
-                <Button
-                  type="button"
-                  size="icon-xs"
-                  variant="ghost"
-                  className="-mr-1 rounded-full"
-                  aria-label={`Remove ${file.name}`}
-                  disabled={disabled}
-                  onClick={() => removeFile(index)}
-                >
-                  <XIcon />
-                </Button>
-              </Badge>
-            );
-          })}
-        </div>
-      )}
-      <Textarea
-        ref={textareaRef}
-        className="max-h-40 min-h-11 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-base leading-6 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent sm:min-h-12 sm:px-4 sm:py-3"
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        onKeyDown={submitFromKeyboard}
-        placeholder={placeholder}
-        disabled={disabled}
-        rows={1}
-        aria-label="Ask AXIOM"
-      />
-      <div
-        className="flex min-w-0 flex-nowrap items-center gap-2 px-1 pt-2 sm:justify-between sm:gap-3"
-        data-chat-composer-actions
-      >
-        <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
-          <input
-            id={fileInputId}
-            type="file"
-            multiple
-            className="hidden"
-            disabled={disabled}
-            onChange={addFiles}
+      {visibleUserInput ? (
+        <AskUserQuestion
+          interaction={visibleUserInput}
+          submitting={disabled || sendDisabled}
+          error={userInputError}
+          onSubmit={(answer) => onUserInputSubmit?.(answer)}
+          onCancel={() => onUserInputCancel?.()}
+        />
+      ) : (
+        <>
+          {files.length > 0 && (
+            <div
+              className="flex min-w-0 gap-2 overflow-x-auto px-2 pb-1"
+              aria-label="Selected files"
+            >
+              {files.map((file, index) => {
+                const FileTypeIcon = isSpreadsheetFile(file.name)
+                  ? SheetIcon
+                  : FileIcon;
+                return (
+                  <Badge
+                    variant="outline"
+                    className="h-8 max-w-[320px] shrink-0 gap-2 rounded-full border-border bg-secondary px-3 text-secondary-foreground"
+                    key={`${file.name}-${file.size}-${index}`}
+                  >
+                    <FileTypeIcon className="size-3.5 shrink-0 text-primary" />
+                    <span className="max-w-[240px] truncate">{file.name}</span>
+                    <Button
+                      type="button"
+                      size="icon-xs"
+                      variant="ghost"
+                      className="-mr-1 rounded-full"
+                      aria-label={`Remove ${file.name}`}
+                      disabled={composerDisabled}
+                      onClick={() => removeFile(index)}
+                    >
+                      <XIcon />
+                    </Button>
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+          <Textarea
+            ref={textareaRef}
+            className="max-h-40 min-h-11 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-base leading-6 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent sm:min-h-12 sm:px-4 sm:py-3"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            onKeyDown={submitFromKeyboard}
+            placeholder={placeholder}
+            disabled={composerDisabled}
+            rows={1}
+            aria-label="Ask AXIOM"
           />
-          <Button
-            render={<label htmlFor={fileInputId} />}
-            nativeButton={false}
-            variant="outline"
-            className="size-10 rounded-full border-border bg-secondary p-0 text-secondary-foreground shadow-none hover:bg-muted"
-            aria-label="Attach files"
-            disabled={disabled}
+          <div
+            className="flex min-w-0 flex-nowrap items-center gap-2 px-1 pt-2 sm:justify-between sm:gap-3"
+            data-chat-composer-actions
           >
-            <PaperclipIcon />
-          </Button>
-          <DropdownMenu open={engineMenuOpen} onOpenChange={setEngineMenuOpen}>
-            <DropdownMenuTrigger
-              render={
+            <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
+              <input
+                id={fileInputId}
+                type="file"
+                multiple
+                className="hidden"
+                disabled={composerDisabled}
+                onChange={addFiles}
+              />
+              <Button
+                render={<label htmlFor={fileInputId} />}
+                nativeButton={false}
+                variant="outline"
+                className="size-10 rounded-full border-border bg-secondary p-0 text-secondary-foreground shadow-none hover:bg-muted"
+                aria-label="Attach files"
+                disabled={composerDisabled}
+              >
+                <PaperclipIcon />
+              </Button>
+              <DropdownMenu
+                open={engineMenuOpen}
+                onOpenChange={setEngineMenuOpen}
+              >
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 w-[92px] shrink-0 justify-between rounded-full border-border bg-secondary px-2 text-secondary-foreground shadow-none hover:bg-muted sm:min-w-[128px] sm:px-3"
+                      aria-label="Select response type"
+                      disabled={composerDisabled}
+                    />
+                  }
+                >
+                  {selectedEngineLabel}
+                  <ChevronDownIcon data-icon="inline-end" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[128px]">
+                  <DropdownMenuRadioGroup
+                    value={engine}
+                    onValueChange={selectEngine}
+                  >
+                    {engineOptions.map((option) => (
+                      <DropdownMenuRadioItem
+                        key={option.value}
+                        value={option.value}
+                      >
+                        {option.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {dataScope && onDataScopeOpen ? (
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-10 w-[92px] shrink-0 justify-between rounded-full border-border bg-secondary px-2 text-secondary-foreground shadow-none hover:bg-muted sm:min-w-[128px] sm:px-3"
-                  aria-label="Select response type"
-                  disabled={disabled}
-                />
-              }
-            >
-              {selectedEngineLabel}
-              <ChevronDownIcon data-icon="inline-end" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-[128px]">
-              <DropdownMenuRadioGroup
-                value={engine}
-                onValueChange={selectEngine}
-              >
-                {engineOptions.map((option) => (
-                  <DropdownMenuRadioItem
-                    key={option.value}
-                    value={option.value}
-                  >
-                    {option.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {dataScope && onDataScopeOpen ? (
+                  className="size-10 shrink-0 rounded-full border-border bg-secondary !p-0 text-secondary-foreground shadow-none hover:bg-muted sm:w-auto sm:!px-3"
+                  aria-label="Open chat files"
+                  title="Open chat files"
+                  disabled={composerDisabled}
+                  onClick={onDataScopeOpen}
+                >
+                  <DatabaseIcon data-icon="inline-start" />
+                  <span className="hidden sm:inline">Files</span>
+                </Button>
+              ) : null}
+            </div>
             <Button
-              type="button"
-              variant="outline"
-              className="size-10 shrink-0 rounded-full border-border bg-secondary !p-0 text-secondary-foreground shadow-none hover:bg-muted sm:w-auto sm:!px-3"
-              aria-label="Open chat files"
-              title="Open chat files"
-              disabled={disabled}
-              onClick={onDataScopeOpen}
+              className="size-10 shrink-0 rounded-full shadow-sm"
+              type="submit"
+              aria-label={effectiveSendDisabled && onStop ? "Stop" : "Send"}
+              disabled={effectiveSendDisabled && !onStop}
+              onClick={effectiveSendDisabled && onStop ? onStop : undefined}
             >
-              <DatabaseIcon data-icon="inline-start" />
-              <span className="hidden sm:inline">Files</span>
+              {effectiveSendDisabled && onStop ? <SquareIcon /> : <SendIcon />}
             </Button>
-          ) : null}
-        </div>
-        <Button
-          className="size-10 shrink-0 rounded-full shadow-sm"
-          type="submit"
-          aria-label={sendDisabled && onStop ? "Stop" : "Send"}
-          disabled={sendDisabled && !onStop}
-          onClick={sendDisabled && onStop ? onStop : undefined}
-        >
-          {sendDisabled && onStop ? <SquareIcon /> : <SendIcon />}
-        </Button>
-      </div>
+          </div>
+        </>
+      )}
     </form>
   );
 }

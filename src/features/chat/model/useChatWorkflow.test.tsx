@@ -7,6 +7,8 @@ const chatApi = vi.hoisted(() => ({
   loadConversationHistory: vi.fn(),
   reviseInvestigation: vi.fn(),
   runWorkflow: vi.fn(),
+  submitUserInput: vi.fn(),
+  cancelPendingResponse: vi.fn(),
 }));
 
 const intelligenceApi = vi.hoisted(() => ({
@@ -108,6 +110,87 @@ describe("useChatWorkflow", () => {
     expect(result.current.investigation?.replyContext).toBe(
       "The previous analysis steps",
     );
+  });
+
+  it("pauses for a clarification and resumes after one answer", async () => {
+    const interaction = {
+      responseId: "response-1",
+      interactionId: "interaction-1",
+      reason: "method_definition" as const,
+      question: "Which method should I use?",
+      options: [{ id: "method-a", label: "Method A" }],
+    };
+    chatApi.createInvestigation.mockResolvedValueOnce({
+      kind: "user_input_required",
+      investigation: {
+        question: "Calculate the average",
+        confidence: 100,
+        intent: "instant_engine",
+        scope: "General analysis",
+        specMarkdown: "",
+        policy: "",
+        output: "",
+      },
+      interaction,
+    });
+    chatApi.submitUserInput.mockResolvedValueOnce(
+      completedOutcome("Calculated with Method A."),
+    );
+    const { result } = renderHook(() => useChatWorkflow());
+
+    await act(async () => {
+      await result.current.submitQuestion({
+        question: "Calculate the average",
+        conversationId: "conversation-1",
+        engine: "auto",
+        executionMode: "instant",
+        files: [],
+      });
+    });
+
+    expect(result.current.pendingUserInput).toEqual(interaction);
+    expect(result.current.loading).toBe(false);
+
+    await act(async () => {
+      await result.current.answerUserInput({ selectedOptionId: "method-a" });
+    });
+
+    expect(chatApi.submitUserInput).toHaveBeenCalledWith(
+      interaction,
+      { selectedOptionId: "method-a" },
+      expect.objectContaining({ question: "Calculate the average" }),
+      expect.any(AbortSignal),
+      expect.any(Object),
+    );
+    expect(result.current.pendingUserInput).toBeNull();
+    expect(result.current.result?.markdown).toBe("Calculated with Method A.");
+    expect(result.current.loading).toBe(false);
+  });
+
+  it("restores a pending clarification without polling as if runtime were active", async () => {
+    const interaction = {
+      responseId: "response-restore",
+      interactionId: "interaction-restore",
+      reason: "ambiguous_query" as const,
+      question: "Which period?",
+      options: [{ id: "q1", label: "This quarter" }],
+    };
+    chatApi.loadConversationHistory.mockResolvedValueOnce({
+      turns: [],
+      pendingInvestigation: null,
+      pendingQuestion: "Compare quarterly performance",
+      pendingExecutionMode: "instant",
+      pendingResponse: false,
+      pendingUserInput: interaction,
+    });
+    const { result } = renderHook(() => useChatWorkflow());
+
+    await act(async () => {
+      await result.current.loadConversation("conversation-restore");
+    });
+
+    expect(result.current.pendingUserInput).toEqual(interaction);
+    expect(result.current.loading).toBe(false);
   });
 
   it("keeps the final hydrated partial response and typed error in the active response state", async () => {

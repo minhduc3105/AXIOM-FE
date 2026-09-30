@@ -13,6 +13,8 @@ import type {
   Investigation,
   MockResult,
   ProcessEvent,
+  PendingUserInput,
+  UserInputAnswer,
 } from "./model/types";
 import type { ChatError } from "./model/chatError";
 import type { ProcessStepSelectionHandler } from "./components/process/processEvents";
@@ -51,6 +53,10 @@ type ChatPageProps = {
   onRetryProcess: () => void;
   onCloseEvidence: () => void;
   onStopGeneration?: () => void;
+  pendingUserInput?: PendingUserInput | null;
+  onAnswerUserInput?: (answer: UserInputAnswer) => void;
+  onCancelUserInput?: () => void;
+  userInputError?: string | null;
   workspaceId?: string;
   dataScope?: ChatDataScope;
   dataResources?: ChatDataResource[];
@@ -87,6 +93,10 @@ export function ChatPage({
   onRetryProcess,
   onCloseEvidence,
   onStopGeneration,
+  pendingUserInput = null,
+  onAnswerUserInput,
+  onCancelUserInput,
+  userInputError,
   workspaceId = "",
   dataScope,
   dataResources = [],
@@ -155,6 +165,10 @@ export function ChatPage({
         onEngineChange={onEngineChange}
         onSubmit={onSubmit}
         onStop={onStopGeneration}
+        pendingUserInput={pendingUserInput}
+        onUserInputSubmit={onAnswerUserInput}
+        onUserInputCancel={onCancelUserInput}
+        userInputError={userInputError}
         workspaceId={workspaceId}
         sidebarOpen={Boolean(
           dataScope && onDataScopeChange && !scopeSidebarCollapsed,
@@ -268,6 +282,10 @@ export function ChatPage({
                 onEngineChange={onEngineChange}
                 onSubmit={onSubmit}
                 onStop={onStopGeneration}
+                pendingUserInput={pendingUserInput}
+                onUserInputSubmit={onAnswerUserInput}
+                onUserInputCancel={onCancelUserInput}
+                userInputError={userInputError}
                 placeholder={
                   loading
                     ? "AXIOM is working..."
@@ -348,6 +366,10 @@ function EmptyChatWorkspace({
   loading,
   focusComposerRequest,
   onStop,
+  pendingUserInput,
+  onUserInputSubmit,
+  onUserInputCancel,
+  userInputError,
   workspaceId,
   sidebarOpen,
   sidebarPreviewOpen,
@@ -369,6 +391,10 @@ function EmptyChatWorkspace({
   loading: boolean;
   focusComposerRequest: number;
   onStop?: () => void;
+  pendingUserInput?: PendingUserInput | null;
+  onUserInputSubmit?: (answer: UserInputAnswer) => void;
+  onUserInputCancel?: () => void;
+  userInputError?: string | null;
   workspaceId: string;
   sidebarOpen: boolean;
   sidebarPreviewOpen: boolean;
@@ -416,6 +442,10 @@ function EmptyChatWorkspace({
             onSubmit={onSubmit}
             onEngineChange={onEngineChange}
             onStop={onStop}
+            pendingUserInput={pendingUserInput}
+            onUserInputSubmit={onUserInputSubmit}
+            onUserInputCancel={onUserInputCancel}
+            userInputError={userInputError}
             disabled={loading}
             placeholder="Message AXIOM..."
           />

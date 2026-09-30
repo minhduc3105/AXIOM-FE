@@ -51,7 +51,11 @@ it("publishes the final answer before stream closure and continues reading", asy
   streamController.close();
   expect((await pending).kind).toBe("completed");
 });
-import { createInvestigation, loadConversationHistory } from "./chatApi";
+import {
+  createInvestigation,
+  loadConversationHistory,
+  submitUserInput,
+} from "./chatApi";
 import { createConversation } from "@/shared/lib/intelligence-api";
 import { getChatError } from "../model/chatError";
 
@@ -104,6 +108,102 @@ describe("createInvestigation", () => {
         "Remember how you answered this, so you can reuse it when I ask this again.",
       reply_context: "The previous analysis steps",
     });
+  });
+
+  it("returns a safe pending question instead of treating it as a final answer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        sseResponse([
+          {
+            type: "response.output_text.delta",
+            response_id: "response-clarify",
+            delta: "Partial text that must be discarded",
+          },
+          {
+            type: "response.requires_user_input",
+            response_id: "response-clarify",
+            interaction_id: "interaction-1",
+            reason: "ambiguous_query",
+            question: "Which period do you mean?",
+            options: [
+              { id: "q1", label: "This quarter", source: "Report config" },
+              { id: "q2", label: "Last quarter" },
+            ],
+          },
+        ]),
+      ),
+    );
+
+    const outcome = await createInvestigation(
+      "Compare quarterly performance",
+      "conversation-1",
+      "auto",
+      "instant",
+    );
+
+    expect(outcome).toMatchObject({
+      kind: "user_input_required",
+      interaction: {
+        responseId: "response-clarify",
+        interactionId: "interaction-1",
+        question: "Which period do you mean?",
+            options: [
+              { id: "q1", label: "This quarter", source: "Report config" },
+              { id: "q2", label: "Last quarter" },
+            ],
+      },
+    });
+    expect("result" in outcome).toBe(false);
+  });
+
+  it("submits a single answer and consumes the resumed response stream", async () => {
+    const fetchMock = vi.fn(async () =>
+      sseResponse([
+        {
+          type: "response.completed",
+          response_id: "response-clarify",
+          response: {
+            id: "response-clarify",
+            status: "completed",
+            output_text: "Compared this quarter.",
+          },
+        },
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const outcome = await submitUserInput(
+      {
+        responseId: "response-clarify",
+        interactionId: "interaction-1",
+        reason: "ambiguous_query",
+        question: "Which period do you mean?",
+        options: [{ id: "q1", label: "This quarter" }],
+      },
+      { selectedOptionId: "q1" },
+      {
+        question: "Compare quarterly performance",
+        confidence: 100,
+        intent: "instant_engine",
+        scope: "General analysis",
+        specMarkdown: "",
+        policy: "",
+        output: "",
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/responses/response-clarify/user-input"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          interaction_id: "interaction-1",
+          selected_option_id: "q1",
+        }),
+      }),
+    );
+    expect(outcome.kind).toBe("completed");
   });
 
   it("retains structured HTTP error code and retryability without exposing server text", async () => {
@@ -1175,6 +1275,130 @@ describe("createInvestigation", () => {
 describe("loadConversationHistory", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("restores a pending clarification from persisted messages", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            items: [
+              storedMessage({
+                message_id: "message-user",
+                role: "user",
+                content: {
+                  type: "response.request",
+                  input: "Calculate the average",
+                  execution_mode: "instant",
+                },
+              }),
+              storedMessage({
+                message_id: "message-question",
+                role: "system",
+                status: "requires_user_input",
+                content: {
+                  type: "response.requires_user_input",
+                  response_id: "response-1",
+                  interaction_id: "interaction-1",
+                  question: "Which definition should I use?",
+                  reason: "method_definition",
+                  options: [
+                    { id: "method-a", label: "Method A" },
+                    { id: "method-b", label: "Method B" },
+                  ],
+                  status: "awaiting_user_input",
+                },
+              }),
+            ],
+            pagination: { has_next: false },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const history = await loadConversationHistory("conversation-1");
+
+    expect(history.turns).toHaveLength(0);
+    expect(history.pendingQuestion).toBe("Calculate the average");
+    expect(history.pendingExecutionMode).toBe("instant");
+    expect(history.pendingUserInput).toEqual({
+      responseId: "response-1",
+      interactionId: "interaction-1",
+      question: "Which definition should I use?",
+      reason: "method_definition",
+      options: [
+        { id: "method-a", label: "Method A" },
+        { id: "method-b", label: "Method B" },
+      ],
+    });
+  });
+
+  it("keeps a persisted clarification answer in its original chat turn", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            items: [
+              storedMessage({
+                message_id: "message-user",
+                role: "user",
+                content: {
+                  type: "response.request",
+                  input: "Calculate the average",
+                  execution_mode: "instant",
+                },
+              }),
+              storedMessage({
+                message_id: "message-question",
+                role: "system",
+                status: "requires_user_input",
+                content: {
+                  type: "response.requires_user_input",
+                  response_id: "response-1",
+                  interaction_id: "interaction-1",
+                  question: "Which definition should I use?",
+                  reason: "method_definition",
+                  options: [{ id: "method-a", label: "Method A" }],
+                  status: "awaiting_user_input",
+                },
+              }),
+              storedMessage({
+                message_id: "message-answer",
+                role: "user",
+                content: {
+                  type: "response.user_input",
+                  interaction_id: "interaction-1",
+                  selected_option_id: "method-a",
+                },
+              }),
+              storedMessage({
+                message_id: "message-assistant",
+                role: "assistant",
+                status: "completed",
+                content: {
+                  type: "response.completed",
+                  output_text: "The average is 12.",
+                },
+              }),
+            ],
+            pagination: { has_next: false },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const history = await loadConversationHistory("conversation-1");
+
+    expect(history.turns).toHaveLength(1);
+    expect(history.turns[0]).toMatchObject({
+      investigation: { question: "Calculate the average" },
+      result: { markdown: "The average is 12." },
+    });
+    expect(history.pendingUserInput).toBeNull();
   });
 
   it("restores reply context from a persisted user message", async () => {

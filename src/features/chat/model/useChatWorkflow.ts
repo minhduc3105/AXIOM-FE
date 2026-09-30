@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import {
+  cancelPendingResponse,
   createInvestigation,
   createProcessEvents,
   loadConversationHistory,
   reviseInvestigation,
   runWorkflow,
+  submitUserInput as submitUserInputRequest,
 } from "../api/chatApi";
 import { createConversation } from "@/shared/lib/intelligence-api";
 import { getChatError, type ChatError } from "./chatError";
@@ -18,7 +20,9 @@ import type {
   EditableSpecification,
   Investigation,
   MockResult,
+  PendingUserInput,
   ProcessEvent,
+  UserInputAnswer,
 } from "./types";
 import { chatDataScopeLabel, type ChatDataScope } from "./chatDataScope";
 
@@ -37,6 +41,7 @@ const initialState: ChatWorkflowState = {
   historyLoading: false,
   loading: false,
   error: null,
+  pendingUserInput: null,
 };
 
 type Action =
@@ -56,6 +61,25 @@ type Action =
       executionMode: ChatExecutionMode;
     }
   | { type: "submit/confirmation"; investigation: Investigation }
+  | {
+      type: "submit/user-input-required";
+      investigation: Investigation;
+      interaction: PendingUserInput;
+    }
+  | { type: "user-input/start" }
+  | {
+      type: "user-input/completed";
+      result: MockResult;
+      processEvents: ProcessEvent[];
+      transcript: ChatTranscriptItem[];
+    }
+  | {
+      type: "user-input/required";
+      interaction: PendingUserInput;
+      processEvents: ProcessEvent[];
+      transcript: ChatTranscriptItem[];
+    }
+  | { type: "user-input/cancelled" }
   | {
       type: "submit/completed";
       investigation: Investigation;
@@ -95,6 +119,7 @@ type Action =
       pendingQuestion: string | null;
       pendingExecutionMode: ChatExecutionMode;
       pendingResponse: boolean;
+      pendingUserInput: PendingUserInput | null;
     }
   | { type: "evidence/open" }
   | { type: "evidence/close" }
@@ -115,6 +140,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         processEvents: createProcessEvents(),
         transcript: [],
         result: null,
+        pendingUserInput: null,
         history:
           !action.replaceCurrent &&
           state.investigation &&
@@ -160,6 +186,52 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           specMarkdown: action.investigation.specMarkdown,
         },
         loading: false,
+        pendingUserInput: null,
+      };
+    case "submit/user-input-required":
+      return {
+        ...state,
+        stage: "pending",
+        investigation: action.investigation,
+        draft: null,
+        approvedSpecification: null,
+        processEvents: createProcessEvents(),
+        transcript: [],
+        result: null,
+        pendingUserInput: action.interaction,
+        loading: false,
+        error: null,
+      };
+    case "user-input/start":
+      return { ...state, loading: true, error: null };
+    case "user-input/completed":
+      return {
+        ...state,
+        stage: "result",
+        result: { ...action.result, responseComplete: true },
+        processEvents: action.processEvents,
+        transcript: action.transcript,
+        pendingUserInput: null,
+        loading: false,
+        error: null,
+      };
+    case "user-input/required":
+      return {
+        ...state,
+        stage: "pending",
+        processEvents: action.processEvents,
+        transcript: action.transcript,
+        result: null,
+        pendingUserInput: action.interaction,
+        loading: false,
+        error: null,
+      };
+    case "user-input/cancelled":
+      return {
+        ...state,
+        pendingUserInput: null,
+        loading: false,
+        error: null,
       };
     case "answer/completed":
       return {
@@ -181,6 +253,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
         result: action.result,
         loading: false,
         error: null,
+        pendingUserInput: null,
       };
     case "draft/update":
       return state.stage === "intent"
@@ -306,6 +379,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           loading: action.pendingResponse,
           historyLoading: false,
           error: action.error,
+          pendingUserInput: null,
         };
       }
       if (action.pendingInvestigation) {
@@ -327,6 +401,29 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           loading: false,
           historyLoading: false,
           error: null,
+          pendingUserInput: null,
+        };
+      }
+      if (action.pendingUserInput && action.pendingQuestion) {
+        return {
+          ...state,
+          executionMode: action.pendingExecutionMode,
+          stage: "pending",
+          evidenceOpen: false,
+          investigation:
+            action.pendingExecutionMode === "instant"
+              ? instantEngineInvestigation(action.pendingQuestion)
+              : optimisticInvestigation(action.pendingQuestion),
+          draft: null,
+          approvedSpecification: null,
+          processEvents: createProcessEvents(),
+          transcript: [],
+          result: null,
+          history: action.history,
+          loading: false,
+          historyLoading: false,
+          error: null,
+          pendingUserInput: action.pendingUserInput,
         };
       }
       if (action.pendingQuestion) {
@@ -348,6 +445,7 @@ function reducer(state: ChatWorkflowState, action: Action): ChatWorkflowState {
           loading: true,
           historyLoading: false,
           error: null,
+          pendingUserInput: null,
         };
       }
       return {
@@ -482,6 +580,7 @@ type CachedConversationState = Pick<
   | "history"
   | "loading"
   | "error"
+  | "pendingUserInput"
 >;
 
 const conversationStateCache = new Map<string, CachedConversationState>();
@@ -517,6 +616,7 @@ function cacheConversationState(state: ChatWorkflowState) {
     history: state.history,
     loading: state.loading,
     error: state.error,
+    pendingUserInput: state.pendingUserInput,
   });
 }
 
@@ -677,7 +777,13 @@ export function useChatWorkflow() {
           },
         );
         if (!ownsRequest(controller)) return;
-        if (outcome.kind === "completed") {
+        if (outcome.kind === "user_input_required") {
+          dispatch({
+            type: "submit/user-input-required",
+            investigation: outcome.investigation,
+            interaction: outcome.interaction,
+          });
+        } else if (outcome.kind === "completed") {
           dispatch({
             type: "submit/completed",
             investigation: attachSubmissionContext(
@@ -690,6 +796,12 @@ export function useChatWorkflow() {
             processEvents: outcome.processEvents,
             transcript: outcome.transcript,
             executionMode,
+          });
+        } else if (outcome.kind === "resuming") {
+          dispatch({
+            type: "submit/user-input-required",
+            investigation: outcome.investigation,
+            interaction: outcome.interaction,
           });
         } else {
           dispatch({
@@ -715,6 +827,89 @@ export function useChatWorkflow() {
     },
     [cancelCurrentRequest, ownsRequest],
   );
+
+  const answerUserInput = useCallback(
+    async (answer: UserInputAnswer) => {
+      const interaction = state.pendingUserInput;
+      const investigation = state.investigation;
+      if (!interaction || !investigation || state.loading) return;
+
+      cancelCurrentRequest();
+      const controller = new AbortController();
+      requestRef.current = controller;
+      dispatch({ type: "user-input/start" });
+
+      try {
+        const outcome = await submitUserInputRequest(
+          interaction,
+          answer,
+          investigation,
+          controller.signal,
+          {
+            onTranscript: (transcript) => {
+              if (!ownsRequest(controller)) return;
+              dispatch({ type: "process/transcript", transcript });
+            },
+            onOutputText: (result) => {
+              if (!ownsRequest(controller)) return;
+              dispatch({ type: "submit/stream", investigation, result, executionMode: state.executionMode });
+            },
+            onCompleted: (result) => {
+              if (!ownsRequest(controller)) return;
+              dispatch({ type: "answer/completed", result });
+            },
+            onProcessEvents: (events) => {
+              if (!ownsRequest(controller)) return;
+              dispatch({ type: "process/events", events });
+            },
+          },
+        );
+        if (!ownsRequest(controller)) return;
+        if (outcome.kind === "completed") {
+          dispatch({
+            type: "user-input/completed",
+            result: outcome.result,
+            processEvents: outcome.processEvents,
+            transcript: outcome.transcript,
+          });
+        } else if (outcome.kind === "user_input_required") {
+          dispatch({
+            type: "user-input/required",
+            interaction: outcome.interaction,
+            processEvents: outcome.processEvents,
+            transcript: outcome.transcript,
+          });
+        } else if (outcome.kind === "resuming") {
+          dispatch({
+            type: "user-input/required",
+            interaction: outcome.interaction,
+            processEvents: outcome.processEvents,
+            transcript: outcome.transcript,
+          });
+        } else {
+          throw new Error("The response could not resume from the selected answer.");
+        }
+      } catch (error) {
+        if (ownsRequest(controller) && !isAbortError(error)) {
+          dispatch({ type: "request/failure", error: getChatError(error) });
+        }
+      } finally {
+        if (requestRef.current === controller) requestRef.current = null;
+      }
+    },
+    [cancelCurrentRequest, ownsRequest, state.executionMode, state.investigation, state.loading, state.pendingUserInput],
+  );
+
+  const cancelUserInput = useCallback(async () => {
+    const interaction = state.pendingUserInput;
+    if (!interaction || state.loading) return;
+    try {
+      await cancelPendingResponse(interaction.responseId);
+      dispatch({ type: "user-input/cancelled" });
+    } catch (error) {
+      dispatch({ type: "request/failure", error: getChatError(error) });
+    }
+  }, [state.loading, state.pendingUserInput]);
 
   const startProcess = useCallback(
     async (specification: EditableSpecification) => {
@@ -910,6 +1105,7 @@ export function useChatWorkflow() {
               pendingExecutionMode:
                 activeTurn?.executionMode ?? snapshot.pendingExecutionMode,
               pendingResponse: snapshot.pendingResponse,
+              pendingUserInput: snapshot.pendingUserInput ?? null,
             });
           }
 
@@ -917,7 +1113,8 @@ export function useChatWorkflow() {
             (snapshot.pendingResponse ||
               (!activeTurn &&
                 !snapshot.pendingInvestigation &&
-                snapshot.pendingQuestion)) &&
+                snapshot.pendingQuestion &&
+                !snapshot.pendingUserInput)) &&
             !controller.signal.aborted,
           );
           if (shouldContinuePolling) {
@@ -985,6 +1182,8 @@ export function useChatWorkflow() {
     retryProcess,
     loadConversation,
     newChat,
+    answerUserInput,
+    cancelUserInput,
     stopGeneration,
     openEvidence,
     closeEvidence,

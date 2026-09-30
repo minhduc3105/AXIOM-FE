@@ -563,6 +563,10 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
             onRetryProcess={chat.retryProcess}
             onCloseEvidence={chat.closeEvidence}
             onStopGeneration={chat.stopGeneration}
+            pendingUserInput={chat.pendingUserInput}
+            onAnswerUserInput={chat.answerUserInput}
+            onCancelUserInput={chat.cancelUserInput}
+            userInputError={chat.error?.message}
             workspaceId={dataWorkspace.selectedWorkspace?.id ?? ""}
             dataScope={chatDataScope.scope}
             dataResources={chatDataScope.resources}

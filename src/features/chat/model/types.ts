@@ -5,6 +5,26 @@ export type WorkflowStage = Exclude<ChatStage, "welcome" | "pending">;
 export type ProcessStatus = "waiting" | "running" | "done" | "failed";
 export type ChatEngine = "auto" | "general" | "reason" | "report";
 export type ChatExecutionMode = "instant" | "thinking";
+export type UserInputReason = "ambiguous_query" | "method_definition";
+
+export type UserInputOption = {
+  id: string;
+  label: string;
+  description?: string;
+  source?: string;
+};
+
+export type PendingUserInput = {
+  responseId: string;
+  interactionId: string;
+  reason: UserInputReason;
+  question: string;
+  options: UserInputOption[];
+};
+
+export type UserInputAnswer =
+  | { selectedOptionId: string }
+  | { otherText: string };
 
 export type ChatModelOption = {
   id: string;
@@ -120,5 +140,6 @@ export type ChatWorkflowState = {
   historyLoading: boolean;
   loading: boolean;
   error: ChatError | null;
+  pendingUserInput: PendingUserInput | null;
 };
 import type { ChatError } from "./chatError";

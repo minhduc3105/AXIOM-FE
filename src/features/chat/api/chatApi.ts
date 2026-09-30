@@ -8,9 +8,11 @@ import type {
   ChatTurn,
   Investigation,
   MockResult,
+  PendingUserInput,
   ProcessEvent,
   ProcessStatus,
   ResultMetric,
+  UserInputAnswer,
 } from "../model/types";
 import {
   intelligenceApiUrl,
@@ -105,6 +107,8 @@ type HydratedAssistantResponse = {
 type StreamOutcome = {
   confirmation?: PendingConfirmation;
   completed?: CompletedResponse;
+  userInputRequired?: PendingUserInput;
+  resuming?: boolean;
   processEvents: ProcessEvent[];
   transcript: ChatTranscriptItem[];
   outputText: string;
@@ -146,10 +150,25 @@ export type ConversationHistorySnapshot = {
   pendingQuestion: string | null;
   pendingExecutionMode: ChatExecutionMode;
   pendingResponse: boolean;
+  pendingUserInput?: PendingUserInput | null;
 };
 
 export type InitialChatOutcome =
   | { kind: "confirmation"; investigation: Investigation }
+  | {
+      kind: "user_input_required";
+      investigation: Investigation;
+      interaction: PendingUserInput;
+      processEvents: ProcessEvent[];
+      transcript: ChatTranscriptItem[];
+    }
+  | {
+      kind: "resuming";
+      investigation: Investigation;
+      interaction: PendingUserInput;
+      processEvents: ProcessEvent[];
+      transcript: ChatTranscriptItem[];
+    }
   | {
       kind: "completed";
       investigation: Investigation;
@@ -263,6 +282,27 @@ export async function createInvestigation(
     };
   }
 
+  if (outcome.userInputRequired) {
+    return {
+      kind: "user_input_required",
+      investigation: withSubmissionContext(
+        executionMode === "instant"
+          ? instantEngineInvestigation(question)
+          : directAnswerInvestigation(question),
+        (resolvedOptions.files ?? []).map((file) => ({
+          name: file.name,
+          size: file.size,
+          type: file.type || undefined,
+        })),
+        resolvedOptions.dataScope,
+        resolvedOptions.replyContext,
+      ),
+      interaction: outcome.userInputRequired,
+      processEvents: outcome.processEvents,
+      transcript: outcome.transcript,
+    };
+  }
+
   if (!outcome.confirmation)
     throw new Error("The intelligence service returned no usable outcome.");
 
@@ -271,6 +311,65 @@ export async function createInvestigation(
     kind: "confirmation",
     investigation: confirmationToInvestigation(outcome.confirmation, question),
   };
+}
+
+export async function submitUserInput(
+  interaction: PendingUserInput,
+  answer: UserInputAnswer,
+  investigation: Investigation,
+  signal?: AbortSignal,
+  callbacks?: StreamCallbacks,
+): Promise<InitialChatOutcome> {
+  const response = await postJson(
+    `/api/v1/responses/${encodeURIComponent(interaction.responseId)}/user-input`,
+    {
+      interaction_id: interaction.interactionId,
+      ...( "selectedOptionId" in answer
+        ? { selected_option_id: answer.selectedOptionId }
+        : { other_text: answer.otherText }),
+    },
+    signal,
+  );
+  const outcome = await readResponseStream(response, signal, callbacks);
+  if (outcome.completed) {
+    return {
+      kind: "completed",
+      investigation,
+      result: completedToResult(outcome.completed),
+      processEvents: outcome.processEvents,
+      transcript: outcome.transcript,
+    };
+  }
+  if (outcome.userInputRequired) {
+    return {
+      kind: "user_input_required",
+      investigation,
+      interaction: outcome.userInputRequired,
+      processEvents: outcome.processEvents,
+      transcript: outcome.transcript,
+    };
+  }
+  if (outcome.resuming) {
+    return {
+      kind: "resuming",
+      investigation,
+      interaction,
+      processEvents: outcome.processEvents,
+      transcript: outcome.transcript,
+    };
+  }
+  throw new Error("The intelligence service returned no usable outcome.");
+}
+
+export async function cancelPendingResponse(
+  responseId: string,
+  signal?: AbortSignal,
+) {
+  await postJson(
+    `/api/v1/responses/${encodeURIComponent(responseId)}/cancel`,
+    {},
+    signal,
+  );
 }
 
 function serializeDataScope(scope: ChatDataScope) {
@@ -693,6 +792,19 @@ function applyStreamEvent(
     return;
   }
 
+  if (event.type === "response.requires_user_input") {
+    outcome.userInputRequired = pendingUserInputFromEvent(event);
+    outcome.outputText = "";
+    outcome.transcript = outcome.transcript.filter((item) => item.kind === "action");
+    callbacks?.onTranscript?.(outcome.transcript);
+    return;
+  }
+
+  if (event.type === "response.resuming") {
+    outcome.resuming = true;
+    return;
+  }
+
   if (event.type === "response.completed") {
     const completed = completedFromEvent(event, outcome.outputText);
     if (completed.outputText !== outcome.outputText) {
@@ -806,6 +918,47 @@ function confirmationFromEvent(event: SseEvent): PendingConfirmation {
     confidence: percentValue(intent.confidence),
     specMarkdown,
     spec,
+  };
+}
+
+function pendingUserInputFromEvent(event: SseEvent): PendingUserInput {
+  const responseId = stringValue(event.response_id);
+  const interactionId = stringValue(event.interaction_id);
+  const question = stringValue(event.question);
+  const reason = stringValue(event.reason);
+  const rawOptions = Array.isArray(event.options) ? event.options : [];
+  if (
+    !responseId ||
+    !interactionId ||
+    !question ||
+    !["ambiguous_query", "method_definition"].includes(reason) ||
+    rawOptions.length < 1 ||
+    rawOptions.length > 3
+  ) {
+    throw new Error("The clarification event was missing required response data.");
+  }
+  const options = rawOptions.map((item) => {
+    const option = asRecord(item);
+    const id = stringValue(option.id);
+    const label = stringValue(option.label);
+    if (!id || !label) {
+      throw new Error("The clarification event contained an invalid option.");
+    }
+    return {
+      id,
+      label,
+      ...(stringValue(option.description)
+        ? { description: stringValue(option.description) }
+        : {}),
+      ...(stringValue(option.source) ? { source: stringValue(option.source) } : {}),
+    };
+  });
+  return {
+    responseId,
+    interactionId,
+    question,
+    reason: reason as PendingUserInput["reason"],
+    options,
   };
 }
 
@@ -1229,9 +1382,16 @@ function messagesToChatTurns(
   let pendingInvestigation: Investigation | null = null;
   let historyConfirmation: PendingConfirmation | null = null;
   let pendingResponse = false;
+  let pendingUserInput: PendingUserInput | null = null;
 
   for (const message of orderedMessages) {
     if (message.role === "user") {
+      const content = asRecord(message.content);
+      if (content.type === "response.user_input") {
+        pendingUserInput = null;
+        pendingResponse = true;
+        continue;
+      }
       pendingQuestion = userQuestionFromMessage(message) || pendingQuestion;
       pendingAttachments = attachmentsFromMessage(message);
       pendingDataScope = dataScopeFromMessage(message);
@@ -1239,10 +1399,21 @@ function messagesToChatTurns(
       pendingExecutionMode = executionModeFromMessage(message);
       pendingInvestigation = null;
       historyConfirmation = null;
+      pendingUserInput = null;
       continue;
     }
 
     if (message.role === "system") {
+      const content = asRecord(message.content);
+      if (content.type === "response.requires_user_input") {
+        pendingUserInput = pendingUserInputFromEvent({
+          ...content,
+          type: "response.requires_user_input",
+          response_id: message.response_id || stringValue(content.response_id),
+        });
+        pendingResponse = false;
+        continue;
+      }
       const confirmation = confirmationFromMessage(message);
       if (confirmation) {
         const question = pendingQuestion || "Conversation response";
@@ -1298,6 +1469,8 @@ function messagesToChatTurns(
     pendingReplyContext = undefined;
     pendingInvestigation = null;
     historyConfirmation = null;
+    pendingUserInput = null;
+    pendingResponse = false;
     pendingExecutionMode = "thinking";
   }
 
@@ -1309,6 +1482,7 @@ function messagesToChatTurns(
     pendingQuestion,
     pendingExecutionMode,
     pendingResponse,
+    pendingUserInput,
   };
 }
 
