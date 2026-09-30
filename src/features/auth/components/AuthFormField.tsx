@@ -5,11 +5,16 @@ import {
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
 import { cn } from "@/shared/lib/utils";
 
 export type AuthFormFieldProps = Omit<
-  ComponentProps<typeof Input>,
+  ComponentProps<"input">,
   "aria-describedby" | "aria-invalid" | "id" | "ref"
 > & {
   id: string;
@@ -41,31 +46,26 @@ export function AuthFormField({
       <FieldLabel className={labelClassName} htmlFor={id}>
         {label}
       </FieldLabel>
-      <div className="relative">
-        <Input
+      <InputGroup className="h-10">
+        {startAdornment ? (
+          <InputGroupAddon className="self-stretch py-0">
+            <InputGroupText>{startAdornment}</InputGroupText>
+          </InputGroupAddon>
+        ) : null}
+        <InputGroupInput
           {...inputProps}
           ref={inputRef}
           id={id}
           aria-invalid={error ? true : undefined}
           aria-describedby={descriptionId}
-          className={cn(
-            "h-10 bg-background",
-            startAdornment && "pl-11",
-            endAdornment && "pr-11",
-            className,
-          )}
+          className={cn("h-full", className)}
         />
-        {startAdornment ? (
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-            {startAdornment}
-          </div>
-        ) : null}
         {endAdornment ? (
-          <div className="absolute inset-y-0 right-0 flex items-center">
+          <InputGroupAddon align="inline-end" className="self-stretch py-0">
             {endAdornment}
-          </div>
+          </InputGroupAddon>
         ) : null}
-      </div>
+      </InputGroup>
       {error ? (
         <FieldError id={`${id}-error`}>{error}</FieldError>
       ) : hint ? (

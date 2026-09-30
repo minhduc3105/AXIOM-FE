@@ -8,6 +8,8 @@ import {
 import { LoaderCircleIcon, MailIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { FieldGroup } from "@/components/ui/field";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/features/auth/model/AuthProvider";
 import { getAuthError } from "@/features/auth/model/authErrors";
 import type { AuthError, AuthField } from "@/features/auth/model/types";
@@ -113,94 +115,89 @@ export function LoginPage({
       subtitle="Access your organization's intelligence platform."
     >
       <form
-        className="grid gap-4"
         onSubmit={handleSubmit}
         aria-busy={submitting}
         aria-labelledby={loginHeadingId}
       >
-        {alertError ? (
-          <Alert
-            ref={alertRef}
-            tabIndex={-1}
-            variant="destructive"
-            className="border-destructive/20 bg-destructive/5"
-          >
-            <AlertDescription>{alertError.userMessage}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <AuthFormField
-          id="axiom-login-email"
-          name="email"
-          label="Email"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          startAdornment={<MailIcon className="size-4" aria-hidden="true" />}
-          className="h-11 rounded-lg bg-background pr-3.5 pl-9 text-sm hover:border-slate-400 focus-visible:ring-primary/10 md:text-sm"
-          value={email}
-          error={emailError}
-          required
-          onChange={(event) => {
-            setEmail(event.target.value);
-            clearErrorFor("email");
-          }}
-        />
-
-        <PasswordField
-          id="axiom-login-password"
-          name="password"
-          label="Password"
-          autoComplete="current-password"
-          className="h-11 rounded-lg bg-background px-3.5 text-sm hover:border-slate-400 focus-visible:ring-primary/10 md:text-sm"
-          value={password}
-          error={passwordError}
-          required
-          onChange={(event) => {
-            setPassword(event.target.value);
-            clearErrorFor("password");
-          }}
-        />
-
-        <Button
-          className="mt-2 h-11 rounded-lg font-semibold hover:bg-brand-strong"
-          disabled={submitting}
-          type="submit"
-        >
-          {submitting ? (
-            <LoaderCircleIcon
-              className="animate-spin motion-reduce:animate-none"
-              data-icon="inline-start"
-              aria-hidden="true"
-            />
+        <FieldGroup className="gap-4">
+          {alertError ? (
+            <Alert ref={alertRef} tabIndex={-1} variant="destructive">
+              <AlertDescription>{alertError.userMessage}</AlertDescription>
+            </Alert>
           ) : null}
-          {submitting ? "Signing in…" : "Sign in"}
-        </Button>
 
-        {submitting ? (
-          <span className="sr-only" role="status">
-            Signing in…
-          </span>
-        ) : null}
+          <AuthFormField
+            id="axiom-login-email"
+            name="email"
+            label="Email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            startAdornment={<MailIcon aria-hidden="true" />}
+            value={email}
+            error={emailError}
+            required
+            onChange={(event) => {
+              setEmail(event.target.value);
+              clearErrorFor("email");
+            }}
+          />
 
-        <div
-          className="mt-4 flex items-center gap-3 text-sm text-muted-foreground"
-          aria-hidden="true"
-        >
-          <span className="h-px flex-1 bg-border" />
-          <span>or</span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
+          <PasswordField
+            id="axiom-login-password"
+            name="password"
+            label="Password"
+            autoComplete="current-password"
+            value={password}
+            error={passwordError}
+            required
+            onChange={(event) => {
+              setPassword(event.target.value);
+              clearErrorFor("password");
+            }}
+          />
 
-        <div className="flex justify-center">
-          <a
-            className="w-fit rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-            href={registerHref}
-            onClick={handleRegister}
+          <Button
+            className="mt-2 w-full"
+            size="lg"
+            disabled={submitting}
+            type="submit"
           >
-            Create your organization
-          </a>
-        </div>
+            {submitting ? (
+              <LoaderCircleIcon
+                className="animate-spin motion-reduce:animate-none"
+                data-icon="inline-start"
+                aria-hidden="true"
+              />
+            ) : null}
+            {submitting ? "Signing in…" : "Sign in"}
+          </Button>
+
+          {submitting ? (
+            <span className="sr-only" role="status">
+              Signing in…
+            </span>
+          ) : null}
+
+          <div
+            className="mt-4 flex items-center gap-3 text-sm text-muted-foreground"
+            aria-hidden="true"
+          >
+            <Separator className="flex-1" />
+            <span>or</span>
+            <Separator className="flex-1" />
+          </div>
+
+          <div className="flex justify-center">
+            <a
+              className="w-fit rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              href={registerHref}
+              onClick={handleRegister}
+            >
+              Create your organization
+            </a>
+          </div>
+        </FieldGroup>
       </form>
     </AuthShell>
   );

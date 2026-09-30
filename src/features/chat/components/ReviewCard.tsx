@@ -1,6 +1,12 @@
 import { useState } from "react";
-import { PencilLineIcon, WandSparklesIcon } from "lucide-react";
+import {
+  AlertCircleIcon,
+  PencilLineIcon,
+  WandSparklesIcon,
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Field,
   FieldGroup,
@@ -58,17 +64,22 @@ export function ReviewCard(props: ReviewCardProps) {
   });
   const hasTranscript = transcript.length > 0;
   const errorStatus = props.error && (
-    <div
-      className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
-      role="alert"
-    >
-      <span>{props.error.message}</span>
-      {props.canRetry && props.onRetry && (
-        <Button type="button" size="xs" variant="ghost" onClick={props.onRetry}>
-          Retry
-        </Button>
-      )}
-    </div>
+    <Alert variant="destructive">
+      <AlertCircleIcon />
+      <AlertDescription className="flex flex-wrap items-center gap-2">
+        <span>{props.error.message}</span>
+        {props.canRetry && props.onRetry && (
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            onClick={props.onRetry}
+          >
+            Retry
+          </Button>
+        )}
+      </AlertDescription>
+    </Alert>
   );
 
   return (
@@ -106,7 +117,7 @@ export function ReviewCard(props: ReviewCardProps) {
         <ThinkingIndicator />
       ) : null}
 
-      {!hasResult && errorStatus}
+      {!hasResult && !hasTranscript && errorStatus}
     </section>
   );
 }
@@ -251,123 +262,123 @@ function IntentCard({
   }
 
   return (
-    <form
-      id="intent-specification-form"
-      className="flex flex-col gap-5 rounded-2xl border border-border bg-muted/20 p-5"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onRun?.();
-      }}
-    >
-      <FieldGroup>
-        <Field data-invalid={!draft.specMarkdown.trim()}>
-          <FieldLabel htmlFor="specification-markdown-field">
-            Specification
-          </FieldLabel>
-          {editingSpec ? (
-            <Textarea
-              id="specification-markdown-field"
-              value={draft.specMarkdown}
-              disabled={loading}
-              onChange={(event) =>
-                onSpecificationChange?.({
-                  ...draft,
-                  specMarkdown: event.target.value,
-                })
-              }
-              aria-label="Specification markdown"
-              aria-invalid={!draft.specMarkdown.trim()}
-              className="min-h-80 font-mono text-sm leading-relaxed"
-              required
-            />
-          ) : (
-            <ScrollArea
-              id="specification-markdown-field"
-              className="h-[min(48dvh,520px)] rounded-xl border border-border bg-background"
-            >
-              <div className="p-5">
-                <MarkdownContent markdown={draft.specMarkdown} compact />
-              </div>
-            </ScrollArea>
-          )}
-        </Field>
-      </FieldGroup>
-
-      <div className="flex flex-wrap justify-end gap-3">
-        {editingSpec && (
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={loading}
-            onClick={handleReset}
-          >
-            Reset
-          </Button>
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          aria-controls="specification-markdown-field"
-          aria-expanded={editingSpec}
-          disabled={loading}
-          onClick={() => setEditingSpec((editing) => !editing)}
+    <Card>
+      <CardContent className="p-5">
+        <form
+          id="intent-specification-form"
+          className="flex flex-col gap-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onRun?.();
+          }}
         >
-          <PencilLineIcon data-icon="inline-start" />
-          {editingSpec ? "Preview" : "Edit"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          aria-controls="revision-prompt-panel"
-          aria-expanded={promptOpen}
-          disabled={loading}
-          onClick={() => setPromptOpen((open) => !open)}
-        >
-          <WandSparklesIcon data-icon="inline-start" />
-          {promptOpen ? "Close" : "Request changes"}
-        </Button>
-        <Button type="submit" disabled={!valid || loading}>
-          {loading ? "Updating..." : "Approve"}
-        </Button>
-      </div>
+          <FieldGroup>
+            <Field data-invalid={!draft.specMarkdown.trim()}>
+              <FieldLabel htmlFor="specification-markdown-field">
+                Specification
+              </FieldLabel>
+              {editingSpec ? (
+                <Textarea
+                  id="specification-markdown-field"
+                  value={draft.specMarkdown}
+                  disabled={loading}
+                  onChange={(event) =>
+                    onSpecificationChange?.({
+                      ...draft,
+                      specMarkdown: event.target.value,
+                    })
+                  }
+                  aria-label="Specification markdown"
+                  aria-invalid={!draft.specMarkdown.trim()}
+                  className="min-h-80 font-mono text-sm leading-relaxed"
+                  required
+                />
+              ) : (
+                <ScrollArea
+                  id="specification-markdown-field"
+                  className="h-[min(48dvh,520px)] rounded-xl border bg-background"
+                >
+                  <div className="p-5">
+                    <MarkdownContent markdown={draft.specMarkdown} compact />
+                  </div>
+                </ScrollArea>
+              )}
+            </Field>
+          </FieldGroup>
 
-      {promptOpen && (
-        <div id="revision-prompt-panel" className="flex flex-col gap-5">
-          <FieldSeparator>Prompt revision</FieldSeparator>
-          <Field>
-            <FieldLabel htmlFor="revision-prompt-field">
-              Revision prompt
-            </FieldLabel>
-            <Textarea
-              id="revision-prompt-field"
-              value={revisionPrompt}
-              disabled={loading}
-              onChange={(event) => setRevisionPrompt(event.target.value)}
-              placeholder="Example: focus on churn risk for enterprise customers and keep the output as a concise executive summary."
-              rows={3}
-            />
-            <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-3">
+            {editingSpec && (
               <Button
                 type="button"
-                variant="outline"
-                disabled={!canRevise}
-                onClick={handlePromptRevision}
+                variant="ghost"
+                disabled={loading}
+                onClick={handleReset}
               >
-                <WandSparklesIcon data-icon="inline-start" />
-                Revise
+                Reset
               </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              aria-controls="specification-markdown-field"
+              aria-expanded={editingSpec}
+              disabled={loading}
+              onClick={() => setEditingSpec((editing) => !editing)}
+            >
+              <PencilLineIcon data-icon="inline-start" />
+              {editingSpec ? "Preview" : "Edit"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              aria-controls="revision-prompt-panel"
+              aria-expanded={promptOpen}
+              disabled={loading}
+              onClick={() => setPromptOpen((open) => !open)}
+            >
+              <WandSparklesIcon data-icon="inline-start" />
+              {promptOpen ? "Close" : "Request changes"}
+            </Button>
+            <Button type="submit" disabled={!valid || loading}>
+              {loading ? "Updating..." : "Approve"}
+            </Button>
+          </div>
+
+          {promptOpen && (
+            <div id="revision-prompt-panel" className="flex flex-col gap-5">
+              <FieldSeparator>Prompt revision</FieldSeparator>
+              <Field>
+                <FieldLabel htmlFor="revision-prompt-field">
+                  Revision prompt
+                </FieldLabel>
+                <Textarea
+                  id="revision-prompt-field"
+                  value={revisionPrompt}
+                  disabled={loading}
+                  onChange={(event) => setRevisionPrompt(event.target.value)}
+                  placeholder="Example: focus on churn risk for enterprise customers and keep the output as a concise executive summary."
+                  rows={3}
+                />
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!canRevise}
+                    onClick={handlePromptRevision}
+                  >
+                    <WandSparklesIcon data-icon="inline-start" />
+                    Revise
+                  </Button>
+                </div>
+              </Field>
             </div>
-          </Field>
-        </div>
-      )}
-    </form>
+          )}
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
 function ThinkingIndicator() {
-  return (
-    <span className="py-1 text-sm text-muted-foreground motion-safe:animate-pulse motion-reduce:animate-none">
-      Thinking
-    </span>
-  );
+  return <span className="py-1 text-sm text-muted-foreground">Thinking</span>;
 }

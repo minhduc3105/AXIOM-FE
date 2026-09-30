@@ -49,6 +49,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
@@ -67,7 +68,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -1430,17 +1430,19 @@ function DropdownField({
         }
       />
       <DropdownMenuContent align="start">
-        <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
-          {options.map((option) => (
-            <DropdownMenuRadioItem
-              key={option.value}
-              value={option.value}
-              disabled={option.disabled}
-            >
-              {option.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
+        <DropdownMenuGroup>
+          <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
+            {options.map((option) => (
+              <DropdownMenuRadioItem
+                key={option.value}
+                value={option.value}
+                disabled={option.disabled}
+              >
+                {option.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -1887,17 +1889,13 @@ function MemberDialog({
             minLength={8}
             error={errors["member-password"]}
           />
-          <Field>
-            <FieldLabel htmlFor="member-role">Organization role</FieldLabel>
-            <input type="hidden" name="member-role" value={role} />
-            <DropdownField
-              id="member-role"
-              value={role}
-              onValueChange={(value) => setRole(value as AuthUser["org_role"])}
-              options={organizationRoleOptions}
-              ariaLabel="Organization role"
-            />
-          </Field>
+          <DropdownField
+            id="member-role"
+            value={role}
+            onValueChange={(value) => setRole(value as AuthUser["org_role"])}
+            options={organizationRoleOptions}
+            ariaLabel="Organization role"
+          />
         </FieldGroup>
       </form>
     </AdministrationDialog>

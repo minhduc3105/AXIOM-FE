@@ -14,11 +14,18 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -244,6 +251,9 @@ export function DataSourceConnectionDialog({
             {isS3 ? <CloudIcon /> : <SnowflakeIcon />}
             {isS3 ? "Connect Amazon S3" : "Connect Snowflake"}
           </DialogTitle>
+          <DialogDescription>
+            Save an encrypted connection profile for this workspace.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={save}>
@@ -259,7 +269,7 @@ export function DataSourceConnectionDialog({
             </Field>
 
             {isS3 ? (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <FieldGroup className="grid gap-4 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="s3-access-key-id">
                     AWS access key ID
@@ -321,10 +331,10 @@ export function DataSourceConnectionDialog({
                     required
                   />
                 </Field>
-              </div>
+              </FieldGroup>
             ) : (
               <>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <FieldGroup className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="snowflake-account">Account</FieldLabel>
                     <Input
@@ -447,48 +457,51 @@ export function DataSourceConnectionDialog({
                       disabled={busy}
                     />
                   </Field>
-                </div>
+                </FieldGroup>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field
-                    orientation="horizontal"
-                    className="rounded-lg border p-3"
-                  >
-                    <Checkbox
-                      id="snowflake-discover-tables"
-                      checked={snowflakeConfig.discoverTables}
-                      onCheckedChange={(checked) =>
-                        setSnowflakeConfig((current) => ({
-                          ...current,
-                          discoverTables: Boolean(checked),
-                        }))
-                      }
-                      disabled={busy}
-                    />
-                    <FieldLabel htmlFor="snowflake-discover-tables">
-                      Discover tables
-                    </FieldLabel>
-                  </Field>
-                  <Field
-                    orientation="horizontal"
-                    className="rounded-lg border p-3"
-                  >
-                    <Checkbox
-                      id="snowflake-discover-stages"
-                      checked={snowflakeConfig.discoverStages}
-                      onCheckedChange={(checked) =>
-                        setSnowflakeConfig((current) => ({
-                          ...current,
-                          discoverStages: Boolean(checked),
-                        }))
-                      }
-                      disabled={busy}
-                    />
-                    <FieldLabel htmlFor="snowflake-discover-stages">
-                      Discover stages
-                    </FieldLabel>
-                  </Field>
-                </div>
+                <FieldSet>
+                  <FieldLegend variant="label">Discovery sources</FieldLegend>
+                  <FieldGroup className="grid gap-3 sm:grid-cols-2">
+                    <Field
+                      orientation="horizontal"
+                      className="rounded-lg border p-3"
+                    >
+                      <Checkbox
+                        id="snowflake-discover-tables"
+                        checked={snowflakeConfig.discoverTables}
+                        onCheckedChange={(checked) =>
+                          setSnowflakeConfig((current) => ({
+                            ...current,
+                            discoverTables: Boolean(checked),
+                          }))
+                        }
+                        disabled={busy}
+                      />
+                      <FieldLabel htmlFor="snowflake-discover-tables">
+                        Discover tables
+                      </FieldLabel>
+                    </Field>
+                    <Field
+                      orientation="horizontal"
+                      className="rounded-lg border p-3"
+                    >
+                      <Checkbox
+                        id="snowflake-discover-stages"
+                        checked={snowflakeConfig.discoverStages}
+                        onCheckedChange={(checked) =>
+                          setSnowflakeConfig((current) => ({
+                            ...current,
+                            discoverStages: Boolean(checked),
+                          }))
+                        }
+                        disabled={busy}
+                      />
+                      <FieldLabel htmlFor="snowflake-discover-stages">
+                        Discover stages
+                      </FieldLabel>
+                    </Field>
+                  </FieldGroup>
+                </FieldSet>
               </>
             )}
 
@@ -500,43 +513,42 @@ export function DataSourceConnectionDialog({
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
-            <DialogFooter>
-              <DialogClose
-                render={
-                  <Button variant="outline" type="button" disabled={busy} />
-                }
-              >
-                Cancel
-              </DialogClose>
-              {isS3 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={testConnection}
-                  disabled={busy}
-                >
-                  <RefreshCwIcon
-                    data-icon="inline-start"
-                    className={testing ? "animate-spin" : undefined}
-                  />
-                  {testing ? "Testing…" : "Test connection"}
-                </Button>
-              )}
-              <Button type="submit" disabled={busy}>
-                {isS3 ? (
-                  <PlugZapIcon data-icon="inline-start" />
-                ) : (
-                  <SaveIcon data-icon="inline-start" />
-                )}
-                {saving
-                  ? "Connecting securely…"
-                  : isS3
-                    ? "Connect"
-                    : "Save source"}
-              </Button>
-            </DialogFooter>
           </FieldGroup>
+          <DialogFooter>
+            <DialogClose
+              render={
+                <Button variant="outline" type="button" disabled={busy} />
+              }
+            >
+              Cancel
+            </DialogClose>
+            {isS3 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={testConnection}
+                disabled={busy}
+              >
+                <RefreshCwIcon
+                  data-icon="inline-start"
+                  className={testing ? "animate-spin" : undefined}
+                />
+                {testing ? "Testing…" : "Test connection"}
+              </Button>
+            )}
+            <Button type="submit" disabled={busy}>
+              {isS3 ? (
+                <PlugZapIcon data-icon="inline-start" />
+              ) : (
+                <SaveIcon data-icon="inline-start" />
+              )}
+              {saving
+                ? "Connecting securely…"
+                : isS3
+                  ? "Connect"
+                  : "Save source"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

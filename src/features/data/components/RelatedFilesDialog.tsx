@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { LoaderCircleIcon, SearchIcon, XIcon } from "lucide-react";
+import {
+  FileSearchIcon,
+  LoaderCircleIcon,
+  SearchIcon,
+  XIcon,
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -10,7 +16,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   discoverRelatedFiles,
   relatedFileToDataFile,
@@ -126,7 +140,7 @@ export function RelatedFilesDialog({
             documents related to their content.
           </DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 space-y-4 overflow-y-auto">
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
           <Input
             aria-label="Search files to select"
             placeholder="Search workspace file names"
@@ -154,27 +168,44 @@ export function RelatedFilesDialog({
                 onClick={() => changeSelection(file, false)}
               >
                 <span className="max-w-40 truncate">{file.name}</span>
-                <XIcon />
+                <XIcon data-icon="inline-end" />
               </Button>
             ))}
           </div>
           {listError ? (
-            <div role="alert" className="space-y-2 text-sm">
-              <p>{listError}</p>
-              <Button variant="outline" onClick={refresh}>
-                Retry loading files
-              </Button>
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+                <span>{listError}</span>
+                <Button variant="outline" onClick={refresh}>
+                  Retry loading files
+                </Button>
+              </AlertDescription>
+            </Alert>
           ) : loading ? (
-            <p role="status" className="py-5 text-sm text-muted-foreground">
-              Loading files…
-            </p>
+            <div
+              role="status"
+              className="flex flex-col gap-3 rounded-lg border p-4"
+            >
+              <span className="text-sm text-muted-foreground">
+                Loading files…
+              </span>
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
           ) : (
             <div className="divide-y rounded-lg border">
               {!indexedFiles.length && (
-                <p className="p-4 text-sm text-muted-foreground">
-                  No indexed files on this page. Try another page or search.
-                </p>
+                <Empty className="min-h-36 border-0 py-6">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <FileSearchIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>No indexed files on this page</EmptyTitle>
+                    <EmptyDescription>
+                      Try another page or search.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               )}
               {indexedFiles.map((file) => {
                 const checked = selected.some((item) => item.key === file.key);
@@ -230,28 +261,36 @@ export function RelatedFilesDialog({
           </div>
           {pending && (
             <p role="status" className="flex items-center gap-2 text-sm">
-              <LoaderCircleIcon className="size-4 animate-spin" />
+              <LoaderCircleIcon
+                className="animate-spin"
+                data-icon="inline-start"
+              />
               Finding related files… This may take a few minutes.
             </p>
           )}
           {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
           {results !== null && (
             <section
               aria-label="Related files"
-              className="space-y-2"
+              className="flex flex-col gap-2"
               aria-live="polite"
             >
               <h3 className="text-sm font-medium">
                 Related files ({results.length})
               </h3>
               {!results.length && (
-                <p className="text-sm text-muted-foreground">
-                  No related files found. Try a different selection.
-                </p>
+                <Empty className="min-h-32 border border-dashed py-6">
+                  <EmptyHeader>
+                    <EmptyTitle>No related files found</EmptyTitle>
+                    <EmptyDescription>
+                      Try a different selection.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               )}
               {results.map((file) => (
                 <Button
@@ -281,9 +320,12 @@ export function RelatedFilesDialog({
             onClick={() => void discover()}
           >
             {pending ? (
-              <LoaderCircleIcon className="animate-spin" />
+              <LoaderCircleIcon
+                className="animate-spin"
+                data-icon="inline-start"
+              />
             ) : (
-              <SearchIcon />
+              <SearchIcon data-icon="inline-start" />
             )}
             {error ? "Retry discovery" : "Discover"}
           </Button>

@@ -15,6 +15,19 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -25,6 +38,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
@@ -156,16 +170,18 @@ function DropdownField({
           }
         />
         <DropdownMenuContent align="start">
-          <DropdownMenuRadioGroup
-            value={selectedValue}
-            onValueChange={handleValueChange}
-          >
-            {options.map((option) => (
-              <DropdownMenuRadioItem key={option.value} value={option.value}>
-                {option.label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
+          <DropdownMenuGroup>
+            <DropdownMenuRadioGroup
+              value={selectedValue}
+              onValueChange={handleValueChange}
+            >
+              {options.map((option) => (
+                <DropdownMenuRadioItem key={option.value} value={option.value}>
+                  {option.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
       <FieldError>{error}</FieldError>
@@ -294,55 +310,64 @@ export function ModelServiceModelDialog({
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
             <div className="mx-auto grid max-w-xl gap-5">
-              <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-                <div className="mb-6">
-                  <p className="text-sm font-semibold">Model identity</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+              <Card size="sm">
+                <CardHeader>
+                  <CardTitle>Model identity</CardTitle>
+                  <CardDescription>
                     How this model appears in AXIOM.
-                  </p>
-                </div>
-                <div className="grid gap-5">
-                  <TextField
-                    id="model-name"
-                    label="Model name"
-                    list="discovered-model-candidates"
-                    defaultValue={model?.model_id ?? model?.name}
-                    placeholder="e.g. poolside/laguna-xs-2.1"
-                    onChange={() => clearError(errors, "modelName", setErrors)}
-                    error={errors.modelName}
-                    required
-                  />
-                  {candidateOptions.length > 0 && (
-                    <datalist id="discovered-model-candidates">
-                      {candidateOptions.map((candidate) => (
-                        <option
-                          key={candidate.model_id}
-                          value={candidate.model_id}
-                        >
-                          {candidate.name}
-                        </option>
-                      ))}
-                    </datalist>
-                  )}
-                  <DropdownField
-                    id="model-capability"
-                    label="Workload"
-                    defaultValue={model?.capability ?? capability}
-                    error={errors.capability}
-                    onValueChange={() =>
-                      clearError(errors, "capability", setErrors)
-                    }
-                    options={modelCapabilities.map((item) => ({
-                      value: item.id,
-                      label: item.label,
-                    }))}
-                  />
-                </div>
-              </section>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FieldGroup className="gap-5">
+                    <TextField
+                      id="model-name"
+                      label="Model name"
+                      list="discovered-model-candidates"
+                      defaultValue={model?.model_id ?? model?.name}
+                      placeholder="e.g. poolside/laguna-xs-2.1"
+                      onChange={() =>
+                        clearError(errors, "modelName", setErrors)
+                      }
+                      error={errors.modelName}
+                      required
+                    />
+                    {candidateOptions.length > 0 && (
+                      <datalist id="discovered-model-candidates">
+                        {candidateOptions.map((candidate) => (
+                          <option
+                            key={candidate.model_id}
+                            value={candidate.model_id}
+                          >
+                            {candidate.name}
+                          </option>
+                        ))}
+                      </datalist>
+                    )}
+                    <DropdownField
+                      id="model-capability"
+                      label="Workload"
+                      defaultValue={model?.capability ?? capability}
+                      error={errors.capability}
+                      onValueChange={() =>
+                        clearError(errors, "capability", setErrors)
+                      }
+                      options={modelCapabilities.map((item) => ({
+                        value: item.id,
+                        label: item.label,
+                      }))}
+                    />
+                  </FieldGroup>
+                </CardContent>
+              </Card>
               {!model && !usesExistingProvider && (
-                <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
-                  Select a provider first.
-                </p>
+                <Empty className="min-h-24 border border-dashed">
+                  <EmptyHeader>
+                    <EmptyTitle>Provider required</EmptyTitle>
+                    <EmptyDescription>
+                      Select a provider first.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               )}
             </div>
           </div>
@@ -630,15 +655,17 @@ export function ModelServiceAssignmentPickerDialog({
               })}
             </div>
           ) : (
-            <div className="p-6 text-center">
-              <p className="text-sm font-medium">
-                No {definition?.label ?? "matching"} models available
-              </p>
-              <p className={cn("mt-1 text-xs", modelServiceMutedText)}>
-                Add a model with this capability and its connection
-                configuration first.
-              </p>
-            </div>
+            <Empty className="min-h-40 border-0">
+              <EmptyHeader>
+                <EmptyTitle>
+                  No {definition?.label ?? "matching"} models available
+                </EmptyTitle>
+                <EmptyDescription>
+                  Add a model with this capability and its connection
+                  configuration first.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </div>
         <DialogFooter>

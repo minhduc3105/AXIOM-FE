@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
@@ -162,7 +163,7 @@ export function ChatComposer({
         <>
           {files.length > 0 && (
             <div
-              className="flex min-w-0 gap-2 overflow-x-auto px-2 pb-1"
+              className="flex min-w-0 items-center gap-2 overflow-x-auto px-2 pb-1"
               aria-label="Selected files"
             >
               {files.map((file, index) => {
@@ -170,32 +171,38 @@ export function ChatComposer({
                   ? SheetIcon
                   : FileIcon;
                 return (
-                  <Badge
-                    variant="outline"
-                    className="h-8 max-w-[320px] shrink-0 gap-2 rounded-full border-border bg-secondary px-3 text-secondary-foreground"
+                  <div
+                    className="flex max-w-[320px] shrink-0 items-center gap-1"
                     key={`${file.name}-${file.size}-${index}`}
                   >
-                    <FileTypeIcon className="size-3.5 shrink-0 text-primary" />
-                    <span className="max-w-[240px] truncate">{file.name}</span>
+                    <Badge
+                      variant="secondary"
+                      className="max-w-[280px] rounded-full"
+                    >
+                      <FileTypeIcon aria-hidden="true" />
+                      <span className="max-w-[240px] truncate">
+                        {file.name}
+                      </span>
+                    </Badge>
                     <Button
                       type="button"
                       size="icon-xs"
                       variant="ghost"
-                      className="-mr-1 rounded-full"
+                      className="shrink-0 rounded-full"
                       aria-label={`Remove ${file.name}`}
                       disabled={composerDisabled}
                       onClick={() => removeFile(index)}
                     >
                       <XIcon />
                     </Button>
-                  </Badge>
+                  </div>
                 );
               })}
             </div>
           )}
           <Textarea
             ref={textareaRef}
-            className="max-h-40 min-h-11 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-base leading-6 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent sm:min-h-12 sm:px-4 sm:py-3"
+            className="max-h-40 min-h-11 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-base leading-6 shadow-none placeholder:text-muted-foreground focus-visible:ring-0 sm:min-h-12 sm:px-4 sm:py-3"
             value={value}
             onChange={(event) => setValue(event.target.value)}
             onKeyDown={submitFromKeyboard}
@@ -221,7 +228,7 @@ export function ChatComposer({
                 render={<label htmlFor={fileInputId} />}
                 nativeButton={false}
                 variant="outline"
-                className="size-10 rounded-full border-border bg-secondary p-0 text-secondary-foreground shadow-none hover:bg-muted"
+                className="size-10 rounded-full p-0"
                 aria-label="Attach files"
                 disabled={composerDisabled}
               >
@@ -235,8 +242,8 @@ export function ChatComposer({
                   render={
                     <Button
                       type="button"
-                      variant="outline"
-                      className="h-10 w-[92px] shrink-0 justify-between rounded-full border-border bg-secondary px-2 text-secondary-foreground shadow-none hover:bg-muted sm:min-w-[128px] sm:px-3"
+                      variant="secondary"
+                      className="h-10 w-[92px] shrink-0 justify-between rounded-full px-2 sm:min-w-[128px] sm:px-3"
                       aria-label="Select response type"
                       disabled={composerDisabled}
                     />
@@ -246,26 +253,28 @@ export function ChatComposer({
                   <ChevronDownIcon data-icon="inline-end" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-[128px]">
-                  <DropdownMenuRadioGroup
-                    value={engine}
-                    onValueChange={selectEngine}
-                  >
-                    {engineOptions.map((option) => (
-                      <DropdownMenuRadioItem
-                        key={option.value}
-                        value={option.value}
-                      >
-                        {option.label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
+                  <DropdownMenuGroup>
+                    <DropdownMenuRadioGroup
+                      value={engine}
+                      onValueChange={selectEngine}
+                    >
+                      {engineOptions.map((option) => (
+                        <DropdownMenuRadioItem
+                          key={option.value}
+                          value={option.value}
+                        >
+                          {option.label}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
               {dataScope && onDataScopeOpen ? (
                 <Button
                   type="button"
-                  variant="outline"
-                  className="size-10 shrink-0 rounded-full border-border bg-secondary !p-0 text-secondary-foreground shadow-none hover:bg-muted sm:w-auto sm:!px-3"
+                  variant="secondary"
+                  className="size-10 shrink-0 rounded-full !p-0 sm:w-auto sm:!px-3"
                   aria-label="Open chat files"
                   title="Open chat files"
                   disabled={composerDisabled}
