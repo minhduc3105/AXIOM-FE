@@ -12,6 +12,7 @@ import {
   DatabaseIcon,
   FileIcon,
   PaperclipIcon,
+  ReplyIcon,
   SendIcon,
   SquareIcon,
   SheetIcon,
@@ -61,8 +62,15 @@ export function ChatComposer({
   onUserInputSubmit,
   onUserInputCancel,
   userInputError = null,
+  replyContext = null,
+  onClearReplyContext,
 }: {
-  onSubmit: (message: string, engine: ChatEngine, files: File[]) => void;
+  onSubmit: (
+    message: string,
+    engine: ChatEngine,
+    files: File[],
+    replyContext?: string,
+  ) => void;
   engine: ChatEngine;
   onEngineChange: (engine: ChatEngine) => void;
   placeholder?: string;
@@ -83,6 +91,8 @@ export function ChatComposer({
   onUserInputSubmit?: (answer: UserInputAnswer) => void;
   onUserInputCancel?: () => void;
   userInputError?: string | null;
+  replyContext?: string | null;
+  onClearReplyContext?: () => void;
 }) {
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -106,26 +116,30 @@ export function ChatComposer({
     onEngineChange(nextEngine as ChatEngine);
     setEngineMenuOpen(false);
   };
+  const submitMessage = () => {
+    const message = value.trim();
+    if (!message || effectiveSendDisabled) return;
+
+    if (replyContext) {
+      onSubmit(message, engine, files, replyContext);
+      onClearReplyContext?.();
+    } else {
+      onSubmit(message, engine, files);
+    }
+    setValue("");
+    setFiles([]);
+    focusComposer();
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (value.trim() && !effectiveSendDisabled) {
-      onSubmit(value.trim(), engine, files);
-      setValue("");
-      setFiles([]);
-      focusComposer();
-    }
+    submitMessage();
   };
 
   const submitFromKeyboard = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || effectiveSendDisabled)
       return;
     event.preventDefault();
-    if (value.trim()) {
-      onSubmit(value.trim(), engine, files);
-      setValue("");
-      setFiles([]);
-      focusComposer();
-    }
+    submitMessage();
   };
 
   const addFiles = (event: ChangeEvent<HTMLInputElement>) => {
@@ -198,6 +212,37 @@ export function ChatComposer({
                   </div>
                 );
               })}
+            </div>
+          )}
+          {replyContext && (
+            <div
+              className="mx-2 mb-1 flex min-w-0 items-center gap-2 border-l-2 border-muted-foreground/30 pl-3"
+              data-reply-context-preview
+              role="group"
+              aria-label="Reply context"
+            >
+              <ReplyIcon
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <div
+                className="min-w-0 flex-1 truncate py-2 text-sm text-foreground"
+                title={replyContext}
+              >
+                {replyContext}
+              </div>
+              {onClearReplyContext && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  className="shrink-0 rounded-full text-muted-foreground"
+                  aria-label="Clear reply context"
+                  onClick={onClearReplyContext}
+                >
+                  <XIcon />
+                </Button>
+              )}
             </div>
           )}
           <Textarea

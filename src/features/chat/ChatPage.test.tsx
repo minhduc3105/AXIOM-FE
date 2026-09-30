@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { allChatDataScope } from "./model/chatDataScope";
@@ -529,6 +535,59 @@ describe("ChatPage", () => {
       "Current response",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("stages selected text through the Ask AXIOM popover", async () => {
+    const actor = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <ChatPage
+        {...chatPageProps({
+          stage: "result",
+          loading: false,
+          onSubmit,
+          result: {
+            title: "Answer",
+            summary: "",
+            markdown: "The verified result is 42.",
+            metrics: [],
+            flags: [],
+            evidence: [],
+            artifacts: [],
+          },
+        })}
+      />,
+    );
+
+    const answerText = screen.getByText("The verified result is 42.")
+      .firstChild as Text;
+    fireEvent.mouseDown(answerText.parentElement ?? document.body);
+    const range = document.createRange();
+    range.setStart(answerText, 4);
+    range.setEnd(answerText, 19);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent(document, new Event("selectionchange"));
+    expect(screen.queryByRole("button", { name: "Ask AXIOM" })).toBeNull();
+    fireEvent.mouseUp(answerText.parentElement ?? document.body);
+
+    await actor.click(screen.getByRole("button", { name: "Ask AXIOM" }));
+
+    const preview = document.querySelector("[data-reply-context-preview]");
+    expect(preview?.textContent).toContain("verified result");
+    const composer = screen.getByRole("textbox", { name: "Ask AXIOM" });
+    await waitFor(() => expect(document.activeElement).toBe(composer));
+    await actor.type(composer, "Explain this");
+    await actor.keyboard("{Enter}");
+
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
+      "Explain this",
+      "auto",
+      [],
+      "verified result",
+    );
+    expect(document.querySelector("[data-reply-context-preview]")).toBeNull();
   });
 
   it("renders a historical failure without offering retry", () => {

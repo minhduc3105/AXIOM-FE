@@ -118,6 +118,14 @@ export function ChatPage({
   const [scopeSidebarCollapsed, setScopeSidebarCollapsed] =
     useState(mobileViewport);
   const [scopePreviewOpen, setScopePreviewOpen] = useState(false);
+  const [pendingReplyContext, setPendingReplyContext] = useState<string | null>(
+    null,
+  );
+  const [replyFocusRequest, setReplyFocusRequest] = useState(0);
+  const handleReply = (selectedText: string) => {
+    setPendingReplyContext(selectedText);
+    setReplyFocusRequest((request) => request + 1);
+  };
 
   useEffect(() => {
     if (mobileViewport) setScopeSidebarCollapsed(true);
@@ -225,6 +233,7 @@ export function ChatPage({
                   activeProcessEventKey={activeProcessEventKey}
                   onProcessEventSelect={onProcessEventSelect}
                   onRemember={handleRememberThis}
+                  onReply={handleReply}
                 />
               ))}
 
@@ -259,6 +268,7 @@ export function ChatPage({
                   onRun={onApproveAndRun}
                   onRetry={onRetryProcess}
                   onRemember={handleRememberThis}
+                  onReply={handleReply}
                 />
                 {stage === "result" && result && evidenceOpen && (
                   <EvidencePanel result={result} onClose={onCloseEvidence} />
@@ -275,12 +285,15 @@ export function ChatPage({
               <ChatComposer
                 className="w-full"
                 engine={engine}
+                focusRequest={replyFocusRequest}
                 sendDisabled={loading}
                 autoFocus={loading}
                 dataScope={dataScope}
                 onDataScopeOpen={() => setScopeSidebarCollapsed(false)}
                 onEngineChange={onEngineChange}
                 onSubmit={onSubmit}
+                replyContext={pendingReplyContext}
+                onClearReplyContext={() => setPendingReplyContext(null)}
                 onStop={onStopGeneration}
                 pendingUserInput={pendingUserInput}
                 onUserInputSubmit={onAnswerUserInput}
@@ -526,12 +539,14 @@ function HistoryTurn({
   activeProcessEventKey,
   onProcessEventSelect,
   onRemember,
+  onReply,
 }: {
   turn: ChatTurn;
   processEventKeyPrefix: string;
   activeProcessEventKey?: string | null;
   onProcessEventSelect: (event: ProcessEvent, key: string) => void;
   onRemember: (markdown: string) => void;
+  onReply: (selectedText: string) => void;
 }) {
   return (
     <section className="flex flex-col gap-5">
@@ -554,6 +569,7 @@ function HistoryTurn({
         responseComplete
         loading={false}
         onRemember={onRemember}
+        onReply={onReply}
       />
     </section>
   );

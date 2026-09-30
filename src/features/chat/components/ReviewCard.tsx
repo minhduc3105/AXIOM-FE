@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   AlertCircleIcon,
   PencilLineIcon,
@@ -54,9 +54,11 @@ type ReviewCardProps = {
   onRun?: () => void;
   onRetry?: () => void;
   onRemember?: (markdown: string) => void;
+  onReply?: (selectedText: string) => void;
 };
 
 export function ReviewCard(props: ReviewCardProps) {
+  const answerContentRef = useRef<HTMLDivElement>(null);
   const presentation = getProcessPresentation(props.events ?? []);
   const citationAttributionRunning =
     props.loading && isCitationAttributionRunning(props.events ?? []);
@@ -120,14 +122,16 @@ export function ReviewCard(props: ReviewCardProps) {
       ) : hasResult || hasTranscript ? (
         <>
           <section aria-label={hasResult ? "Final answer" : "Response"}>
-            <TranscriptContent
-              transcript={transcript}
-              running={props.loading}
-              activeProcessEventKey={props.activeProcessEventKey}
-              processEventKeyPrefix={props.processEventKeyPrefix}
-              onProcessEventSelect={props.onProcessEventSelect}
-              citationSources={citationSources}
-            />
+            <div ref={answerContentRef} data-answer-content>
+              <TranscriptContent
+                transcript={transcript}
+                running={props.loading}
+                activeProcessEventKey={props.activeProcessEventKey}
+                processEventKeyPrefix={props.processEventKeyPrefix}
+                onProcessEventSelect={props.onProcessEventSelect}
+                citationSources={citationSources}
+              />
+            </div>
             {citationStatus && props.result && (
               <CitationSourceList
                 markdown={props.result.markdown}
@@ -143,6 +147,8 @@ export function ReviewCard(props: ReviewCardProps) {
                 events={presentation.transcriptEvents}
                 artifacts={props.result.artifacts}
                 onRemember={props.onRemember}
+                answerContentRef={answerContentRef}
+                onReply={props.onReply}
               />
             )}
           </section>

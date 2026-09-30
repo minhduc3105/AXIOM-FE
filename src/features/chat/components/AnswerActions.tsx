@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import type { ProcessEvent } from "../model/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +28,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { createPortal } from "react-dom";
 import {
   extractWorkspaceFiles,
   workspaceFileFromArtifact,
@@ -34,18 +41,113 @@ export function AnswerActions({
   events,
   artifacts,
   onRemember,
+  answerContentRef,
+  onReply,
 }: {
   markdown: string;
   events: ProcessEvent[];
   artifacts: string[];
   onRemember?: (markdown: string) => void;
+  answerContentRef?: RefObject<HTMLElement | null>;
+  onReply?: (selectedText: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"helpful" | "unhelpful" | null>(
     null,
   );
+  const [selectedReply, setSelectedReply] =
+    useState<AnswerTextSelection | null>(null);
+  const selectionGestureActiveRef = useRef(false);
+  const selectionCompletedRef = useRef(false);
+  const pendingSelectionRef = useRef<AnswerTextSelection | null>(null);
   const resetTimerRef = useRef<number | null>(null);
   const files = mergeGeneratedFiles(extractWorkspaceFiles(events), artifacts);
+
+  useEffect(() => {
+    if (!answerContentRef || !onReply) return;
+
+    const isInsideAnswer = (target: EventTarget | null) =>
+      target instanceof Node &&
+      Boolean(answerContentRef.current?.contains(target));
+    const refreshSelection = () => {
+      const selection = window.getSelection();
+      const answerSelection = getAnswerTextSelection(answerContentRef);
+      if (answerSelection) {
+        pendingSelectionRef.current = answerSelection;
+        setSelectedReply(
+          selectionGestureActiveRef.current || !selectionCompletedRef.current
+            ? null
+            : answerSelection,
+        );
+        return;
+      }
+
+      if (
+        selection?.isCollapsed &&
+        document.activeElement?.hasAttribute("data-selection-reply-action")
+      ) {
+        return;
+      }
+
+      pendingSelectionRef.current = null;
+      selectionCompletedRef.current = false;
+      setSelectedReply(null);
+    };
+    const startPointerSelection = (event: Event) => {
+      if (!isInsideAnswer(event.target)) return;
+      selectionGestureActiveRef.current = true;
+      selectionCompletedRef.current = false;
+      pendingSelectionRef.current = null;
+      setSelectedReply(null);
+    };
+    const startKeyboardSelection = (event: KeyboardEvent) => {
+      if (!event.shiftKey) return;
+      const selection = window.getSelection();
+      const answerContent = answerContentRef.current;
+      const selectionStartsInAnswer = Boolean(
+        answerContent &&
+        selection?.anchorNode &&
+        selection.focusNode &&
+        answerContent.contains(selection.anchorNode) &&
+        answerContent.contains(selection.focusNode),
+      );
+      if (!isInsideAnswer(event.target) && !selectionStartsInAnswer) return;
+      selectionGestureActiveRef.current = true;
+      selectionCompletedRef.current = false;
+      pendingSelectionRef.current = null;
+      setSelectedReply(null);
+    };
+    const finishSelection = () => {
+      if (!selectionGestureActiveRef.current) return;
+      selectionGestureActiveRef.current = false;
+      selectionCompletedRef.current = true;
+      const answerSelection = getAnswerTextSelection(answerContentRef);
+      pendingSelectionRef.current = answerSelection;
+      setSelectedReply(answerSelection);
+    };
+
+    document.addEventListener("selectionchange", refreshSelection);
+    document.addEventListener("mousedown", startPointerSelection);
+    document.addEventListener("mouseup", finishSelection);
+    document.addEventListener("touchstart", startPointerSelection);
+    document.addEventListener("touchend", finishSelection);
+    document.addEventListener("keydown", startKeyboardSelection);
+    document.addEventListener("keyup", finishSelection);
+    window.addEventListener("resize", refreshSelection);
+    window.addEventListener("scroll", refreshSelection, true);
+
+    return () => {
+      document.removeEventListener("selectionchange", refreshSelection);
+      document.removeEventListener("mousedown", startPointerSelection);
+      document.removeEventListener("mouseup", finishSelection);
+      document.removeEventListener("touchstart", startPointerSelection);
+      document.removeEventListener("touchend", finishSelection);
+      document.removeEventListener("keydown", startKeyboardSelection);
+      document.removeEventListener("keyup", finishSelection);
+      window.removeEventListener("resize", refreshSelection);
+      window.removeEventListener("scroll", refreshSelection, true);
+    };
+  }, [answerContentRef, onReply]);
 
   useEffect(
     () => () => {
@@ -98,6 +200,34 @@ export function AnswerActions({
         </TooltipTrigger>
         <TooltipContent>{copyLabel}</TooltipContent>
       </Tooltip>
+      {answerContentRef && onReply && selectedReply
+        ? createPortal(
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Ask AXIOM"
+              data-selection-reply-action
+              className="fixed z-50 h-9 rounded-full border-border bg-popover px-4 text-sm font-medium text-popover-foreground shadow-lg"
+              style={{ top: selectedReply.top, left: selectedReply.left }}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                const selectedText =
+                  getAnswerTextSelection(answerContentRef)?.text ??
+                  pendingSelectionRef.current?.text ??
+                  selectedReply.text;
+                setSelectedReply(null);
+                pendingSelectionRef.current = null;
+                selectionCompletedRef.current = false;
+                if (selectedText) onReply(selectedText);
+                window.getSelection()?.removeAllRanges();
+              }}
+            >
+              Ask AXIOM
+            </Button>,
+            document.body,
+          )
+        : null}
       <span className="sr-only" aria-live="polite">
         {copied ? "Response copied" : feedbackMessage}
       </span>
@@ -135,6 +265,61 @@ export function AnswerActions({
       {files.length > 0 && <GeneratedFilesDialog files={files} />}
     </div>
   );
+}
+
+type AnswerTextSelection = {
+  text: string;
+  top: number;
+  left: number;
+};
+
+function getAnswerTextSelection(
+  answerContentRef: RefObject<HTMLElement | null>,
+): AnswerTextSelection | null {
+  const answerContent = answerContentRef.current;
+  const selection = window.getSelection();
+  if (
+    !answerContent ||
+    !selection ||
+    selection.isCollapsed ||
+    selection.rangeCount !== 1
+  ) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0);
+  if (
+    !answerContent.contains(range.startContainer) ||
+    !answerContent.contains(range.endContainer)
+  ) {
+    return null;
+  }
+
+  const selectedText = selection.toString();
+  if (!selectedText.trim()) return null;
+
+  const bounds = range.getBoundingClientRect?.();
+  const viewportWidth =
+    window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight =
+    window.innerHeight || document.documentElement.clientHeight;
+  const popoverWidth = 128;
+  const popoverHeight = 36;
+  const margin = 8;
+  const left = Math.min(
+    Math.max(bounds?.left ?? margin, margin),
+    Math.max(margin, viewportWidth - popoverWidth - margin),
+  );
+  const aboveSelection = (bounds?.top ?? margin) - popoverHeight - margin;
+  const top =
+    aboveSelection >= margin
+      ? aboveSelection
+      : Math.min(
+          (bounds?.bottom ?? margin) + margin,
+          Math.max(margin, viewportHeight - popoverHeight - margin),
+        );
+
+  return { text: selectedText, top, left };
 }
 
 function FeedbackAction({

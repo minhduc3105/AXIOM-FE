@@ -1,4 +1,4 @@
-import { DatabaseIcon, PaperclipIcon } from "lucide-react";
+import { DatabaseIcon } from "lucide-react";
 import type { ChatAttachment } from "../model/types";
 import { chatDataScopeLabel, type ChatDataScope } from "../model/chatDataScope";
 

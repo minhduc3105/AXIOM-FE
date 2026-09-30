@@ -1,8 +1,40 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { allChatDataScope } from "../model/chatDataScope";
+import type { ChatEngine } from "../model/types";
 import { ChatComposer } from "./ChatComposer";
+
+function ReplyContextComposer({
+  onSubmit,
+  onClearReplyContext,
+}: {
+  onSubmit: (
+    message: string,
+    engine: ChatEngine,
+    files: File[],
+    replyContext?: string,
+  ) => void;
+  onClearReplyContext: () => void;
+}) {
+  const [replyContext, setReplyContext] = useState<string | null>(
+    "verified result",
+  );
+
+  return (
+    <ChatComposer
+      engine="auto"
+      onEngineChange={vi.fn()}
+      onSubmit={onSubmit}
+      replyContext={replyContext}
+      onClearReplyContext={() => {
+        onClearReplyContext();
+        setReplyContext(null);
+      }}
+    />
+  );
+}
 
 describe("ChatComposer", () => {
   afterEach(() => {
@@ -40,6 +72,60 @@ describe("ChatComposer", () => {
     await actor.click(screen.getByRole("button", { name: "Send" }));
 
     expect(onSubmit).toHaveBeenCalledWith("Review this", "auto", []);
+  });
+
+  it("shows and submits the selected answer quote as reply context", async () => {
+    const actor = userEvent.setup();
+    const onSubmit = vi.fn();
+    const onClearReplyContext = vi.fn();
+    render(
+      <ChatComposer
+        engine="auto"
+        onEngineChange={vi.fn()}
+        onSubmit={onSubmit}
+        replyContext="verified result"
+        onClearReplyContext={onClearReplyContext}
+      />,
+    );
+
+    const preview = document.querySelector("[data-reply-context-preview]");
+    expect(preview?.textContent).toContain("verified result");
+    expect(screen.queryByText("Replying to")).toBeNull();
+    expect(preview?.querySelector("svg")).toBeTruthy();
+    await actor.type(
+      screen.getByRole("textbox", { name: "Ask AXIOM" }),
+      "Explain this",
+    );
+    await actor.keyboard("{Enter}");
+
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
+      "Explain this",
+      "auto",
+      [],
+      "verified result",
+    );
+    expect(onClearReplyContext).toHaveBeenCalledOnce();
+  });
+
+  it("clears a staged reply quote without submitting", async () => {
+    const actor = userEvent.setup();
+    const onSubmit = vi.fn();
+    const onClearReplyContext = vi.fn();
+    render(
+      <ReplyContextComposer
+        onSubmit={onSubmit}
+        onClearReplyContext={onClearReplyContext}
+      />,
+    );
+
+    expect(document.querySelector("[data-reply-context-preview]")).toBeTruthy();
+    await actor.click(
+      screen.getByRole("button", { name: "Clear reply context" }),
+    );
+
+    expect(document.querySelector("[data-reply-context-preview]")).toBeNull();
+    expect(onClearReplyContext).toHaveBeenCalledOnce();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("keeps mobile actions on one compact rail", () => {
