@@ -110,7 +110,9 @@ describe("ChatComposer", () => {
     expect(
       screen.getByRole("radio", { name: /Simple average.*Policy A/ }),
     ).toBeTruthy();
-    expect(screen.getByRole("radio", { name: "Weighted average" })).toBeTruthy();
+    expect(
+      screen.getByRole("radio", { name: "Weighted average" }),
+    ).toBeTruthy();
     expect(screen.getByRole("radio", { name: "Other" })).toBeTruthy();
     expect(document.querySelector('[data-slot="card"]')).not.toBeNull();
     expect(document.querySelector('[data-slot="field-set"]')).not.toBeNull();
@@ -127,26 +129,43 @@ describe("ChatComposer", () => {
     });
     await actor.click(simpleAverage);
     const selectedOption = simpleAverage.closest('[data-slot="field-label"]');
-    expect(selectedOption?.className).toContain("has-data-checked:border-border");
-    expect(selectedOption?.className).toContain("has-data-checked:bg-transparent");
+    expect(selectedOption?.className).toContain(
+      "has-data-checked:border-border",
+    );
+    expect(selectedOption?.className).toContain(
+      "has-data-checked:bg-transparent",
+    );
     expect(selectedOption?.className).not.toContain(
       "has-data-checked:border-primary/30",
     );
-    expect(selectedOption?.className).not.toContain("has-data-checked:bg-primary/5");
+    expect(selectedOption?.className).not.toContain(
+      "has-data-checked:bg-primary/5",
+    );
 
     expect(screen.queryByRole("textbox", { name: "Ask AXIOM" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Attach files" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Select response type" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Open chat files" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Select response type" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Open chat files" }),
+    ).toBeNull();
     expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
 
     await actor.click(screen.getByRole("radio", { name: "Other" }));
-    expect(screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")).toBe(true);
-    await actor.type(screen.getByRole("textbox", { name: "Your answer" }), "Use the median");
+    expect(
+      screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled"),
+    ).toBe(true);
+    await actor.type(
+      screen.getByRole("textbox", { name: "Your answer" }),
+      "Use the median",
+    );
     await actor.click(screen.getByRole("button", { name: "Continue" }));
 
-    expect(onUserInputSubmit).toHaveBeenCalledWith({ otherText: "Use the median" });
+    expect(onUserInputSubmit).toHaveBeenCalledWith({
+      otherText: "Use the median",
+    });
     await actor.click(screen.getByRole("button", { name: "Cancel question" }));
     expect(onUserInputCancel).toHaveBeenCalledOnce();
 
@@ -184,5 +203,45 @@ describe("ChatComposer", () => {
     expect(screen.getByRole("button", { name: "Attach files" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
     expect(screen.queryByRole("radio", { name: "Simple average" })).toBeNull();
+  });
+
+  it("shows finding impact and evidence while awaiting a safeguard choice", () => {
+    render(
+      <ChatComposer
+        engine="auto"
+        onEngineChange={vi.fn()}
+        onSubmit={vi.fn()}
+        pendingUserInput={{
+          responseId: "response-safeguard",
+          interactionId: "interaction-safeguard",
+          reason: "data_quality_issue",
+          question: "Continue with the available months?",
+          options: [{ id: "continue", label: "Continue with available data" }],
+          safeguardAssessment: {
+            decision: "needs_user_input",
+            findings: [
+              {
+                id: "missing-period",
+                category: "data_quality",
+                severity: "moderate",
+                title: "Missing period",
+                detail: "April is absent from the source.",
+                impact: "The monthly average may be understated.",
+                affectedScope: "April",
+                evidenceRefs: ["source://ledger"],
+                blocking: false,
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Missing period")).toBeTruthy();
+    expect(
+      screen.getByText("The monthly average may be understated."),
+    ).toBeTruthy();
+    expect(screen.getByText("April")).toBeTruthy();
+    expect(screen.getByText("source://ledger")).toBeTruthy();
   });
 });

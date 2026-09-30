@@ -1,4 +1,7 @@
-import ReactMarkdown, { type Components } from "react-markdown";
+import ReactMarkdown, {
+  defaultUrlTransform,
+  type Components,
+} from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -13,13 +16,23 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/shared/lib/utils";
+import type { CitationSource } from "../model/types";
+import { CitationMarker } from "./CitationMarker";
 
 type MarkdownContentProps = {
   markdown: string;
   compact?: boolean;
+  citationSources?: CitationSource[];
 };
 
-export function MarkdownContent({ markdown, compact }: MarkdownContentProps) {
+export function MarkdownContent({
+  markdown,
+  compact,
+  citationSources = [],
+}: MarkdownContentProps) {
+  const sourcesById = new Map(
+    citationSources.map((source) => [source.id, source]),
+  );
   return (
     <article
       className={cn(
@@ -28,10 +41,11 @@ export function MarkdownContent({ markdown, compact }: MarkdownContentProps) {
       )}
     >
       <ReactMarkdown
-        components={createMarkdownComponents(compact)}
+        components={createMarkdownComponents(compact, sourcesById)}
         rehypePlugins={[rehypeKatex]}
         remarkPlugins={[remarkGfm, remarkMath]}
         skipHtml
+        urlTransform={(url) => transformMarkdownUrl(url, sourcesById)}
       >
         {normalizeMarkdownSource(markdown)}
       </ReactMarkdown>
@@ -39,7 +53,10 @@ export function MarkdownContent({ markdown, compact }: MarkdownContentProps) {
   );
 }
 
-function createMarkdownComponents(compact?: boolean): Components {
+function createMarkdownComponents(
+  compact: boolean | undefined,
+  sourcesById: Map<string, CitationSource>,
+): Components {
   const headingClassName = "font-semibold tracking-normal";
   const headingSize = (depth: number) =>
     cn(
@@ -93,16 +110,32 @@ function createMarkdownComponents(compact?: boolean): Components {
         {children}
       </p>
     ),
-    a: ({ children, node: _node, ...props }) => (
-      <a
-        {...props}
-        className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary/80"
-        rel="noreferrer"
-        target="_blank"
-      >
-        {children}
-      </a>
-    ),
+    a: ({ children, href, node: _node, ...props }) => {
+      if (href?.startsWith("axiom-citation")) {
+        const match = /^axiom-citation:\/\/([A-Za-z0-9_-]{1,128})$/.exec(href);
+        const source = match ? sourcesById.get(match[1]) : undefined;
+        if (!source) return null;
+        return (
+          <CitationMarker
+            marker={children}
+            markerLabel={String(children)}
+            source={source}
+          />
+        );
+      }
+
+      return (
+        <a
+          {...props}
+          href={href}
+          className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary/80"
+          rel="noreferrer"
+          target="_blank"
+        >
+          {children}
+        </a>
+      );
+    },
     ul: ({ children, node: _node, ...props }) => (
       <ul
         {...props}
@@ -201,6 +234,19 @@ function createMarkdownComponents(compact?: boolean): Components {
       </code>
     ),
   };
+}
+
+function transformMarkdownUrl(
+  url: string,
+  sourcesById: Map<string, CitationSource>,
+) {
+  if (url.startsWith("axiom-citation:")) {
+    const match = /^axiom-citation:\/\/([A-Za-z0-9_-]{1,128})$/.exec(url);
+    return match && sourcesById.has(match[1])
+      ? url
+      : "axiom-citation-unresolved://";
+  }
+  return defaultUrlTransform(url);
 }
 
 function normalizeMarkdownSource(markdown: string) {

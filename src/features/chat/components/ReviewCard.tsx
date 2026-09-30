@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type {
   EditableSpecification,
   ChatTranscriptItem,
+  CitationSource,
   Investigation,
   MockResult,
   ProcessEvent,
@@ -25,6 +26,7 @@ import type {
 import type { ChatError } from "../model/chatError";
 import { AnswerActions } from "./AnswerActions";
 import { MarkdownContent } from "./MarkdownContent";
+import { CitationSourceList } from "./CitationSourceList";
 import {
   getProcessPresentation,
   isToolProcessEvent,
@@ -56,11 +58,21 @@ type ReviewCardProps = {
 
 export function ReviewCard(props: ReviewCardProps) {
   const presentation = getProcessPresentation(props.events ?? []);
+  const citationAttributionRunning =
+    props.loading && isCitationAttributionRunning(props.events ?? []);
   const hasResult = Boolean(props.result?.markdown);
+  const citationStatus = props.responseComplete
+    ? props.result?.citationStatus
+    : undefined;
+  const citationSources =
+    citationStatus && props.result?.citationSources
+      ? props.result.citationSources
+      : [];
   const transcript = responseTranscript({
     transcript: props.transcript,
     events: props.events ?? [],
     markdown: props.result?.markdown,
+    preferFinalMarkdown: Boolean(citationStatus),
   });
   const hasTranscript = transcript.length > 0;
   const errorStatus = props.error && (
@@ -90,6 +102,19 @@ export function ReviewCard(props: ReviewCardProps) {
       data-chat-response
       data-response-state={props.error ? "error" : props.stage}
     >
+      {citationAttributionRunning && (
+        <p
+          aria-live="polite"
+          className="flex items-center gap-2 text-xs text-muted-foreground"
+          role="status"
+        >
+          <span
+            aria-hidden="true"
+            className="size-2 animate-pulse rounded-full bg-current"
+          />
+          Linking sources…
+        </p>
+      )}
       {props.stage === "intent" && props.draft ? (
         <IntentCard {...props} draft={props.draft} />
       ) : hasResult || hasTranscript ? (
@@ -101,7 +126,16 @@ export function ReviewCard(props: ReviewCardProps) {
               activeProcessEventKey={props.activeProcessEventKey}
               processEventKeyPrefix={props.processEventKeyPrefix}
               onProcessEventSelect={props.onProcessEventSelect}
+              citationSources={citationSources}
             />
+            {citationStatus && props.result && (
+              <CitationSourceList
+                markdown={props.result.markdown}
+                sources={citationSources}
+                status={citationStatus}
+                uncitedClaims={props.result.uncitedClaims ?? []}
+              />
+            )}
             {errorStatus}
             {hasResult && props.result && props.responseComplete && (
               <AnswerActions
@@ -122,18 +156,34 @@ export function ReviewCard(props: ReviewCardProps) {
   );
 }
 
+function isCitationAttributionRunning(events: ProcessEvent[]) {
+  let status: ProcessEvent["status"] | undefined;
+  for (const event of events) {
+    if (
+      event.phase === "engine" &&
+      event.eventType === "engine.step" &&
+      event.label.toLowerCase() === "citation attribution"
+    ) {
+      status = event.status;
+    }
+  }
+  return status === "running";
+}
+
 function TranscriptContent({
   transcript,
   running,
   activeProcessEventKey,
   processEventKeyPrefix = "process",
   onProcessEventSelect,
+  citationSources = [],
 }: {
   transcript: ChatTranscriptItem[];
   running: boolean;
   activeProcessEventKey?: string | null;
   processEventKeyPrefix?: string;
   onProcessEventSelect?: ProcessStepSelectionHandler;
+  citationSources?: CitationSource[];
 }) {
   const blocks = groupTranscript(transcript);
 
@@ -141,7 +191,13 @@ function TranscriptContent({
     <div className="flex min-w-0 flex-col gap-4">
       {blocks.map((block, index) => {
         if (block.kind === "response") {
-          return <MarkdownContent markdown={block.markdown} key={block.id} />;
+          return (
+            <MarkdownContent
+              markdown={block.markdown}
+              citationSources={citationSources}
+              key={block.id}
+            />
+          );
         }
 
         const presentation = getProcessPresentation(block.events);
@@ -199,10 +255,12 @@ function responseTranscript({
   transcript,
   events,
   markdown,
+  preferFinalMarkdown,
 }: {
   transcript?: ChatTranscriptItem[];
   events: ProcessEvent[];
   markdown?: string;
+  preferFinalMarkdown: boolean;
 }): ChatTranscriptItem[] {
   const items = transcript?.length
     ? transcript
@@ -218,6 +276,25 @@ function responseTranscript({
     )
     .map((item) => item.markdown)
     .join("");
+
+  if (preferFinalMarkdown && markdown) {
+    const finalResponse: Extract<ChatTranscriptItem, { kind: "response" }> = {
+      kind: "response",
+      id: `response:final:${items.length}`,
+      markdown,
+    };
+    let replacedResponse = false;
+    const finalItems: ChatTranscriptItem[] = [];
+    for (const item of items) {
+      if (item.kind === "action") {
+        finalItems.push(item);
+      } else if (!replacedResponse) {
+        finalItems.push(finalResponse);
+        replacedResponse = true;
+      }
+    }
+    return replacedResponse ? finalItems : [...finalItems, finalResponse];
+  }
 
   if (!markdown || responseText === markdown) return items;
   if (!responseText || markdown.startsWith(responseText)) {

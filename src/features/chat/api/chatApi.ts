@@ -6,9 +6,16 @@ import type {
   ChatExecutionMode,
   ChatTranscriptItem,
   ChatTurn,
+  CitationSource,
+  CitationStatus,
   Investigation,
   MockResult,
   PendingUserInput,
+  SafeguardAssessment,
+  SafeguardCategory,
+  SafeguardDecision,
+  SafeguardFinding,
+  SafeguardSeverity,
   ProcessEvent,
   ProcessStatus,
   ResultMetric,
@@ -324,7 +331,7 @@ export async function submitUserInput(
     `/api/v1/responses/${encodeURIComponent(interaction.responseId)}/user-input`,
     {
       interaction_id: interaction.interactionId,
-      ...( "selectedOptionId" in answer
+      ...("selectedOptionId" in answer
         ? { selected_option_id: answer.selectedOptionId }
         : { other_text: answer.otherText }),
     },
@@ -795,7 +802,9 @@ function applyStreamEvent(
   if (event.type === "response.requires_user_input") {
     outcome.userInputRequired = pendingUserInputFromEvent(event);
     outcome.outputText = "";
-    outcome.transcript = outcome.transcript.filter((item) => item.kind === "action");
+    outcome.transcript = outcome.transcript.filter(
+      (item) => item.kind === "action",
+    );
     callbacks?.onTranscript?.(outcome.transcript);
     return;
   }
@@ -927,15 +936,43 @@ function pendingUserInputFromEvent(event: SseEvent): PendingUserInput {
   const question = stringValue(event.question);
   const reason = stringValue(event.reason);
   const rawOptions = Array.isArray(event.options) ? event.options : [];
+  const safeguardAssessment = safeguardAssessmentFromUnknown(
+    event.safeguard_assessment,
+  );
+  const safeguardReasonCategories: Partial<Record<string, SafeguardCategory>> =
+    {
+      data_quality_issue: "data_quality",
+      source_conflict: "source_conflict",
+      insufficient_evidence: "insufficient_evidence",
+    };
   if (
     !responseId ||
     !interactionId ||
     !question ||
-    !["ambiguous_query", "method_definition"].includes(reason) ||
+    ![
+      "ambiguous_query",
+      "method_definition",
+      "data_quality_issue",
+      "source_conflict",
+      "insufficient_evidence",
+    ].includes(reason) ||
     rawOptions.length < 1 ||
     rawOptions.length > 3
   ) {
-    throw new Error("The clarification event was missing required response data.");
+    throw new Error(
+      "The clarification event was missing required response data.",
+    );
+  }
+  if (
+    safeguardAssessment?.decision === "needs_user_input" &&
+    (!safeguardReasonCategories[reason] ||
+      !safeguardAssessment.findings.some(
+        (finding) => finding.category === safeguardReasonCategories[reason],
+      ))
+  ) {
+    throw new Error(
+      "The safeguard question did not match its finding category.",
+    );
   }
   const options = rawOptions.map((item) => {
     const option = asRecord(item);
@@ -950,7 +987,9 @@ function pendingUserInputFromEvent(event: SseEvent): PendingUserInput {
       ...(stringValue(option.description)
         ? { description: stringValue(option.description) }
         : {}),
-      ...(stringValue(option.source) ? { source: stringValue(option.source) } : {}),
+      ...(stringValue(option.source)
+        ? { source: stringValue(option.source) }
+        : {}),
     };
   });
   return {
@@ -959,7 +998,103 @@ function pendingUserInputFromEvent(event: SseEvent): PendingUserInput {
     question,
     reason: reason as PendingUserInput["reason"],
     options,
+    ...(safeguardAssessment ? { safeguardAssessment } : {}),
   };
+}
+
+function safeguardAssessmentFromUnknown(
+  value: unknown,
+): SafeguardAssessment | undefined {
+  if (value === undefined || value === null) return undefined;
+  const record = asRecord(value);
+  const decisions: SafeguardDecision[] = [
+    "clear",
+    "needs_user_input",
+    "blocked",
+    "abstained",
+  ];
+  if (
+    !decisions.includes(record.decision as SafeguardDecision) ||
+    !Array.isArray(record.findings) ||
+    record.findings.length > 20
+  ) {
+    throw new Error("The safeguard assessment was invalid.");
+  }
+  const categories: SafeguardCategory[] = [
+    "data_quality",
+    "connection_risk",
+    "source_conflict",
+    "insufficient_evidence",
+  ];
+  const severities: SafeguardSeverity[] = [
+    "info",
+    "low",
+    "moderate",
+    "high",
+    "critical",
+    "unknown",
+  ];
+  const findings: SafeguardFinding[] = record.findings.map((value) => {
+    const finding = asRecord(value);
+    const id = stringValue(finding.id);
+    const category = stringValue(finding.category);
+    const severity = stringValue(finding.severity);
+    const title = stringValue(finding.title);
+    const detail = stringValue(finding.detail);
+    const evidenceRefs = finding.evidence_refs;
+    if (
+      !id ||
+      !categories.includes(category as SafeguardCategory) ||
+      !severities.includes(severity as SafeguardSeverity) ||
+      !title ||
+      !detail ||
+      !Array.isArray(evidenceRefs) ||
+      evidenceRefs.length > 20 ||
+      evidenceRefs.some((ref) => !stringValue(ref)) ||
+      typeof finding.blocking !== "boolean"
+    ) {
+      throw new Error("The safeguard assessment contained an invalid finding.");
+    }
+    return {
+      id,
+      category: category as SafeguardCategory,
+      severity: severity as SafeguardSeverity,
+      title,
+      detail,
+      ...(stringValue(finding.impact)
+        ? { impact: stringValue(finding.impact) }
+        : {}),
+      ...(stringValue(finding.affected_scope)
+        ? { affectedScope: stringValue(finding.affected_scope) }
+        : {}),
+      evidenceRefs: evidenceRefs.map((ref) => stringValue(ref)),
+      blocking: finding.blocking,
+    };
+  });
+  const decision = record.decision as SafeguardDecision;
+  const hasBlockingConnectionRisk = findings.some(
+    (finding) => finding.category === "connection_risk" && finding.blocking,
+  );
+  if (
+    findings.some(
+      (finding) => finding.blocking && finding.category !== "connection_risk",
+    ) ||
+    (decision === "clear" && hasBlockingConnectionRisk) ||
+    (decision === "blocked" && !hasBlockingConnectionRisk) ||
+    (decision === "needs_user_input" &&
+      (findings.length === 0 || hasBlockingConnectionRisk)) ||
+    (decision === "abstained" &&
+      !findings.some((finding) => finding.category === "insufficient_evidence"))
+  ) {
+    throw new Error(
+      "The safeguard assessment decision did not match its findings.",
+    );
+  }
+  const findingIds = findings.map((finding) => finding.id);
+  if (new Set(findingIds).size !== findingIds.length) {
+    throw new Error("The safeguard assessment contained duplicate findings.");
+  }
+  return { decision, findings };
 }
 
 function completedFromEvent(
@@ -1043,6 +1178,10 @@ function completedToResult(completed: CompletedResponse): MockResult {
     completed.outputText.trim() || "No response text was returned.";
   const metadata = completed.metadata;
   const evidence = normalizeEvidence(completed.evidence);
+  const safeguardAssessment = safeguardAssessmentFromUnknown(
+    metadata.safeguard_assessment,
+  );
+  const citationMetadata = citationMetadataFromUnknown(metadata, markdown);
   return {
     title:
       stringValue(metadata.title) ||
@@ -1054,7 +1193,112 @@ function completedToResult(completed: CompletedResponse): MockResult {
     flags: normalizeFlags(metadata.flags, evidence),
     evidence,
     artifacts: normalizeArtifacts(metadata),
+    ...(safeguardAssessment ? { safeguardAssessment } : {}),
+    ...citationMetadata,
   };
+}
+
+function citationMetadataFromUnknown(
+  metadata: Record<string, unknown>,
+  markdown: string,
+):
+  | Pick<MockResult, "citationSources" | "uncitedClaims" | "citationStatus">
+  | Record<string, never> {
+  const keys = ["citation_sources", "uncited_claims", "citation_status"];
+  if (!keys.some((key) => key in metadata)) return {};
+
+  const unavailable = {
+    citationSources: [],
+    uncitedClaims: [],
+    citationStatus: "unavailable" as const,
+  };
+  const rawSources = metadata.citation_sources;
+  const rawClaims = metadata.uncited_claims;
+  const rawStatus = metadata.citation_status;
+  if (
+    !Array.isArray(rawSources) ||
+    rawSources.length > 50 ||
+    !Array.isArray(rawClaims) ||
+    rawClaims.length > 50 ||
+    !["complete", "partial", "unavailable"].includes(String(rawStatus))
+  ) {
+    return unavailable;
+  }
+
+  const sources: CitationSource[] = [];
+  for (const value of rawSources) {
+    const source = asRecord(value);
+    const id = stringValue(source.id);
+    const fileName = stringValue(source.source);
+    const locator = stringValue(source.locator);
+    const excerpt = rawStringValue(source.excerpt);
+    const documentId = optionalBoundedString(source.document_id, 256);
+    const contentId = optionalBoundedString(source.content_id, 256);
+    if (
+      !/^[A-Za-z0-9_-]{1,128}$/.test(id) ||
+      !fileName ||
+      fileName.length > 300 ||
+      !locator ||
+      locator.length > 500 ||
+      !excerpt.trim() ||
+      excerpt.length > 2000 ||
+      documentId === null ||
+      contentId === null
+    ) {
+      return unavailable;
+    }
+    sources.push({
+      id,
+      source: fileName,
+      locator,
+      excerpt,
+      ...(documentId ? { documentId } : {}),
+      ...(contentId ? { contentId } : {}),
+    });
+  }
+
+  const claims = rawClaims.filter(
+    (claim): claim is string =>
+      typeof claim === "string" && Boolean(claim.trim()) && claim.length <= 500,
+  );
+  if (claims.length !== rawClaims.length) return unavailable;
+  const sourceIds = sources.map((source) => source.id);
+  if (new Set(sourceIds).size !== sourceIds.length) return unavailable;
+  const status = rawStatus as CitationStatus;
+  if (
+    (status === "complete" && (!sourceIds.length || claims.length > 0)) ||
+    (status === "partial" && (!sourceIds.length || !claims.length)) ||
+    (status === "unavailable" && sourceIds.length > 0)
+  ) {
+    return unavailable;
+  }
+
+  const matches = Array.from(
+    markdown.matchAll(
+      /\[(\d+)\]\(axiom-citation:\/\/([A-Za-z0-9_-]{1,128})\)/g,
+    ),
+  );
+  const markerIds = matches.map((match) => match[2]);
+  if (
+    (markdown.match(/axiom-citation:\/\//g) ?? []).length !== matches.length ||
+    (new Set(markerIds).size === 0 && sourceIds.length > 0) ||
+    new Set(markerIds).size !== sourceIds.length ||
+    markerIds.some((id) => !sourceIds.includes(id)) ||
+    sourceIds.some((id) => !markerIds.includes(id))
+  ) {
+    return unavailable;
+  }
+
+  return {
+    citationSources: sources,
+    uncitedClaims: claims,
+    citationStatus: status,
+  };
+}
+
+function optionalBoundedString(value: unknown, maxLength: number) {
+  if (value === undefined || value === null) return "";
+  return typeof value === "string" && value.length <= maxLength ? value : null;
 }
 
 function specificationChanged(

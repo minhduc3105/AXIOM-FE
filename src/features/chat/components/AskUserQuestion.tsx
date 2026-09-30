@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { CircleHelpIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -80,6 +81,39 @@ export function AskUserQuestion({
       </CardHeader>
 
       <CardContent className="grid gap-4 p-0">
+        {interaction.safeguardAssessment?.findings.length ? (
+          <div className="grid gap-2" aria-label="Data findings">
+            {interaction.safeguardAssessment.findings.map((finding) => (
+              <Alert key={finding.id}>
+                <CircleHelpIcon className="size-4" />
+                <AlertDescription className="grid gap-1.5">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <strong>{finding.title}</strong>
+                    <Badge variant="outline">{finding.severity}</Badge>
+                  </span>
+                  <span>{finding.detail}</span>
+                  {finding.affectedScope ? (
+                    <span>
+                      <strong>Affected scope:</strong> {finding.affectedScope}
+                    </span>
+                  ) : null}
+                  {finding.impact ? (
+                    <span>
+                      <strong>Impact:</strong> {finding.impact}
+                    </span>
+                  ) : null}
+                  {finding.evidenceRefs.length ? (
+                    <span>
+                      <strong>Evidence:</strong>{" "}
+                      {finding.evidenceRefs.join(", ")}
+                    </span>
+                  ) : null}
+                </AlertDescription>
+              </Alert>
+            ))}
+          </div>
+        ) : null}
+
         <FieldSet className="gap-2">
           <FieldLegend className="sr-only">Choose one answer</FieldLegend>
           <RadioGroup

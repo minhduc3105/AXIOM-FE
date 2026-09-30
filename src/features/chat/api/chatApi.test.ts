@@ -78,18 +78,19 @@ describe("createInvestigation", () => {
   });
 
   it("sends reply context separately from the visible user prompt", async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      sseResponse([
-        {
-          type: "response.completed",
-          response_id: "response-1",
-          response: {
-            id: "response-1",
-            status: "completed",
-            output_text: "Saved the workflow.",
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        sseResponse([
+          {
+            type: "response.completed",
+            response_id: "response-1",
+            response: {
+              id: "response-1",
+              status: "completed",
+              output_text: "Saved the workflow.",
+            },
           },
-        },
-      ]),
+        ]),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -108,6 +109,152 @@ describe("createInvestigation", () => {
         "Remember how you answered this, so you can reuse it when I ask this again.",
       reply_context: "The previous analysis steps",
     });
+  });
+
+  it("parses bounded citation metadata from a completed response", async () => {
+    const source = {
+      id: "ev-source-1",
+      source: "finance.pdf",
+      locator: "page 4",
+      excerpt: "Revenue increased.",
+      document_id: "doc-1",
+      content_id: "chunk-1",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        sseResponse([
+          {
+            type: "response.completed",
+            response_id: "response-citations",
+            response: {
+              id: "response-citations",
+              status: "completed",
+              output_text:
+                "Revenue increased. [1](axiom-citation://ev-source-1)",
+            },
+            metadata: {
+              citation_sources: [source],
+              uncited_claims: [],
+              citation_status: "complete",
+            },
+          },
+        ]),
+      ),
+    );
+
+    const outcome = await createInvestigation(
+      "What changed in revenue?",
+      "conversation-1",
+      "general",
+      "instant",
+    );
+
+    expect(outcome.kind).toBe("completed");
+    if (outcome.kind === "completed") {
+      expect(outcome.result.citationSources).toEqual([
+        {
+          id: "ev-source-1",
+          source: "finance.pdf",
+          locator: "page 4",
+          excerpt: "Revenue increased.",
+          documentId: "doc-1",
+          contentId: "chunk-1",
+        },
+      ]);
+      expect(outcome.result.citationStatus).toBe("complete");
+      expect(outcome.result.uncitedClaims).toEqual([]);
+    }
+  });
+
+  it("downgrades duplicate or unresolved citation metadata", async () => {
+    const source = {
+      id: "ev-source-1",
+      source: "finance.pdf",
+      locator: "page 4",
+      excerpt: "Revenue increased.",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        sseResponse([
+          {
+            type: "response.completed",
+            response_id: "response-citations-invalid",
+            response: {
+              id: "response-citations-invalid",
+              status: "completed",
+              output_text:
+                "Revenue increased. [1](axiom-citation://ev-unresolved)",
+            },
+            metadata: {
+              citation_sources: [source, source],
+              uncited_claims: [],
+              citation_status: "complete",
+            },
+          },
+        ]),
+      ),
+    );
+
+    const outcome = await createInvestigation(
+      "What changed in revenue?",
+      "conversation-1",
+      "general",
+      "instant",
+    );
+
+    if (outcome.kind === "completed") {
+      expect(outcome.result.citationSources).toEqual([]);
+      expect(outcome.result.citationStatus).toBe("unavailable");
+    } else {
+      throw new Error("Expected a completed answer.");
+    }
+  });
+
+  it("downgrades citation metadata with an unknown status or oversized excerpt", async () => {
+    const source = {
+      id: "ev-source-1",
+      source: "finance.pdf",
+      locator: "page 4",
+      excerpt: "x".repeat(2001),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        sseResponse([
+          {
+            type: "response.completed",
+            response_id: "response-citations-oversized",
+            response: {
+              id: "response-citations-oversized",
+              status: "completed",
+              output_text:
+                "Revenue increased. [1](axiom-citation://ev-source-1)",
+            },
+            metadata: {
+              citation_sources: [source],
+              uncited_claims: [],
+              citation_status: "verified",
+            },
+          },
+        ]),
+      ),
+    );
+
+    const outcome = await createInvestigation(
+      "What changed in revenue?",
+      "conversation-1",
+      "general",
+      "instant",
+    );
+
+    if (outcome.kind === "completed") {
+      expect(outcome.result.citationSources).toEqual([]);
+      expect(outcome.result.citationStatus).toBe("unavailable");
+    } else {
+      throw new Error("Expected a completed answer.");
+    }
   });
 
   it("returns a safe pending question instead of treating it as a final answer", async () => {
@@ -148,13 +295,143 @@ describe("createInvestigation", () => {
         responseId: "response-clarify",
         interactionId: "interaction-1",
         question: "Which period do you mean?",
-            options: [
-              { id: "q1", label: "This quarter", source: "Report config" },
-              { id: "q2", label: "Last quarter" },
-            ],
+        options: [
+          { id: "q1", label: "This quarter", source: "Report config" },
+          { id: "q2", label: "Last quarter" },
+        ],
       },
     });
     expect("result" in outcome).toBe(false);
+  });
+
+  it("parses safeguard findings from a pending user-input event", async () => {
+    const safeguardAssessment = {
+      decision: "needs_user_input",
+      findings: [
+        {
+          id: "missing-period",
+          category: "data_quality",
+          severity: "moderate",
+          title: "Missing period",
+          detail: "April is absent from the source.",
+          impact: "The monthly average may be understated.",
+          affected_scope: "April",
+          evidence_refs: ["source://ledger"],
+          blocking: false,
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        sseResponse([
+          {
+            type: "response.requires_user_input",
+            response_id: "response-safeguard",
+            interaction_id: "interaction-safeguard",
+            reason: "data_quality_issue",
+            question: "Continue with the available months?",
+            options: [
+              { id: "continue", label: "Continue with available data" },
+            ],
+            safeguard_assessment: safeguardAssessment,
+          },
+        ]),
+      ),
+    );
+
+    const outcome = await createInvestigation(
+      "Calculate the monthly average",
+      "conversation-1",
+      "auto",
+      "instant",
+    );
+
+    expect(outcome).toMatchObject({
+      kind: "user_input_required",
+      interaction: {
+        reason: "data_quality_issue",
+        safeguardAssessment: {
+          decision: "needs_user_input",
+          findings: [
+            {
+              id: "missing-period",
+              category: "data_quality",
+              severity: "moderate",
+              title: "Missing period",
+              detail: "April is absent from the source.",
+              impact: "The monthly average may be understated.",
+              affectedScope: "April",
+              evidenceRefs: ["source://ledger"],
+              blocking: false,
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it("preserves completed safeguard findings in the result", async () => {
+    const safeguardAssessment = {
+      decision: "clear",
+      findings: [
+        {
+          id: "partial-coverage",
+          category: "data_quality",
+          severity: "low",
+          title: "Partial source coverage",
+          detail: "One requested week has no source records.",
+          impact: "The result covers the remaining weeks only.",
+          affected_scope: "Week 12",
+          evidence_refs: ["source://weekly-ledger"],
+          blocking: false,
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        sseResponse([
+          {
+            type: "response.completed",
+            response_id: "response-completed-safeguard",
+            response: {
+              id: "response-completed-safeguard",
+              status: "completed",
+              output_text: "The average is 12 for the available weeks.",
+            },
+            metadata: { safeguard_assessment: safeguardAssessment },
+          },
+        ]),
+      ),
+    );
+
+    const outcome = await createInvestigation(
+      "Calculate the weekly average",
+      "conversation-1",
+      "auto",
+      "instant",
+    );
+
+    expect("result" in outcome).toBe(true);
+    if ("result" in outcome) {
+      expect(outcome.result.safeguardAssessment).toEqual({
+        decision: "clear",
+        findings: [
+          {
+            id: "partial-coverage",
+            category: "data_quality",
+            severity: "low",
+            title: "Partial source coverage",
+            detail: "One requested week has no source records.",
+            impact: "The result covers the remaining weeks only.",
+            affectedScope: "Week 12",
+            evidenceRefs: ["source://weekly-ledger"],
+            blocking: false,
+          },
+        ],
+      });
+    }
   });
 
   it("submits a single answer and consumes the resumed response stream", async () => {
@@ -1280,41 +1557,42 @@ describe("loadConversationHistory", () => {
   it("restores a pending clarification from persisted messages", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            items: [
-              storedMessage({
-                message_id: "message-user",
-                role: "user",
-                content: {
-                  type: "response.request",
-                  input: "Calculate the average",
-                  execution_mode: "instant",
-                },
-              }),
-              storedMessage({
-                message_id: "message-question",
-                role: "system",
-                status: "requires_user_input",
-                content: {
-                  type: "response.requires_user_input",
-                  response_id: "response-1",
-                  interaction_id: "interaction-1",
-                  question: "Which definition should I use?",
-                  reason: "method_definition",
-                  options: [
-                    { id: "method-a", label: "Method A" },
-                    { id: "method-b", label: "Method B" },
-                  ],
-                  status: "awaiting_user_input",
-                },
-              }),
-            ],
-            pagination: { has_next: false },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                storedMessage({
+                  message_id: "message-user",
+                  role: "user",
+                  content: {
+                    type: "response.request",
+                    input: "Calculate the average",
+                    execution_mode: "instant",
+                  },
+                }),
+                storedMessage({
+                  message_id: "message-question",
+                  role: "system",
+                  status: "requires_user_input",
+                  content: {
+                    type: "response.requires_user_input",
+                    response_id: "response-1",
+                    interaction_id: "interaction-1",
+                    question: "Which definition should I use?",
+                    reason: "method_definition",
+                    options: [
+                      { id: "method-a", label: "Method A" },
+                      { id: "method-b", label: "Method B" },
+                    ],
+                    status: "awaiting_user_input",
+                  },
+                }),
+              ],
+              pagination: { has_next: false },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 
@@ -1335,59 +1613,127 @@ describe("loadConversationHistory", () => {
     });
   });
 
+  it("restores inline citation sources and status from persisted answers", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                storedMessage({
+                  message_id: "message-user",
+                  role: "user",
+                  content: {
+                    type: "response.request",
+                    input: "What changed in revenue?",
+                    execution_mode: "instant",
+                  },
+                }),
+                storedMessage({
+                  message_id: "message-assistant",
+                  role: "assistant",
+                  status: "completed",
+                  content: {
+                    type: "response.completed",
+                    output_text:
+                      "Revenue increased. [1](axiom-citation://ev-source-1)",
+                    metadata: {
+                      citation_sources: [
+                        {
+                          id: "ev-source-1",
+                          source: "finance.pdf",
+                          locator: "page 4",
+                          excerpt: "Revenue increased.",
+                          document_id: "doc-1",
+                          content_id: "chunk-1",
+                        },
+                      ],
+                      uncited_claims: [],
+                      citation_status: "complete",
+                    },
+                  },
+                }),
+              ],
+              pagination: { has_next: false },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+      ),
+    );
+
+    const history = await loadConversationHistory("conversation-1");
+
+    expect(history.turns[0]?.result).toMatchObject({
+      markdown: "Revenue increased. [1](axiom-citation://ev-source-1)",
+      citationStatus: "complete",
+      citationSources: [
+        {
+          id: "ev-source-1",
+          source: "finance.pdf",
+          locator: "page 4",
+          excerpt: "Revenue increased.",
+          documentId: "doc-1",
+          contentId: "chunk-1",
+        },
+      ],
+    });
+  });
+
   it("keeps a persisted clarification answer in its original chat turn", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            items: [
-              storedMessage({
-                message_id: "message-user",
-                role: "user",
-                content: {
-                  type: "response.request",
-                  input: "Calculate the average",
-                  execution_mode: "instant",
-                },
-              }),
-              storedMessage({
-                message_id: "message-question",
-                role: "system",
-                status: "requires_user_input",
-                content: {
-                  type: "response.requires_user_input",
-                  response_id: "response-1",
-                  interaction_id: "interaction-1",
-                  question: "Which definition should I use?",
-                  reason: "method_definition",
-                  options: [{ id: "method-a", label: "Method A" }],
-                  status: "awaiting_user_input",
-                },
-              }),
-              storedMessage({
-                message_id: "message-answer",
-                role: "user",
-                content: {
-                  type: "response.user_input",
-                  interaction_id: "interaction-1",
-                  selected_option_id: "method-a",
-                },
-              }),
-              storedMessage({
-                message_id: "message-assistant",
-                role: "assistant",
-                status: "completed",
-                content: {
-                  type: "response.completed",
-                  output_text: "The average is 12.",
-                },
-              }),
-            ],
-            pagination: { has_next: false },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                storedMessage({
+                  message_id: "message-user",
+                  role: "user",
+                  content: {
+                    type: "response.request",
+                    input: "Calculate the average",
+                    execution_mode: "instant",
+                  },
+                }),
+                storedMessage({
+                  message_id: "message-question",
+                  role: "system",
+                  status: "requires_user_input",
+                  content: {
+                    type: "response.requires_user_input",
+                    response_id: "response-1",
+                    interaction_id: "interaction-1",
+                    question: "Which definition should I use?",
+                    reason: "method_definition",
+                    options: [{ id: "method-a", label: "Method A" }],
+                    status: "awaiting_user_input",
+                  },
+                }),
+                storedMessage({
+                  message_id: "message-answer",
+                  role: "user",
+                  content: {
+                    type: "response.user_input",
+                    interaction_id: "interaction-1",
+                    selected_option_id: "method-a",
+                  },
+                }),
+                storedMessage({
+                  message_id: "message-assistant",
+                  role: "assistant",
+                  status: "completed",
+                  content: {
+                    type: "response.completed",
+                    output_text: "The average is 12.",
+                  },
+                }),
+              ],
+              pagination: { has_next: false },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 
@@ -1404,45 +1750,46 @@ describe("loadConversationHistory", () => {
   it("restores reply context from a persisted user message", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            items: [
-              {
-                message_id: "message-1",
-                conversation_id: "conversation-1",
-                role: "user",
-                content: {
-                  type: "response.request",
-                  input:
-                    "Remember how you answered this, so you can reuse it when I ask this again.",
-                  reply_context: "The previous analysis steps",
-                  execution_mode: "instant",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  message_id: "message-1",
+                  conversation_id: "conversation-1",
+                  role: "user",
+                  content: {
+                    type: "response.request",
+                    input:
+                      "Remember how you answered this, so you can reuse it when I ask this again.",
+                    reply_context: "The previous analysis steps",
+                    execution_mode: "instant",
+                  },
+                  response_id: "response-1",
+                  artifact_ref: null,
+                  status: "completed",
+                  metadata: {},
+                  created_at: "2026-09-29T00:00:00Z",
+                  updated_at: "2026-09-29T00:00:00Z",
                 },
-                response_id: "response-1",
-                artifact_ref: null,
-                status: "completed",
-                metadata: {},
-                created_at: "2026-09-29T00:00:00Z",
-                updated_at: "2026-09-29T00:00:00Z",
-              },
-              {
-                message_id: "message-2",
-                conversation_id: "conversation-1",
-                role: "assistant",
-                content: { output_text: "Saved the workflow." },
-                response_id: "response-1",
-                artifact_ref: null,
-                status: "completed",
-                metadata: {},
-                created_at: "2026-09-29T00:00:01Z",
-                updated_at: "2026-09-29T00:00:01Z",
-              },
-            ],
-            pagination: { has_next: false },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+                {
+                  message_id: "message-2",
+                  conversation_id: "conversation-1",
+                  role: "assistant",
+                  content: { output_text: "Saved the workflow." },
+                  response_id: "response-1",
+                  artifact_ref: null,
+                  status: "completed",
+                  metadata: {},
+                  created_at: "2026-09-29T00:00:01Z",
+                  updated_at: "2026-09-29T00:00:01Z",
+                },
+              ],
+              pagination: { has_next: false },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
       ),
     );
 

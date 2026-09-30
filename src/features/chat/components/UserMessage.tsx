@@ -37,7 +37,6 @@ export function UserMessage({
           <p className="text-sm leading-relaxed break-words">{question}</p>
         </div>
         <div className="flex min-w-0 flex-wrap justify-end gap-2">
-          {dataScope && <DataScopeChip scope={dataScope} />}
           <AttachmentList attachments={attachments} />
         </div>
       </div>
@@ -82,7 +81,6 @@ function DataScopeChip({ scope }: { scope: ChatDataScope }) {
 function AttachmentChip({ file }: { file: ChatAttachment }) {
   return (
     <span className="inline-flex max-w-[250px] items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground">
-      <PaperclipIcon className="size-3.5 shrink-0" />
       <span className="min-w-0 truncate">{file.name}</span>
     </span>
   );

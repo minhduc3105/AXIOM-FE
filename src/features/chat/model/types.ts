@@ -5,7 +5,47 @@ export type WorkflowStage = Exclude<ChatStage, "welcome" | "pending">;
 export type ProcessStatus = "waiting" | "running" | "done" | "failed";
 export type ChatEngine = "auto" | "general" | "reason" | "report";
 export type ChatExecutionMode = "instant" | "thinking";
-export type UserInputReason = "ambiguous_query" | "method_definition";
+export type UserInputReason =
+  | "ambiguous_query"
+  | "method_definition"
+  | "data_quality_issue"
+  | "source_conflict"
+  | "insufficient_evidence";
+
+export type SafeguardDecision =
+  | "clear"
+  | "needs_user_input"
+  | "blocked"
+  | "abstained";
+export type SafeguardCategory =
+  | "data_quality"
+  | "connection_risk"
+  | "source_conflict"
+  | "insufficient_evidence";
+export type SafeguardSeverity =
+  | "info"
+  | "low"
+  | "moderate"
+  | "high"
+  | "critical"
+  | "unknown";
+
+export type SafeguardFinding = {
+  id: string;
+  category: SafeguardCategory;
+  severity: SafeguardSeverity;
+  title: string;
+  detail: string;
+  impact?: string;
+  affectedScope?: string;
+  evidenceRefs: string[];
+  blocking: boolean;
+};
+
+export type SafeguardAssessment = {
+  decision: SafeguardDecision;
+  findings: SafeguardFinding[];
+};
 
 export type UserInputOption = {
   id: string;
@@ -20,6 +60,7 @@ export type PendingUserInput = {
   reason: UserInputReason;
   question: string;
   options: UserInputOption[];
+  safeguardAssessment?: SafeguardAssessment;
 };
 
 export type UserInputAnswer =
@@ -105,6 +146,17 @@ export type EvidenceItem = {
   tone: "success" | "warning";
 };
 
+export type CitationSource = {
+  id: string;
+  source: string;
+  locator: string;
+  excerpt: string;
+  documentId?: string;
+  contentId?: string;
+};
+
+export type CitationStatus = "complete" | "partial" | "unavailable";
+
 export type MockResult = {
   responseComplete?: boolean;
   title: string;
@@ -114,6 +166,10 @@ export type MockResult = {
   flags: string[];
   evidence: EvidenceItem[];
   artifacts: string[];
+  safeguardAssessment?: SafeguardAssessment;
+  citationSources?: CitationSource[];
+  uncitedClaims?: string[];
+  citationStatus?: CitationStatus;
 };
 
 export type ChatTurn = {
