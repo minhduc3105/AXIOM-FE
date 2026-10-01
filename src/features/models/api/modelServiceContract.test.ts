@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { MODEL_SERVICE_API_VERSION, modelServiceRoutes } from "./modelServiceContract";
+import {
+  MODEL_SERVICE_API_VERSION,
+  modelServiceRoutes,
+} from "./modelServiceContract";
 
 describe("Model Service v2 routes", () => {
   it("keeps every published endpoint under one v2 prefix", () => {
@@ -14,7 +17,6 @@ describe("Model Service v2 routes", () => {
       modelServiceRoutes.model("model/id"),
       modelServiceRoutes.modelTest("model/id"),
       modelServiceRoutes.inferenceResponses,
-      modelServiceRoutes.inferenceVisionResponses,
       modelServiceRoutes.inferenceEmbeddings,
       modelServiceRoutes.inferenceReranks,
       modelServiceRoutes.inferenceRequest("request/id"),

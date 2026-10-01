@@ -9,6 +9,7 @@ import { AppExperience } from "./AppExperience";
 
 const mocks = vi.hoisted(() => ({
   submitQuestion: vi.fn(),
+  chatDataScopeRefresh: vi.fn(),
   modelRegistryRefresh: vi.fn(),
   workflow: {
     activeConversationId: null as string | null,
@@ -46,6 +47,7 @@ type ChatPageStubProps = {
 type AppShellStubProps = {
   children: ReactNode;
   chatControls?: ReactNode;
+  onNewChat?: () => void;
 };
 
 type ChatSelectorStubProps = {
@@ -145,10 +147,25 @@ vi.mock("@/features/chat/model/useChatWorkflow", () => ({
   useChatWorkflow: () => mocks.workflow,
 }));
 
+vi.mock("@/features/chat/model/useChatDataScope", () => ({
+  useChatDataScope: () => ({
+    resources: [],
+    scope: { mode: "all", resourceIds: [] },
+    loading: false,
+    error: null,
+    preferenceError: null,
+    changeScope: vi.fn(),
+    refresh: mocks.chatDataScopeRefresh,
+  }),
+}));
+
 vi.mock("@/app/AppShell", () => ({
-  AppShell: ({ children, chatControls }: AppShellStubProps) => (
+  AppShell: ({ children, chatControls, onNewChat }: AppShellStubProps) => (
     <TooltipProvider>
       {chatControls}
+      <button type="button" onClick={onNewChat}>
+        New chat from shell
+      </button>
       {children}
     </TooltipProvider>
   ),
@@ -164,10 +181,7 @@ vi.mock("@/features/chat/ChatPage", () => ({
   }: ChatPageStubProps) => (
     <>
       <output data-testid="selected-chat-engine">{engine}</output>
-      <button
-        type="button"
-        onClick={() => onEngineChange("report")}
-      >
+      <button type="button" onClick={() => onEngineChange("report")}>
         Select Report response type
       </button>
       <button
@@ -254,6 +268,23 @@ describe("AppExperience chat controls", () => {
       stage: "welcome",
       processEvents: [],
     };
+  });
+
+  it("refreshes workspace files when starting a new chat", async () => {
+    const actor = userEvent.setup();
+    render(
+      <AppExperience
+        route={{ surface: "chat", page: "compose", sessionId: null }}
+        navigate={vi.fn()}
+      />,
+    );
+
+    await actor.click(
+      screen.getByRole("button", { name: "New chat from shell" }),
+    );
+
+    expect(mocks.workflow.newChat).toHaveBeenCalledOnce();
+    expect(mocks.chatDataScopeRefresh).toHaveBeenCalledOnce();
   });
 
   it("submits the model and reasoning selected from the chat top bar", async () => {

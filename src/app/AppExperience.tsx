@@ -293,11 +293,13 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
     ) {
       if (skipNextHydrationRef.current === chat.activeConversationId) return;
       chat.newChat();
+      chatDataScope.refresh();
     }
   }, [
     chat.activeConversationId,
     chat.newChat,
     chat.stage,
+    chatDataScope.refresh,
     route.surface === "chat" ? route.page : null,
     route.sessionId,
     route.surface,
@@ -306,8 +308,9 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
   const newChat = useCallback(() => {
     setFocusComposerRequest((current) => current + 1);
     chat.newChat();
+    chatDataScope.refresh();
     navigate(createChatRoute());
-  }, [chat.newChat, navigate]);
+  }, [chat.newChat, chatDataScope.refresh, navigate]);
 
   const openData = useCallback(() => {
     navigate(createDataRoute());
@@ -442,9 +445,16 @@ function AppExperienceContent({ route, navigate }: AppExperienceProps) {
         return;
       }
       chat.newChat();
+      chatDataScope.refresh();
       navigate(createChatRoute());
     },
-    [chat.newChat, navigate, route.sessionId, route.surface],
+    [
+      chat.newChat,
+      chatDataScope.refresh,
+      navigate,
+      route.sessionId,
+      route.surface,
+    ],
   );
 
   const changeChatEngine = useCallback((engine: ChatEngine) => {

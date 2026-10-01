@@ -21,10 +21,9 @@ export const modelServiceRoutes = {
     `${MODEL_SERVICE_API_VERSION}/models/${encode(resourceId)}`,
   modelTest: (resourceId: string) =>
     `${MODEL_SERVICE_API_VERSION}/models/${encode(resourceId)}:test`,
-  inferenceResponses: `${MODEL_SERVICE_API_VERSION}/inference/responses`,
-  inferenceVisionResponses: `${MODEL_SERVICE_API_VERSION}/inference/vision-responses`,
-  inferenceEmbeddings: `${MODEL_SERVICE_API_VERSION}/inference/embeddings`,
-  inferenceReranks: `${MODEL_SERVICE_API_VERSION}/inference/reranks`,
+  inferenceResponses: `${MODEL_SERVICE_API_VERSION}/chat/completions`,
+  inferenceEmbeddings: `${MODEL_SERVICE_API_VERSION}/embeddings`,
+  inferenceReranks: `${MODEL_SERVICE_API_VERSION}/rerank`,
   inferenceRequest: (requestId: string) =>
     `${MODEL_SERVICE_API_VERSION}/inference/requests/${encode(requestId)}`,
   inferenceAttempts: (requestId: string) =>
