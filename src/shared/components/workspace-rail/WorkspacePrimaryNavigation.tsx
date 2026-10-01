@@ -20,6 +20,7 @@ type WorkspacePrimaryNavigationProps = {
   expanded: boolean;
   surface: AppSurface;
   showOrganization: boolean;
+  showModels: boolean;
   /** @deprecated More is now an inline expanding section. */
   moreMenuSide?: "right" | "bottom";
   onNewChat: () => void;
@@ -119,6 +120,7 @@ function MoreNavigationMenu({
   expanded,
   active,
   showOrganization,
+  showModels,
   onModels,
   onMemory,
   onTools,
@@ -128,6 +130,7 @@ function MoreNavigationMenu({
   expanded: boolean;
   active: boolean;
   showOrganization: boolean;
+  showModels: boolean;
   onModels: () => void;
   onMemory: () => void;
   onTools: () => void;
@@ -157,12 +160,14 @@ function MoreNavigationMenu({
       </WorkspaceNavigationTooltip>
       {open && (
         <div className={cn("grid gap-0.5", expanded ? "pl-4" : "pl-0")}>
-          <MoreNavigationItem
-            expanded={expanded}
-            label="Models"
-            icon={BotIcon}
-            onClick={onModels}
-          />
+          {showModels && (
+            <MoreNavigationItem
+              expanded={expanded}
+              label="Models"
+              icon={BotIcon}
+              onClick={onModels}
+            />
+          )}
           <MoreNavigationItem
             expanded={expanded}
             label="Memory"
@@ -199,6 +204,7 @@ export function WorkspacePrimaryNavigation({
   expanded,
   surface,
   showOrganization,
+  showModels,
   moreMenuSide = "right",
   onNewChat,
   onData,
@@ -250,6 +256,7 @@ export function WorkspacePrimaryNavigation({
         expanded={expanded}
         active={secondaryActive}
         showOrganization={showOrganization}
+        showModels={showModels}
         onModels={onModels}
         onMemory={onMemory}
         onTools={onTools}

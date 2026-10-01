@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  ensureDefaultWorkspace,
   listMyWorkspaces,
   type AssignedWorkspace,
 } from "@/features/auth/api/authzApi";
@@ -26,7 +27,9 @@ type DataWorkspaceContextValue = {
   refreshWorkspaces: () => void;
 };
 
-const DataWorkspaceContext = createContext<DataWorkspaceContextValue | null>(null);
+const DataWorkspaceContext = createContext<DataWorkspaceContextValue | null>(
+  null,
+);
 
 export function DataWorkspaceProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
@@ -38,19 +41,33 @@ export function DataWorkspaceProvider({ children }: { children: ReactNode }) {
   const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
-    if (!auth.accessToken || !auth.user) {
+    const accessToken = auth.accessToken;
+    const user = auth.user;
+    if (!accessToken || !user) {
       setWorkspaces([]);
       setSelectedWorkspace(null);
       return;
     }
     const controller = new AbortController();
-    const storageKey = dataWorkspaceStorageKey(
-      auth.user.organization_id,
-      auth.user.id,
-    );
+    const storageKey = dataWorkspaceStorageKey(user.organization_id, user.id);
     setLoading(true);
     setError(null);
-    void listMyWorkspaces(auth.user.organization_id, auth.accessToken, controller.signal)
+    void listMyWorkspaces(user.organization_id, accessToken, controller.signal)
+      .then(async (assigned) => {
+        if (assigned.length === 0 && user.org_role === "org_admin") {
+          await ensureDefaultWorkspace(
+            user.organization_id,
+            accessToken,
+            controller.signal,
+          );
+          return listMyWorkspaces(
+            user.organization_id,
+            accessToken,
+            controller.signal,
+          );
+        }
+        return assigned;
+      })
       .then((assigned) => {
         const selected = resolveSelectedWorkspace(
           assigned,
@@ -74,32 +91,47 @@ export function DataWorkspaceProvider({ children }: { children: ReactNode }) {
     return () => controller.abort();
   }, [auth.accessToken, auth.user, refreshToken]);
 
-  const selectWorkspace = useCallback((workspaceId: string) => {
-    setSelectedWorkspace((current) => {
-      const selected = workspaces.find((workspace) => workspace.id === workspaceId);
-      if (!selected || selected.id === current?.id) return current;
-      if (auth.user) {
-        window.localStorage.setItem(
-          dataWorkspaceStorageKey(auth.user.organization_id, auth.user.id),
-          selected.id,
+  const selectWorkspace = useCallback(
+    (workspaceId: string) => {
+      setSelectedWorkspace((current) => {
+        const selected = workspaces.find(
+          (workspace) => workspace.id === workspaceId,
         );
-      }
-      return selected;
-    });
-  }, [auth.user, workspaces]);
+        if (!selected || selected.id === current?.id) return current;
+        if (auth.user) {
+          window.localStorage.setItem(
+            dataWorkspaceStorageKey(auth.user.organization_id, auth.user.id),
+            selected.id,
+          );
+        }
+        return selected;
+      });
+    },
+    [auth.user, workspaces],
+  );
 
   const refreshWorkspaces = useCallback(() => {
     setRefreshToken((current) => current + 1);
   }, []);
 
-  const value = useMemo(() => ({
-    workspaces,
-    selectedWorkspace,
-    loading,
-    error,
-    selectWorkspace,
-    refreshWorkspaces,
-  }), [error, loading, refreshWorkspaces, selectWorkspace, selectedWorkspace, workspaces]);
+  const value = useMemo(
+    () => ({
+      workspaces,
+      selectedWorkspace,
+      loading,
+      error,
+      selectWorkspace,
+      refreshWorkspaces,
+    }),
+    [
+      error,
+      loading,
+      refreshWorkspaces,
+      selectWorkspace,
+      selectedWorkspace,
+      workspaces,
+    ],
+  );
 
   return (
     <DataWorkspaceContext.Provider value={value}>
@@ -110,6 +142,9 @@ export function DataWorkspaceProvider({ children }: { children: ReactNode }) {
 
 export function useDataWorkspace() {
   const value = useContext(DataWorkspaceContext);
-  if (!value) throw new Error("useDataWorkspace must be used inside DataWorkspaceProvider");
+  if (!value)
+    throw new Error(
+      "useDataWorkspace must be used inside DataWorkspaceProvider",
+    );
   return value;
 }

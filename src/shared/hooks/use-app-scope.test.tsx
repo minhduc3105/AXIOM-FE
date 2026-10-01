@@ -5,10 +5,15 @@ import { useAppScope } from "./use-app-scope";
 
 const mocks = vi.hoisted(() => ({
   listWorkspaces: vi.fn(),
+  getOrganization: vi.fn(),
 }));
 
 vi.mock("@/features/auth/api/authzApi", () => ({
   listWorkspaces: mocks.listWorkspaces,
+}));
+
+vi.mock("@/features/auth/api/authApi", () => ({
+  getOrganization: mocks.getOrganization,
 }));
 
 const user: AuthUser = {
@@ -34,6 +39,12 @@ describe("useAppScope", () => {
         is_default: true,
       },
     ]);
+    mocks.getOrganization.mockResolvedValue({
+      id: "org-1",
+      slug: "research-ops",
+      display_name: "Research Operations",
+      status: "active",
+    });
   });
 
   afterEach(cleanup);
@@ -48,8 +59,10 @@ describe("useAppScope", () => {
       }),
     );
 
-    await waitFor(() => expect(result.current?.workspace?.name).toBe("Evidence Review"));
-    expect(result.current?.organization.name).toBe("org-1");
+    await waitFor(() =>
+      expect(result.current?.workspace?.name).toBe("Evidence Review"),
+    );
+    expect(result.current?.organization.name).toBe("Research Operations");
     expect(result.current?.workspace?.name).toBe("Evidence Review");
   });
 
@@ -63,7 +76,9 @@ describe("useAppScope", () => {
       }),
     );
 
-    expect(result.current?.organization.name).toBe("org-1");
+    await waitFor(() =>
+      expect(result.current?.organization.name).toBe("Research Operations"),
+    );
     expect(result.current?.workspace).toBeNull();
     expect(mocks.listWorkspaces).not.toHaveBeenCalled();
   });

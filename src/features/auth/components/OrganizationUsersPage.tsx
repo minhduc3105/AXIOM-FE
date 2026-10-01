@@ -90,6 +90,7 @@ import {
 } from "@/features/auth/api/authzApi";
 import { useAuth } from "@/features/auth/model/AuthProvider";
 import type { AuthUser } from "@/features/auth/model/types";
+import { parseOrganizationRole } from "@/features/auth/model/organizationRole";
 import { cn } from "@/shared/lib/utils";
 
 const panelClass = "rounded-xl border bg-card text-card-foreground shadow-sm";
@@ -368,6 +369,11 @@ export function OrganizationUsersPage({
       setMemberErrors(errors);
       return;
     }
+    const orgRole = parseOrganizationRole(form.get("member-role"));
+    if (!orgRole) {
+      setMemberErrors({ form: "Select a valid organization role." });
+      return;
+    }
     setMemberErrors({});
     setSaving(true);
     try {
@@ -377,7 +383,7 @@ export function OrganizationUsersPage({
           displayName: String(form.get("member-name") ?? "").trim(),
           email: String(form.get("member-email") ?? "").trim(),
           password: String(form.get("member-password") ?? ""),
-          orgRole: String(form.get("member-role")) as AuthUser["org_role"],
+          orgRole,
         },
         accessToken,
       );
@@ -1862,6 +1868,7 @@ function MemberDialog({
       }
     >
       <form id="add-member-form" onSubmit={onSubmit}>
+        <input type="hidden" name="member-role" value={role} />
         <FieldGroup className="gap-3">
           {errors.form && (
             <Alert variant="destructive">

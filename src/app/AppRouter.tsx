@@ -13,7 +13,10 @@ import type { AppRoute } from "./routing/types";
 import { useBrowserRoute } from "./routing/useBrowserRoute";
 
 type AppRouterProps = {
-  renderApp: (route: AppRoute, navigate: (nextRoute: AppRoute) => void) => React.ReactNode;
+  renderApp: (
+    route: AppRoute,
+    navigate: (nextRoute: AppRoute) => void,
+  ) => React.ReactNode;
 };
 
 export function AppRouter({ renderApp }: AppRouterProps) {
@@ -51,7 +54,10 @@ export function AppRouter({ renderApp }: AppRouterProps) {
       return;
     }
     if (authenticatedComposeRoute) {
-      navigate({ kind: "app", route: authenticatedComposeRoute }, { replace: true });
+      navigate(
+        { kind: "app", route: authenticatedComposeRoute },
+        { replace: true },
+      );
     }
   }, [
     authenticatedComposeRoute,
@@ -87,7 +93,9 @@ export function AppRouter({ renderApp }: AppRouterProps) {
         <RegisterPage
           loginHref={getAuthRoutePath(loginRoute)}
           onSignIn={() => navigate(loginRoute)}
-          onSuccess={() => navigatePath(registerRoute.returnTo, { replace: true })}
+          onSuccess={() =>
+            navigatePath(registerRoute.returnTo, { replace: true })
+          }
         />
       );
     }
@@ -97,12 +105,20 @@ export function AppRouter({ renderApp }: AppRouterProps) {
         sessionExpired={authRoute.reason === "session-expired"}
         registerHref={getAuthRoutePath(registerRoute)}
         onRegister={() => navigate(registerRoute)}
-        onSuccess={() => navigatePath(loginRoute.returnTo, { replace: true })}
+        onSuccess={() =>
+          navigatePath(
+            loginRoute.returnTo === "/organization"
+              ? "/chat"
+              : loginRoute.returnTo,
+            { replace: true },
+          )
+        }
       />
     );
   }
 
-  const appRoute = authenticatedComposeRoute ?? (route.kind === "app" ? route.route : null);
+  const appRoute =
+    authenticatedComposeRoute ?? (route.kind === "app" ? route.route : null);
   if (!appRoute) return null;
   return <>{renderApp(appRoute, navigateApp)}</>;
 }

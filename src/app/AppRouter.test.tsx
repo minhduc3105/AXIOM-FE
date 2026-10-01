@@ -73,6 +73,35 @@ describe("AppRouter registration route", () => {
   });
 });
 
+describe("AppRouter login return", () => {
+  beforeEach(() => {
+    Object.values(mocks).forEach((mock) => mock.mockReset());
+    mocks.useAuth.mockReturnValue(unauthenticatedAuth);
+    mocks.useBrowserRoute.mockReturnValue({
+      route: {
+        kind: "auth",
+        page: "login",
+        returnTo: "/organization",
+        reason: null,
+      },
+      path: "/login?returnTo=%2Forganization",
+      navigate: mocks.navigate,
+      navigatePath: mocks.navigatePath,
+    });
+  });
+
+  afterEach(cleanup);
+
+  it("lands in chat after login even when returnTo points to organization", async () => {
+    const actor = userEvent.setup();
+    render(<AppRouter renderApp={() => null} />);
+
+    await actor.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(mocks.navigatePath).toHaveBeenCalledWith("/chat", { replace: true });
+  });
+});
+
 describe("AppRouter legacy ingestion route", () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset());

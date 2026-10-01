@@ -4,30 +4,36 @@ import type {
   CreateOrganizationUserInput,
   CurrentUserResponse,
   OrganizationRegistrationResponse,
+  OrganizationSummary,
   CreateOrganizationInput,
   RegisterOrganizationInput,
-} from '@/features/auth/model/types'
+} from "@/features/auth/model/types";
 import {
   createAuthTransportError,
   parseAuthErrorResponse,
   type AuthErrorOperation,
-} from '@/features/auth/model/authErrors'
+} from "@/features/auth/model/authErrors";
 
 const gatewayApiBaseUrl = (
-  import.meta.env.VITE_AXIOM_GATEWAY_API_URL || ''
-).replace(/\/$/, '')
-const AUTH_API_BASE_URL = `${gatewayApiBaseUrl}/auth-service`.replace(/\/$/, '')
+  import.meta.env.VITE_AXIOM_GATEWAY_API_URL || ""
+).replace(/\/$/, "");
+const AUTH_API_BASE_URL = `${gatewayApiBaseUrl}/auth-service`.replace(
+  /\/$/,
+  "",
+);
 
 function authApiUrl(path: string) {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  return `${AUTH_API_BASE_URL}${normalizedPath}`
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${AUTH_API_BASE_URL}${normalizedPath}`;
 }
 
 function isAbortError(cause: unknown) {
-  return typeof cause === 'object'
-    && cause !== null
-    && 'name' in cause
-    && cause.name === 'AbortError'
+  return (
+    typeof cause === "object" &&
+    cause !== null &&
+    "name" in cause &&
+    cause.name === "AbortError"
+  );
 }
 
 async function requestAuth(
@@ -36,20 +42,20 @@ async function requestAuth(
   operation: AuthErrorOperation,
   acceptedErrorStatuses: readonly number[] = [],
 ): Promise<Response> {
-  let response: Response
+  let response: Response;
 
   try {
-    response = await fetch(authApiUrl(path), init)
+    response = await fetch(authApiUrl(path), init);
   } catch (cause) {
-    if (isAbortError(cause)) throw cause
-    throw createAuthTransportError(cause, operation)
+    if (isAbortError(cause)) throw cause;
+    throw createAuthTransportError(cause, operation);
   }
 
   if (!response.ok && !acceptedErrorStatuses.includes(response.status)) {
-    throw await parseAuthErrorResponse(response, operation)
+    throw await parseAuthErrorResponse(response, operation);
   }
 
-  return response
+  return response;
 }
 
 export async function loginWithPassword(
@@ -57,32 +63,40 @@ export async function loginWithPassword(
   password: string,
   signal?: AbortSignal,
 ): Promise<AuthTokenResponse> {
-  const response = await requestAuth('/api/v1/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-    signal,
-  }, 'login')
-  return (await response.json()) as AuthTokenResponse
+  const response = await requestAuth(
+    "/api/v1/auth/login",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+      signal,
+    },
+    "login",
+  );
+  return (await response.json()) as AuthTokenResponse;
 }
 
 export async function registerOrganization(
   input: RegisterOrganizationInput,
   signal?: AbortSignal,
 ): Promise<OrganizationRegistrationResponse> {
-  const response = await requestAuth('/api/v1/orgs/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      organization_name: input.organizationName.trim(),
-      organization_slug: input.organizationSlug.trim().toLowerCase(),
-      admin_display_name: input.adminDisplayName.trim(),
-      admin_email: input.adminEmail.trim().toLowerCase(),
-      admin_password: input.adminPassword,
-    }),
-    signal,
-  }, 'registration')
-  return (await response.json()) as OrganizationRegistrationResponse
+  const response = await requestAuth(
+    "/api/v1/orgs/register",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        organization_name: input.organizationName.trim(),
+        organization_slug: input.organizationSlug.trim().toLowerCase(),
+        admin_display_name: input.adminDisplayName.trim(),
+        admin_email: input.adminEmail.trim().toLowerCase(),
+        admin_password: input.adminPassword,
+      }),
+      signal,
+    },
+    "registration",
+  );
+  return (await response.json()) as OrganizationRegistrationResponse;
 }
 
 export async function createOrganization(
@@ -90,18 +104,39 @@ export async function createOrganization(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<OrganizationRegistrationResponse> {
-  const response = await requestAuth('/api/v1/orgs', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      organization_name: input.organizationName,
-      organization_slug: input.organizationSlug,
-      // These fields are retained by the bootstrap schema and ignored for authenticated creation.
-      admin_email: '', admin_display_name: '', admin_password: '',
-    }),
-    signal,
-  }, 'organization')
-  return (await response.json()) as OrganizationRegistrationResponse
+  const response = await requestAuth(
+    "/api/v1/orgs",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organization_name: input.organizationName.trim(),
+        organization_slug: input.organizationSlug.trim().toLowerCase(),
+      }),
+      signal,
+    },
+    "organization",
+  );
+  return (await response.json()) as OrganizationRegistrationResponse;
+}
+
+export async function getOrganization(
+  organizationId: string,
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<OrganizationSummary> {
+  const response = await requestAuth(
+    `/api/v1/orgs/${encodeURIComponent(organizationId)}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal,
+    },
+    "session",
+  );
+  return (await response.json()) as OrganizationSummary;
 }
 
 export async function switchOrganization(
@@ -109,13 +144,20 @@ export async function switchOrganization(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<AuthTokenResponse> {
-  const response = await requestAuth('/api/v1/auth/switch-organization', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ organization_id: organizationId }),
-    signal,
-  }, 'organization')
-  return (await response.json()) as AuthTokenResponse
+  const response = await requestAuth(
+    "/api/v1/auth/switch-organization",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ organization_id: organizationId }),
+      signal,
+    },
+    "organization",
+  );
+  return (await response.json()) as AuthTokenResponse;
 }
 
 export async function listOrganizationUsers(
@@ -126,10 +168,10 @@ export async function listOrganizationUsers(
   const response = await requestAuth(
     `/api/v1/orgs/${encodeURIComponent(organizationId)}/users`,
     { headers: { Authorization: `Bearer ${accessToken}` }, signal },
-    'organization',
-  )
-  const payload = (await response.json()) as { users: AuthUser[] }
-  return payload.users
+    "organization",
+  );
+  const payload = (await response.json()) as { users: AuthUser[] };
+  return payload.users;
 }
 
 export async function createOrganizationUser(
@@ -141,10 +183,10 @@ export async function createOrganizationUser(
   const response = await requestAuth(
     `/api/v1/orgs/${encodeURIComponent(organizationId)}/users`,
     {
-      method: 'POST',
+      method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         display_name: input.displayName,
@@ -154,23 +196,30 @@ export async function createOrganizationUser(
       }),
       signal,
     },
-    'organization',
-  )
-  return (await response.json()) as AuthUser
+    "organization",
+  );
+  return (await response.json()) as AuthUser;
 }
 
 export async function updateOrganizationUser(
   organizationId: string,
   userId: string,
-  orgRole: AuthUser['org_role'],
+  orgRole: AuthUser["org_role"],
   accessToken: string,
 ): Promise<AuthUser> {
-  const response = await requestAuth(`/api/v1/orgs/${encodeURIComponent(organizationId)}/users/${encodeURIComponent(userId)}`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ org_role: orgRole }),
-  }, 'organization')
-  return (await response.json()) as AuthUser
+  const response = await requestAuth(
+    `/api/v1/orgs/${encodeURIComponent(organizationId)}/users/${encodeURIComponent(userId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ org_role: orgRole }),
+    },
+    "organization",
+  );
+  return (await response.json()) as AuthUser;
 }
 
 export async function removeOrganizationUser(
@@ -178,34 +227,48 @@ export async function removeOrganizationUser(
   userId: string,
   accessToken: string,
 ): Promise<void> {
-  await requestAuth(`/api/v1/orgs/${encodeURIComponent(organizationId)}/users/${encodeURIComponent(userId)}`, {
-    method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` },
-  }, 'organization')
+  await requestAuth(
+    `/api/v1/orgs/${encodeURIComponent(organizationId)}/users/${encodeURIComponent(userId)}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+    "organization",
+  );
 }
 
 export async function refreshWithToken(
   refreshToken: string,
   signal?: AbortSignal,
 ): Promise<AuthTokenResponse> {
-  const response = await requestAuth('/api/v1/auth/refresh', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-    signal,
-  }, 'session')
-  return (await response.json()) as AuthTokenResponse
+  const response = await requestAuth(
+    "/api/v1/auth/refresh",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+      signal,
+    },
+    "session",
+  );
+  return (await response.json()) as AuthTokenResponse;
 }
 
 export async function logoutWithToken(
   refreshToken: string,
   signal?: AbortSignal,
 ): Promise<void> {
-  await requestAuth('/api/v1/auth/logout', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-    signal,
-  }, 'session', [401])
+  await requestAuth(
+    "/api/v1/auth/logout",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+      signal,
+    },
+    "session",
+    [401],
+  );
 }
 
 export async function changePassword(
@@ -214,29 +277,37 @@ export async function changePassword(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<AuthTokenResponse> {
-  const response = await requestAuth('/api/v1/auth/password', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+  const response = await requestAuth(
+    "/api/v1/auth/password",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+      signal,
     },
-    body: JSON.stringify({
-      current_password: currentPassword,
-      new_password: newPassword,
-    }),
-    signal,
-  }, 'password')
-  return (await response.json()) as AuthTokenResponse
+    "password",
+  );
+  return (await response.json()) as AuthTokenResponse;
 }
 
 export async function getCurrentUser(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<CurrentUserResponse> {
-  const response = await requestAuth('/api/v1/auth/me', {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${accessToken}` },
-    signal,
-  }, 'session')
-  return (await response.json()) as CurrentUserResponse
+  const response = await requestAuth(
+    "/api/v1/auth/me",
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal,
+    },
+    "session",
+  );
+  return (await response.json()) as CurrentUserResponse;
 }

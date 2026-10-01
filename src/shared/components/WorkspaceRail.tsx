@@ -147,6 +147,7 @@ function RailContent({
         expanded={expanded}
         surface={surface}
         showOrganization={user?.org_role === "org_admin"}
+        showModels={user?.org_role !== "org_member"}
         moreMenuSide={moreMenuSide}
         onNewChat={onNewChat}
         onData={onData}
